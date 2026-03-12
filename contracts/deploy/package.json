@@ -1,0 +1,16 @@
+{
+  "name": "discov3ry-deploy",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "generate": "npx polkadot-api generate --config .papi/polkadot-api.json",
+    "deploy": "bun run deploy-multicall3.ts"
+  },
+  "dependencies": {
+    "@polkadot-api/descriptors": "file:.papi/descriptors",
+    "@polkadot/keyring": "^14.0.1",
+    "@polkadot/util-crypto": "^14.0.1",
+    "polkadot-api": "^1.23.1",
+    "viem": "^2.43.1"
+  }
+}

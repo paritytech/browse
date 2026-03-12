@@ -1,0 +1,19 @@
+node_modules/
+dist/
+.vite/
+*.log
+
+# Hardhat / Foundry
+cache/
+cache_hh/
+out/
+artifacts/
+typechain-types/
+contracts/lib/
+
+# Build artifacts
+.playwright-mcp/
+
+# Environment
+.env
+.env.*
