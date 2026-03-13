@@ -17,3 +17,11 @@ contracts/lib/
 # Environment
 .env
 .env.*
+
+# OS
+.DS_Store
+
+# Build output
+app/bundle/
+app/browse.prod
+app/chain-specs/
