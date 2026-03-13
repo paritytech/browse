@@ -74,6 +74,7 @@ const FILTER_MODES: { id: FilterMode; label: string; enabled: boolean }[] = [
 export function renderApp(root: HTMLElement): {
   setApps: (apps: AppEntry[]) => void;
   setLoading: (loading: boolean) => void;
+  setStatus: (message: string) => void;
 } {
   let currentApps: AppEntry[] = [];
   let currentQuery = "";
@@ -87,41 +88,51 @@ export function renderApp(root: HTMLElement): {
           <p class="subtitle">products on polkadot</p>
         </div>
 
-        <div class="card">
-          <div class="search-wrap">
-            <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
-              <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.3"/>
-              <path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
-            </svg>
-            <input
-              id="search-input"
-              class="search-input"
-              type="text"
-              placeholder="Search products..."
-              autocomplete="off"
-              spellcheck="false"
-            />
+        <div class="card-flip" id="card-flip">
+          <div class="card front" id="card-front">
+            <div class="search-wrap">
+              <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.3"/>
+                <path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              </svg>
+              <input
+                id="search-input"
+                class="search-input"
+                type="text"
+                placeholder="Search products..."
+                autocomplete="off"
+                spellcheck="false"
+              />
+            </div>
+
+            <div class="filters" id="filters">
+              ${FILTER_MODES.map(
+                (f) => `
+                <button
+                  class="pill ${f.id === currentMode ? "pill--selected" : ""} ${!f.enabled ? "pill--disabled" : ""}"
+                  data-mode="${f.id}"
+                  ${!f.enabled ? "disabled" : ""}
+                >
+                  ${f.label}${!f.enabled ? '<span class="pill__soon">soon</span>' : ""}
+                </button>
+              `
+              ).join("")}
+            </div>
+
+            <div class="app-list" id="app-list">
+              ${renderSkeletons(5)}
+            </div>
+
+            <div class="list-count" id="list-count"></div>
           </div>
 
-          <div class="filters" id="filters">
-            ${FILTER_MODES.map(
-              (f) => `
-              <button
-                class="pill ${f.id === currentMode ? "pill--selected" : ""} ${!f.enabled ? "pill--disabled" : ""}"
-                data-mode="${f.id}"
-                ${!f.enabled ? "disabled" : ""}
-              >
-                ${f.label}${!f.enabled ? '<span class="pill__soon">soon</span>' : ""}
-              </button>
-            `
-            ).join("")}
+          <div class="card back" id="card-back">
+            <div class="debug-header">
+              <span class="debug-title">debug</span>
+              <span class="debug-count" id="debug-count"></span>
+            </div>
+            <div class="debug-log" id="debug-log"></div>
           </div>
-
-          <div class="app-list" id="app-list">
-            ${renderSkeletons(5)}
-          </div>
-
-          <div class="list-count" id="list-count"></div>
         </div>
 
         <div class="footer"></div>
@@ -185,6 +196,19 @@ export function renderApp(root: HTMLElement): {
         listEl.innerHTML = renderSkeletons(5);
         countEl.textContent = "";
       }
+    },
+    setStatus(message: string) {
+      listEl.innerHTML = `
+        <div class="empty-state">
+          <div class="empty-state__icon">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+              <circle cx="16" cy="16" r="12" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3"/>
+            </svg>
+          </div>
+          <p class="empty-state__text">${message}</p>
+        </div>
+      `;
+      countEl.textContent = "";
     },
   };
 }

@@ -1,9 +1,20 @@
 import { getApps } from "./data";
 import { renderApp } from "./ui";
+import { setupDebugConsole } from "./debug";
 import "./style.css";
 
 const root = document.querySelector("#app") as HTMLElement;
-const { setApps, setLoading } = renderApp(root);
+const { setApps, setLoading, setStatus } = renderApp(root);
+setupDebugConsole(root);
 
 setLoading(true);
-getApps().then((apps) => setApps(apps));
+getApps((partialApps) => {
+  // Progressive: show label-only cards as stores are scanned
+  setApps(partialApps);
+}).then((result) => {
+  if (result.status === "ok" || result.status === "mock") {
+    setApps(result.apps);
+  } else {
+    setStatus(result.message);
+  }
+});

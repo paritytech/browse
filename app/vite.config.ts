@@ -1,6 +1,8 @@
 import { defineConfig } from "vite";
+import { nodePolyfills } from "vite-plugin-node-polyfills";
 
 export default defineConfig({
+  plugins: [nodePolyfills()],
   build: {
     target: "es2022",
   },

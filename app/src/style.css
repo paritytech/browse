@@ -106,14 +106,14 @@ input {
    Staggered entrance
    ============================================================ */
 .header,
-.card,
+.card-flip,
 .footer {
   animation: fadeUp 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.header { animation-delay: 0ms; }
-.card   { animation-delay: 80ms; }
-.footer { animation-delay: 160ms; }
+.header    { animation-delay: 0ms; }
+.card-flip { animation-delay: 80ms; }
+.footer    { animation-delay: 160ms; }
 
 @keyframes fadeUp {
   from {
@@ -590,4 +590,101 @@ input {
   .filters {
     gap: 0.375rem;
   }
+}
+
+/* ============================================================
+   Card flip (3D flip to reveal debug console)
+   ============================================================ */
+.card-flip {
+  position: relative;
+  perspective: 800px;
+  animation: fadeUp 600ms cubic-bezier(0.16, 1, 0.3, 1) 80ms both;
+  contain: layout style;
+}
+
+.card-flip .front,
+.card-flip .back {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-flip .front {
+  transform: rotateY(0deg);
+}
+
+.card-flip .back {
+  transform: rotateY(180deg);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+}
+
+.card-flip.flipped .front {
+  transform: rotateY(-180deg);
+  pointer-events: none;
+}
+
+.card-flip.flipped .back {
+  transform: rotateY(0deg);
+}
+
+/* ============================================================
+   Debug console (back of card)
+   ============================================================ */
+.debug-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+
+.debug-title {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--color-heading);
+  font-weight: 600;
+}
+
+.debug-count {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  color: var(--color-muted);
+}
+
+.debug-log {
+  max-height: 400px;
+  overflow-y: auto;
+  margin-top: 0.75rem;
+  padding: 0.5rem;
+  background: var(--color-surface-deep);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  line-height: 1.6;
+}
+
+.debug-entry {
+  padding: 0.15rem 0.5rem;
+  color: var(--color-secondary);
+  border-radius: 3px;
+}
+
+.debug-entry--warn {
+  color: #e5a53d;
+}
+
+.debug-entry--error {
+  color: #ef4444;
+}
+
+.debug-time {
+  color: var(--color-muted);
+  margin-right: 0.75rem;
+  min-width: 4em;
+  display: inline-block;
+  text-align: right;
 }
