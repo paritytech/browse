@@ -150,7 +150,9 @@ export function renderApp(root: HTMLElement): {
   // dotli handles it via window.open to dot.li gateway.
   let hostNavigate: ((label: string) => void) | null = null;
   import("@novasamatech/product-sdk").then((sdk) => {
-    if (sdk.hostApi?.navigateTo) {
+    // Only use navigateTo in host-rs (dotapp:// protocol).
+    // In dotli (http/https), let the <a href> to dot.li gateway work.
+    if (sdk.hostApi?.navigateTo && location.protocol === "dotapp:") {
       hostNavigate = (label: string) => {
         sdk.hostApi.navigateTo({ tag: "v1", value: `${label}.dot` });
       };
