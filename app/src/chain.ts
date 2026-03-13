@@ -17,6 +17,14 @@ let apiInstance: ReturnType<PolkadotClient["getUnsafeApi"]> | null = null;
 let ensurePromise: Promise<ReturnType<PolkadotClient["getUnsafeApi"]>> | null =
   null;
 
+export type ChainStatusCallback = (msg: string) => void;
+let onChainStatus: ChainStatusCallback | null = null;
+
+/** Register a callback for chain connection progress messages. */
+export function setChainStatusCallback(cb: ChainStatusCallback): void {
+  onChainStatus = cb;
+}
+
 async function doEnsureApi(): Promise<
   ReturnType<PolkadotClient["getUnsafeApi"]>
 > {
@@ -31,10 +39,11 @@ async function doEnsureApi(): Promise<
   clientInstance = createClient(provider);
 
   dlog("Waiting for finalized block...");
+  onChainStatus?.("Connecting to chain...");
   const block = await Promise.race([
     clientInstance.getFinalizedBlock(),
     new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Chain sync timed out after 30s")), 30_000),
+      setTimeout(() => reject(new Error("Chain sync timed out after 120s")), 120_000),
     ),
   ]);
   dlog(`Connected to chain — block #${block.number}`);
