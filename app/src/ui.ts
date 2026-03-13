@@ -8,7 +8,7 @@ function renderAppCard(app: AppEntry, index: number): string {
   const letter = name[0].toLowerCase();
 
   return `
-    <a class="app-card" style="animation-delay: ${delay}ms" href="https://${app.label}.dot.li" target="_blank" rel="noopener">
+    <a class="app-card" style="animation-delay: ${delay}ms" data-label="${app.label}" href="https://${app.label}.dot.li">
       <div class="app-card__icon">
         <span class="app-card__letter">${letter}</span>
       </div>
@@ -144,6 +144,30 @@ export function renderApp(root: HTMLElement): {
   const countEl = root.querySelector("#list-count") as HTMLElement;
   const searchInput = root.querySelector("#search-input") as HTMLInputElement;
   const filtersEl = root.querySelector("#filters") as HTMLElement;
+
+  // Navigate: use host-api navigateTo when hosted, fall back to regular link.
+  // host-rs handles "label.dot" → resolves and opens in a new tab.
+  // dotli handles it via window.open to dot.li gateway.
+  let hostNavigate: ((label: string) => void) | null = null;
+  import("@novasamatech/product-sdk").then((sdk) => {
+    if (sdk.hostApi?.navigateTo) {
+      hostNavigate = (label: string) => {
+        sdk.hostApi.navigateTo({ tag: "v1", value: `${label}.dot` });
+      };
+    }
+  }).catch(() => { /* not hosted — links fall through to href */ });
+
+  listEl.addEventListener("click", (e) => {
+    const card = (e.target as HTMLElement).closest<HTMLAnchorElement>(".app-card[data-label]");
+    if (!card) return;
+    const label = card.dataset.label;
+    if (!label) return;
+    if (hostNavigate) {
+      e.preventDefault();
+      hostNavigate(label);
+    }
+    // Otherwise: default <a> behavior opens the dot.li URL
+  });
 
   function updateList() {
     const filtered = filterApps(currentApps, currentQuery);
