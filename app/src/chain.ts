@@ -10,6 +10,8 @@ import {
   ASSET_HUB_PASEO_GENESIS,
 } from "./config";
 import { dlog } from "./debug";
+import { getPolkadotSignerFromPjs } from "@polkadot-api/pjs-signer";
+import { fromHex } from "@novasamatech/host-api";
 
 import { blake2b } from "@noble/hashes/blake2.js";
 import { base58 } from "@scure/base";
@@ -183,8 +185,7 @@ export async function getWalletAccount(): Promise<WalletAccount | null> {
     const ss58Address = ss58Encode(publicKey);
     dlog(`Wallet SS58: ${ss58Address}`);
 
-    // Build signer with SS58 address via getPolkadotSignerFromPjs
-    const { getPolkadotSignerFromPjs } = await import("@polkadot-api/pjs-signer");
+    // Build signer with SS58 address
     const signer = getPolkadotSignerFromPjs(
       ss58Address,
       async (payload) => {
@@ -201,7 +202,6 @@ export async function getWalletAccount(): Promise<WalletAccount | null> {
         );
       },
       async (raw) => {
-        const { fromHex } = await import("@novasamatech/host-api");
         const response = await sdk.hostApi.signRaw(
           { tag: "v1", value: {
             address: raw.address,
