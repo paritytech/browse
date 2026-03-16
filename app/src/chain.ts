@@ -11,6 +11,24 @@ import {
 } from "./config";
 import { dlog } from "./debug";
 
+import { blake2b } from "@noble/hashes/blake2.js";
+import { base58 } from "@scure/base";
+
+/** Encode a 32-byte public key as SS58 address (prefix 42 = generic Substrate). */
+function ss58Encode(publicKey: Uint8Array, prefix = 42): string {
+  const payload = new Uint8Array(35); // 1 prefix + 32 key + 2 checksum
+  payload[0] = prefix;
+  payload.set(publicKey, 1);
+  const context = new TextEncoder().encode("SS58PRE");
+  const input = new Uint8Array(context.length + 33);
+  input.set(context);
+  input.set(payload.subarray(0, 33), context.length);
+  const hash = blake2b(input, { dkLen: 64 });
+  payload[33] = hash[0];
+  payload[34] = hash[1];
+  return base58.encode(payload);
+}
+
 let clientInstance: PolkadotClient | null = null;
 let apiInstance: ReturnType<PolkadotClient["getUnsafeApi"]> | null = null;
 
@@ -157,11 +175,52 @@ export async function getWalletAccount(): Promise<WalletAccount | null> {
     }
 
     const { publicKey, name } = result.value;
-    const productAccount = { dotNsIdentifier: "browse", derivationIndex: 0, publicKey };
-    const signer = accounts.getProductAccountSigner(productAccount);
+
+    // The SDK's getProductAccountSigner passes raw hex as the address,
+    // but the host's signPayload expects SS58. Convert before creating the signer.
+    const ss58Address = ss58Encode(publicKey);
+    dlog(`Wallet SS58: ${ss58Address}`);
+
+    // Build signer with SS58 address via getPolkadotSignerFromPjs
+    const { getPolkadotSignerFromPjs } = await import("@polkadot-api/pjs-signer");
+    const signer = getPolkadotSignerFromPjs(
+      ss58Address,
+      async (payload) => {
+        const response = await sdk.hostApi.signPayload(
+          { tag: "v1", value: payload } as any,
+        );
+        return response.match(
+          (r: any) => ({
+            id: 0,
+            signature: r.value.signature,
+            signedTransaction: r.value.signedTransaction,
+          }),
+          (e: any) => { throw e.value; },
+        );
+      },
+      async (raw) => {
+        const { fromHex } = await import("@novasamatech/host-api");
+        const response = await sdk.hostApi.signRaw(
+          { tag: "v1", value: {
+            address: raw.address,
+            data: raw.type === "bytes"
+              ? { tag: "Bytes" as const, value: fromHex(raw.data as `0x${string}`) }
+              : { tag: "Payload" as const, value: raw.data },
+          }} as any,
+        );
+        return response.match(
+          (r: any) => ({
+            id: 0,
+            signature: r.value.signature,
+            signedTransaction: r.value.signedTransaction,
+          }),
+          (e: any) => { throw e.value; },
+        );
+      },
+    );
 
     cachedAccount = { publicKey, name, signer };
-    dlog(`Wallet connected: ${name ?? "unnamed"}`);
+    dlog(`Wallet connected: ${name ?? "unnamed"} (${ss58Address.slice(0, 8)}...)`);
     return cachedAccount;
   } catch (err) {
     dlog(`Failed to get wallet: ${err}`, "warn");
