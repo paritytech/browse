@@ -155,6 +155,7 @@ export function renderApp(root: HTMLElement): {
 
         <div class="footer"></div>
       </div>
+      <div class="toast" id="toast"></div>
     </div>
   `;
 
@@ -162,6 +163,17 @@ export function renderApp(root: HTMLElement): {
   const countEl = root.querySelector("#list-count") as HTMLElement;
   const searchInput = root.querySelector("#search-input") as HTMLInputElement;
   const filtersEl = root.querySelector("#filters") as HTMLElement;
+  const toastEl = root.querySelector("#toast") as HTMLElement;
+
+  let toastTimeout: ReturnType<typeof setTimeout> | null = null;
+  function showToast(message: string) {
+    toastEl.textContent = message;
+    toastEl.classList.add("toast--visible");
+    if (toastTimeout) clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => {
+      toastEl.classList.remove("toast--visible");
+    }, 3000);
+  }
 
   // Navigate: use host-api navigateTo when hosted, fall back to regular link.
   // host-rs handles "label.dot" → resolves and opens in a new tab.
@@ -198,8 +210,11 @@ export function renderApp(root: HTMLElement): {
             app.vouchCount = (app.vouchCount ?? 0) + 1;
             updateList();
           }
+          showToast(`Vouched for ${label}.dot`);
+        } else if (result.status === "no-wallet") {
+          showToast("Sign in to vouch for products");
         } else {
-          // Brief flash to indicate failure
+          showToast("Vouch failed — try again");
           vouchBtn.classList.add("vouch-btn--error");
           setTimeout(() => vouchBtn.classList.remove("vouch-btn--error"), 1500);
         }

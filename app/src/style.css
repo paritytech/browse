@@ -579,6 +579,31 @@ input {
   to { transform: rotate(360deg); }
 }
 
+/* ============================================================
+   Toast notification
+   ============================================================ */
+.toast {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%) translateY(1rem);
+  background: rgba(30, 30, 30, 0.95);
+  color: var(--color-secondary);
+  font-size: 0.82rem;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 1000;
+}
+
+.toast--visible {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
 .empty-state__text {
   font-size: 0.88rem;
   color: var(--color-secondary);
