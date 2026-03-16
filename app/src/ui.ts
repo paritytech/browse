@@ -280,11 +280,7 @@ export function renderApp(root: HTMLElement): {
     setStatus(message: string) {
       listEl.innerHTML = `
         <div class="empty-state">
-          <div class="empty-state__icon">
-            <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-              <circle cx="16" cy="16" r="12" stroke="currentColor" stroke-width="2" stroke-dasharray="4 3"/>
-            </svg>
-          </div>
+          <div class="spinner"></div>
           <p class="empty-state__text">${message}</p>
         </div>
       `;
