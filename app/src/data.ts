@@ -114,7 +114,9 @@ async function fetchAppsFromChain(
           dlog(`  store[${s}]: +${newLabels.length} → [${newLabels.join(", ")}]`);
           // Progressive: send label-only entries to UI immediately.
           if (onProgress) {
-            const partial = Array.from(labelSet).map((label) => ({
+            // Skip sorting during scan — labels arrive incrementally and will
+            // be properly sorted after metadata is fetched in Step 3.
+            const partial: AppEntry[] = Array.from(labelSet).map((label) => ({
               label,
               name: null,
               description: "Loading...",
@@ -122,7 +124,7 @@ async function fetchAppsFromChain(
               isLive: false,
               vouchCount: null,
             }));
-            onProgress(sortApps(partial));
+            onProgress(partial);
           }
         }
       }

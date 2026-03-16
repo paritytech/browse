@@ -1,4 +1,4 @@
-import { getApps, type FilterMode } from "./data";
+import { getApps, type FilterMode, type AppEntry } from "./data";
 import { renderApp } from "./ui";
 import { setupDebugConsole } from "./debug";
 import { setChainStatusCallback } from "./chain";
@@ -21,9 +21,20 @@ if (hash) {
 
 setChainStatusCallback((msg) => setStatus(msg));
 setLoading(true);
+
+// Debounce progressive updates to one render per animation frame.
+// Store scans fire onProgress rapidly; collapsing them avoids DOM thrashing.
+let pendingApps: AppEntry[] | null = null;
+let rafId: number | null = null;
+
 getApps((partialApps) => {
-  // Progressive: show label-only cards as stores are scanned
-  setApps(partialApps);
+  pendingApps = partialApps;
+  if (rafId === null) {
+    rafId = requestAnimationFrame(() => {
+      rafId = null;
+      if (pendingApps) setApps(pendingApps);
+    });
+  }
 }).then((result) => {
   if (result.status === "ok" || result.status === "mock") {
     setApps(result.apps);
