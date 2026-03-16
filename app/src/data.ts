@@ -82,7 +82,10 @@ async function fetchAppsFromChain(
   //   Multicall3 does NOT work for Store.getValues() — Revive nested calls
   //   return empty data. Must call each store directly.
   //   Progressive: emit labels to UI as soon as they're found.
-  const CONCURRENCY = 12;
+  // Keep concurrency low — smoldot is a Wasm light client running in the browser.
+  // Each reviveCall triggers state proof verification on the JS event loop.
+  // 12 was causing Firefox "slowing down" warnings; 4 balances throughput vs responsiveness.
+  const CONCURRENCY = 4;
   dlog(`Step 2: Scanning ${storeAddresses.length} stores (concurrency=${CONCURRENCY})`);
   const labelSet = new Set<string>();
 
