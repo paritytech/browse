@@ -1,18 +1,24 @@
-import { CONTRACTS } from "./config";
+import { CONTRACTS, SCHEMA_RATING } from "./config";
 import {
   namehash,
+  nodeToSubject,
   encodeGetAllDeployedStores,
   encodeGetValues,
   encodeContenthash,
   encodeText,
+  encodeAttestCount,
+  encodeAttest,
+  encodeRevoke,
+  encodeRatingValue,
   decodeAddressArray,
   decodeStringArray,
   decodeBytes,
   decodeString,
   decodeIpfsContenthash,
+  decodeUint64,
   type MulticallTarget,
 } from "./abi";
-import { reviveCall } from "./chain";
+import { reviveCall, reviveSubmit, getWalletAccount } from "./chain";
 import { multicall } from "./multicall";
 import { dlog } from "./debug";
 
@@ -24,6 +30,8 @@ export interface AppEntry {
   description: string;
   contentHash: string | null;
   isLive: boolean;
+  /** Number of attestations (vouches) for this product. null = not yet loaded. */
+  vouchCount: number | null;
 }
 
 export type FilterMode = "all" | "curated" | "attendee" | "popular";
@@ -38,8 +46,16 @@ export function displayName(app: AppEntry): string {
 /** Callback invoked as labels are discovered (before metadata). */
 export type OnLabelsFound = (apps: AppEntry[]) => void;
 
-function sortApps(apps: AppEntry[]): AppEntry[] {
+function sortApps(apps: AppEntry[], mode: FilterMode = "all"): AppEntry[] {
   return apps.slice().sort((a, b) => {
+    // Popular mode: sort by vouch count descending, then name
+    if (mode === "popular") {
+      const aCount = a.vouchCount ?? 0;
+      const bCount = b.vouchCount ?? 0;
+      if (aCount !== bCount) return bCount - aCount;
+      return displayName(a).localeCompare(displayName(b));
+    }
+    // Default: live first, then alphabetical
     if (a.isLive !== b.isLive) return a.isLive ? -1 : 1;
     return displayName(a).localeCompare(displayName(b));
   });
@@ -101,6 +117,7 @@ async function fetchAppsFromChain(
               description: "Loading...",
               contentHash: null,
               isLive: false,
+              vouchCount: null,
             }));
             onProgress(sortApps(partial));
           }
@@ -144,29 +161,37 @@ async function fetchAppsFromChain(
     return [];
   }
 
-  // Step 3: Batch metadata queries — 3 calls per label via Multicall3
-  //   Multicall3 works for ContentResolver (unlike Store.getValues()).
+  // Step 3: Batch metadata + attestation count queries — 4 calls per label via Multicall3
+  //   Multicall3 works for ContentResolver and AttestationRegistry (unlike Store.getValues()).
+  const CALLS_PER_LABEL = 4;
   const metadataCalls: MulticallTarget[] = [];
   for (const label of uniqueLabels) {
     const node = namehash(`${label}.dot`);
+    const subject = nodeToSubject(node);
     metadataCalls.push(
       { target: CONTRACTS.CONTENT_RESOLVER, callData: encodeContenthash(node) },
       { target: CONTRACTS.CONTENT_RESOLVER, callData: encodeText(node, "name") },
       { target: CONTRACTS.CONTENT_RESOLVER, callData: encodeText(node, "description") },
+      { target: CONTRACTS.ATTESTATION_REGISTRY, callData: encodeAttestCount(subject) },
     );
   }
-  dlog(`Step 3: Multicall metadata — ${metadataCalls.length} calls (${uniqueLabels.length} domains x 3)`);
+  dlog(`Step 3: Multicall metadata+attestations — ${metadataCalls.length} calls (${uniqueLabels.length} domains x ${CALLS_PER_LABEL})`);
   const metadataResults = await multicall(metadataCalls);
   dlog(`Got ${metadataResults.length} metadata results`);
+
+  if (metadataResults.length !== metadataCalls.length) {
+    dlog(`Result count mismatch: expected ${metadataCalls.length}, got ${metadataResults.length}`, "warn");
+  }
 
   // Step 4: Assemble AppEntry[] from results
   const apps: AppEntry[] = [];
   for (let i = 0; i < uniqueLabels.length; i++) {
     const label = uniqueLabels[i];
-    const base = i * 3;
+    const base = i * CALLS_PER_LABEL;
     const chResult = metadataResults[base];
     const nameResult = metadataResults[base + 1];
     const descResult = metadataResults[base + 2];
+    const countResult = metadataResults[base + 3];
 
     let contentHash: string | null = null;
     if (chResult?.success) {
@@ -191,12 +216,21 @@ async function fetchAppsFromChain(
       } catch { /* no description */ }
     }
 
+    let vouchCount: number | null = null;
+    if (countResult?.success) {
+      try {
+        const decoded = decodeUint64(countResult.returnData);
+        if (decoded !== null) vouchCount = decoded;
+      } catch { /* no attestation data */ }
+    }
+
     apps.push({
       label,
       name,
       description: description || "No description",
       contentHash,
       isLive: contentHash !== null,
+      vouchCount,
     });
   }
 
@@ -212,6 +246,7 @@ const MOCK_APPS: AppEntry[] = [
     description: "The easiest way to get DOT, USDC, and USDT on Polkadot",
     contentHash: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
     isLive: true,
+    vouchCount: 12,
   },
   {
     label: "vox",
@@ -219,6 +254,7 @@ const MOCK_APPS: AppEntry[] = [
     description: "Video and audio calls on Polkadot",
     contentHash: "bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenosa7714",
     isLive: true,
+    vouchCount: 7,
   },
   {
     label: "dotli",
@@ -226,6 +262,7 @@ const MOCK_APPS: AppEntry[] = [
     description: "Open any .dot site directly in your browser",
     contentHash: "bafybeibml5uieyxa5tufngvg7fgmrkpvp2rmelbbq4wyqkek5buthpholy",
     isLive: true,
+    vouchCount: 23,
   },
   {
     label: "tick3t",
@@ -233,6 +270,7 @@ const MOCK_APPS: AppEntry[] = [
     description: "Event tickets and attendance credentials",
     contentHash: "bafkreifjjcie6lyga6nkrphqgnoyse3gkbimrhddsyv2kphmrqixvxsqme",
     isLive: true,
+    vouchCount: 5,
   },
   {
     label: "honor",
@@ -240,6 +278,7 @@ const MOCK_APPS: AppEntry[] = [
     description: "Reputation and recognition system",
     contentHash: null,
     isLive: false,
+    vouchCount: 2,
   },
   {
     label: "commons",
@@ -247,6 +286,7 @@ const MOCK_APPS: AppEntry[] = [
     description: "Shared building blocks for product teams",
     contentHash: null,
     isLive: false,
+    vouchCount: 8,
   },
   {
     label: "wiki",
@@ -254,6 +294,7 @@ const MOCK_APPS: AppEntry[] = [
     description: "Collaborative knowledge base",
     contentHash: null,
     isLive: false,
+    vouchCount: 0,
   },
   {
     label: "bridge",
@@ -261,6 +302,7 @@ const MOCK_APPS: AppEntry[] = [
     description: "Move assets between networks",
     contentHash: "bafybeifx7yeb5glcjhclhmrvdckg6gaoqjfqnp7z3feqacfsocsc3w4ymu",
     isLive: true,
+    vouchCount: 15,
   },
   {
     label: "governance",
@@ -268,6 +310,7 @@ const MOCK_APPS: AppEntry[] = [
     description: "Vote on proposals and shape the network",
     contentHash: "bafkreigu6doh4v7gcpz3kvwyyifkl5ufma5n52zah6afxijkahvje4a6zy",
     isLive: true,
+    vouchCount: 31,
   },
   {
     label: "nfts",
@@ -275,6 +318,7 @@ const MOCK_APPS: AppEntry[] = [
     description: "Create and collect digital items",
     contentHash: null,
     isLive: false,
+    vouchCount: 1,
   },
 ];
 
@@ -319,13 +363,105 @@ export async function getApps(
   }
 }
 
-export function filterApps(apps: AppEntry[], query: string): AppEntry[] {
+export function filterApps(
+  apps: AppEntry[],
+  query: string,
+  mode: FilterMode = "all",
+): AppEntry[] {
+  let filtered = apps;
+
   const q = query.toLowerCase().trim();
-  if (!q) return apps;
-  return apps.filter(
-    (app) =>
-      app.label.toLowerCase().includes(q) ||
-      (app.name?.toLowerCase().includes(q) ?? false) ||
-      app.description.toLowerCase().includes(q)
-  );
+  if (q) {
+    filtered = filtered.filter(
+      (app) =>
+        app.label.toLowerCase().includes(q) ||
+        (app.name?.toLowerCase().includes(q) ?? false) ||
+        app.description.toLowerCase().includes(q),
+    );
+  }
+
+  // Re-sort by mode (popular sorts by vouch count)
+  if (mode === "popular") {
+    filtered = sortApps(filtered, "popular");
+  }
+
+  return filtered;
+}
+
+// ── Vouch (write path) ──────────────────────────────────────
+
+export type VouchResult =
+  | { status: "ok"; blockHash: string }
+  | { status: "no-wallet"; message: string }
+  | { status: "error"; message: string };
+
+/**
+ * Submit an on-chain vouch (attestation) for a product.
+ * Uses the host wallet from product-sdk.
+ * Writes a thumbs-up (rating=5, rated=false) attestation via AttestationRegistry.
+ */
+export async function vouchForApp(label: string): Promise<VouchResult> {
+  dlog(`Vouching for ${label}.dot`);
+
+  const account = await getWalletAccount();
+  if (!account) {
+    return { status: "no-wallet", message: "Connect your wallet to vouch" };
+  }
+
+  try {
+    const node = namehash(`${label}.dot`);
+    const subject = nodeToSubject(node);
+    const value = encodeRatingValue(5, false); // thumbs-up, not explicitly rated
+    const calldata = encodeAttest(subject, SCHEMA_RATING, value, 0n);
+
+    const blockHash = await reviveSubmit(
+      CONTRACTS.ATTESTATION_REGISTRY,
+      calldata,
+      account,
+    );
+
+    dlog(`Vouch for ${label}.dot included in block ${blockHash}`);
+    return { status: "ok", blockHash };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    dlog(`Vouch failed: ${msg}`, "error");
+    return { status: "error", message: msg };
+  }
+}
+
+/**
+ * Revoke an on-chain vouch for a product.
+ */
+export async function unvouchForApp(label: string): Promise<VouchResult> {
+  dlog(`Revoking vouch for ${label}.dot`);
+
+  const account = await getWalletAccount();
+  if (!account) {
+    return { status: "no-wallet", message: "Connect your wallet to unvouch" };
+  }
+
+  try {
+    const node = namehash(`${label}.dot`);
+    const subject = nodeToSubject(node);
+    const calldata = encodeRevoke(subject, SCHEMA_RATING);
+
+    const blockHash = await reviveSubmit(
+      CONTRACTS.ATTESTATION_REGISTRY,
+      calldata,
+      account,
+    );
+
+    dlog(`Revoke for ${label}.dot included in block ${blockHash}`);
+    return { status: "ok", blockHash };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    dlog(`Revoke failed: ${msg}`, "error");
+    return { status: "error", message: msg };
+  }
+}
+
+/** Get the connected wallet display name, or null if not connected. */
+export async function getWalletName(): Promise<string | null> {
+  const account = await getWalletAccount();
+  return account?.name ?? null;
 }

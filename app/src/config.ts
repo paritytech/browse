@@ -4,7 +4,14 @@ export const CONTRACTS = {
   STORE_FACTORY: "0x030296782F4d3046B080BcB017f01837561D9702",
   CONTENT_RESOLVER: "0x7756DF72CBc7f062e7403cD59e45fBc78bed1cD7",
   REGISTRY: "0x4Da0d37aBe96C06ab19963F31ca2DC0412057a6f",
+  ATTESTATION_REGISTRY: "0x4d018C530E01BbC98b042a18A4D4090658BCd8f3",
 } as const;
+
+// ── Attestation schemas ──────────────────────────────────────
+// Precomputed keccak256 hashes of human-readable schema strings.
+// keccak256("discovery.rating.v1")
+export const SCHEMA_RATING =
+  "0x07ebbff6960c1c29233bf2c1109eca1140dd09425365d4acfd62026181add4d3" as `0x${string}`;
 
 export const ASSET_HUB_PASEO_GENESIS =
   "0xd6eec26135305a8ad257a20d003357284c8aa03d0bdb2b357ab0a22371e11ef2";

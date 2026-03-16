@@ -408,6 +408,21 @@ input {
   color: var(--color-live);
 }
 
+.app-card__vouches {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.65rem;
+  color: var(--color-muted);
+  margin-left: 0.4rem;
+  padding-left: 0.4rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.app-card__vouches svg {
+  opacity: 0.6;
+}
+
 .app-card__desc {
   font-size: 0.78rem;
   color: var(--color-secondary);
@@ -422,6 +437,58 @@ input {
   color: var(--color-muted);
   letter-spacing: 0.02em;
   margin-top: 0.1rem;
+}
+
+.app-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.vouch-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: transparent;
+  color: var(--color-muted);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity var(--transition-fast),
+    background var(--transition-fast),
+    color var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.app-card:hover .vouch-btn {
+  opacity: 1;
+}
+
+.vouch-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-primary);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.vouch-btn--pending {
+  opacity: 1 !important;
+  animation: pulse-vouch 1s ease-in-out infinite;
+}
+
+.vouch-btn--error {
+  color: #f44;
+  border-color: #f44;
+  opacity: 1 !important;
+}
+
+@keyframes pulse-vouch {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
 }
 
 .app-card__arrow {

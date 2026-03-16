@@ -63,6 +63,14 @@ const SEL = {
   contenthash: computeSelector("contenthash(bytes32)"),
   text: computeSelector("text(bytes32,string)"),
   aggregate3: computeSelector("aggregate3((address,bool,bytes)[])"),
+  // AttestationRegistry
+  attestCount: computeSelector("count(address)"),
+  attestList: computeSelector("list(address,uint64,uint64)"),
+  attestGetBatch: computeSelector(
+    "getBatch((address,bytes32,address)[])",
+  ),
+  attest: computeSelector("attest(address,bytes32,bytes32,uint64)"),
+  revoke: computeSelector("revoke(address,bytes32)"),
 } as const;
 
 // ── Encoders ────────────────────────────────────────────────
@@ -235,6 +243,187 @@ export function decodeAggregate3Result(data: `0x${string}`): AggregateResult[] {
   }
 
   return results;
+}
+
+// ── Attestation helpers ─────────────────────────────────────
+
+/** Derive the attestation subject address from a DotNS namehash (low 20 bytes). */
+export function nodeToSubject(node: `0x${string}`): `0x${string}` {
+  const hex = stripPrefix(node).padStart(64, "0");
+  return `0x${hex.slice(24)}`;
+}
+
+/** Encode AttestationRegistry.attest(address subject, bytes32 schema, bytes32 value, uint64 expiry) */
+export function encodeAttest(
+  subject: `0x${string}`,
+  schema: `0x${string}`,
+  value: `0x${string}`,
+  expiry: bigint,
+): `0x${string}` {
+  return `0x${SEL.attest}${stripPrefix(subject).padStart(64, "0")}${stripPrefix(schema).padStart(64, "0")}${stripPrefix(value).padStart(64, "0")}${uint256Hex(expiry)}`;
+}
+
+/** Encode AttestationRegistry.revoke(address subject, bytes32 schema) */
+export function encodeRevoke(
+  subject: `0x${string}`,
+  schema: `0x${string}`,
+): `0x${string}` {
+  return `0x${SEL.revoke}${stripPrefix(subject).padStart(64, "0")}${stripPrefix(schema).padStart(64, "0")}`;
+}
+
+/** Encode AttestationRegistry.count(address subject) */
+export function encodeAttestCount(subject: `0x${string}`): `0x${string}` {
+  return `0x${SEL.attestCount}${stripPrefix(subject).padStart(64, "0")}`;
+}
+
+/** Encode AttestationRegistry.list(address subject, uint64 offset, uint64 limit)
+ *  TODO: used by upcoming attestation detail view */
+export function encodeAttestList(
+  subject: `0x${string}`,
+  offset: number,
+  limit: number,
+): `0x${string}` {
+  return `0x${SEL.attestList}${stripPrefix(subject).padStart(64, "0")}${uint256Hex(offset)}${uint256Hex(limit)}`;
+}
+
+/** Encode AttestationRegistry.getBatch(AttestationKey[] keys)
+ *  TODO: used by upcoming attestation detail view */
+export function encodeAttestGetBatch(
+  keys: { subject: string; schema: string; attester: string }[],
+): `0x${string}` {
+  const n = keys.length;
+
+  // Top-level: selector + offset to dynamic array (0x20)
+  let result = SEL.attestGetBatch + uint256Hex(32);
+
+  // Array length
+  result += uint256Hex(n);
+
+  // Each AttestationKey is a static tuple: (address, bytes32, address)
+  // = 3 x 32 bytes = 96 bytes per element, encoded inline (no offsets needed)
+  for (const key of keys) {
+    result += stripPrefix(key.subject).toLowerCase().padStart(64, "0");
+    result += stripPrefix(key.schema).padStart(64, "0");
+    result += stripPrefix(key.attester).toLowerCase().padStart(64, "0");
+  }
+
+  return `0x${result}`;
+}
+
+/** Decode uint64 return value (e.g. from count()). Returns null on malformed data. */
+export function decodeUint64(data: `0x${string}`): number | null {
+  const hex = stripPrefix(data);
+  if (hex.length < 64) return null;
+  // uint64 is right-aligned in a 32-byte ABI word; read the last 8 bytes
+  return Number(BigInt("0x" + hex.slice(48, 64)));
+}
+
+/** Decoded attestation key from list()
+ *  TODO: used by upcoming attestation detail view */
+export interface AttestationKey {
+  subject: string;
+  schema: string;
+  attester: string;
+}
+
+/** Decode AttestationKey[] from list() return
+ *  TODO: used by upcoming attestation detail view */
+export function decodeAttestationKeyArray(data: `0x${string}`): AttestationKey[] {
+  const hex = stripPrefix(data);
+  if (hex.length < 128) return [];
+
+  // ABI: offset(32) → array: length(32) + elements
+  const offset = parseInt(hex.slice(0, 64), 16) * 2;
+  const length = parseInt(hex.slice(offset, offset + 64), 16);
+  const keys: AttestationKey[] = [];
+
+  // Each AttestationKey is (address, bytes32, address) = 3 x 32 bytes inline
+  for (let i = 0; i < length; i++) {
+    const start = offset + 64 + i * 192; // 3 * 64 hex chars
+    const subject = "0x" + hex.slice(start + 24, start + 64);
+    const schema = "0x" + hex.slice(start + 64, start + 128);
+    const attester = "0x" + hex.slice(start + 152, start + 192);
+    keys.push({ subject, schema, attester });
+  }
+
+  return keys;
+}
+
+/** Decoded attestation from getBatch()
+ *  TODO: used by upcoming attestation detail view */
+export interface DecodedAttestation {
+  subject: string;
+  schema: string;
+  attester: string;
+  timestamp: number;
+  expiry: number;
+  value: `0x${string}`;
+  revoked: boolean;
+}
+
+/** Decode Attestation[] from getBatch() return
+ *  TODO: used by upcoming attestation detail view */
+export function decodeAttestationArray(data: `0x${string}`): DecodedAttestation[] {
+  const hex = stripPrefix(data);
+  if (hex.length < 128) return [];
+
+  // ABI: offset(32) → array of static structs (no per-element offsets)
+  const arrayOffset = parseInt(hex.slice(0, 64), 16) * 2;
+  const length = parseInt(hex.slice(arrayOffset, arrayOffset + 64), 16);
+  const results: DecodedAttestation[] = [];
+
+  // Each Attestation struct has 7 static fields, packed inline:
+  // (address, bytes32, address, uint64, uint64, bytes32, bool) = 7 x 32 bytes
+  for (let i = 0; i < length; i++) {
+    const start = arrayOffset + 64 + i * 448; // 7 * 64 hex chars
+    const subject = "0x" + hex.slice(start + 24, start + 64);
+    const schema = "0x" + hex.slice(start + 64, start + 128);
+    const attester = "0x" + hex.slice(start + 152, start + 192);
+    const timestamp = parseInt(hex.slice(start + 192, start + 256), 16);
+    const expiry = parseInt(hex.slice(start + 256, start + 320), 16);
+    const value = ("0x" + hex.slice(start + 320, start + 384)) as `0x${string}`;
+    const revoked = parseInt(hex.slice(start + 384, start + 448), 16) !== 0;
+    results.push({ subject, schema, attester, timestamp, expiry, value, revoked });
+  }
+
+  return results;
+}
+
+/**
+ * Encode a rating value into bytes32 for AttestationRegistry.attest().
+ * Layout: version(1) | rating(1) | rated(1) | reserved(1) | reviewDigest(28)
+ * TODO: used by upcoming vouch button (write path)
+ */
+export function encodeRatingValue(
+  rating: number,
+  explicitlyRated: boolean,
+  reviewDigest?: Uint8Array,
+): `0x${string}` {
+  const buf = new Uint8Array(32);
+  buf[0] = 0x01;                          // version
+  buf[1] = Math.max(1, Math.min(5, rating)); // rating 1-5
+  buf[2] = explicitlyRated ? 0x01 : 0x00;   // rated flag
+  if (reviewDigest && reviewDigest.length >= 28) {
+    buf.set(reviewDigest.slice(0, 28), 4);
+  }
+  return toHex(buf);
+}
+
+/** Decode a rating value from bytes32
+ *  TODO: used by upcoming attestation detail view */
+export function decodeRatingValue(hex: `0x${string}`): {
+  version: number;
+  rating: number;
+  explicitlyRated: boolean;
+  reviewDigest: Uint8Array;
+} {
+  const bytes = hexToBytes(hex);
+  return {
+    version: bytes[0],
+    rating: bytes[1],
+    explicitlyRated: bytes[2] === 0x01,
+    reviewDigest: bytes.slice(4, 32),
+  };
 }
 
 // ── Contenthash decoding — copied from dotli/src/abi.ts ─────

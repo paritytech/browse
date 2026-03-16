@@ -1,8 +1,8 @@
 // Chain connection via product-sdk host (dot.li's smoldot instance).
 // Copied reviveCall pattern from dotli/src/resolve.ts.
 
-import { createClient, type PolkadotClient } from "polkadot-api";
-import { Binary } from "polkadot-api";
+import { createClient, type PolkadotClient, type PolkadotSigner } from "polkadot-api";
+import { Binary, FixedSizeBinary } from "polkadot-api";
 import {
   DUMMY_ORIGIN,
   DRY_RUN_WEIGHT_LIMIT,
@@ -127,4 +127,105 @@ export async function reviveCall(
     return `0x${Array.from(data, (b) => b.toString(16).padStart(2, "0")).join("")}`;
   }
   return "0x";
+}
+
+// ── Wallet account from product-sdk ─────────────────────────
+
+export interface WalletAccount {
+  publicKey: Uint8Array;
+  name: string | undefined;
+  signer: PolkadotSigner;
+}
+
+let cachedAccount: WalletAccount | null = null;
+
+/**
+ * Get the user's wallet account from the host.
+ * Returns null if not inside the host or if user rejects.
+ */
+export async function getWalletAccount(): Promise<WalletAccount | null> {
+  if (cachedAccount) return cachedAccount;
+
+  try {
+    const sdk = await import("@novasamatech/product-sdk");
+    const accounts = sdk.createAccountsProvider();
+
+    const result = await accounts.getProductAccount("browse");
+    if (result.isErr()) {
+      dlog(`Wallet account unavailable: ${result.error.tag}`, "warn");
+      return null;
+    }
+
+    const { publicKey, name } = result.value;
+    const productAccount = { dotNsIdentifier: "browse", derivationIndex: 0, publicKey };
+    const signer = accounts.getProductAccountSigner(productAccount);
+
+    cachedAccount = { publicKey, name, signer };
+    dlog(`Wallet connected: ${name ?? "unnamed"}`);
+    return cachedAccount;
+  } catch (err) {
+    dlog(`Failed to get wallet: ${err}`, "warn");
+    return null;
+  }
+}
+
+// ── Revive write transaction ────────────────────────────────
+
+/**
+ * Submit an EVM contract call via Revive.call extrinsic.
+ * Handles account mapping automatically (optimistic: try call first, batch with map_account if needed).
+ */
+export async function reviveSubmit(
+  contractAddress: string,
+  encodedData: `0x${string}`,
+  account: WalletAccount,
+): Promise<string> {
+  const api = await ensureApi();
+
+  const destHex = (contractAddress.startsWith("0x") ? contractAddress : `0x${contractAddress}`) as `0x${string}`;
+  const reviveCallArgs = {
+    dest: FixedSizeBinary.fromHex(destHex),
+    value: 0n,
+    weight_limit: { ref_time: 100_000_000_000n, proof_size: 500_000n },
+    storage_deposit_limit: 10_000_000_000_000n,
+    data: Binary.fromHex(encodedData),
+  };
+
+  // Try direct call (works for already-mapped accounts)
+  try {
+    dlog("Submitting Revive.call...");
+    const tx = api.tx.Revive.call(reviveCallArgs);
+    const result = await tx.signAndSubmit(account.signer);
+    dlog(`Transaction included in block: ${result.block.hash}`);
+    return result.block.hash;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const isUnmapped =
+      msg.includes("NoAccount") ||
+      msg.includes("NotMapped") ||
+      msg.includes("OriginMustBeMapped") ||
+      msg.includes("Unmapped");
+
+    if (!isUnmapped) throw err;
+    dlog("Account not mapped, retrying with map_account batch");
+  }
+
+  // Batch map_account + call
+  try {
+    const mapCall = api.tx.Revive.map_account({}).decodedCall;
+    const reviveCall = api.tx.Revive.call(reviveCallArgs).decodedCall;
+    const batchTx = api.tx.Utility.batch_all({ calls: [mapCall, reviveCall] });
+    const result = await batchTx.signAndSubmit(account.signer);
+    dlog(`Batch transaction included in block: ${result.block.hash}`);
+    return result.block.hash;
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes("AccountAlreadyMapped")) {
+      dlog("Account was mapped concurrently, retrying call only");
+      const tx = api.tx.Revive.call(reviveCallArgs);
+      const result = await tx.signAndSubmit(account.signer);
+      return result.block.hash;
+    }
+    throw err;
+  }
 }
