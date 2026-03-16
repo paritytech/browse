@@ -1,12 +1,23 @@
-import { getApps } from "./data";
+import { getApps, type FilterMode } from "./data";
 import { renderApp } from "./ui";
 import { setupDebugConsole } from "./debug";
 import { setChainStatusCallback } from "./chain";
 import "./style.css";
 
 const root = document.querySelector("#app") as HTMLElement;
-const { setApps, setLoading, setStatus } = renderApp(root);
+const { setApps, setLoading, setStatus, setMode } = renderApp(root);
 setupDebugConsole(root);
+
+// ── URL preset: hash fragment selects a mode ────────────────
+// browse.dot#popular  → Popular mode
+// browse.dot#curated  → Curated mode
+// browse.dot#attendee → Attendee mode
+// Extensible: future fragments like #attendee/event-id can carry context.
+const hash = location.hash.slice(1).toLowerCase();
+if (hash) {
+  const mode = hash.split("/")[0] as FilterMode;
+  setMode(mode); // silently ignored if mode is invalid or disabled
+}
 
 setChainStatusCallback((msg) => setStatus(msg));
 setLoading(true);

@@ -92,6 +92,7 @@ export function renderApp(root: HTMLElement): {
   setApps: (apps: AppEntry[]) => void;
   setLoading: (loading: boolean) => void;
   setStatus: (message: string) => void;
+  setMode: (mode: FilterMode) => void;
 } {
   let currentApps: AppEntry[] = [];
   let currentQuery = "";
@@ -245,19 +246,24 @@ export function renderApp(root: HTMLElement): {
     updateList();
   });
 
-  // Filter pill clicks
-  filtersEl.addEventListener("click", (e) => {
-    const btn = (e.target as HTMLElement).closest("button");
-    if (!btn || btn.hasAttribute("disabled")) return;
-
-    const mode = btn.getAttribute("data-mode") as FilterMode;
+  function switchMode(mode: FilterMode) {
     if (mode === currentMode) return;
+    // Only switch to enabled modes
+    const modeConfig = FILTER_MODES.find((f) => f.id === mode);
+    if (!modeConfig?.enabled) return;
 
     currentMode = mode;
     filtersEl.querySelectorAll(".pill").forEach((p) => {
       p.classList.toggle("pill--selected", p.getAttribute("data-mode") === mode);
     });
     updateList();
+  }
+
+  // Filter pill clicks
+  filtersEl.addEventListener("click", (e) => {
+    const btn = (e.target as HTMLElement).closest("button");
+    if (!btn || btn.hasAttribute("disabled")) return;
+    switchMode(btn.getAttribute("data-mode") as FilterMode);
   });
 
   return {
@@ -284,5 +290,6 @@ export function renderApp(root: HTMLElement): {
       `;
       countEl.textContent = "";
     },
+    setMode: switchMode,
   };
 }
