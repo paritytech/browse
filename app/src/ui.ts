@@ -212,7 +212,7 @@ export function renderApp(root: HTMLElement): {
           }
           showToast(`Vouched for ${label}.dot`);
         } else if (result.status === "no-wallet") {
-          showToast("Sign in to vouch for products");
+          showToast("Sign in to vouch");
         } else {
           showToast("Vouch failed — try again");
           vouchBtn.classList.add("vouch-btn--error");

@@ -168,6 +168,8 @@ export async function getWalletAccount(): Promise<WalletAccount | null> {
     const sdk = await import("@novasamatech/product-sdk");
     const accounts = sdk.createAccountsProvider();
 
+    // This call may trigger the host's sign-in prompt if not connected.
+    // We don't cache failures so subsequent vouch taps re-trigger the prompt.
     const result = await accounts.getProductAccount("browse");
     if (result.isErr()) {
       dlog(`Wallet account unavailable: ${result.error.tag}`, "warn");
