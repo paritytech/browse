@@ -71,6 +71,7 @@ const SEL = {
   ),
   attest: computeSelector("attest(address,bytes32,bytes32,uint64)"),
   revoke: computeSelector("revoke(address,bytes32)"),
+  isValid: computeSelector("isValid(address,bytes32,address)"),
 } as const;
 
 // ── Encoders ────────────────────────────────────────────────
@@ -424,6 +425,22 @@ export function decodeRatingValue(hex: `0x${string}`): {
     explicitlyRated: bytes[2] === 0x01,
     reviewDigest: bytes.slice(4, 32),
   };
+}
+
+/** Encode AttestationRegistry.isValid(address subject, bytes32 schema, address attester) */
+export function encodeIsValid(
+  subject: `0x${string}`,
+  schema: `0x${string}`,
+  attester: `0x${string}`,
+): `0x${string}` {
+  return `0x${SEL.isValid}${stripPrefix(subject).padStart(64, "0")}${stripPrefix(schema).padStart(64, "0")}${stripPrefix(attester).padStart(64, "0")}`;
+}
+
+/** Decode a single bool ABI word (e.g. from isValid). */
+export function decodeBool(data: `0x${string}`): boolean {
+  const hex = stripPrefix(data);
+  if (hex.length < 64) return false;
+  return BigInt("0x" + hex.slice(0, 64)) !== 0n;
 }
 
 // ── Contenthash decoding — copied from dotli/src/abi.ts ─────

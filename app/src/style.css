@@ -699,6 +699,277 @@ input {
 }
 
 /* ============================================================
+   Detail page
+   ============================================================ */
+.detail-page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.detail-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--color-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  padding: 0.25rem 0;
+  border: none;
+  background: none;
+  transition: color var(--transition-fast);
+  margin-bottom: 0.25rem;
+}
+
+.detail-back:hover {
+  color: var(--color-heading);
+}
+
+.detail-hero {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.detail-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: var(--color-surface-deep);
+  border: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.detail-icon__letter {
+  font-family: var(--font-heading);
+  font-size: 1.6rem;
+  color: var(--color-secondary);
+  text-transform: lowercase;
+  line-height: 1;
+}
+
+.detail-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.detail-name {
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--color-heading);
+  line-height: 1.2;
+}
+
+.detail-domain {
+  font-size: 0.75rem;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+
+.detail-status {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.1rem;
+}
+
+.detail-desc {
+  font-size: 0.88rem;
+  color: var(--color-secondary);
+  line-height: 1.55;
+}
+
+.detail-hash {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--color-muted);
+  word-break: break-all;
+  background: var(--color-surface-deep);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+}
+
+.detail-hash__label {
+  color: var(--color-tertiary);
+  margin-right: 0.4rem;
+  text-transform: uppercase;
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+  display: block;
+  margin-bottom: 0.2rem;
+}
+
+.detail-divider {
+  height: 1px;
+  background: var(--color-border-subtle);
+  border: none;
+  margin: 0;
+}
+
+.detail-vouch-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.detail-vouch-count {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.detail-vouch-count__number {
+  font-family: var(--font-heading);
+  font-size: 2.2rem;
+  color: var(--color-heading);
+  line-height: 1;
+}
+
+.detail-vouch-count__label {
+  font-size: 0.7rem;
+  color: var(--color-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.vouch-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 1.1rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-deep);
+  color: var(--color-text);
+  font-size: 0.82rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+  white-space: nowrap;
+}
+
+.vouch-toggle:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #3a3a3a;
+  color: var(--color-heading);
+}
+
+.vouch-toggle--active {
+  border-color: var(--color-live);
+  color: var(--color-live);
+  background: rgba(74, 222, 128, 0.05);
+}
+
+.vouch-toggle--active:hover:not(:disabled) {
+  background: rgba(74, 222, 128, 0.1);
+  border-color: var(--color-live);
+}
+
+.vouch-toggle--pending {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.vouch-toggle:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.detail-section-title {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--color-muted);
+  font-weight: 500;
+}
+
+.attester-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.attester-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.55rem 0.4rem;
+  border-radius: 6px;
+  transition: background var(--transition-fast);
+}
+
+.attester-row:hover {
+  background: var(--color-accent-bg);
+}
+
+.attester-row__addr {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--color-secondary);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.attester-row__date {
+  font-size: 0.68rem;
+  color: var(--color-muted);
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.attester-row__rating {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.rating-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-border);
+}
+
+.rating-dot--filled {
+  background: var(--color-live);
+  box-shadow: 0 0 4px rgba(74, 222, 128, 0.4);
+}
+
+.attester-empty {
+  text-align: center;
+  padding: 1.5rem 1rem;
+  color: var(--color-muted);
+  font-size: 0.8rem;
+}
+
+.attester-row--skeleton {
+  pointer-events: none;
+}
+
+@media (max-width: 360px) {
+  .attester-row__rating {
+    display: none;
+  }
+  .detail-vouch-count__number {
+    font-size: 1.8rem;
+  }
+}
+
+/* ============================================================
    Card flip (3D flip to reveal debug console)
    ============================================================ */
 .card-flip {

@@ -1,5 +1,13 @@
 import { type AppEntry, type FilterMode, displayName, filterApps, vouchForApp } from "./data";
 
+function escHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 function renderVouchBadge(count: number | null): string {
   if (count === null || count === 0) return "";
   return `<span class="app-card__vouches" title="${count} vouch${count === 1 ? "" : "es"}">
@@ -13,11 +21,12 @@ function renderAppCard(app: AppEntry, index: number): string {
   const delay = index * 50;
   const statusClass = app.isLive ? "live" : "";
   const statusLabel = app.isLive ? "available" : "coming soon";
-  const name = displayName(app);
-  const letter = name[0].toLowerCase();
+  const name = escHtml(displayName(app));
+  const letter = escHtml(name[0].toLowerCase());
+  const label = escHtml(app.label);
 
   return `
-    <a class="app-card" style="animation-delay: ${delay}ms" data-label="${app.label}" href="https://${app.label}.dot.li">
+    <div class="app-card" style="animation-delay: ${delay}ms" data-label="${label}" tabindex="0">
       <div class="app-card__icon">
         <span class="app-card__letter">${letter}</span>
       </div>
@@ -30,22 +39,22 @@ function renderAppCard(app: AppEntry, index: number): string {
             ${renderVouchBadge(app.vouchCount)}
           </div>
         </div>
-        <p class="app-card__desc">${app.description}</p>
-        <span class="app-card__dotns">${app.label}.dot</span>
+        <p class="app-card__desc">${escHtml(app.description)}</p>
+        <span class="app-card__dotns">${label}.dot</span>
       </div>
       <div class="app-card__actions">
-        <button class="vouch-btn" data-vouch="${app.label}" title="Vouch for this product">
+        <button class="vouch-btn" data-vouch="${label}" title="Vouch for this product">
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
             <path d="M8 1v14M1 8h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
           </svg>
         </button>
-        <div class="app-card__arrow">
+        <a class="app-card__arrow" href="https://${label}.dot.li" data-external="${label}" title="Open ${name}">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
             <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-        </div>
+        </a>
       </div>
-    </a>
+    </div>
   `;
 }
 
@@ -75,7 +84,7 @@ function renderEmpty(query: string): string {
           <path d="M22 22l6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
         </svg>
       </div>
-      <p class="empty-state__text">No products matching "${query}"</p>
+      <p class="empty-state__text">No products matching "${escHtml(query)}"</p>
       <p class="empty-state__hint">Try a different search term</p>
     </div>
   `;
@@ -93,6 +102,9 @@ export function renderApp(root: HTMLElement): {
   setLoading: (loading: boolean) => void;
   setStatus: (message: string) => void;
   setMode: (mode: FilterMode) => void;
+  showToast: (msg: string) => void;
+  getListEl: () => HTMLElement;
+  setDetailMode: (active: boolean) => void;
 } {
   let currentApps: AppEntry[] = [];
   let currentQuery = "";
@@ -222,16 +234,25 @@ export function renderApp(root: HTMLElement): {
       return;
     }
 
-    // Navigation handler
-    const card = (e.target as HTMLElement).closest<HTMLAnchorElement>(".app-card[data-label]");
+    // Card click → detail page (but not if clicking external link arrow)
+    const card = (e.target as HTMLElement).closest<HTMLElement>(".app-card[data-label]");
     if (!card) return;
+    const isExternalLink = (e.target as HTMLElement).closest("[data-external]");
+    if (isExternalLink) return; // let the <a> handle it
+    e.preventDefault();
     const label = card.dataset.label;
     if (!label) return;
-    if (hostNavigate) {
-      e.preventDefault();
-      hostNavigate(label);
-    }
-    // Otherwise: default <a> behavior opens the dot.li URL
+    location.hash = `detail/${label}`;
+  });
+
+  // Keyboard activation for focused cards (Enter/Space)
+  listEl.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const card = (e.target as HTMLElement).closest<HTMLElement>(".app-card[data-label]");
+    if (!card) return;
+    e.preventDefault();
+    const label = card.dataset.label;
+    if (label) location.hash = `detail/${label}`;
   });
 
   function updateList() {
@@ -302,5 +323,16 @@ export function renderApp(root: HTMLElement): {
       countEl.textContent = "";
     },
     setMode: switchMode,
+    showToast,
+    getListEl: () => listEl,
+    setDetailMode(active: boolean) {
+      const display = active ? "none" : "";
+      const searchWrap = root.querySelector(".search-wrap") as HTMLElement | null;
+      const filters = root.querySelector(".filters") as HTMLElement | null;
+      const listCount = root.querySelector(".list-count") as HTMLElement | null;
+      if (searchWrap) searchWrap.style.display = display;
+      if (filters) filters.style.display = display;
+      if (listCount) listCount.style.display = display;
+    },
   };
 }

@@ -7,8 +7,11 @@ import {
   encodeContenthash,
   encodeText,
   encodeAttestCount,
+  encodeAttestList,
+  encodeAttestGetBatch,
   encodeAttest,
   encodeRevoke,
+  encodeIsValid,
   encodeRatingValue,
   decodeAddressArray,
   decodeStringArray,
@@ -16,6 +19,10 @@ import {
   decodeString,
   decodeIpfsContenthash,
   decodeUint64,
+  decodeBool,
+  decodeAttestationKeyArray,
+  decodeAttestationArray,
+  decodeRatingValue,
   type MulticallTarget,
 } from "./abi";
 import { reviveCall, reviveSubmit, getWalletAccount } from "./chain";
@@ -469,4 +476,123 @@ export async function unvouchForApp(label: string): Promise<VouchResult> {
 export async function getWalletName(): Promise<string | null> {
   const account = await getWalletAccount();
   return account?.name ?? null;
+}
+
+// ── Attestation detail queries ──────────────────────────────
+
+export interface AttestationDetail {
+  attester: string;
+  timestamp: number;
+  rating: number;
+  explicitlyRated: boolean;
+  revoked: boolean;
+}
+
+export type FetchAttestationsResult =
+  | { status: "ok"; attestations: AttestationDetail[]; total: number }
+  | { status: "empty" }
+  | { status: "error"; message: string };
+
+const MOCK_ATTESTATIONS: Record<string, AttestationDetail[]> = {
+  getsome: [
+    { attester: "0xabcdef1234567890abcdef1234567890abcdef12", timestamp: 1748000000, rating: 5, explicitlyRated: false, revoked: false },
+    { attester: "0x1111111111111111111111111111111111111111", timestamp: 1747900000, rating: 4, explicitlyRated: true, revoked: false },
+    { attester: "0x2222222222222222222222222222222222222222", timestamp: 1747800000, rating: 5, explicitlyRated: true, revoked: false },
+  ],
+  dotli: [
+    { attester: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", timestamp: 1748100000, rating: 5, explicitlyRated: false, revoked: false },
+  ],
+};
+
+/**
+ * Fetch all attestations for a product.
+ * Step 1: list(subject, 0, maxPage) → AttestationKey[]
+ * Step 2: getBatch(keys) → Attestation[]
+ */
+export async function fetchAttestations(
+  label: string,
+  maxPage = 200,
+): Promise<FetchAttestationsResult> {
+  const hosted = await isHosted();
+  if (!hosted) {
+    const mock = MOCK_ATTESTATIONS[label];
+    if (!mock || mock.length === 0) return { status: "empty" };
+    return { status: "ok", attestations: mock, total: mock.length };
+  }
+
+  try {
+    const node = namehash(`${label}.dot`);
+    const subject = nodeToSubject(node);
+
+    // Step 1: list all attestation keys for this subject
+    const listData = await reviveCall(
+      CONTRACTS.ATTESTATION_REGISTRY,
+      encodeAttestList(subject, 0, maxPage),
+    );
+    const keys = decodeAttestationKeyArray(listData);
+    dlog(`fetchAttestations(${label}): ${keys.length} keys`);
+
+    if (keys.length === 0) return { status: "empty" };
+
+    // Step 2: getBatch to fetch full attestation data
+    const batchData = await reviveCall(
+      CONTRACTS.ATTESTATION_REGISTRY,
+      encodeAttestGetBatch(keys),
+    );
+    const attestations = decodeAttestationArray(batchData);
+
+    // Decode rating values and filter
+    const details: AttestationDetail[] = attestations
+      .filter((a) => !a.revoked)
+      .map((a) => {
+        const rv = decodeRatingValue(a.value);
+        return {
+          attester: a.attester,
+          timestamp: a.timestamp,
+          rating: rv.rating,
+          explicitlyRated: rv.explicitlyRated,
+          revoked: false,
+        };
+      });
+
+    return { status: "ok", attestations: details, total: keys.length };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    dlog(`fetchAttestations failed: ${msg}`, "error");
+    return { status: "error", message: msg };
+  }
+}
+
+/**
+ * Check whether the current wallet has vouched for this product.
+ * Returns null if no wallet is connected.
+ */
+export async function checkUserVouch(label: string): Promise<boolean | null> {
+  const hosted = await isHosted();
+  if (!hosted) return null;
+
+  const account = await getWalletAccount();
+  if (!account) return null;
+
+  try {
+    const node = namehash(`${label}.dot`);
+    const subject = nodeToSubject(node);
+
+    // Derive EVM address: Revive maps Substrate pubkey → low 20 bytes (H160 = pubkey[12..32])
+    if (account.publicKey.length !== 32) {
+      dlog(`checkUserVouch: unexpected pubkey length ${account.publicKey.length}, expected 32`, "warn");
+      return null;
+    }
+    const evmBytes = account.publicKey.slice(12);
+    const evmAddress = `0x${Array.from(evmBytes, (b) => b.toString(16).padStart(2, "0")).join("")}` as `0x${string}`;
+
+    const data = await reviveCall(
+      CONTRACTS.ATTESTATION_REGISTRY,
+      encodeIsValid(subject, SCHEMA_RATING, evmAddress),
+    );
+    return decodeBool(data);
+  } catch (err) {
+    dlog(`checkUserVouch failed: ${err}`, "warn");
+    return null;
+  }
 }
