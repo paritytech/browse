@@ -8,28 +8,13 @@ import {
   DRY_RUN_WEIGHT_LIMIT,
   DRY_RUN_STORAGE_LIMIT,
   ASSET_HUB_PASEO_GENESIS,
+  REVIVE_WRITE_WEIGHT_LIMIT,
+  REVIVE_WRITE_STORAGE_LIMIT,
 } from "./config";
 import { dlog } from "./debug";
 import { getPolkadotSignerFromPjs } from "@polkadot-api/pjs-signer";
 import { fromHex } from "@novasamatech/host-api";
 
-import { blake2b } from "@noble/hashes/blake2.js";
-import { base58 } from "@scure/base";
-
-/** Encode a 32-byte public key as SS58 address (prefix 42 = generic Substrate). */
-function ss58Encode(publicKey: Uint8Array, prefix = 42): string {
-  const payload = new Uint8Array(35); // 1 prefix + 32 key + 2 checksum
-  payload[0] = prefix;
-  payload.set(publicKey, 1);
-  const context = new TextEncoder().encode("SS58PRE");
-  const input = new Uint8Array(context.length + 33);
-  input.set(context);
-  input.set(payload.subarray(0, 33), context.length);
-  const hash = blake2b(input, { dkLen: 64 });
-  payload[33] = hash[0];
-  payload[34] = hash[1];
-  return base58.encode(payload);
-}
 
 let clientInstance: PolkadotClient | null = null;
 let apiInstance: ReturnType<PolkadotClient["getUnsafeApi"]> | null = null;
@@ -180,14 +165,16 @@ export async function getWalletAccount(): Promise<WalletAccount | null> {
 
     const { publicKey, name } = result.value;
 
-    // The SDK's getProductAccountSigner passes raw hex as the address,
-    // but the host's signPayload expects SS58. Convert before creating the signer.
-    const ss58Address = ss58Encode(publicKey);
-    dlog(`Wallet SS58: ${ss58Address}`);
+    // Pass hex-encoded public key as the address — matches what the product-sdk's
+    // own getProductAccountSigner does internally. The host-papp session manager
+    // validates payload.address against remoteAccount.accountId using hex comparison
+    // when the address starts with "0x".
+    const hexAddress = `0x${Array.from(publicKey, (b) => b.toString(16).padStart(2, "0")).join("")}`;
+    dlog(`Wallet hex: ${hexAddress}`);
 
-    // Build signer with SS58 address
+    // Build signer with hex address
     const signer = getPolkadotSignerFromPjs(
-      ss58Address,
+      hexAddress,
       async (payload) => {
         const response = await sdk.hostApi.signPayload(
           { tag: "v1", value: payload } as any,
@@ -222,7 +209,7 @@ export async function getWalletAccount(): Promise<WalletAccount | null> {
     );
 
     cachedAccount = { publicKey, name, signer };
-    dlog(`Wallet connected: ${name ?? "unnamed"} (${ss58Address.slice(0, 8)}...)`);
+    dlog(`Wallet connected: ${name ?? "unnamed"} (${hexAddress.slice(0, 10)}...)`);
     return cachedAccount;
   } catch (err) {
     dlog(`Failed to get wallet: ${err}`, "warn");
@@ -247,8 +234,8 @@ export async function reviveSubmit(
   const reviveCallArgs = {
     dest: FixedSizeBinary.fromHex(destHex),
     value: 0n,
-    weight_limit: { ref_time: 100_000_000_000n, proof_size: 500_000n },
-    storage_deposit_limit: 10_000_000_000_000n,
+    weight_limit: REVIVE_WRITE_WEIGHT_LIMIT,
+    storage_deposit_limit: REVIVE_WRITE_STORAGE_LIMIT,
     data: Binary.fromHex(encodedData),
   };
 
