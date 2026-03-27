@@ -1,23 +1,26 @@
 // Chain connection via product-sdk host (dot.li's smoldot instance).
 // Copied reviveCall pattern from dotli/src/resolve.ts.
 
-import { createClient, type PolkadotClient, type PolkadotSigner } from "polkadot-api";
+import {
+  createClient,
+  type PolkadotClient,
+  type PolkadotSigner,
+} from "polkadot-api";
 import { Binary, FixedSizeBinary } from "polkadot-api";
+import { fromBufferToBase58 } from "@polkadot-api/substrate-bindings";
 import {
   DUMMY_ORIGIN,
   DRY_RUN_WEIGHT_LIMIT,
   DRY_RUN_STORAGE_LIMIT,
   ASSET_HUB_PASEO_GENESIS,
-  REVIVE_WRITE_WEIGHT_LIMIT,
-  REVIVE_WRITE_STORAGE_LIMIT,
 } from "./config";
 import { dlog } from "./debug";
 import { getPolkadotSignerFromPjs } from "@polkadot-api/pjs-signer";
 import { fromHex } from "@novasamatech/host-api";
 
-
 let clientInstance: PolkadotClient | null = null;
-let apiInstance: ReturnType<PolkadotClient["getUnsafeApi"]> | null = null;
+export let apiInstance: ReturnType<PolkadotClient["getUnsafeApi"]> | null =
+  null;
 
 let ensurePromise: Promise<ReturnType<PolkadotClient["getUnsafeApi"]>> | null =
   null;
@@ -48,7 +51,10 @@ async function doEnsureApi(): Promise<
   const block = await Promise.race([
     clientInstance.getFinalizedBlock(),
     new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Chain sync timed out after 120s")), 120_000),
+      setTimeout(
+        () => reject(new Error("Chain sync timed out after 120s")),
+        120_000,
+      ),
     ),
   ]);
   dlog(`Connected to chain — block #${block.number}`);
@@ -165,51 +171,59 @@ export async function getWalletAccount(): Promise<WalletAccount | null> {
 
     const { publicKey, name } = result.value;
 
-    // Pass hex-encoded public key as the address — matches what the product-sdk's
-    // own getProductAccountSigner does internally. The host-papp session manager
-    // validates payload.address against remoteAccount.accountId using hex comparison
-    // when the address starts with "0x".
-    const hexAddress = `0x${Array.from(publicKey, (b) => b.toString(16).padStart(2, "0")).join("")}`;
-    dlog(`Wallet hex: ${hexAddress}`);
+    // Encode public key as SS58 address (generic prefix 42) for the signing service.
+    const ss58Address = fromBufferToBase58(42)(publicKey);
+    dlog(`Wallet: ${ss58Address}`);
 
-    // Build signer with hex address
     const signer = getPolkadotSignerFromPjs(
-      hexAddress,
+      ss58Address,
       async (payload) => {
-        const response = await sdk.hostApi.signPayload(
-          { tag: "v1", value: payload } as any,
-        );
+        const response = await sdk.hostApi.signPayload({
+          tag: "v1",
+          value: payload,
+        } as any);
         return response.match(
           (r: any) => ({
             id: 0,
             signature: r.value.signature,
             signedTransaction: r.value.signedTransaction,
           }),
-          (e: any) => { throw e.value; },
+          (e: any) => {
+            throw e.value;
+          },
         );
       },
       async (raw) => {
-        const response = await sdk.hostApi.signRaw(
-          { tag: "v1", value: {
+        const response = await sdk.hostApi.signRaw({
+          tag: "v1",
+          value: {
             address: raw.address,
-            data: raw.type === "bytes"
-              ? { tag: "Bytes" as const, value: fromHex(raw.data as `0x${string}`) }
-              : { tag: "Payload" as const, value: raw.data },
-          }} as any,
-        );
+            data:
+              raw.type === "bytes"
+                ? {
+                    tag: "Bytes" as const,
+                    value: fromHex(raw.data as `0x${string}`),
+                  }
+                : { tag: "Payload" as const, value: raw.data },
+          },
+        } as any);
         return response.match(
           (r: any) => ({
             id: 0,
             signature: r.value.signature,
             signedTransaction: r.value.signedTransaction,
           }),
-          (e: any) => { throw e.value; },
+          (e: any) => {
+            throw e.value;
+          },
         );
       },
     );
 
     cachedAccount = { publicKey, name, signer };
-    dlog(`Wallet connected: ${name ?? "unnamed"} (${hexAddress.slice(0, 10)}...)`);
+    dlog(
+      `Wallet connected: ${name ?? "unnamed"} (${ss58Address.slice(0, 10)}...)`,
+    );
     return cachedAccount;
   } catch (err) {
     dlog(`Failed to get wallet: ${err}`, "warn");
@@ -230,12 +244,14 @@ export async function reviveSubmit(
 ): Promise<string> {
   const api = await ensureApi();
 
-  const destHex = (contractAddress.startsWith("0x") ? contractAddress : `0x${contractAddress}`) as `0x${string}`;
+  const destHex = (
+    contractAddress.startsWith("0x") ? contractAddress : `0x${contractAddress}`
+  ) as `0x${string}`;
   const reviveCallArgs = {
     dest: FixedSizeBinary.fromHex(destHex),
     value: 0n,
-    weight_limit: REVIVE_WRITE_WEIGHT_LIMIT,
-    storage_deposit_limit: REVIVE_WRITE_STORAGE_LIMIT,
+    weight_limit: { ref_time: 18_446_744_073_709_551_615n, proof_size: 18_446_744_073_709_551_615n },
+    storage_deposit_limit: 18_446_744_073_709_551_615n,
     data: Binary.fromHex(encodedData),
   };
 

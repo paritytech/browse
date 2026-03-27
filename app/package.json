@@ -17,7 +17,6 @@
     "smoldot": "^2.0.40"
   },
   "devDependencies": {
-    "@polkadot-apps/host-sdk": "file:../../host-sdk/packages/host-sdk-js",
     "@polkadot/api": "^16.5.4",
     "@polkadot/keyring": "^14.0.2",
     "@polkadot/util": "^14.0.2",

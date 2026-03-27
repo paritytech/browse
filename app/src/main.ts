@@ -2,13 +2,11 @@ import { getApps, type FilterMode, type AppEntry, fetchAttestations, checkUserVo
 import { renderApp } from "./ui";
 import { mountDetail } from "./detail";
 import { setupDebugConsole } from "./debug";
-import { setChainStatusCallback } from "./chain";
 import "./style.css";
 
 const root = document.querySelector("#app") as HTMLElement;
 const { setApps, setLoading, setStatus, setMode, showToast, getListEl, setDetailMode } = renderApp(root);
 setupDebugConsole(root);
-setChainStatusCallback((msg) => setStatus(msg));
 
 // ── State ────────────────────────────────────────────────────
 
@@ -110,15 +108,21 @@ getApps((partialApps) => {
     });
   }
 }).then((result) => {
+  if (rafId !== null) {
+    cancelAnimationFrame(rafId);
+    rafId = null;
+  }
   if (result.status === "ok" || result.status === "mock") {
+    const prevCount = result.status === "ok" ? cachedApps.length : undefined;
     cachedApps = result.apps;
-    if (!isDetailView) setApps(result.apps);
+    if (!isDetailView) setApps(result.apps, prevCount);
     // Re-route in case we landed on #detail/X before data arrived
     const hash = location.hash.slice(1).toLowerCase();
     if (hash.startsWith("detail/")) route(hash);
   } else {
     setStatus(result.message);
   }
+  setLoading(false);
 });
 
 // Bootstrap: parse initial hash

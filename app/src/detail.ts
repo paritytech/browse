@@ -1,4 +1,4 @@
-import { type AppEntry, displayName, type AttestationDetail, type FetchAttestationsResult } from "./data";
+import { type AppEntry, displayName, isHosted, type AttestationDetail, type FetchAttestationsResult } from "./data";
 
 function escHtml(s: string): string {
   return s
@@ -29,6 +29,7 @@ function renderBackButton(): string {
 function renderHero(app: AppEntry): string {
   const name = escHtml(displayName(app));
   const letter = escHtml(name[0].toLowerCase());
+  const label = escHtml(app.label);
   const statusClass = app.isLive ? "live" : "";
   const statusLabel = app.isLive ? "available" : "coming soon";
 
@@ -38,12 +39,18 @@ function renderHero(app: AppEntry): string {
     </div>
     <div class="detail-title-block">
       <span class="detail-name">${name}</span>
-      <span class="detail-domain">${escHtml(app.label)}.dot</span>
+      <span class="detail-domain">${label}.dot</span>
       <div class="detail-status">
         <span class="app-card__dot ${statusClass}"></span>
         <span class="app-card__status-text">${statusLabel}</span>
       </div>
     </div>
+    <button class="detail-open" id="detail-open" title="Open ${name}">
+      Open
+      <svg width="12" height="12" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
   </div>`;
 }
 
@@ -144,6 +151,16 @@ export function mountDetail(
 ): () => void {
   let cancelled = false;
   let hasVouched: boolean | null = null;
+  let hostNavigate: ((label: string) => void) | null = null;
+  if (isHosted()) {
+    import("@novasamatech/product-sdk").then((sdk) => {
+      if (sdk.hostApi?.navigateTo) {
+        hostNavigate = (label: string) => {
+          sdk.hostApi.navigateTo({ tag: "v1", value: `${label}.dot` });
+        };
+      }
+    }).catch(() => {});
+  }
 
   // Render initial static content + skeletons
   container.innerHTML = `
@@ -168,6 +185,17 @@ export function mountDetail(
   const backBtn = container.querySelector("#detail-back") as HTMLElement;
   const onBackClick = () => callbacks.onBack();
   backBtn?.addEventListener("click", onBackClick);
+
+  // Wire open button
+  const openBtn = container.querySelector("#detail-open") as HTMLButtonElement | null;
+  const onOpenClick = () => {
+    if (hostNavigate) {
+      hostNavigate(app.label);
+    } else {
+      window.open(`https://${app.label}.dot.li`, "_blank", "noopener");
+    }
+  };
+  openBtn?.addEventListener("click", onOpenClick);
 
   // Wire vouch toggle
   function wireVouchToggle() {
@@ -249,5 +277,6 @@ export function mountDetail(
   return () => {
     cancelled = true;
     backBtn?.removeEventListener("click", onBackClick);
+    openBtn?.removeEventListener("click", onOpenClick);
   };
 }

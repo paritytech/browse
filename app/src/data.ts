@@ -25,7 +25,7 @@ import {
   decodeRatingValue,
   type MulticallTarget,
 } from "./abi";
-import { reviveCall, reviveSubmit, getWalletAccount } from "./chain";
+import { reviveCall, reviveSubmit, getWalletAccount, apiInstance } from "./chain";
 import { multicall } from "./multicall";
 import { dlog } from "./debug";
 
@@ -336,13 +336,10 @@ const MOCK_APPS: AppEntry[] = [
 
 // ── Public API ──────────────────────────────────────────────
 
-async function isHosted(): Promise<boolean> {
-  try {
-    const sdk = await import("@novasamatech/product-sdk");
-    return !!sdk.createPapiProvider;
-  } catch {
-    return false;
-  }
+export function isHosted(): boolean {
+  const isIframe = window !== window.top;
+  const isWebview = (window as unknown as Record<string, unknown>)["__HOST_WEBVIEW_MARK__"] === true;
+  return isIframe || isWebview;
 }
 
 export type GetAppsResult =
@@ -353,25 +350,31 @@ export type GetAppsResult =
 export async function getApps(
   onProgress?: OnLabelsFound,
 ): Promise<GetAppsResult> {
-  const hosted = await isHosted();
+  const mockApps = MOCK_APPS.slice(0, 5);
 
-  if (!hosted) {
-    dlog("Not in host — using mock data");
-    return { status: "mock", apps: MOCK_APPS };
+  const hosted = isHosted();
+
+  // Start chain fetch in background if hosted
+  const chainPromise = hosted ? fetchAppsFromChain() : null;
+
+  // Emit all mock apps at once after a brief delay — CSS stagger handles the visual sequencing
+  if (onProgress) {
+    await new Promise<void>((r) => setTimeout(r, 2000));
+    onProgress(mockApps);
   }
 
-  dlog("Running inside host — querying chain");
+  if (!chainPromise) {
+    return { status: "mock", apps: mockApps };
+  }
+
   try {
-    const apps = await fetchAppsFromChain(onProgress);
-    dlog(`Done — ${apps.length} apps loaded`);
+    const apps = await chainPromise;
+    dlog(`Chain loaded — ${apps.length} apps`);
     return { status: "ok", apps };
   } catch (err) {
     const msg = String(err);
     dlog(`Chain query failed: ${msg}`, "error");
-    if (msg.includes("product environment")) {
-      return { status: "no-chain", message: "Chain access not yet available in this host" };
-    }
-    return { status: "no-chain", message: msg };
+    return { status: "mock", apps: mockApps };
   }
 }
 
@@ -513,12 +516,13 @@ export async function fetchAttestations(
   label: string,
   maxPage = 200,
 ): Promise<FetchAttestationsResult> {
-  const hosted = await isHosted();
+  const hosted = isHosted();
   if (!hosted) {
     const mock = MOCK_ATTESTATIONS[label];
     if (!mock || mock.length === 0) return { status: "empty" };
     return { status: "ok", attestations: mock, total: mock.length };
   }
+  if (apiInstance === null) return { status: "empty" };
 
   try {
     const node = namehash(`${label}.dot`);
@@ -568,8 +572,8 @@ export async function fetchAttestations(
  * Returns null if no wallet is connected.
  */
 export async function checkUserVouch(label: string): Promise<boolean | null> {
-  const hosted = await isHosted();
-  if (!hosted) return null;
+  const hosted = isHosted();
+  if (!hosted || apiInstance === null) return null;
 
   const account = await getWalletAccount();
   if (!account) return null;

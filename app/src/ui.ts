@@ -1,4 +1,4 @@
-import { type AppEntry, type FilterMode, displayName, filterApps, vouchForApp } from "./data";
+import { type AppEntry, type FilterMode, displayName, filterApps, vouchForApp, isHosted } from "./data";
 
 function escHtml(s: string): string {
   return s
@@ -18,7 +18,8 @@ function renderVouchBadge(count: number | null): string {
 }
 
 function renderAppCard(app: AppEntry, index: number): string {
-  const delay = index * 50;
+  const instant = index < 0;
+  const delay = instant ? 0 : index * 380;
   const statusClass = app.isLive ? "live" : "";
   const statusLabel = app.isLive ? "available" : "coming soon";
   const name = escHtml(displayName(app));
@@ -26,7 +27,7 @@ function renderAppCard(app: AppEntry, index: number): string {
   const label = escHtml(app.label);
 
   return `
-    <div class="app-card" style="animation-delay: ${delay}ms" data-label="${label}" tabindex="0">
+    <div class="app-card${instant ? " app-card--instant" : ""}" style="animation-delay: ${delay}ms" data-label="${label}" tabindex="0">
       <div class="app-card__icon">
         <span class="app-card__letter">${letter}</span>
       </div>
@@ -58,22 +59,6 @@ function renderAppCard(app: AppEntry, index: number): string {
   `;
 }
 
-function renderSkeletons(count: number): string {
-  return Array.from({ length: count })
-    .map(
-      (_, i) => `
-    <div class="app-card app-card--skeleton" style="animation-delay: ${i * 50}ms">
-      <div class="app-card__icon skeleton-pulse"></div>
-      <div class="app-card__body">
-        <div class="skeleton-line skeleton-line--title skeleton-pulse"></div>
-        <div class="skeleton-line skeleton-line--desc skeleton-pulse"></div>
-        <div class="skeleton-line skeleton-line--meta skeleton-pulse"></div>
-      </div>
-    </div>
-  `
-    )
-    .join("");
-}
 
 function renderEmpty(query: string): string {
   return `
@@ -98,7 +83,7 @@ const FILTER_MODES: { id: FilterMode; label: string; enabled: boolean }[] = [
 ];
 
 export function renderApp(root: HTMLElement): {
-  setApps: (apps: AppEntry[]) => void;
+  setApps: (apps: AppEntry[], extendFrom?: number) => void;
   setLoading: (loading: boolean) => void;
   setStatus: (message: string) => void;
   setMode: (mode: FilterMode) => void;
@@ -109,6 +94,7 @@ export function renderApp(root: HTMLElement): {
   let currentApps: AppEntry[] = [];
   let currentQuery = "";
   let currentMode: FilterMode = "all";
+  let shownCount = 0;
 
   root.innerHTML = `
     <div class="page">
@@ -149,8 +135,12 @@ export function renderApp(root: HTMLElement): {
               ).join("")}
             </div>
 
-            <div class="app-list" id="app-list">
-              ${renderSkeletons(5)}
+            <div class="app-list" id="app-list"></div>
+
+            <div class="loading-dots" id="loading-dots">
+              <span class="loading-dots__dot"></span>
+              <span class="loading-dots__dot"></span>
+              <span class="loading-dots__dot"></span>
             </div>
 
             <div class="list-count" id="list-count"></div>
@@ -172,6 +162,7 @@ export function renderApp(root: HTMLElement): {
   `;
 
   const listEl = root.querySelector("#app-list") as HTMLElement;
+  const dotsEl = root.querySelector("#loading-dots") as HTMLElement;
   const countEl = root.querySelector("#list-count") as HTMLElement;
   const searchInput = root.querySelector("#search-input") as HTMLInputElement;
   const filtersEl = root.querySelector("#filters") as HTMLElement;
@@ -188,18 +179,16 @@ export function renderApp(root: HTMLElement): {
   }
 
   // Navigate: use host-api navigateTo when hosted, fall back to regular link.
-  // host-rs handles "label.dot" → resolves and opens in a new tab.
-  // dotli handles it via window.open to dot.li gateway.
   let hostNavigate: ((label: string) => void) | null = null;
-  import("@novasamatech/product-sdk").then((sdk) => {
-    // Only use navigateTo in host-rs (dotapp:// protocol).
-    // In dotli (http/https), let the <a href> to dot.li gateway work.
-    if (sdk.hostApi?.navigateTo && location.protocol === "dotapp:") {
-      hostNavigate = (label: string) => {
-        sdk.hostApi.navigateTo({ tag: "v1", value: `${label}.dot` });
-      };
-    }
-  }).catch(() => { /* not hosted — links fall through to href */ });
+  if (isHosted()) {
+    import("@novasamatech/product-sdk").then((sdk) => {
+      if (sdk.hostApi?.navigateTo) {
+        hostNavigate = (label: string) => {
+          sdk.hostApi.navigateTo({ tag: "v1", value: `${label}.dot` });
+        };
+      }
+    }).catch(() => {});
+  }
 
   // Vouch button handler — intercepts before navigation
   listEl.addEventListener("click", (e) => {
@@ -238,7 +227,14 @@ export function renderApp(root: HTMLElement): {
     const card = (e.target as HTMLElement).closest<HTMLElement>(".app-card[data-label]");
     if (!card) return;
     const isExternalLink = (e.target as HTMLElement).closest("[data-external]");
-    if (isExternalLink) return; // let the <a> handle it
+    if (isExternalLink) {
+      const label = (isExternalLink as HTMLElement).dataset.external;
+      if (label && hostNavigate) {
+        e.preventDefault();
+        hostNavigate(label);
+      }
+      return;
+    }
     e.preventDefault();
     const label = card.dataset.label;
     if (!label) return;
@@ -261,9 +257,12 @@ export function renderApp(root: HTMLElement): {
     if (filtered.length === 0 && currentQuery) {
       listEl.innerHTML = renderEmpty(currentQuery);
     } else if (filtered.length === 0) {
-      listEl.innerHTML = renderSkeletons(5);
+      listEl.innerHTML = "";
     } else {
-      listEl.innerHTML = filtered.map((app, i) => renderAppCard(app, i)).join("");
+      listEl.innerHTML = filtered.map((app, i) =>
+        renderAppCard(app, i < shownCount ? -1 : i - shownCount)
+      ).join("");
+      shownCount = filtered.length;
     }
 
     if (currentApps.length > 0) {
@@ -303,23 +302,20 @@ export function renderApp(root: HTMLElement): {
   });
 
   return {
-    setApps(apps: AppEntry[]) {
+    setApps(apps: AppEntry[], extendFrom?: number) {
+      if (extendFrom !== undefined) shownCount = extendFrom;
       currentApps = apps;
       updateList();
     },
     setLoading(loading: boolean) {
+      dotsEl.style.display = loading ? "flex" : "none";
       if (loading) {
-        listEl.innerHTML = renderSkeletons(5);
+        listEl.innerHTML = "";
         countEl.textContent = "";
       }
     },
     setStatus(message: string) {
-      listEl.innerHTML = `
-        <div class="empty-state">
-          <div class="spinner"></div>
-          <p class="empty-state__text">${message}</p>
-        </div>
-      `;
+      listEl.innerHTML = `<p class="empty-state__text">${message}</p>`;
       countEl.textContent = "";
     },
     setMode: switchMode,
@@ -330,9 +326,11 @@ export function renderApp(root: HTMLElement): {
       const searchWrap = root.querySelector(".search-wrap") as HTMLElement | null;
       const filters = root.querySelector(".filters") as HTMLElement | null;
       const listCount = root.querySelector(".list-count") as HTMLElement | null;
+      const loadingDots = root.querySelector("#loading-dots") as HTMLElement | null;
       if (searchWrap) searchWrap.style.display = display;
       if (filters) filters.style.display = display;
       if (listCount) listCount.style.display = display;
+      if (loadingDots) loadingDots.style.display = display;
     },
   };
 }

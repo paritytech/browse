@@ -319,7 +319,16 @@ input {
   transition:
     background var(--transition-fast),
     border-color var(--transition-fast);
-  animation: fadeUp 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: cardIn 600ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.app-card--instant {
+  animation: none;
 }
 
 .app-card:hover {
@@ -565,18 +574,32 @@ input {
   opacity: 0.5;
 }
 
-.spinner {
-  width: 24px;
-  height: 24px;
-  margin: 0 auto;
-  border: 2px solid #333;
-  border-top-color: #fff;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+.loading-dots {
+  display: none;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  padding: 1.25rem 0 0.5rem;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
+.loading-dots--visible {
+  display: flex;
+}
+
+.loading-dots__dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-muted);
+  animation: dotFade 1.4s ease-in-out infinite;
+}
+
+.loading-dots__dot:nth-child(2) { animation-delay: 0.2s; }
+.loading-dots__dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes dotFade {
+  0%, 80%, 100% { opacity: 0.2; transform: scale(0.8); }
+  40% { opacity: 1; transform: scale(1.2); }
 }
 
 /* ============================================================
@@ -664,33 +687,118 @@ input {
    Responsive
    ============================================================ */
 @media (max-width: 520px) {
-  .page {
-    padding: 2rem 0.75rem 1.5rem;
+  /* Hide the browse.dot wordmark — inside the host app it's redundant */
+  .header {
+    display: none;
   }
 
-  .title {
-    font-size: 2.5rem;
-  }
-
+  /* Remove the card chrome so the list reads as a native system list */
   .card {
-    padding: 1.25rem;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
   }
 
-  .app-card {
-    padding: 0.75rem 0.5rem;
+  .page {
+    padding: 1.25rem 0 1.5rem;
+    align-items: stretch;
   }
 
+  .main {
+    gap: 1rem;
+  }
 
-}
+  /* Wider search + taller tap target */
+  .search-wrap {
+    margin: 0 1rem;
+  }
 
-@media (max-width: 360px) {
-  .title {
-    font-size: 2.1rem;
+  .search-input {
+    height: 48px;
+    font-size: 1rem;
+    border-radius: 12px;
+    background: #111111;
+    border-color: #1e1e1e;
+  }
+
+  .search-input::placeholder {
+    font-size: 0.95rem;
+  }
+
+  /* Pills — bigger text and touch area */
+  .filters {
+    padding: 0 1rem;
+    gap: 0.5rem;
   }
 
   .pill {
-    padding: 5px 11px;
-    font-size: 0.75rem;
+    padding: 8px 18px;
+    font-size: 0.875rem;
+    border-radius: var(--radius-pill);
+  }
+
+  /* List rows — more breathing room */
+  .app-card {
+    padding: 0.9rem 1rem;
+    border-radius: 0;
+    gap: 1rem;
+  }
+
+  .app-card + .app-card {
+    border-top: 1px solid var(--color-border-subtle);
+  }
+
+  /* Bigger icon */
+  .app-card__icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+  }
+
+  .app-card__letter {
+    font-size: 1.25rem;
+  }
+
+  /* Larger type throughout */
+  .app-card__name {
+    font-size: 0.97rem;
+  }
+
+  .app-card__status-text {
+    font-size: 0.7rem;
+  }
+
+  .app-card__desc {
+    font-size: 0.84rem;
+  }
+
+  .app-card__dotns {
+    font-size: 0.74rem;
+  }
+
+  /* Always show vouch button on touch (no hover state) */
+  .vouch-btn {
+    opacity: 1;
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Always show arrow on touch */
+  .app-card__arrow {
+    opacity: 0.5;
+    transform: none;
+  }
+
+  .list-count {
+    padding: 0 1rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .pill {
+    padding: 7px 13px;
+    font-size: 0.82rem;
   }
 
   .filters {
@@ -729,6 +837,28 @@ input {
   display: flex;
   align-items: flex-start;
   gap: 1rem;
+}
+
+.detail-open {
+  margin-left: auto;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0.45rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-deep);
+  color: var(--color-text);
+  font-size: 0.8rem;
+  font-weight: 500;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 150ms, border-color 150ms;
+}
+.detail-open:hover {
+  background: var(--color-surface);
+  border-color: var(--color-border-subtle);
 }
 
 .detail-icon {
@@ -958,6 +1088,12 @@ input {
 
 .attester-row--skeleton {
   pointer-events: none;
+}
+
+@media (max-width: 520px) {
+  .detail-page {
+    padding: 0 1rem;
+  }
 }
 
 @media (max-width: 360px) {
