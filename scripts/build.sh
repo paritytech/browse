@@ -1,12 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 
-cd "$(dirname "$0")"
+cd "$(dirname "$0")/../app"
 
 echo "=== Building browse.dot ==="
 
 # 1. Vite build
-npx vite build
+npm run build
 
 # 2. Copy dist into bundle/assets (same structure as vox)
 rm -rf bundle/assets
