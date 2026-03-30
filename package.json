@@ -1,0 +1,10 @@
+{
+  "name": "browse",
+  "private": true,
+  "workspaces": ["app"],
+  "scripts": {
+    "dev": "bun run --cwd app dev",
+    "build": "./scripts/build.sh",
+    "deploy": ". ./.env && cd app && ../scripts/deploy.sh"
+  }
+}
