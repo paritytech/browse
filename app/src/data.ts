@@ -253,28 +253,44 @@ async function fetchAppsFromChain(
 
 const MOCK_APPS: AppEntry[] = [
   {
+    label: "explore",
+    name: "Explore",
+    description: "Discover apps and curated collections on Polkadot",
+    contentHash: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
+    isLive: true,
+    vouchCount: 15,
+  },
+  {
     label: "getsome",
     name: "Get Some",
-    description: "The easiest way to get DOT, USDC, and USDT on Polkadot",
+    description: "The easiest way to get DOT, USDC & USDT on Polkadot",
     contentHash: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
     isLive: true,
     vouchCount: 12,
   },
   {
-    label: "vox",
-    name: "Vox",
-    description: "Video and audio calls on Polkadot",
+    label: "ohnotes",
+    name: "Notes",
+    description: "Notes that follow you everywhere.",
     contentHash: "bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenosa7714",
     isLive: true,
-    vouchCount: 7,
+    vouchCount: 9,
   },
   {
-    label: "dotli",
-    name: "dot.li",
-    description: "Open any .dot site directly in your browser",
+    label: "ignite",
+    name: "Ignite",
+    description: "Create a campaign in minutes. Back projects you believe in. Trustless. Transparent. On-chain.",
+    contentHash: "bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenosa7714",
+    isLive: true,
+    vouchCount: 10,
+  },
+  {
+    label: "market",
+    name: "Market",
+    description: "Buy and sell digital & physical goods",
     contentHash: "bafybeibml5uieyxa5tufngvg7fgmrkpvp2rmelbbq4wyqkek5buthpholy",
     isLive: true,
-    vouchCount: 23,
+    vouchCount: 18,
   },
   {
     label: "tick3t",
@@ -368,8 +384,11 @@ export async function getApps(
   }
 
   try {
-    const apps = await chainPromise;
-    dlog(`Chain loaded — ${apps.length} apps`);
+    const chainApps = await chainPromise;
+    dlog(`Chain loaded — ${chainApps.length} apps`);
+    // Keep mock apps first, append chain apps that aren't duplicates
+    const mockLabels = new Set(mockApps.map((a) => a.label));
+    const apps = [...mockApps, ...chainApps.filter((a) => !mockLabels.has(a.label))];
     return { status: "ok", apps };
   } catch (err) {
     const msg = String(err);

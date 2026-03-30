@@ -1,4 +1,5 @@
-import { type AppEntry, type FilterMode, displayName, filterApps, vouchForApp, isHosted } from "./data";
+import { type AppEntry, type FilterMode, displayName, filterApps, vouchForApp } from "./data";
+import { hostApi } from "@novasamatech/product-sdk";
 
 function escHtml(s: string): string {
   return s
@@ -178,17 +179,6 @@ export function renderApp(root: HTMLElement): {
     }, 3000);
   }
 
-  // Navigate: use host-api navigateTo when hosted, fall back to regular link.
-  let hostNavigate: ((label: string) => void) | null = null;
-  if (isHosted()) {
-    import("@novasamatech/product-sdk").then((sdk) => {
-      if (sdk.hostApi?.navigateTo) {
-        hostNavigate = (label: string) => {
-          sdk.hostApi.navigateTo({ tag: "v1", value: `${label}.dot` });
-        };
-      }
-    }).catch(() => {});
-  }
 
   // Vouch button handler — intercepts before navigation
   listEl.addEventListener("click", (e) => {
@@ -229,9 +219,9 @@ export function renderApp(root: HTMLElement): {
     const isExternalLink = (e.target as HTMLElement).closest("[data-external]");
     if (isExternalLink) {
       const label = (isExternalLink as HTMLElement).dataset.external;
-      if (label && hostNavigate) {
+      if (label && hostApi?.navigateTo) {
         e.preventDefault();
-        hostNavigate(label);
+        hostApi.navigateTo({ tag: "v1", value: `${label}.dot` });
       }
       return;
     }

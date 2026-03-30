@@ -813,6 +813,9 @@ input {
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
+  box-sizing: border-box;
+  width: 100%;
+  overflow-wrap: break-word;
 }
 
 .detail-back {

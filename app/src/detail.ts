@@ -1,4 +1,5 @@
-import { type AppEntry, displayName, isHosted, type AttestationDetail, type FetchAttestationsResult } from "./data";
+import { type AppEntry, displayName, type AttestationDetail, type FetchAttestationsResult } from "./data";
+import { hostApi } from "@novasamatech/product-sdk";
 
 function escHtml(s: string): string {
   return s
@@ -151,16 +152,6 @@ export function mountDetail(
 ): () => void {
   let cancelled = false;
   let hasVouched: boolean | null = null;
-  let hostNavigate: ((label: string) => void) | null = null;
-  if (isHosted()) {
-    import("@novasamatech/product-sdk").then((sdk) => {
-      if (sdk.hostApi?.navigateTo) {
-        hostNavigate = (label: string) => {
-          sdk.hostApi.navigateTo({ tag: "v1", value: `${label}.dot` });
-        };
-      }
-    }).catch(() => {});
-  }
 
   // Render initial static content + skeletons
   container.innerHTML = `
@@ -189,8 +180,8 @@ export function mountDetail(
   // Wire open button
   const openBtn = container.querySelector("#detail-open") as HTMLButtonElement | null;
   const onOpenClick = () => {
-    if (hostNavigate) {
-      hostNavigate(app.label);
+    if (hostApi?.navigateTo) {
+      hostApi.navigateTo({ tag: "v1", value: `${app.label}.dot` });
     } else {
       window.open(`https://${app.label}.dot.li`, "_blank", "noopener");
     }
