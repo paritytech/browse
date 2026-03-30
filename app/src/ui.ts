@@ -1,5 +1,8 @@
-import { type AppEntry, type FilterMode, displayName, filterApps, vouchForApp } from "./data";
+import { type AppEntry, type FilterMode, displayName, filterApps } from "./data";
 import { hostApi } from "@novasamatech/product-sdk";
+import { renderSearchBar, initSearchBar } from "./components/search-bar/search-bar";
+import { renderCategoryTabs, CATEGORIES } from "./components/category-tabs/category-tabs";
+import { renderProductCard } from "./components/product-card/product-card";
 
 function escHtml(s: string): string {
   return s
@@ -76,13 +79,6 @@ function renderEmpty(query: string): string {
   `;
 }
 
-const FILTER_MODES: { id: FilterMode; label: string; enabled: boolean }[] = [
-  { id: "all", label: "All", enabled: true },
-  { id: "popular", label: "Popular", enabled: true },
-  { id: "curated", label: "Curated", enabled: false },
-  { id: "attendee", label: "Attendee", enabled: false },
-];
-
 export function renderApp(root: HTMLElement): {
   setApps: (apps: AppEntry[], extendFrom?: number) => void;
   setLoading: (loading: boolean) => void;
@@ -94,8 +90,9 @@ export function renderApp(root: HTMLElement): {
 } {
   let currentApps: AppEntry[] = [];
   let currentQuery = "";
-  let currentMode: FilterMode = "all";
+  let currentMode: FilterMode = "pcf";
   let shownCount = 0;
+  let isLoading = true;
 
   root.innerHTML = `
     <div class="page">
@@ -107,34 +104,9 @@ export function renderApp(root: HTMLElement): {
 
         <div class="card-flip" id="card-flip">
           <div class="card front" id="card-front">
-            <div class="search-wrap">
-              <svg class="search-icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.3"/>
-                <path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
-              </svg>
-              <input
-                id="search-input"
-                class="search-input"
-                type="text"
-                placeholder="Search products..."
-                autocomplete="off"
-                spellcheck="false"
-              />
-            </div>
+            ${renderSearchBar()}
 
-            <div class="filters" id="filters">
-              ${FILTER_MODES.map(
-                (f) => `
-                <button
-                  class="pill ${f.id === currentMode ? "pill--selected" : ""} ${!f.enabled ? "pill--disabled" : ""}"
-                  data-mode="${f.id}"
-                  ${!f.enabled ? "disabled" : ""}
-                >
-                  ${f.label}${!f.enabled ? '<span class="pill__soon">soon</span>' : ""}
-                </button>
-              `
-              ).join("")}
-            </div>
+            ${renderCategoryTabs(currentMode)}
 
             <div class="app-list" id="app-list"></div>
 
@@ -166,8 +138,10 @@ export function renderApp(root: HTMLElement): {
   const dotsEl = root.querySelector("#loading-dots") as HTMLElement;
   const countEl = root.querySelector("#list-count") as HTMLElement;
   const searchInput = root.querySelector("#search-input") as HTMLInputElement;
-  const filtersEl = root.querySelector("#filters") as HTMLElement;
+  const filtersEl = root.querySelector("#category-tabs") as HTMLElement;
   const toastEl = root.querySelector("#toast") as HTMLElement;
+
+  initSearchBar();
 
   let toastTimeout: ReturnType<typeof setTimeout> | null = null;
   function showToast(message: string) {
@@ -180,65 +154,29 @@ export function renderApp(root: HTMLElement): {
   }
 
 
-  // Vouch button handler — intercepts before navigation
+  function navigateToDomain(label: string) {
+    if (hostApi?.navigateTo) {
+      hostApi.navigateTo({ tag: "v1", value: `${label}.dot` });
+    } else {
+      window.open(`https://${label}.dot.li`, "_blank", "noopener");
+    }
+  }
+
   listEl.addEventListener("click", (e) => {
-    const vouchBtn = (e.target as HTMLElement).closest<HTMLButtonElement>(".vouch-btn[data-vouch]");
-    if (vouchBtn) {
-      e.preventDefault();
-      e.stopPropagation();
-      const label = vouchBtn.dataset.vouch!;
-      vouchBtn.disabled = true;
-      vouchBtn.classList.add("vouch-btn--pending");
-
-      vouchForApp(label).then((result) => {
-        vouchBtn.disabled = false;
-        vouchBtn.classList.remove("vouch-btn--pending");
-
-        if (result.status === "ok") {
-          // Optimistic update: bump the count in the local data
-          const app = currentApps.find((a) => a.label === label);
-          if (app) {
-            app.vouchCount = (app.vouchCount ?? 0) + 1;
-            updateList();
-          }
-          showToast(`Vouched for ${label}.dot`);
-        } else if (result.status === "no-wallet") {
-          showToast("Sign in to vouch");
-        } else {
-          showToast("Vouch failed — try again");
-          vouchBtn.classList.add("vouch-btn--error");
-          setTimeout(() => vouchBtn.classList.remove("vouch-btn--error"), 1500);
-        }
-      });
-      return;
-    }
-
-    // Card click → detail page (but not if clicking external link arrow)
-    const card = (e.target as HTMLElement).closest<HTMLElement>(".app-card[data-label]");
+    const card = (e.target as HTMLElement).closest<HTMLElement>(".product-card[data-label]");
     if (!card) return;
-    const isExternalLink = (e.target as HTMLElement).closest("[data-external]");
-    if (isExternalLink) {
-      const label = (isExternalLink as HTMLElement).dataset.external;
-      if (label && hostApi?.navigateTo) {
-        e.preventDefault();
-        hostApi.navigateTo({ tag: "v1", value: `${label}.dot` });
-      }
-      return;
-    }
     e.preventDefault();
     const label = card.dataset.label;
-    if (!label) return;
-    location.hash = `detail/${label}`;
+    if (label) navigateToDomain(label);
   });
 
-  // Keyboard activation for focused cards (Enter/Space)
   listEl.addEventListener("keydown", (e) => {
     if (e.key !== "Enter" && e.key !== " ") return;
-    const card = (e.target as HTMLElement).closest<HTMLElement>(".app-card[data-label]");
+    const card = (e.target as HTMLElement).closest<HTMLElement>(".product-card[data-label]");
     if (!card) return;
     e.preventDefault();
     const label = card.dataset.label;
-    if (label) location.hash = `detail/${label}`;
+    if (label) navigateToDomain(label);
   });
 
   function updateList() {
@@ -246,20 +184,21 @@ export function renderApp(root: HTMLElement): {
 
     if (filtered.length === 0 && currentQuery) {
       listEl.innerHTML = renderEmpty(currentQuery);
+      dotsEl.style.display = "none";
     } else if (filtered.length === 0) {
       listEl.innerHTML = "";
+      dotsEl.style.display = isLoading ? "flex" : "none";
     } else {
       listEl.innerHTML = filtered.map((app, i) =>
-        renderAppCard(app, i < shownCount ? -1 : i - shownCount)
+        renderProductCard(app, i < shownCount ? -1 : i - shownCount)
       ).join("");
       shownCount = filtered.length;
     }
 
-    if (currentApps.length > 0) {
-      const showing = filtered.length;
-      const total = currentApps.length;
+    const modeTotal = filterApps(currentApps, "", currentMode).length;
+    if (modeTotal > 0) {
       countEl.textContent =
-        currentQuery ? `${showing} of ${total} products` : `${total} products`;
+        currentQuery ? `${filtered.length} of ${modeTotal} products` : `${modeTotal} products`;
     } else {
       countEl.textContent = "";
     }
@@ -274,12 +213,12 @@ export function renderApp(root: HTMLElement): {
   function switchMode(mode: FilterMode) {
     if (mode === currentMode) return;
     // Only switch to enabled modes
-    const modeConfig = FILTER_MODES.find((f) => f.id === mode);
+    const modeConfig = CATEGORIES.find((f) => f.id === mode);
     if (!modeConfig?.enabled) return;
 
     currentMode = mode;
-    filtersEl.querySelectorAll(".pill").forEach((p) => {
-      p.classList.toggle("pill--selected", p.getAttribute("data-mode") === mode);
+    filtersEl.querySelectorAll(".category-tab").forEach((p) => {
+      p.classList.toggle("category-tab--active", p.getAttribute("data-mode") === mode);
     });
     updateList();
   }
@@ -296,8 +235,10 @@ export function renderApp(root: HTMLElement): {
       if (extendFrom !== undefined) shownCount = extendFrom;
       currentApps = apps;
       updateList();
+      if (apps.length > 0 && currentMode === "pcf") dotsEl.style.display = "none";
     },
     setLoading(loading: boolean) {
+      isLoading = loading;
       dotsEl.style.display = loading ? "flex" : "none";
       if (loading) {
         listEl.innerHTML = "";
@@ -314,7 +255,7 @@ export function renderApp(root: HTMLElement): {
     setDetailMode(active: boolean) {
       const display = active ? "none" : "";
       const searchWrap = root.querySelector(".search-wrap") as HTMLElement | null;
-      const filters = root.querySelector(".filters") as HTMLElement | null;
+      const filters = root.querySelector(".category-tabs") as HTMLElement | null;
       const listCount = root.querySelector(".list-count") as HTMLElement | null;
       const loadingDots = root.querySelector("#loading-dots") as HTMLElement | null;
       if (searchWrap) searchWrap.style.display = display;

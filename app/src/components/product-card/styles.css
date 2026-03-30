@@ -1,0 +1,88 @@
+.product-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 96px;
+  padding: 16px;
+  background: #FFFFFF14;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: background 150ms ease;
+  animation: productCardIn 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.product-card--instant {
+  animation: none;
+}
+
+.product-card:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.product-card:active {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+@keyframes productCardIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.product-card__thumb {
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.product-card__letter {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-size: 20px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.4);
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.product-card__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.product-card__name {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+  line-height: 20px;
+  letter-spacing: 0;
+  color: #FFFFFF;
+}
+
+.product-card__desc {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-weight: 400;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 0;
+  color: #FFFFFF7A;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.product-card--skeleton {
+  pointer-events: none;
+}
+
+.product-card--skeleton .product-card__thumb {
+  background: rgba(255, 255, 255, 0.06);
+}

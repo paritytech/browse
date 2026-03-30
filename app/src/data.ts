@@ -41,7 +41,7 @@ export interface AppEntry {
   vouchCount: number | null;
 }
 
-export type FilterMode = "all" | "curated" | "attendee" | "popular";
+export type FilterMode = "pcf" | "all";
 
 /** Display name: manifest name if available, otherwise "label.dot" */
 export function displayName(app: AppEntry): string {
@@ -53,16 +53,9 @@ export function displayName(app: AppEntry): string {
 /** Callback invoked as labels are discovered (before metadata). */
 export type OnLabelsFound = (apps: AppEntry[]) => void;
 
-function sortApps(apps: AppEntry[], mode: FilterMode = "all"): AppEntry[] {
+function sortApps(apps: AppEntry[]): AppEntry[] {
   return apps.slice().sort((a, b) => {
-    // Popular mode: sort by vouch count descending, then name
-    if (mode === "popular") {
-      const aCount = a.vouchCount ?? 0;
-      const bCount = b.vouchCount ?? 0;
-      if (aCount !== bCount) return bCount - aCount;
-      return displayName(a).localeCompare(displayName(b));
-    }
-    // Default: live first, then alphabetical
+    // Live first, then alphabetical
     if (a.isLive !== b.isLive) return a.isLive ? -1 : 1;
     return displayName(a).localeCompare(displayName(b));
   });
@@ -397,12 +390,20 @@ export async function getApps(
   }
 }
 
+const PCF_LABELS = new Set(MOCK_APPS.slice(0, 5).map((a) => a.label));
+
 export function filterApps(
   apps: AppEntry[],
   query: string,
-  mode: FilterMode = "all",
+  mode: FilterMode = "pcf",
 ): AppEntry[] {
   let filtered = apps;
+
+  if (mode === "pcf") {
+    filtered = filtered.filter((app) => PCF_LABELS.has(app.label));
+  } else if (mode === "all") {
+    filtered = filtered.filter((app) => !PCF_LABELS.has(app.label));
+  }
 
   const q = query.toLowerCase().trim();
   if (q) {
@@ -414,12 +415,7 @@ export function filterApps(
     );
   }
 
-  // Re-sort by mode (popular sorts by vouch count)
-  if (mode === "popular") {
-    filtered = sortApps(filtered, "popular");
-  }
-
-  return filtered;
+  return filtered.slice().sort((a, b) => displayName(a).localeCompare(displayName(b)));
 }
 
 // ── Vouch (write path) ──────────────────────────────────────

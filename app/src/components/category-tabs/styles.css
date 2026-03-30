@@ -1,0 +1,52 @@
+.category-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 16px;
+}
+
+.category-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 36px;
+  padding: 8px 12px;
+  border-radius: 24px;
+  border: none;
+  background: transparent;
+  color: #FFFFFF7A;
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-weight: 400;
+  font-size: 16px;
+  line-height: 20px;
+  letter-spacing: 0;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  outline: none;
+  transition: all 150ms ease;
+}
+
+.category-tab:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.category-tab:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.category-tab--active {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.category-tab--active:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.category-tab--disabled {
+  opacity: 0.35;
+  cursor: default;
+}
