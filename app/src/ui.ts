@@ -1,7 +1,7 @@
 import { type AppEntry, type FilterMode, displayName, filterApps } from "./data";
 import { hostApi } from "@novasamatech/product-sdk";
 import { renderSearchBar, initSearchBar } from "./components/search-bar/search-bar";
-import { renderCategoryTabs, CATEGORIES } from "./components/category-tabs/category-tabs";
+import { renderCategoryTabs, CATEGORIES, initCategoryTabs, positionIndicator } from "./components/category-tabs/category-tabs";
 import { renderProductCard } from "./components/product-card/product-card";
 
 function escHtml(s: string): string {
@@ -142,6 +142,7 @@ export function renderApp(root: HTMLElement, onModeChange?: (mode: FilterMode) =
   const toastEl = root.querySelector("#toast") as HTMLElement;
 
   initSearchBar();
+  initCategoryTabs();
 
   let toastTimeout: ReturnType<typeof setTimeout> | null = null;
   function showToast(message: string) {
@@ -220,6 +221,7 @@ export function renderApp(root: HTMLElement, onModeChange?: (mode: FilterMode) =
     filtersEl.querySelectorAll(".category-tab").forEach((p) => {
       p.classList.toggle("category-tab--active", p.getAttribute("data-mode") === mode);
     });
+    positionIndicator();
     onModeChange?.(mode);
     updateList();
   }

@@ -15,6 +15,7 @@ export const CATEGORIES: CategoryTab[] = [
 export function renderCategoryTabs(activeMode: FilterMode): string {
   return `
     <div class="category-tabs" id="category-tabs">
+      <div class="category-tabs__indicator" id="tabs-indicator"></div>
       ${CATEGORIES.map(
         (tab) => `
         <button
@@ -26,4 +27,35 @@ export function renderCategoryTabs(activeMode: FilterMode): string {
       ).join("")}
     </div>
   `;
+}
+
+export function initCategoryTabs(): void {
+  requestAnimationFrame(() => positionIndicator(false));
+}
+
+export function positionIndicator(animate = true): void {
+  const container = document.getElementById("category-tabs");
+  const indicator = document.getElementById("tabs-indicator");
+  if (!container || !indicator) return;
+
+  const active = container.querySelector<HTMLElement>(".category-tab--active");
+  if (!active) {
+    indicator.style.opacity = "0";
+    return;
+  }
+
+  const containerRect = container.getBoundingClientRect();
+  const activeRect = active.getBoundingClientRect();
+
+  if (!animate) indicator.style.transition = "none";
+
+  indicator.style.width = `${activeRect.width}px`;
+  indicator.style.transform = `translateX(${activeRect.left - containerRect.left}px)`;
+  indicator.style.opacity = "1";
+
+  if (!animate) {
+    // Force reflow then re-enable transitions
+    indicator.offsetHeight;
+    indicator.style.transition = "";
+  }
 }

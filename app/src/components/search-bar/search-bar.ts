@@ -7,11 +7,11 @@ export function renderSearchBar(placeholder = "Search for Apps"): string {
         <circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.3"/>
         <path d="M11 11l3.5 3.5" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
       </svg>
+      <span class="search-bar__placeholder">${placeholder}</span>
       <input
         id="search-input"
         class="search-bar__input"
         type="text"
-        placeholder="${placeholder}"
         autocomplete="off"
         spellcheck="false"
       />
@@ -26,5 +26,13 @@ export function initSearchBar(): void {
 
   input.addEventListener("input", () => {
     wrap.classList.toggle("search-bar--has-value", input.value.length > 0);
+  });
+
+  input.addEventListener("focus", () => {
+    wrap.classList.add("search-bar--focus");
+  });
+
+  input.addEventListener("blur", () => {
+    wrap.classList.remove("search-bar--focus");
   });
 }
