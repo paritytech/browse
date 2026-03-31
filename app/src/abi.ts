@@ -72,12 +72,17 @@ const SEL = {
   attest: computeSelector("attest(address,bytes32,bytes32,uint64)"),
   revoke: computeSelector("revoke(address,bytes32)"),
   isValid: computeSelector("isValid(address,bytes32,address)"),
+  owner: computeSelector("owner()"),
 } as const;
 
 // ── Encoders ────────────────────────────────────────────────
 
 export function encodeGetAllDeployedStores(): `0x${string}` {
   return `0x${SEL.getAllDeployedStores}`;
+}
+
+export function encodeOwner(): `0x${string}` {
+  return `0x${SEL.owner}`;
 }
 
 export function encodeGetValues(): `0x${string}` {
@@ -148,6 +153,11 @@ export function encodeAggregate3(calls: MulticallTarget[]): `0x${string}` {
 }
 
 // ── Decoders ────────────────────────────────────────────────
+
+export function decodeAddress(data: `0x${string}`): string {
+  const hex = stripPrefix(data);
+  return "0x" + hex.slice(24, 64);
+}
 
 export function decodeAddressArray(data: `0x${string}`): string[] {
   const hex = stripPrefix(data);

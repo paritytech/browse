@@ -7,13 +7,11 @@
   container-type: inline-size;
 }
 
-/* ── Icon: final position is left:12px; idle state offsets to center via transform ── */
-
 .search-bar__icon {
   position: absolute;
   left: 12px;
   top: 50%;
-  transform: translate(calc(50cqi - 12px - 8px - 56px), -50%);
+  transform: translate(calc(50cqi - 12px - 8px - 30px), -50%);
   color: rgba(255, 255, 255, 0.3);
   pointer-events: none;
   z-index: 1;
@@ -27,8 +25,6 @@
   transform: translate(0, -50%);
   color: rgba(255, 255, 255, 0.5);
 }
-
-/* ── Placeholder: centered when idle, fades on focus ── */
 
 .search-bar__placeholder {
   position: absolute;
@@ -49,8 +45,6 @@
 .search-bar--has-value .search-bar__placeholder {
   opacity: 0;
 }
-
-/* ── Input ── */
 
 .search-bar__input {
   width: 100%;

@@ -1,4 +1,4 @@
-import { type AppEntry, type FilterMode, displayName, filterApps } from "./data";
+import { type AppEntry, type FilterMode, filterApps } from "./data";
 import { hostApi } from "@novasamatech/product-sdk";
 import { renderSearchBar, initSearchBar } from "./components/search-bar/search-bar";
 import { renderCategoryTabs, CATEGORIES, initCategoryTabs, positionIndicator } from "./components/category-tabs/category-tabs";
@@ -12,56 +12,6 @@ function escHtml(s: string): string {
     .replace(/"/g, "&quot;");
 }
 
-function renderVouchBadge(count: number | null): string {
-  if (count === null || count === 0) return "";
-  return `<span class="app-card__vouches" title="${count} vouch${count === 1 ? "" : "es"}">
-    <svg width="12" height="12" viewBox="0 0 16 16" fill="none">
-      <path d="M14 8c0-2.2-2.7-4-6-4S2 5.8 2 8c0 1.1.6 2.1 1.6 2.9L3 14l2.5-1.3c.8.2 1.6.3 2.5.3 3.3 0 6-1.8 6-4z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
-    </svg>
-    ${count}</span>`;
-}
-
-function renderAppCard(app: AppEntry, index: number): string {
-  const instant = index < 0;
-  const delay = instant ? 0 : index * 380;
-  const statusClass = app.isLive ? "live" : "";
-  const statusLabel = app.isLive ? "available" : "coming soon";
-  const name = escHtml(displayName(app));
-  const letter = escHtml(name[0].toLowerCase());
-  const label = escHtml(app.label);
-
-  return `
-    <div class="app-card${instant ? " app-card--instant" : ""}" style="animation-delay: ${delay}ms" data-label="${label}" tabindex="0">
-      <div class="app-card__icon">
-        <span class="app-card__letter">${letter}</span>
-      </div>
-      <div class="app-card__body">
-        <div class="app-card__top">
-          <span class="app-card__name">${name}</span>
-          <div class="app-card__status">
-            <span class="app-card__dot ${statusClass}"></span>
-            <span class="app-card__status-text">${statusLabel}</span>
-            ${renderVouchBadge(app.vouchCount)}
-          </div>
-        </div>
-        <p class="app-card__desc">${escHtml(app.description)}</p>
-        <span class="app-card__dotns">${label}.dot</span>
-      </div>
-      <div class="app-card__actions">
-        <button class="vouch-btn" data-vouch="${label}" title="Vouch for this product">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
-            <path d="M8 1v14M1 8h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-          </svg>
-        </button>
-        <a class="app-card__arrow" href="https://${label}.dot.li" data-external="${label}" title="Open ${name}">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M6 3l5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-          </svg>
-        </a>
-      </div>
-    </div>
-  `;
-}
 
 
 function renderEmpty(query: string): string {
@@ -180,19 +130,45 @@ export function renderApp(root: HTMLElement, onModeChange?: (mode: FilterMode) =
     if (label) navigateToDomain(label);
   });
 
+  let lastRenderedLabels: string[] = [];
+
   function updateList() {
     const filtered = filterApps(currentApps, currentQuery, currentMode);
 
     if (filtered.length === 0 && currentQuery) {
       listEl.innerHTML = renderEmpty(currentQuery);
       dotsEl.style.display = "none";
+      lastRenderedLabels = [];
     } else if (filtered.length === 0) {
       listEl.innerHTML = "";
       dotsEl.style.display = isLoading ? "flex" : "none";
+      lastRenderedLabels = [];
     } else {
-      listEl.innerHTML = filtered.map((app, i) =>
-        renderProductCard(app, i < shownCount ? -1 : i - shownCount)
-      ).join("");
+      const newLabels = filtered.map((a) => a.label);
+      const prevSet = new Set(lastRenderedLabels);
+
+      // If the order/set changed entirely (mode switch, search), full re-render
+      const isAppend = newLabels.length >= lastRenderedLabels.length &&
+        lastRenderedLabels.every((l, i) => newLabels[i] === l);
+
+      if (isAppend && lastRenderedLabels.length > 0) {
+        // Append only the new cards
+        const newApps = filtered.slice(lastRenderedLabels.length);
+        const fragment = document.createDocumentFragment();
+        const temp = document.createElement("div");
+        temp.innerHTML = newApps.map((app, i) =>
+          renderProductCard(app, i)
+        ).join("");
+        while (temp.firstChild) fragment.appendChild(temp.firstChild);
+        listEl.appendChild(fragment);
+      } else {
+        // Full re-render (mode switch, search change, reorder)
+        listEl.innerHTML = filtered.map((app, i) =>
+          renderProductCard(app, prevSet.has(app.label) ? -1 : i)
+        ).join("");
+      }
+
+      lastRenderedLabels = newLabels;
       shownCount = filtered.length;
     }
 

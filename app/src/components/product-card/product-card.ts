@@ -16,7 +16,7 @@ function escHtml(s: string): string {
  */
 export function renderProductCard(app: AppEntry, index: number): string {
   const instant = index < 0;
-  const delay = instant ? 0 : index * 100;
+  const delay = instant ? 0 : Math.min(index * 60, 400);
   const name = escHtml(displayName(app));
   const letter = escHtml(name[0].toLowerCase());
   const label = escHtml(app.label);

@@ -1,6 +1,6 @@
 import "./styles.css";
 
-export function renderSearchBar(placeholder = "Search for Apps"): string {
+export function renderSearchBar(placeholder = "Search"): string {
   return `
     <div class="search-bar" id="search-bar">
       <svg class="search-bar__icon" width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -21,7 +21,9 @@ export function renderSearchBar(placeholder = "Search for Apps"): string {
 
 export function initSearchBar(): void {
   const wrap = document.getElementById("search-bar");
-  const input = document.getElementById("search-input") as HTMLInputElement | null;
+  const input = document.getElementById(
+    "search-input",
+  ) as HTMLInputElement | null;
   if (!wrap || !input) return;
 
   input.addEventListener("input", () => {

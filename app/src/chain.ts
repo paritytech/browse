@@ -77,6 +77,23 @@ async function ensureApi(): Promise<
   return ensurePromise;
 }
 
+/**
+ * Reverse-lookup an H160 EVM address → SS58 substrate address
+ * via the Revive.OriginalAccount storage map.
+ * Returns null if the account is not mapped.
+ */
+export async function lookupOriginalAccount(h160: string): Promise<string | null> {
+  const api = await ensureApi();
+  try {
+    const h160Hex = (h160.startsWith("0x") ? h160 : `0x${h160}`) as `0x${string}`;
+    const mapped = await api.query.Revive.OriginalAccount.getValue(Binary.fromHex(h160Hex));
+    if (mapped) return mapped.toString?.() ?? null;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 // ── reviveCall — read-only EVM dry-run (from dotli/src/resolve.ts) ──
 
 interface ReviveExecResult {
@@ -98,11 +115,12 @@ interface ReviveOkResult {
 export async function reviveCall(
   contractAddress: string,
   encodedData: `0x${string}`,
+  origin: string = DUMMY_ORIGIN,
 ): Promise<`0x${string}`> {
   const api = await ensureApi();
 
   const result = (await api.apis.ReviveApi.call(
-    DUMMY_ORIGIN,
+    origin,
     Binary.fromHex(contractAddress as `0x${string}`),
     0n,
     DRY_RUN_WEIGHT_LIMIT,
