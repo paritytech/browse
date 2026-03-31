@@ -79,7 +79,7 @@ function renderEmpty(query: string): string {
   `;
 }
 
-export function renderApp(root: HTMLElement): {
+export function renderApp(root: HTMLElement, onModeChange?: (mode: FilterMode) => void): {
   setApps: (apps: AppEntry[], extendFrom?: number) => void;
   setLoading: (loading: boolean) => void;
   setStatus: (message: string) => void;
@@ -220,6 +220,7 @@ export function renderApp(root: HTMLElement): {
     filtersEl.querySelectorAll(".category-tab").forEach((p) => {
       p.classList.toggle("category-tab--active", p.getAttribute("data-mode") === mode);
     });
+    onModeChange?.(mode);
     updateList();
   }
 

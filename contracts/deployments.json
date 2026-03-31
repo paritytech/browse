@@ -9,5 +9,16 @@
     "deployedAt": "2026-03-12T01:05:30Z",
     "compiler": "resolc v1.0.0, solc 0.8.30",
     "method": "hardhat ignition + @parity/hardhat-polkadot"
+  },
+  "store": {
+    "address": "0x9250917EC1d3149a79e301deDe8B56C8A7A53930",
+    "deployer": "0x47d761b45B240C5BC20dD052e87B77f722753BC4",
+    "network": "polkadot-hub-testnet",
+    "chainId": 420420417,
+    "rpcUrl": "https://eth-rpc-testnet.polkadot.io",
+    "explorer": "https://blockscout-passet-hub.parity-testnet.parity.io/address/0x9250917EC1d3149a79e301deDe8B56C8A7A53930",
+    "deployedAt": "2026-03-31T00:06:26Z",
+    "compiler": "resolc v1.0.0, solc 0.8.30",
+    "method": "hardhat ignition + @parity/hardhat-polkadot"
   }
 }

@@ -36,9 +36,10 @@ export function setChainStatusCallback(cb: ChainStatusCallback): void {
 async function doEnsureApi(): Promise<
   ReturnType<PolkadotClient["getUnsafeApi"]>
 > {
+  const t0 = performance.now();
   dlog("Importing product-sdk...");
   const sdk = await import("@novasamatech/product-sdk");
-  dlog(`product-sdk loaded (${Object.keys(sdk).length} exports)`);
+  dlog(`product-sdk loaded (${(performance.now() - t0).toFixed(0)}ms)`);
 
   dlog(`Creating papi provider for ${ASSET_HUB_PASEO_GENESIS.slice(0, 10)}...`);
   const provider = sdk.createPapiProvider(ASSET_HUB_PASEO_GENESIS);
@@ -57,7 +58,7 @@ async function doEnsureApi(): Promise<
       ),
     ),
   ]);
-  dlog(`Connected to chain — block #${block.number}`);
+  dlog(`Connected to chain — block #${block.number} (${(performance.now() - t0).toFixed(0)}ms)`);
 
   apiInstance = clientInstance.getUnsafeApi();
   return apiInstance;

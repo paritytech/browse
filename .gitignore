@@ -10,6 +10,8 @@ out/
 artifacts/
 typechain-types/
 contracts/lib/
+**/build-info/
+**/journal.jsonl
 
 # Build artifacts
 .playwright-mcp/
@@ -26,3 +28,7 @@ contracts/lib/
 app/bundle/
 app/browse.prod
 app/chain-specs/
+app/dist.car
+
+# Claude Code
+.claude/

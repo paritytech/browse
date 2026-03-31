@@ -28,6 +28,7 @@ import {
 import { reviveCall, reviveSubmit, getWalletAccount, apiInstance } from "./chain";
 import { multicall } from "./multicall";
 import { dlog } from "./debug";
+import { fetchStoreProducts } from "./store";
 
 export interface AppEntry {
   /** DotNS label (e.g. "getsome") */
@@ -39,6 +40,8 @@ export interface AppEntry {
   isLive: boolean;
   /** Number of attestations (vouches) for this product. null = not yet loaded. */
   vouchCount: number | null;
+  /** Which list this entry belongs to */
+  source: "pcf" | "all";
 }
 
 export type FilterMode = "pcf" | "all";
@@ -61,11 +64,36 @@ function sortApps(apps: AppEntry[]): AppEntry[] {
   });
 }
 
-async function fetchAppsFromChain(
-  onProgress?: OnLabelsFound,
-): Promise<AppEntry[]> {
+/**
+ * Fetch PCF products from the Store contract.
+ * Single call to getProducts() returns label, name, description directly.
+ */
+async function fetchPcfApps(): Promise<AppEntry[]> {
+  const t0 = performance.now();
+  dlog("PCF: Store.getProducts()");
+  const storeProducts = await fetchStoreProducts();
+  dlog(`PCF: ${storeProducts.length} products from Store (total ${(performance.now() - t0).toFixed(0)}ms)`);
+
+  if (storeProducts.length === 0) return [];
+
+  return storeProducts.map((p) => ({
+    label: p.label,
+    name: p.name || null,
+    description: p.description || "No description",
+    contentHash: null,
+    isLive: true,
+    vouchCount: null,
+    source: "pcf" as const,
+  }));
+}
+
+/**
+ * Fetch apps from the DotNS StoreFactory + ContentResolver + AttestationRegistry.
+ * Used for the "All" tab.
+ */
+async function fetchAllApps(): Promise<AppEntry[]> {
   // Step 1: Get all store addresses from StoreFactory
-  dlog("Step 1: StoreFactory.getAllDeployedStores()");
+  dlog("All: StoreFactory.getAllDeployedStores()");
   const storesData = await reviveCall(
     CONTRACTS.STORE_FACTORY,
     encodeGetAllDeployedStores(),
@@ -73,26 +101,13 @@ async function fetchAppsFromChain(
   const storeAddresses = decodeAddressArray(storesData);
   dlog(`Found ${storeAddresses.length} stores`);
 
-  if (storeAddresses.length === 0) {
-    dlog("No stores found — chain has no registered domains", "warn");
-    return [];
-  }
+  if (storeAddresses.length === 0) return [];
 
-  // Step 2: Concurrent getValues() on each store (bounded to CONCURRENCY slots).
-  //   Multicall3 does NOT work for Store.getValues() — Revive nested calls
-  //   return empty data. Must call each store directly.
-  //   Progressive: emit labels to UI as soon as they're found.
-  // Keep concurrency low — smoldot is a Wasm light client running in the browser.
-  // Each reviveCall triggers state proof verification on the JS event loop.
-  // 12 was causing Firefox "slowing down" warnings; 4 balances throughput vs responsiveness.
+  // Step 2: Concurrent getValues() on each store
   const CONCURRENCY = 4;
-  dlog(`Step 2: Scanning ${storeAddresses.length} stores (concurrency=${CONCURRENCY})`);
+  dlog(`All: Scanning ${storeAddresses.length} stores (concurrency=${CONCURRENCY})`);
   const labelSet = new Set<string>();
 
-  /**
-   * Scan a single store by index, merging any new labels into labelSet and
-   * calling onProgress when new labels are discovered.
-   */
   async function scanStore(s: number): Promise<void> {
     try {
       const raw = await reviveCall(
@@ -100,74 +115,36 @@ async function fetchAppsFromChain(
         encodeGetValues(),
       );
       const storeLabels = decodeStringArray(raw);
-      if (storeLabels.length > 0) {
-        const newLabels: string[] = [];
-        for (const l of storeLabels) {
-          if (!l) continue;
-          const normalized = l.endsWith(".dot") ? l.slice(0, -4) : l;
-          if (!labelSet.has(normalized)) {
-            labelSet.add(normalized);
-            newLabels.push(normalized);
-          }
-        }
-        if (newLabels.length > 0) {
-          dlog(`  store[${s}]: +${newLabels.length} → [${newLabels.join(", ")}]`);
-          // Progressive: send label-only entries to UI immediately.
-          if (onProgress) {
-            // Skip sorting during scan — labels arrive incrementally and will
-            // be properly sorted after metadata is fetched in Step 3.
-            const partial: AppEntry[] = Array.from(labelSet).map((label) => ({
-              label,
-              name: null,
-              description: "Loading...",
-              contentHash: null,
-              isLive: false,
-              vouchCount: null,
-            }));
-            onProgress(partial);
-          }
-        }
+      for (const l of storeLabels) {
+        if (!l) continue;
+        const normalized = l.endsWith(".dot") ? l.slice(0, -4) : l;
+        labelSet.add(normalized);
       }
     } catch {
       dlog(`  store[${s}]: call failed`, "warn");
     }
-    if ((s + 1) % 50 === 0) {
-      dlog(`  ... scanned ${s + 1}/${storeAddresses.length} stores`);
-    }
   }
 
-  /**
-   * Bounded concurrent dispatch: keeps up to CONCURRENCY promises in-flight,
-   * pulling the next index from the queue as each one settles.
-   */
   async function scanConcurrent(total: number, limit: number): Promise<void> {
     let next = 0;
-
     async function worker(): Promise<void> {
       while (next < total) {
         const s = next++;
         await scanStore(s);
       }
     }
-
     const workers: Promise<void>[] = [];
-    for (let i = 0; i < Math.min(limit, total); i++) {
-      workers.push(worker());
-    }
+    for (let i = 0; i < Math.min(limit, total); i++) workers.push(worker());
     await Promise.all(workers);
   }
 
   await scanConcurrent(storeAddresses.length, CONCURRENCY);
 
   const uniqueLabels = Array.from(labelSet);
-  dlog(`Found ${uniqueLabels.length} unique labels: [${uniqueLabels.join(", ")}]`);
-  if (uniqueLabels.length === 0) {
-    dlog("No labels found in any store", "warn");
-    return [];
-  }
+  dlog(`All: ${uniqueLabels.length} unique labels`);
+  if (uniqueLabels.length === 0) return [];
 
-  // Step 3: Batch metadata + attestation count queries — 4 calls per label via Multicall3
-  //   Multicall3 works for ContentResolver and AttestationRegistry (unlike Store.getValues()).
+  // Step 3: Batch metadata + attestation count via Multicall3
   const CALLS_PER_LABEL = 4;
   const metadataCalls: MulticallTarget[] = [];
   for (const label of uniqueLabels) {
@@ -180,15 +157,10 @@ async function fetchAppsFromChain(
       { target: CONTRACTS.ATTESTATION_REGISTRY, callData: encodeAttestCount(subject) },
     );
   }
-  dlog(`Step 3: Multicall metadata+attestations — ${metadataCalls.length} calls (${uniqueLabels.length} domains x ${CALLS_PER_LABEL})`);
+  dlog(`All: Multicall — ${metadataCalls.length} calls`);
   const metadataResults = await multicall(metadataCalls);
-  dlog(`Got ${metadataResults.length} metadata results`);
 
-  if (metadataResults.length !== metadataCalls.length) {
-    dlog(`Result count mismatch: expected ${metadataCalls.length}, got ${metadataResults.length}`, "warn");
-  }
-
-  // Step 4: Assemble AppEntry[] from results
+  // Step 4: Assemble AppEntry[]
   const apps: AppEntry[] = [];
   for (let i = 0; i < uniqueLabels.length; i++) {
     const label = uniqueLabels[i];
@@ -236,6 +208,7 @@ async function fetchAppsFromChain(
       contentHash,
       isLive: contentHash !== null,
       vouchCount,
+      source: "all" as const,
     });
   }
 
@@ -244,103 +217,22 @@ async function fetchAppsFromChain(
 
 // ── Mock data (fallback for dev mode / when not inside host) ──
 
-const MOCK_APPS: AppEntry[] = [
-  {
-    label: "explore",
-    name: "Explore",
-    description: "Discover apps and curated collections on Polkadot",
-    contentHash: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
-    isLive: true,
-    vouchCount: 15,
-  },
-  {
-    label: "getsome",
-    name: "Get Some",
-    description: "The easiest way to get DOT, USDC & USDT on Polkadot",
-    contentHash: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi",
-    isLive: true,
-    vouchCount: 12,
-  },
-  {
-    label: "ohnotes",
-    name: "Notes",
-    description: "Notes that follow you everywhere.",
-    contentHash: "bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenosa7714",
-    isLive: true,
-    vouchCount: 9,
-  },
-  {
-    label: "ignite",
-    name: "Ignite",
-    description: "Create a campaign in minutes. Back projects you believe in. Trustless. Transparent. On-chain.",
-    contentHash: "bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenosa7714",
-    isLive: true,
-    vouchCount: 10,
-  },
-  {
-    label: "market",
-    name: "Market",
-    description: "Buy and sell digital & physical goods",
-    contentHash: "bafybeibml5uieyxa5tufngvg7fgmrkpvp2rmelbbq4wyqkek5buthpholy",
-    isLive: true,
-    vouchCount: 18,
-  },
-  {
-    label: "tick3t",
-    name: "Tick3t",
-    description: "Event tickets and attendance credentials",
-    contentHash: "bafkreifjjcie6lyga6nkrphqgnoyse3gkbimrhddsyv2kphmrqixvxsqme",
-    isLive: true,
-    vouchCount: 5,
-  },
-  {
-    label: "honor",
-    name: null,
-    description: "Reputation and recognition system",
-    contentHash: null,
-    isLive: false,
-    vouchCount: 2,
-  },
-  {
-    label: "commons",
-    name: "Protocol Commons",
-    description: "Shared building blocks for product teams",
-    contentHash: null,
-    isLive: false,
-    vouchCount: 8,
-  },
-  {
-    label: "wiki",
-    name: null,
-    description: "Collaborative knowledge base",
-    contentHash: null,
-    isLive: false,
-    vouchCount: 0,
-  },
-  {
-    label: "bridge",
-    name: "Bridge",
-    description: "Move assets between networks",
-    contentHash: "bafybeifx7yeb5glcjhclhmrvdckg6gaoqjfqnp7z3feqacfsocsc3w4ymu",
-    isLive: true,
-    vouchCount: 15,
-  },
-  {
-    label: "governance",
-    name: "Governance",
-    description: "Vote on proposals and shape the network",
-    contentHash: "bafkreigu6doh4v7gcpz3kvwyyifkl5ufma5n52zah6afxijkahvje4a6zy",
-    isLive: true,
-    vouchCount: 31,
-  },
-  {
-    label: "nfts",
-    name: null,
-    description: "Create and collect digital items",
-    contentHash: null,
-    isLive: false,
-    vouchCount: 1,
-  },
+const MOCK_PCF_APPS: AppEntry[] = [
+  { label: "explore", name: "Explore", description: "Discover apps and curated collections on Polkadot", contentHash: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi", isLive: true, vouchCount: 15, source: "pcf" },
+  { label: "getsome", name: "Get Some", description: "The easiest way to get DOT, USDC & USDT on Polkadot", contentHash: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi", isLive: true, vouchCount: 12, source: "pcf" },
+  { label: "ohnotes", name: "Notes", description: "Notes that follow you everywhere.", contentHash: "bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenosa7714", isLive: true, vouchCount: 9, source: "pcf" },
+  { label: "ignite", name: "Ignite", description: "Create a campaign in minutes. Back projects you believe in. Trustless. Transparent. On-chain.", contentHash: "bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenosa7714", isLive: true, vouchCount: 10, source: "pcf" },
+  { label: "market", name: "Market", description: "Buy and sell digital & physical goods", contentHash: "bafybeibml5uieyxa5tufngvg7fgmrkpvp2rmelbbq4wyqkek5buthpholy", isLive: true, vouchCount: 18, source: "pcf" },
+];
+
+const MOCK_ALL_APPS: AppEntry[] = [
+  { label: "tick3t", name: "Tick3t", description: "Event tickets and attendance credentials", contentHash: "bafkreifjjcie6lyga6nkrphqgnoyse3gkbimrhddsyv2kphmrqixvxsqme", isLive: true, vouchCount: 5, source: "all" },
+  { label: "honor", name: null, description: "Reputation and recognition system", contentHash: null, isLive: false, vouchCount: 2, source: "all" },
+  { label: "commons", name: "Protocol Commons", description: "Shared building blocks for product teams", contentHash: null, isLive: false, vouchCount: 8, source: "all" },
+  { label: "wiki", name: null, description: "Collaborative knowledge base", contentHash: null, isLive: false, vouchCount: 0, source: "all" },
+  { label: "bridge", name: "Bridge", description: "Move assets between networks", contentHash: "bafybeifx7yeb5glcjhclhmrvdckg6gaoqjfqnp7z3feqacfsocsc3w4ymu", isLive: true, vouchCount: 15, source: "all" },
+  { label: "governance", name: "Governance", description: "Vote on proposals and shape the network", contentHash: "bafkreigu6doh4v7gcpz3kvwyyifkl5ufma5n52zah6afxijkahvje4a6zy", isLive: true, vouchCount: 31, source: "all" },
+  { label: "nfts", name: null, description: "Create and collect digital items", contentHash: null, isLive: false, vouchCount: 1, source: "all" },
 ];
 
 // ── Public API ──────────────────────────────────────────────
@@ -353,57 +245,51 @@ export function isHosted(): boolean {
 
 export type GetAppsResult =
   | { status: "ok"; apps: AppEntry[] }
-  | { status: "no-chain"; message: string }
+  | { status: "error"; message: string }
   | { status: "mock"; apps: AppEntry[] };
 
-export async function getApps(
-  onProgress?: OnLabelsFound,
-): Promise<GetAppsResult> {
-  const mockApps = MOCK_APPS.slice(0, 5);
-
+/**
+ * Fetch PCF products from the Store contract (or mock fallback).
+ * Fast — single contract call.
+ */
+export async function getPcfApps(): Promise<GetAppsResult> {
   const hosted = isHosted();
-
-  // Start chain fetch in background if hosted
-  const chainPromise = hosted ? fetchAppsFromChain() : null;
-
-  // Emit all mock apps at once after a brief delay — CSS stagger handles the visual sequencing
-  if (onProgress) {
-    await new Promise<void>((r) => setTimeout(r, 2000));
-    onProgress(mockApps);
+  if (!hosted) {
+    return { status: "mock", apps: MOCK_PCF_APPS };
   }
-
-  if (!chainPromise) {
-    return { status: "mock", apps: mockApps };
-  }
-
   try {
-    const chainApps = await chainPromise;
-    dlog(`Chain loaded — ${chainApps.length} apps`);
-    // Keep mock apps first, append chain apps that aren't duplicates
-    const mockLabels = new Set(mockApps.map((a) => a.label));
-    const apps = [...mockApps, ...chainApps.filter((a) => !mockLabels.has(a.label))];
+    const apps = await fetchPcfApps();
     return { status: "ok", apps };
   } catch (err) {
-    const msg = String(err);
-    dlog(`Chain query failed: ${msg}`, "error");
-    return { status: "mock", apps: mockApps };
+    dlog(`PCF fetch failed: ${err}`, "error");
+    return { status: "mock", apps: MOCK_PCF_APPS };
   }
 }
 
-const PCF_LABELS = new Set(MOCK_APPS.slice(0, 5).map((a) => a.label));
+/**
+ * Fetch all DotNS apps from StoreFactory + ContentResolver + AttestationRegistry.
+ * Slower — scans all stores, then multicall for metadata.
+ */
+export async function getAllApps(): Promise<GetAppsResult> {
+  const hosted = isHosted();
+  if (!hosted) {
+    return { status: "mock", apps: MOCK_ALL_APPS };
+  }
+  try {
+    const apps = await fetchAllApps();
+    return { status: "ok", apps };
+  } catch (err) {
+    dlog(`All fetch failed: ${err}`, "error");
+    return { status: "mock", apps: MOCK_ALL_APPS };
+  }
+}
 
 export function filterApps(
   apps: AppEntry[],
   query: string,
   mode: FilterMode = "pcf",
 ): AppEntry[] {
-  let filtered = apps;
-
-  if (mode === "pcf") {
-    filtered = filtered.filter((app) => PCF_LABELS.has(app.label));
-  } else if (mode === "all") {
-    filtered = filtered.filter((app) => !PCF_LABELS.has(app.label));
-  }
+  let filtered = apps.filter((app) => app.source === mode);
 
   const q = query.toLowerCase().trim();
   if (q) {
@@ -415,7 +301,7 @@ export function filterApps(
     );
   }
 
-  return filtered.slice().sort((a, b) => displayName(a).localeCompare(displayName(b)));
+  return filtered.sort((a, b) => displayName(a).localeCompare(displayName(b)));
 }
 
 // ── Vouch (write path) ──────────────────────────────────────

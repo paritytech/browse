@@ -1,23 +1,41 @@
-import { getApps, type FilterMode, type AppEntry, fetchAttestations, checkUserVouch, vouchForApp, unvouchForApp } from "./data";
+import { getPcfApps, getAllApps, type FilterMode, type AppEntry, fetchAttestations, checkUserVouch, vouchForApp, unvouchForApp } from "./data";
 import { renderApp } from "./ui";
 import { mountDetail } from "./detail";
 import { setupDebugConsole } from "./debug";
 import "./style.css";
 
 const root = document.querySelector("#app") as HTMLElement;
-const { setApps, setLoading, setStatus, setMode, showToast, getListEl, setDetailMode } = renderApp(root);
+const { setApps, setLoading, setStatus, setMode, showToast, getListEl, setDetailMode } = renderApp(root, (mode) => {
+  currentMode = mode;
+  const loading = mode === "pcf" ? !pcfLoaded : !allLoaded;
+  setLoading(loading);
+});
 setupDebugConsole(root);
 
 // ── State ────────────────────────────────────────────────────
 
-let cachedApps: AppEntry[] = [];
+let pcfApps: AppEntry[] = [];
+let allApps: AppEntry[] = [];
+let pcfLoaded = false;
+let allLoaded = false;
+let currentMode: FilterMode = "pcf";
 let detailCleanup: (() => void) | null = null;
 let isDetailView = false;
+
+function cachedApps(): AppEntry[] {
+  return [...pcfApps, ...allApps];
+}
+
+function refreshList(extendFrom?: number) {
+  if (isDetailView) return;
+  const loading = currentMode === "pcf" ? !pcfLoaded : !allLoaded;
+  setLoading(loading);
+  setApps(cachedApps(), extendFrom);
+}
 
 // ── Router ───────────────────────────────────────────────────
 
 function route(hash: string) {
-  // Tear down any active detail view
   if (detailCleanup) {
     detailCleanup();
     detailCleanup = null;
@@ -26,9 +44,8 @@ function route(hash: string) {
   const [segment, param] = hash.split("/");
 
   if (segment === "detail" && param) {
-    const app = cachedApps.find((a) => a.label === param);
+    const app = cachedApps().find((a) => a.label === param);
     if (!app) {
-      // Data not loaded yet — will re-route when it arrives
       isDetailView = true;
       return;
     }
@@ -48,7 +65,7 @@ function route(hash: string) {
       onVouch: async (label) => {
         const result = await vouchForApp(label);
         if (result.status === "ok") {
-          const a = cachedApps.find((x) => x.label === label);
+          const a = cachedApps().find((x) => x.label === label);
           if (a) a.vouchCount = (a.vouchCount ?? 0) + 1;
           showToast(`Vouched for ${label}.dot`);
         } else if (result.status === "no-wallet") {
@@ -60,7 +77,7 @@ function route(hash: string) {
       onUnvouch: async (label) => {
         const result = await unvouchForApp(label);
         if (result.status === "ok") {
-          const a = cachedApps.find((x) => x.label === label);
+          const a = cachedApps().find((x) => x.label === label);
           if (a) a.vouchCount = Math.max(0, (a.vouchCount ?? 1) - 1);
           showToast(`Unvouched ${label}.dot`);
         } else if (result.status === "no-wallet") {
@@ -72,18 +89,18 @@ function route(hash: string) {
       showToast,
     }, fetchAttestations, checkUserVouch);
 
-    // Wrap cleanup to also restore UI
     const innerCleanup = detailCleanup;
     detailCleanup = () => {
       innerCleanup();
       setDetailMode(false);
     };
   } else {
-    // Directory view
     isDetailView = false;
-    setApps(cachedApps);
-    const mode = segment as FilterMode;
-    setMode(mode);
+    currentMode = (segment as FilterMode) || "pcf";
+    const loading = currentMode === "pcf" ? !pcfLoaded : !allLoaded;
+    setLoading(loading);
+    setApps(cachedApps());
+    setMode(currentMode);
   }
 }
 
@@ -95,34 +112,31 @@ window.addEventListener("hashchange", () => {
 
 setLoading(true);
 
-let pendingApps: AppEntry[] | null = null;
-let rafId: number | null = null;
-
-getApps((partialApps) => {
-  pendingApps = partialApps;
-  cachedApps = partialApps;
-  if (rafId === null) {
-    rafId = requestAnimationFrame(() => {
-      rafId = null;
-      if (pendingApps && !isDetailView) setApps(pendingApps);
-    });
-  }
-}).then((result) => {
-  if (rafId !== null) {
-    cancelAnimationFrame(rafId);
-    rafId = null;
-  }
+// PCF: prioritized — fires first, renders as soon as it arrives
+getPcfApps().then((result) => {
   if (result.status === "ok" || result.status === "mock") {
-    const prevCount = result.status === "ok" ? cachedApps.length : undefined;
-    cachedApps = result.apps;
-    if (!isDetailView) setApps(result.apps, prevCount);
-    // Re-route in case we landed on #detail/X before data arrived
+    pcfApps = result.apps;
+  }
+  pcfLoaded = true;
+  refreshList();
+  const hash = location.hash.slice(1).toLowerCase();
+  if (hash.startsWith("detail/")) route(hash);
+});
+
+// All: independent, slower — appends when ready
+getAllApps().then((result) => {
+  if (result.status === "ok" || result.status === "mock") {
+    const prevCount = cachedApps().length;
+    allApps = result.apps;
+    allLoaded = true;
+    refreshList(prevCount);
     const hash = location.hash.slice(1).toLowerCase();
     if (hash.startsWith("detail/")) route(hash);
   } else {
-    setStatus(result.message);
+    allLoaded = true;
+    if (pcfApps.length === 0) setStatus(result.message);
+    refreshList();
   }
-  setLoading(false);
 });
 
 // Bootstrap: parse initial hash
