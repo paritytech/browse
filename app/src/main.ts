@@ -25,6 +25,7 @@ const { setApps, setLoading, setMode, showToast, getListEl, setDetailMode } =
     currentMode = mode;
     const loading = mode === "pcf" ? !pcfLoaded : !allLoaded;
     setLoading(loading);
+    if (mode === "all") syncAll();
   });
 setupDebugConsole(root);
 
@@ -148,7 +149,7 @@ async function loadData() {
     setLoading(true);
   }
 
-  // 2. Always sync fresh data in background
+  // 2. Always sync PCF in background (fast — single contract call)
   getPcfApps().then((result) => {
     if (result.status === "ok" || result.status === "mock") {
       pcfApps = result.apps;
@@ -159,6 +160,16 @@ async function loadData() {
     const hash = location.hash.slice(1).toLowerCase();
     if (hash.startsWith("detail/")) route(hash);
   });
+
+  // 3. All sync: always runs in background at concurrency=1 (low CPU)
+  syncAll();
+}
+
+let allSyncStarted = false;
+
+function syncAll() {
+  if (allSyncStarted) return;
+  allSyncStarted = true;
 
   getAllApps((progressApps) => {
     if (progressApps.length > allApps.length) {

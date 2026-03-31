@@ -112,18 +112,53 @@ async function fetchAllApps(onProgress?: OnAllProgress): Promise<AppEntry[]> {
   dlog(`Found ${storeAddresses.length} stores`);
   if (storeAddresses.length === 0) return [];
 
-  const CONCURRENCY = 8;
-  const BATCH_SIZE = 200;
-  dlog(`All: Scanning ${storeAddresses.length} stores (concurrency=${CONCURRENCY}, batch=${BATCH_SIZE})`);
+  const CONCURRENCY = 1;
+  const BATCH_SIZE = 50;
+  const t0 = performance.now();
+
+  // Step 2: Batch owner() calls via Multicall3
+  dlog(`All: Batch owner() for ${storeAddresses.length} stores`);
+  const ownerCalls: MulticallTarget[] = storeAddresses.map((addr) => ({
+    target: addr as `0x${string}`,
+    callData: encodeOwner(),
+  }));
+  const ownerResults = await multicall(ownerCalls);
+  dlog(`All: owner() done (${(performance.now() - t0).toFixed(0)}ms)`);
+
+  // Step 3: Reverse lookup owners H160 → SS58
+  const t1 = performance.now();
+  dlog(`All: Reverse lookup owners (concurrency=${CONCURRENCY})`);
+  const storeOwners: (string | null)[] = new Array(storeAddresses.length).fill(null);
+  let lookupNext = 0;
+  async function lookupWorker(): Promise<void> {
+    while (lookupNext < storeAddresses.length) {
+      const i = lookupNext++;
+      if (!ownerResults[i]?.success) continue;
+      try {
+        const ownerH160 = decodeAddress(ownerResults[i].returnData);
+        storeOwners[i] = await lookupOriginalAccount(ownerH160);
+      } catch {}
+      if (i % 20 === 0) await new Promise<void>((r) => setTimeout(r, 0));
+    }
+  }
+  const lookupWorkers: Promise<void>[] = [];
+  for (let i = 0; i < Math.min(CONCURRENCY, storeAddresses.length); i++) lookupWorkers.push(lookupWorker());
+  await Promise.all(lookupWorkers);
+
+  const mappedCount = storeOwners.filter(Boolean).length;
+  dlog(`All: ${mappedCount} mapped owners (${(performance.now() - t1).toFixed(0)}ms)`);
+
+  // Step 4: Scan stores for labels
+  const t2 = performance.now();
+  dlog(`All: Scanning stores for labels (concurrency=${CONCURRENCY})`);
   const allApps: AppEntry[] = [];
   const seenLabels = new Set<string>();
   let pendingLabels: string[] = [];
 
-  // Step 3–5: Process a batch of labels — contenthash filter, then metadata for live ones
+  // Process a batch of labels — contenthash filter, then metadata for live ones
   async function flushBatch(labels: string[]): Promise<void> {
     if (labels.length === 0) return;
 
-    // Contenthash-only multicall
     const chCalls: MulticallTarget[] = labels.map((label) => ({
       target: CONTRACTS.CONTENT_RESOLVER,
       callData: encodeContenthash(namehash(`${label}.dot`)),
@@ -140,12 +175,8 @@ async function fetchAllApps(onProgress?: OnAllProgress): Promise<AppEntry[]> {
       } catch {}
     }
 
-    if (liveLabels.length === 0) {
-      dlog(`  batch(${labels.length}): 0 live`);
-      return;
-    }
+    if (liveLabels.length === 0) return;
 
-    // Metadata multicall for live labels only (3 calls each)
     const CALLS_PER = 3;
     const metaCalls: MulticallTarget[] = [];
     for (const { label } of liveLabels) {
@@ -197,7 +228,6 @@ async function fetchAllApps(onProgress?: OnAllProgress): Promise<AppEntry[]> {
     }
   }
 
-  // Lock to prevent concurrent flushBatch calls from interleaving multicalls
   let flushPromise: Promise<void> = Promise.resolve();
 
   function scheduleFlush(labels: string[]): void {
@@ -205,16 +235,12 @@ async function fetchAllApps(onProgress?: OnAllProgress): Promise<AppEntry[]> {
     flushPromise = flushPromise.then(() => flushBatch(toFlush));
   }
 
-  // Step 2: Scan stores concurrently, accumulate labels, flush in batches
   async function scanStore(s: number): Promise<void> {
-    const storeAddr = storeAddresses[s] as `0x${string}`;
-    try {
-      const ownerRaw = await reviveCall(storeAddr, encodeOwner());
-      const ownerH160 = decodeAddress(ownerRaw);
-      const ownerSS58 = await lookupOriginalAccount(ownerH160);
-      if (!ownerSS58) return;
+    const ownerSS58 = storeOwners[s];
+    if (!ownerSS58) return;
 
-      const raw = await reviveCall(storeAddr, encodeGetValues(), ownerSS58);
+    try {
+      const raw = await reviveCall(storeAddresses[s] as `0x${string}`, encodeGetValues(), ownerSS58);
       const storeLabels = decodeStringArray(raw);
       for (const l of storeLabels) {
         if (!l) continue;
@@ -225,7 +251,6 @@ async function fetchAllApps(onProgress?: OnAllProgress): Promise<AppEntry[]> {
         pendingLabels.push(normalized);
       }
 
-      // Flush when batch is full
       if (pendingLabels.length >= BATCH_SIZE) {
         const batch = pendingLabels;
         pendingLabels = [];
@@ -234,9 +259,11 @@ async function fetchAllApps(onProgress?: OnAllProgress): Promise<AppEntry[]> {
     } catch {
       dlog(`  store[${s}]: failed`, "warn");
     }
+
+    // Yield to browser every 5 stores
+    if (s % 5 === 0) await new Promise<void>((r) => setTimeout(r, 0));
   }
 
-  // Bounded concurrent store scanning
   let next = 0;
   async function worker(): Promise<void> {
     while (next < storeAddresses.length) {
@@ -255,7 +282,8 @@ async function fetchAllApps(onProgress?: OnAllProgress): Promise<AppEntry[]> {
   }
   await flushPromise;
 
-  dlog(`All: Done — ${allApps.length} live apps from ${seenLabels.size} labels`);
+  dlog(`All: Scan done (${(performance.now() - t2).toFixed(0)}ms)`);
+  dlog(`All: Done — ${allApps.length} live apps from ${seenLabels.size} labels (total ${(performance.now() - t0).toFixed(0)}ms)`);
   return allApps;
 }
 

@@ -55,3 +55,4 @@ export async function setCachedAll(apps: AppEntry[]): Promise<void> {
   await write(KEY_ALL, apps);
   dlog(`Cache: saved ${apps.length} All apps`);
 }
+
