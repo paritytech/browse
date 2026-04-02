@@ -4,6 +4,7 @@
   gap: 12px;
   min-height: 96px;
   padding: 16px;
+  margin-bottom: 8px;
   background: #FFFFFF14;
   border-radius: 16px;
   cursor: pointer;
@@ -27,6 +28,7 @@
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
+
 
 .product-card__thumb {
   width: 64px;

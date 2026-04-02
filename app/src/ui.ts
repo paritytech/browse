@@ -30,7 +30,7 @@ function renderEmpty(query: string): string {
 }
 
 export function renderApp(root: HTMLElement, onModeChange?: (mode: FilterMode) => void): {
-  setApps: (apps: AppEntry[], extendFrom?: number) => void;
+  setApps: (apps: AppEntry[]) => void;
   setLoading: (loading: boolean) => void;
   setStatus: (message: string) => void;
   setMode: (mode: FilterMode) => void;
@@ -41,7 +41,6 @@ export function renderApp(root: HTMLElement, onModeChange?: (mode: FilterMode) =
   let currentApps: AppEntry[] = [];
   let currentQuery = "";
   let currentMode: FilterMode = "pcf";
-  let shownCount = 0;
   let isLoading = true;
 
   root.innerHTML = `
@@ -131,6 +130,7 @@ export function renderApp(root: HTMLElement, onModeChange?: (mode: FilterMode) =
   });
 
   let lastRenderedLabels: string[] = [];
+  let lastRenderedMode: FilterMode = "pcf";
 
   function updateList() {
     const filtered = filterApps(currentApps, currentQuery, currentMode);
@@ -139,17 +139,30 @@ export function renderApp(root: HTMLElement, onModeChange?: (mode: FilterMode) =
       listEl.innerHTML = renderEmpty(currentQuery);
       dotsEl.style.display = "none";
       lastRenderedLabels = [];
+      lastRenderedMode = currentMode;
     } else if (filtered.length === 0) {
       listEl.innerHTML = "";
       dotsEl.style.display = isLoading ? "flex" : "none";
       lastRenderedLabels = [];
+      lastRenderedMode = currentMode;
     } else {
       const newLabels = filtered.map((a) => a.label);
       const prevSet = new Set(lastRenderedLabels);
+      const newSet = new Set(newLabels);
 
       // If the order/set changed entirely (mode switch, search), full re-render
       const isAppend = newLabels.length >= lastRenderedLabels.length &&
         lastRenderedLabels.every((l, i) => newLabels[i] === l);
+
+      // Shrink: new list is a strict subset of old list (same source/mode, just fewer items)
+      const removedLabels = lastRenderedLabels.filter(l => !newSet.has(l));
+      const addedLabels = newLabels.filter(l => !prevSet.has(l));
+      let j = 0;
+      for (const label of lastRenderedLabels) {
+        if (j < newLabels.length && label === newLabels[j]) j++;
+      }
+      // Only animate removal if: same mode, items were removed, none were added, and order is preserved
+      const isShrink = lastRenderedMode === currentMode && removedLabels.length > 0 && addedLabels.length === 0 && j === newLabels.length;
 
       if (isAppend && lastRenderedLabels.length > 0) {
         // Append only the new cards
@@ -161,15 +174,39 @@ export function renderApp(root: HTMLElement, onModeChange?: (mode: FilterMode) =
         ).join("");
         while (temp.firstChild) fragment.appendChild(temp.firstChild);
         listEl.appendChild(fragment);
+        lastRenderedLabels = newLabels;
+        lastRenderedMode = currentMode;
+      } else if (isShrink) {
+        lastRenderedLabels = newLabels;
+        lastRenderedMode = currentMode;
+        const ANIM_MS = 900;
+        removedLabels.forEach(label => {
+          const card = listEl.querySelector(`[data-label="${label}"]`) as HTMLElement | null;
+          if (!card) return;
+          const h = card.getBoundingClientRect().height;
+          card.style.pointerEvents = "none";
+          card.style.overflow = "hidden";
+          card.style.minHeight = "0";
+          card.style.height = `${h}px`;
+          card.style.marginBottom = "8px";
+          requestAnimationFrame(() => {
+            card.style.transition = `opacity ${ANIM_MS}ms cubic-bezier(0.22,1,0.36,1), transform ${ANIM_MS}ms cubic-bezier(0.22,1,0.36,1), height ${ANIM_MS}ms cubic-bezier(0.22,1,0.36,1), margin-bottom ${ANIM_MS}ms cubic-bezier(0.22,1,0.36,1)`;
+            card.style.opacity = "0";
+            card.style.transform = "translateY(8px)";
+            card.style.height = "0";
+            card.style.marginBottom = "0";
+          });
+          setTimeout(() => card.remove(), ANIM_MS + 100);
+        });
       } else {
         // Full re-render (mode switch, search change, reorder)
+        const sameMode = lastRenderedMode === currentMode;
         listEl.innerHTML = filtered.map((app, i) =>
-          renderProductCard(app, prevSet.has(app.label) ? -1 : i)
+          renderProductCard(app, sameMode && prevSet.has(app.label) ? -1 : i)
         ).join("");
+        lastRenderedLabels = newLabels;
+        lastRenderedMode = currentMode;
       }
-
-      lastRenderedLabels = newLabels;
-      shownCount = filtered.length;
     }
 
     const modeTotal = filterApps(currentApps, "", currentMode).length;
@@ -210,16 +247,14 @@ export function renderApp(root: HTMLElement, onModeChange?: (mode: FilterMode) =
   });
 
   return {
-    setApps(apps: AppEntry[], extendFrom?: number) {
-      if (extendFrom !== undefined) shownCount = extendFrom;
+    setApps(apps: AppEntry[]) {
       currentApps = apps;
       updateList();
-      if (apps.length > 0 && currentMode === "pcf") dotsEl.style.display = "none";
     },
     setLoading(loading: boolean) {
       isLoading = loading;
       dotsEl.style.display = loading ? "flex" : "none";
-      if (loading) {
+      if (loading && currentApps.length === 0) {
         listEl.innerHTML = "";
         countEl.textContent = "";
       }

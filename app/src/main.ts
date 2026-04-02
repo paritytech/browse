@@ -43,14 +43,12 @@ function cachedApps(): AppEntry[] {
   return [...pcfApps, ...allApps];
 }
 
-function refreshList(extendFrom?: number) {
+function refreshList() {
   if (isDetailView) return;
   const loading = currentMode === "pcf" ? !pcfLoaded : !allLoaded;
   setLoading(loading);
-  setApps(cachedApps(), extendFrom);
+  setApps(cachedApps());
 }
-
-// ── Router ───────────────────────────────────────────────────
 
 function route(hash: string) {
   if (detailCleanup) {
