@@ -1,567 +1,365 @@
-import { CONTRACTS, SCHEMA_RATING } from "./config";
 import {
-  namehash,
-  nodeToSubject,
-  encodeGetAllDeployedStores,
-  encodeOwner,
-  encodeGetValues,
   decodeAddress,
-  encodeContenthash,
-  encodeText,
-  encodeAttestCount,
-  encodeAttestList,
-  encodeAttestGetBatch,
-  encodeAttest,
-  encodeRevoke,
-  encodeIsValid,
-  encodeRatingValue,
   decodeAddressArray,
-  decodeStringArray,
   decodeBytes,
-  decodeString,
   decodeIpfsContenthash,
+  decodeString,
+  decodeStringArray,
   decodeUint64,
-  decodeBool,
-  decodeAttestationKeyArray,
-  decodeAttestationArray,
-  decodeRatingValue,
+  encodeAttestCount,
+  encodeContenthash,
+  encodeGetAllDeployedStores,
+  encodeGetValues,
+  encodeOwner,
+  encodeText,
   type MulticallTarget,
-} from "./abi";
-import { reviveCall, reviveSubmit, getWalletAccount, apiInstance, lookupOriginalAccount } from "./chain";
-import { multicall } from "./multicall";
-import { dlog } from "./debug";
-import { fetchStoreProducts } from "./store";
+  namehash,
+  nodeToSubject
+} from './lib/abi'
+import { lookupOriginalAccount, reviveCall } from './lib/client'
+import { CONTRACTS } from './lib/config'
+import { dlog } from './lib/debug'
+import { multicall } from './lib/multicall'
+import { fetchStoreProducts } from './lib/store'
 
 export interface AppEntry {
-  /** DotNS label (e.g. "getsome") */
-  label: string;
-  /** Display name from manifest, or null to fall back to label.dot */
-  name: string | null;
-  description: string;
-  contentHash: string | null;
-  isLive: boolean;
-  /** Number of attestations (vouches) for this product. null = not yet loaded. */
-  vouchCount: number | null;
-  /** Which list this entry belongs to */
-  source: "pcf" | "all";
+  label: string
+  name: string | null
+  description: string
+  contentHash: string | null
+  isLive: boolean
+  vouchCount: number | null
+  source: 'pcf' | 'all'
 }
 
-export type FilterMode = "pcf" | "all";
+export type FilterMode = 'pcf' | 'all'
 
-/** Display name: manifest name if available, otherwise "label.dot" */
 export function displayName(app: AppEntry): string {
-  return app.name ?? `${app.label}.dot`;
+  return app.name ?? `${app.label}.dot`
 }
 
-// ── Real chain queries ──────────────────────────────────────
+export type OnLabelsFound = (apps: AppEntry[]) => void
 
-/** Callback invoked as labels are discovered (before metadata). */
-export type OnLabelsFound = (apps: AppEntry[]) => void;
-
-
-/**
- * Fetch PCF products from the Store contract.
- * Single call to getProducts() returns label, name, description directly.
- */
 async function fetchPcfApps(): Promise<AppEntry[]> {
-  const t0 = performance.now();
-  dlog("PCF: Store.getProducts()");
-  const storeProducts = await fetchStoreProducts();
-  dlog(`PCF: ${storeProducts.length} products from Store (total ${(performance.now() - t0).toFixed(0)}ms)`);
+  const t0 = performance.now()
+  dlog('PCF: Store.getProducts()')
+  const storeProducts = await fetchStoreProducts()
+  dlog(
+    `PCF: ${storeProducts.length} products from Store (total ${(performance.now() - t0).toFixed(0)}ms)`
+  )
 
-  if (storeProducts.length === 0) return [];
+  if (storeProducts.length === 0) return []
 
   return storeProducts.map((p) => ({
     label: p.label,
     name: p.name || null,
-    description: p.description || "No description",
+    description: p.description || 'No description',
     contentHash: null,
     isLive: true,
     vouchCount: null,
-    source: "pcf" as const,
-  }));
+    source: 'pcf' as const
+  }))
 }
 
-/**
- * Callback for progressive "All" loading — called as apps are discovered.
- */
-export type OnAllProgress = (apps: AppEntry[]) => void;
+export type OnAllProgress = (apps: AppEntry[]) => void
 
-/**
- * Fetch apps from the DotNS StoreFactory + ContentResolver + AttestationRegistry.
- * Progressive: emits apps via onProgress as batches resolve.
- *
- * Pipeline:
- *   1. Get all store addresses
- *   2. Scan stores concurrently: owner() → reverse lookup → getValues()
- *      Accumulate labels, flush contenthash batch every BATCH_SIZE labels
- *   3. For each batch: multicall contenthash only → filter to live domains
- *   4. Multicall name + description + attestation count for live labels only
- *   5. Emit to UI progressively
- *
- * Sorting is deferred to filterApps() so progressive appends stay stable.
- */
 async function fetchAllApps(onProgress?: OnAllProgress): Promise<AppEntry[]> {
-  // Step 1: Get all store addresses
-  dlog("All: StoreFactory.getAllDeployedStores()");
-  const storesData = await reviveCall(
-    CONTRACTS.STORE_FACTORY,
-    encodeGetAllDeployedStores(),
-  );
-  const storeAddresses = decodeAddressArray(storesData);
-  dlog(`Found ${storeAddresses.length} stores`);
-  if (storeAddresses.length === 0) return [];
+  dlog('All: StoreFactory.getAllDeployedStores()')
+  const storesData = await reviveCall(CONTRACTS.STORE_FACTORY, encodeGetAllDeployedStores())
+  const storeAddresses = decodeAddressArray(storesData)
+  dlog(`Found ${storeAddresses.length} stores`)
+  if (storeAddresses.length === 0) return []
 
-  const CONCURRENCY = 1;
-  const BATCH_SIZE = 50;
-  const t0 = performance.now();
+  const CONCURRENCY = 1
+  const BATCH_SIZE = 50
+  const t0 = performance.now()
 
-  // Step 2: Batch owner() calls via Multicall3
-  dlog(`All: Batch owner() for ${storeAddresses.length} stores`);
+  dlog(`All: Batch owner() for ${storeAddresses.length} stores`)
   const ownerCalls: MulticallTarget[] = storeAddresses.map((addr) => ({
     target: addr as `0x${string}`,
-    callData: encodeOwner(),
-  }));
-  const ownerResults = await multicall(ownerCalls);
-  dlog(`All: owner() done (${(performance.now() - t0).toFixed(0)}ms)`);
+    callData: encodeOwner()
+  }))
+  const ownerResults = await multicall(ownerCalls)
+  dlog(`All: owner() done (${(performance.now() - t0).toFixed(0)}ms)`)
 
-  // Step 3: Reverse lookup owners H160 → SS58
-  const t1 = performance.now();
-  dlog(`All: Reverse lookup owners (concurrency=${CONCURRENCY})`);
-  const storeOwners: (string | null)[] = new Array(storeAddresses.length).fill(null);
-  let lookupNext = 0;
+  const t1 = performance.now()
+  dlog(`All: Reverse lookup owners (concurrency=${CONCURRENCY})`)
+  const storeOwners: (string | null)[] = new Array(storeAddresses.length).fill(null)
+  let lookupNext = 0
   async function lookupWorker(): Promise<void> {
     while (lookupNext < storeAddresses.length) {
-      const i = lookupNext++;
-      if (!ownerResults[i]?.success) continue;
+      const i = lookupNext++
+      if (!ownerResults[i]?.success) continue
       try {
-        const ownerH160 = decodeAddress(ownerResults[i].returnData);
-        storeOwners[i] = await lookupOriginalAccount(ownerH160);
-      } catch {}
-      if (i % 20 === 0) await new Promise<void>((r) => setTimeout(r, 0));
+        const ownerH160 = decodeAddress(ownerResults[i].returnData)
+        storeOwners[i] = await lookupOriginalAccount(ownerH160)
+      } catch {
+        // skip failed decode
+      }
+      if (i % 20 === 0) await new Promise<void>((r) => setTimeout(r, 0))
     }
   }
-  const lookupWorkers: Promise<void>[] = [];
-  for (let i = 0; i < Math.min(CONCURRENCY, storeAddresses.length); i++) lookupWorkers.push(lookupWorker());
-  await Promise.all(lookupWorkers);
+  const lookupWorkers: Promise<void>[] = []
+  for (let i = 0; i < Math.min(CONCURRENCY, storeAddresses.length); i++)
+    lookupWorkers.push(lookupWorker())
+  await Promise.all(lookupWorkers)
 
-  const mappedCount = storeOwners.filter(Boolean).length;
-  dlog(`All: ${mappedCount} mapped owners (${(performance.now() - t1).toFixed(0)}ms)`);
+  const mappedCount = storeOwners.filter(Boolean).length
+  dlog(`All: ${mappedCount} mapped owners (${(performance.now() - t1).toFixed(0)}ms)`)
 
-  // Step 4: Scan stores for labels
-  const t2 = performance.now();
-  dlog(`All: Scanning stores for labels (concurrency=${CONCURRENCY})`);
-  const allApps: AppEntry[] = [];
-  const seenLabels = new Set<string>();
-  let pendingLabels: string[] = [];
+  const t2 = performance.now()
+  dlog(`All: Scanning stores for labels (concurrency=${CONCURRENCY})`)
+  const allApps: AppEntry[] = []
+  const seenLabels = new Set<string>()
+  let pendingLabels: string[] = []
 
-  // Process a batch of labels — contenthash filter, then metadata for live ones
   async function flushBatch(labels: string[]): Promise<void> {
-    if (labels.length === 0) return;
+    if (labels.length === 0) return
 
     const chCalls: MulticallTarget[] = labels.map((label) => ({
       target: CONTRACTS.CONTENT_RESOLVER,
-      callData: encodeContenthash(namehash(`${label}.dot`)),
-    }));
-    const chResults = await multicall(chCalls);
+      callData: encodeContenthash(namehash(`${label}.dot`))
+    }))
+    const chResults = await multicall(chCalls)
 
-    const liveLabels: { label: string; contentHash: string }[] = [];
+    const liveLabels: { label: string; contentHash: string }[] = []
     for (let i = 0; i < labels.length; i++) {
-      if (!chResults[i]?.success) continue;
+      if (!chResults[i]?.success) continue
       try {
-        const decoded = decodeBytes(chResults[i].returnData);
-        const cid = decodeIpfsContenthash(decoded);
-        if (cid) liveLabels.push({ label: labels[i], contentHash: cid });
-      } catch {}
+        const decoded = decodeBytes(chResults[i].returnData)
+        const cid = decodeIpfsContenthash(decoded)
+        if (cid) liveLabels.push({ label: labels[i], contentHash: cid })
+      } catch {
+        // skip failed decode
+      }
     }
 
-    if (liveLabels.length === 0) return;
+    if (liveLabels.length === 0) return
 
-    const CALLS_PER = 3;
-    const metaCalls: MulticallTarget[] = [];
+    const CALLS_PER = 3
+    const metaCalls: MulticallTarget[] = []
     for (const { label } of liveLabels) {
-      const node = namehash(`${label}.dot`);
-      const subject = nodeToSubject(node);
+      const node = namehash(`${label}.dot`)
+      const subject = nodeToSubject(node)
       metaCalls.push(
-        { target: CONTRACTS.CONTENT_RESOLVER, callData: encodeText(node, "name") },
-        { target: CONTRACTS.CONTENT_RESOLVER, callData: encodeText(node, "description") },
-        { target: CONTRACTS.ATTESTATION_REGISTRY, callData: encodeAttestCount(subject) },
-      );
+        { target: CONTRACTS.CONTENT_RESOLVER, callData: encodeText(node, 'name') },
+        { target: CONTRACTS.CONTENT_RESOLVER, callData: encodeText(node, 'description') },
+        { target: CONTRACTS.ATTESTATION_REGISTRY, callData: encodeAttestCount(subject) }
+      )
     }
-    const metaResults = await multicall(metaCalls);
+    const metaResults = await multicall(metaCalls)
 
-    const batch: AppEntry[] = [];
+    const batch: AppEntry[] = []
     for (let i = 0; i < liveLabels.length; i++) {
-      const { label, contentHash } = liveLabels[i];
-      const base = i * CALLS_PER;
+      const { label, contentHash } = liveLabels[i]
+      const base = i * CALLS_PER
 
-      let name: string | null = null;
+      let name: string | null = null
       if (metaResults[base]?.success) {
-        try { const n = decodeString(metaResults[base].returnData); if (n) name = n; } catch {}
+        try {
+          const n = decodeString(metaResults[base].returnData)
+          if (n) name = n
+        } catch {
+          // skip failed decode
+        }
       }
 
-      let description = "";
+      let description = ''
       if (metaResults[base + 1]?.success) {
-        try { description = decodeString(metaResults[base + 1].returnData); } catch {}
+        try {
+          description = decodeString(metaResults[base + 1].returnData)
+        } catch {
+          // skip failed decode
+        }
       }
 
-      let vouchCount: number | null = null;
+      let vouchCount: number | null = null
       if (metaResults[base + 2]?.success) {
-        try { const d = decodeUint64(metaResults[base + 2].returnData); if (d !== null) vouchCount = d; } catch {}
+        try {
+          const d = decodeUint64(metaResults[base + 2].returnData)
+          if (d !== null) vouchCount = d
+        } catch {
+          // skip failed decode
+        }
       }
 
       batch.push({
         label,
         name,
-        description: description || "No description",
+        description: description || 'No description',
         contentHash,
         isLive: true,
         vouchCount,
-        source: "all" as const,
-      });
+        source: 'all' as const
+      })
     }
 
     if (batch.length > 0) {
-      allApps.push(...batch);
-      dlog(`  batch(${labels.length}): +${batch.length} live (${allApps.length} total)`);
-      onProgress?.([...allApps]);
+      allApps.push(...batch)
+      dlog(`  batch(${labels.length}): +${batch.length} live (${allApps.length} total)`)
+      onProgress?.([...allApps])
     }
   }
 
-  let flushPromise: Promise<void> = Promise.resolve();
+  let flushPromise: Promise<void> = Promise.resolve()
 
   function scheduleFlush(labels: string[]): void {
-    const toFlush = labels.slice();
-    flushPromise = flushPromise.then(() => flushBatch(toFlush));
+    const toFlush = labels.slice()
+    flushPromise = flushPromise.then(() => flushBatch(toFlush))
   }
 
   async function scanStore(s: number): Promise<void> {
-    const ownerSS58 = storeOwners[s];
-    if (!ownerSS58) return;
+    const ownerSS58 = storeOwners[s]
+    if (!ownerSS58) return
 
     try {
-      const raw = await reviveCall(storeAddresses[s] as `0x${string}`, encodeGetValues(), ownerSS58);
-      const storeLabels = decodeStringArray(raw);
+      const raw = await reviveCall(storeAddresses[s] as `0x${string}`, encodeGetValues(), ownerSS58)
+      const storeLabels = decodeStringArray(raw)
       for (const l of storeLabels) {
-        if (!l) continue;
-        const normalized = l.endsWith(".dot") ? l.slice(0, -4) : l;
-        if (normalized.includes(".")) continue;
-        if (seenLabels.has(normalized)) continue;
-        seenLabels.add(normalized);
-        pendingLabels.push(normalized);
+        if (!l) continue
+        const normalized = l.endsWith('.dot') ? l.slice(0, -4) : l
+        if (normalized.includes('.')) continue
+        if (seenLabels.has(normalized)) continue
+        seenLabels.add(normalized)
+        pendingLabels.push(normalized)
       }
 
       if (pendingLabels.length >= BATCH_SIZE) {
-        const batch = pendingLabels;
-        pendingLabels = [];
-        scheduleFlush(batch);
+        const batch = pendingLabels
+        pendingLabels = []
+        scheduleFlush(batch)
       }
     } catch {
-      dlog(`  store[${s}]: failed`, "warn");
+      dlog(`  store[${s}]: failed`, 'warn')
     }
 
-    // Yield to browser every 5 stores
-    if (s % 5 === 0) await new Promise<void>((r) => setTimeout(r, 0));
+    if (s % 5 === 0) await new Promise<void>((r) => setTimeout(r, 0))
   }
 
-  let next = 0;
+  let next = 0
   async function worker(): Promise<void> {
     while (next < storeAddresses.length) {
-      const s = next++;
-      await scanStore(s);
+      const s = next++
+      await scanStore(s)
     }
   }
-  const workers: Promise<void>[] = [];
-  for (let i = 0; i < Math.min(CONCURRENCY, storeAddresses.length); i++) workers.push(worker());
-  await Promise.all(workers);
+  const workers: Promise<void>[] = []
+  for (let i = 0; i < Math.min(CONCURRENCY, storeAddresses.length); i++) workers.push(worker())
+  await Promise.all(workers)
 
-  // Flush remaining labels
   if (pendingLabels.length > 0) {
-    scheduleFlush(pendingLabels);
-    pendingLabels = [];
+    scheduleFlush(pendingLabels)
+    pendingLabels = []
   }
-  await flushPromise;
+  await flushPromise
 
-  dlog(`All: Scan done (${(performance.now() - t2).toFixed(0)}ms)`);
-  dlog(`All: Done — ${allApps.length} live apps from ${seenLabels.size} labels (total ${(performance.now() - t0).toFixed(0)}ms)`);
-  return allApps;
+  dlog(`All: Scan done (${(performance.now() - t2).toFixed(0)}ms)`)
+  dlog(
+    `All: Done — ${allApps.length} live apps from ${seenLabels.size} labels (total ${(performance.now() - t0).toFixed(0)}ms)`
+  )
+  return allApps
 }
 
-// ── Mock data (fallback for dev mode / when not inside host) ──
-
 const MOCK_PCF_APPS: AppEntry[] = [
-  { label: "explore", name: "Explore", description: "Discover apps and curated collections on Polkadot", contentHash: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi", isLive: true, vouchCount: 15, source: "pcf" },
-  { label: "getsome", name: "Get Some", description: "The easiest way to get DOT, USDC & USDT on Polkadot", contentHash: "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi", isLive: true, vouchCount: 12, source: "pcf" },
-  { label: "ohnotes", name: "Notes", description: "Notes that follow you everywhere.", contentHash: "bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenosa7714", isLive: true, vouchCount: 9, source: "pcf" },
-  { label: "ignite", name: "Ignite", description: "Create a campaign in minutes. Back projects you believe in. Trustless. Transparent. On-chain.", contentHash: "bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenosa7714", isLive: true, vouchCount: 10, source: "pcf" },
-  { label: "market", name: "Market", description: "Buy and sell digital & physical goods", contentHash: "bafybeibml5uieyxa5tufngvg7fgmrkpvp2rmelbbq4wyqkek5buthpholy", isLive: true, vouchCount: 18, source: "pcf" },
-];
-
-
-// ── Public API ──────────────────────────────────────────────
+  {
+    label: 'explore',
+    name: 'Explore',
+    description: 'Discover apps and curated collections on Polkadot',
+    contentHash: 'bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi',
+    isLive: true,
+    vouchCount: 15,
+    source: 'pcf'
+  },
+  {
+    label: 'getsome',
+    name: 'Get Some',
+    description: 'The easiest way to get DOT, USDC & USDT on Polkadot',
+    contentHash: 'bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi',
+    isLive: true,
+    vouchCount: 12,
+    source: 'pcf'
+  },
+  {
+    label: 'ohnotes',
+    name: 'Notes',
+    description: 'Notes that follow you everywhere.',
+    contentHash: 'bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenosa7714',
+    isLive: true,
+    vouchCount: 9,
+    source: 'pcf'
+  },
+  {
+    label: 'ignite',
+    name: 'Ignite',
+    description:
+      'Create a campaign in minutes. Back projects you believe in. Trustless. Transparent. On-chain.',
+    contentHash: 'bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenosa7714',
+    isLive: true,
+    vouchCount: 10,
+    source: 'pcf'
+  },
+  {
+    label: 'market',
+    name: 'Market',
+    description: 'Buy and sell digital & physical goods',
+    contentHash: 'bafybeibml5uieyxa5tufngvg7fgmrkpvp2rmelbbq4wyqkek5buthpholy',
+    isLive: true,
+    vouchCount: 18,
+    source: 'pcf'
+  }
+]
 
 export function isHosted(): boolean {
-  const isIframe = window !== window.top;
-  const isWebview = (window as unknown as Record<string, unknown>)["__HOST_WEBVIEW_MARK__"] === true;
-  return isIframe || isWebview;
+  const isIframe = window !== window.top
+  const isWebview = (window as unknown as Record<string, unknown>)['__HOST_WEBVIEW_MARK__'] === true
+  return isIframe || isWebview
 }
 
 export type GetAppsResult =
-  | { status: "ok"; apps: AppEntry[] }
-  | { status: "error"; message: string }
-  | { status: "mock"; apps: AppEntry[] };
+  | { status: 'ok'; apps: AppEntry[] }
+  | { status: 'error'; message: string }
+  | { status: 'mock'; apps: AppEntry[] }
 
-/**
- * Fetch PCF products from the Store contract (or mock fallback).
- * Fast — single contract call.
- */
 export async function getPcfApps(): Promise<GetAppsResult> {
-  const hosted = isHosted();
+  const hosted = isHosted()
   if (!hosted) {
-    return { status: "mock", apps: MOCK_PCF_APPS };
+    return { status: 'mock', apps: MOCK_PCF_APPS }
   }
   try {
-    const apps = await fetchPcfApps();
-    return { status: "ok", apps };
+    const apps = await fetchPcfApps()
+    return { status: 'ok', apps }
   } catch (err) {
-    dlog(`PCF fetch failed: ${err}`, "error");
-    return { status: "mock", apps: MOCK_PCF_APPS };
+    dlog(`PCF fetch failed: ${err}`, 'error')
+    return { status: 'mock', apps: MOCK_PCF_APPS }
   }
 }
 
-/**
- * Fetch all DotNS apps from StoreFactory + ContentResolver + AttestationRegistry.
- * Slower — scans all stores progressively.
- * onProgress emits sorted live apps as they're discovered per-store.
- */
 export async function getAllApps(onProgress?: OnAllProgress): Promise<GetAppsResult> {
-  const hosted = isHosted();
+  const hosted = isHosted()
   if (!hosted) {
-    return { status: "ok", apps: [] };
+    return { status: 'ok', apps: [] }
   }
   try {
-    const apps = await fetchAllApps(onProgress);
-    return { status: "ok", apps };
+    const apps = await fetchAllApps(onProgress)
+    return { status: 'ok', apps }
   } catch (err) {
-    dlog(`All fetch failed: ${err}`, "error");
-    return { status: "error", message: String(err) };
+    dlog(`All fetch failed: ${err}`, 'error')
+    return { status: 'error', message: String(err) }
   }
 }
 
-export function filterApps(
-  apps: AppEntry[],
-  query: string,
-  mode: FilterMode = "pcf",
-): AppEntry[] {
-  let filtered = apps.filter((app) => app.source === mode);
+export function filterApps(apps: AppEntry[], query: string, mode: FilterMode = 'pcf'): AppEntry[] {
+  let filtered = apps.filter((app) => app.source === mode)
 
-  const q = query.toLowerCase().trim();
+  const q = query.toLowerCase().trim()
   if (q) {
     filtered = filtered.filter(
       (app) =>
         app.label.toLowerCase().includes(q) ||
         (app.name?.toLowerCase().includes(q) ?? false) ||
-        app.description.toLowerCase().includes(q),
-    );
+        app.description.toLowerCase().includes(q)
+    )
   }
 
-  return filtered.sort((a, b) => displayName(a).localeCompare(displayName(b)));
-}
-
-// ── Vouch (write path) ──────────────────────────────────────
-
-export type VouchResult =
-  | { status: "ok"; blockHash: string }
-  | { status: "no-wallet"; message: string }
-  | { status: "error"; message: string };
-
-/**
- * Submit an on-chain vouch (attestation) for a product.
- * Uses the host wallet from product-sdk.
- * Writes a thumbs-up (rating=5, rated=false) attestation via AttestationRegistry.
- */
-export async function vouchForApp(label: string): Promise<VouchResult> {
-  dlog(`Vouching for ${label}.dot`);
-
-  const account = await getWalletAccount();
-  if (!account) {
-    return { status: "no-wallet", message: "Connect your wallet to vouch" };
-  }
-
-  try {
-    const node = namehash(`${label}.dot`);
-    const subject = nodeToSubject(node);
-    const value = encodeRatingValue(5, false); // thumbs-up, not explicitly rated
-    const calldata = encodeAttest(subject, SCHEMA_RATING, value, 0n);
-
-    const blockHash = await reviveSubmit(
-      CONTRACTS.ATTESTATION_REGISTRY,
-      calldata,
-      account,
-    );
-
-    dlog(`Vouch for ${label}.dot included in block ${blockHash}`);
-    return { status: "ok", blockHash };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    dlog(`Vouch failed: ${msg}`, "error");
-    return { status: "error", message: msg };
-  }
-}
-
-/**
- * Revoke an on-chain vouch for a product.
- */
-export async function unvouchForApp(label: string): Promise<VouchResult> {
-  dlog(`Revoking vouch for ${label}.dot`);
-
-  const account = await getWalletAccount();
-  if (!account) {
-    return { status: "no-wallet", message: "Connect your wallet to unvouch" };
-  }
-
-  try {
-    const node = namehash(`${label}.dot`);
-    const subject = nodeToSubject(node);
-    const calldata = encodeRevoke(subject, SCHEMA_RATING);
-
-    const blockHash = await reviveSubmit(
-      CONTRACTS.ATTESTATION_REGISTRY,
-      calldata,
-      account,
-    );
-
-    dlog(`Revoke for ${label}.dot included in block ${blockHash}`);
-    return { status: "ok", blockHash };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    dlog(`Revoke failed: ${msg}`, "error");
-    return { status: "error", message: msg };
-  }
-}
-
-/** Get the connected wallet display name, or null if not connected. */
-export async function getWalletName(): Promise<string | null> {
-  const account = await getWalletAccount();
-  return account?.name ?? null;
-}
-
-// ── Attestation detail queries ──────────────────────────────
-
-export interface AttestationDetail {
-  attester: string;
-  timestamp: number;
-  rating: number;
-  explicitlyRated: boolean;
-  revoked: boolean;
-}
-
-export type FetchAttestationsResult =
-  | { status: "ok"; attestations: AttestationDetail[]; total: number }
-  | { status: "empty" }
-  | { status: "error"; message: string };
-
-const MOCK_ATTESTATIONS: Record<string, AttestationDetail[]> = {
-  getsome: [
-    { attester: "0xabcdef1234567890abcdef1234567890abcdef12", timestamp: 1748000000, rating: 5, explicitlyRated: false, revoked: false },
-    { attester: "0x1111111111111111111111111111111111111111", timestamp: 1747900000, rating: 4, explicitlyRated: true, revoked: false },
-    { attester: "0x2222222222222222222222222222222222222222", timestamp: 1747800000, rating: 5, explicitlyRated: true, revoked: false },
-  ],
-  dotli: [
-    { attester: "0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", timestamp: 1748100000, rating: 5, explicitlyRated: false, revoked: false },
-  ],
-};
-
-/**
- * Fetch all attestations for a product.
- * Step 1: list(subject, 0, maxPage) → AttestationKey[]
- * Step 2: getBatch(keys) → Attestation[]
- */
-export async function fetchAttestations(
-  label: string,
-  maxPage = 200,
-): Promise<FetchAttestationsResult> {
-  const hosted = isHosted();
-  if (!hosted) {
-    const mock = MOCK_ATTESTATIONS[label];
-    if (!mock || mock.length === 0) return { status: "empty" };
-    return { status: "ok", attestations: mock, total: mock.length };
-  }
-  if (apiInstance === null) return { status: "empty" };
-
-  try {
-    const node = namehash(`${label}.dot`);
-    const subject = nodeToSubject(node);
-
-    // Step 1: list all attestation keys for this subject
-    const listData = await reviveCall(
-      CONTRACTS.ATTESTATION_REGISTRY,
-      encodeAttestList(subject, 0, maxPage),
-    );
-    const keys = decodeAttestationKeyArray(listData);
-    dlog(`fetchAttestations(${label}): ${keys.length} keys`);
-
-    if (keys.length === 0) return { status: "empty" };
-
-    // Step 2: getBatch to fetch full attestation data
-    const batchData = await reviveCall(
-      CONTRACTS.ATTESTATION_REGISTRY,
-      encodeAttestGetBatch(keys),
-    );
-    const attestations = decodeAttestationArray(batchData);
-
-    // Decode rating values and filter
-    const details: AttestationDetail[] = attestations
-      .filter((a) => !a.revoked)
-      .map((a) => {
-        const rv = decodeRatingValue(a.value);
-        return {
-          attester: a.attester,
-          timestamp: a.timestamp,
-          rating: rv.rating,
-          explicitlyRated: rv.explicitlyRated,
-          revoked: false,
-        };
-      });
-
-    return { status: "ok", attestations: details, total: keys.length };
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    dlog(`fetchAttestations failed: ${msg}`, "error");
-    return { status: "error", message: msg };
-  }
-}
-
-/**
- * Check whether the current wallet has vouched for this product.
- * Returns null if no wallet is connected.
- */
-export async function checkUserVouch(label: string): Promise<boolean | null> {
-  const hosted = isHosted();
-  if (!hosted || apiInstance === null) return null;
-
-  const account = await getWalletAccount();
-  if (!account) return null;
-
-  try {
-    const node = namehash(`${label}.dot`);
-    const subject = nodeToSubject(node);
-
-    // Derive EVM address: Revive maps Substrate pubkey → low 20 bytes (H160 = pubkey[12..32])
-    if (account.publicKey.length !== 32) {
-      dlog(`checkUserVouch: unexpected pubkey length ${account.publicKey.length}, expected 32`, "warn");
-      return null;
-    }
-    const evmBytes = account.publicKey.slice(12);
-    const evmAddress = `0x${Array.from(evmBytes, (b) => b.toString(16).padStart(2, "0")).join("")}` as `0x${string}`;
-
-    const data = await reviveCall(
-      CONTRACTS.ATTESTATION_REGISTRY,
-      encodeIsValid(subject, SCHEMA_RATING, evmAddress),
-    );
-    return decodeBool(data);
-  } catch (err) {
-    dlog(`checkUserVouch failed: ${err}`, "warn");
-    return null;
-  }
+  return filtered.sort((a, b) => displayName(a).localeCompare(displayName(b)))
 }

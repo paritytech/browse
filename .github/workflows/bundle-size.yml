@@ -1,0 +1,163 @@
+name: Bundle Size
+
+on:
+  push:
+    branches: [main]
+    paths: ['app/**']
+  pull_request:
+    branches: [main]
+    paths: ['app/**']
+
+concurrency:
+  group: bundle-size-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build
+    uses: ./.github/workflows/build.yml
+
+  bundle-size:
+    name: Benchmark
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download build
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: app/dist/
+
+      - name: Generate size report
+        id: size
+        run: |
+          {
+            echo 'report<<EOF'
+            echo '| File | Raw | Gzip |'
+            echo '|------|-----|------|'
+            for f in dist/assets/*.{js,css}; do
+              [ -f "$f" ] || continue
+              name=$(basename "$f")
+              raw=$(wc -c < "$f" | xargs)
+              gz=$(gzip -c "$f" | wc -c | xargs)
+              raw_kb=$(echo "scale=1; $raw / 1024" | bc)
+              gz_kb=$(echo "scale=1; $gz / 1024" | bc)
+              echo "| \`$name\` | ${raw_kb} KB | ${gz_kb} KB |"
+            done
+            echo ''
+            total_raw=0
+            total_gz=0
+            for f in dist/assets/*.{js,css}; do
+              [ -f "$f" ] || continue
+              raw=$(wc -c < "$f" | xargs)
+              gz=$(gzip -c "$f" | wc -c | xargs)
+              total_raw=$((total_raw + raw))
+              total_gz=$((total_gz + gz))
+            done
+            total_raw_kb=$(echo "scale=1; $total_raw / 1024" | bc)
+            total_gz_kb=$(echo "scale=1; $total_gz / 1024" | bc)
+            echo "**Total: ${total_raw_kb} KB raw / ${total_gz_kb} KB gzip**"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Save baseline
+        if: github.ref == 'refs/heads/main'
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-baseline
+          path: app/dist/assets/
+          retention-days: 30
+
+      - name: Download baseline
+        if: github.event_name == 'pull_request'
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          name: bundle-baseline
+          path: /tmp/baseline
+          branch: main
+          workflow_conclusion: success
+          if_no_artifact_found: warn
+
+      - name: Compare with baseline
+        if: github.event_name == 'pull_request'
+        id: compare
+        run: |
+          if [ ! -d /tmp/baseline ]; then
+            echo "diff=No baseline found — first run on main will generate it." >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          baseline_gz=0
+          for f in /tmp/baseline/*.{js,css}; do
+            [ -f "$f" ] || continue
+            gz=$(gzip -c "$f" | wc -c | xargs)
+            baseline_gz=$((baseline_gz + gz))
+          done
+
+          current_gz=0
+          for f in dist/assets/*.{js,css}; do
+            [ -f "$f" ] || continue
+            gz=$(gzip -c "$f" | wc -c | xargs)
+            current_gz=$((current_gz + gz))
+          done
+
+          delta=$((current_gz - baseline_gz))
+          delta_kb=$(echo "scale=1; $delta / 1024" | bc)
+
+          if [ $delta -gt 0 ]; then
+            echo "diff=+${delta_kb} KB gzip vs main" >> "$GITHUB_OUTPUT"
+          elif [ $delta -lt 0 ]; then
+            echo "diff=${delta_kb} KB gzip vs main" >> "$GITHUB_OUTPUT"
+          else
+            echo "diff=No change vs main" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Post PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        env:
+          REPORT: ${{ steps.size.outputs.report }}
+          DIFF: ${{ steps.compare.outputs.diff }}
+        with:
+          script: |
+            const marker = '<!-- bundle-size -->'
+            const body = [
+              marker,
+              '### Bundle Size',
+              '',
+              process.env.REPORT,
+              '',
+              `> ${process.env.DIFF}`,
+            ].join('\n')
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            })
+            const existing = comments.find(c => c.body?.includes(marker))
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              })
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              })
+            }

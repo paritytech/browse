@@ -1,0 +1,194 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths: ['app/**']
+  pull_request:
+    branches: [main]
+    paths: ['app/**']
+  workflow_dispatch:
+    inputs:
+      skip-cache:
+        description: 'Skip deployment cache and force redeploy'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  statuses: write
+  id-token: write
+  pull-requests: write
+
+concurrency:
+  group: deploy-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check for Changes
+    runs-on: ubuntu-latest
+    outputs:
+      source-hash: ${{ steps.source-hash.outputs.hash }}
+      cache-hit: ${{ steps.cache-check.outputs.cache-hit }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute source hash
+        id: source-hash
+        run: echo "hash=$(git ls-files app/src/ app/package.json app/vite.config.ts app/tsconfig.json app/index.html bun.lock | xargs sha256sum | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Check deployment cache
+        id: cache-check
+        uses: actions/cache@v4
+        with:
+          path: .deployment-marker
+          key: deploy-browse-${{ steps.source-hash.outputs.hash }}
+          lookup-only: true
+
+  build:
+    name: Build
+    needs: check
+    if: needs.check.outputs.cache-hit != 'true' || inputs.skip-cache
+    uses: ./.github/workflows/build.yml
+
+  deploy:
+    name: Deploy
+    needs: [check, build]
+    if: needs.check.outputs.cache-hit != 'true' || inputs.skip-cache
+    runs-on: ubuntu-latest
+    outputs:
+      cid: ${{ steps.final.outputs.cid }}
+      domain: ${{ steps.final.outputs.domain }}
+    steps:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Compute domain
+        id: domain
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "value=browse-beta00.dot" >> "$GITHUB_OUTPUT"
+          else
+            REF="${{ github.event.pull_request.head.ref || github.ref_name }}"
+            SANITIZED=$(echo "$REF" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//' | cut -c1-50)
+            echo "value=browse-${SANITIZED}.dot" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: build
+
+      - name: Compute build hash
+        id: hash
+        run: echo "hash=$(find build -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Check deploy cache
+        id: cache
+        if: inputs.skip-cache != true
+        uses: actions/cache@v4
+        with:
+          path: .deploy-cache
+          key: deploy-${{ steps.hash.outputs.hash }}
+
+      - name: Load cached CID
+        id: cached-deploy
+        if: steps.cache.outputs.cache-hit == 'true'
+        run: |
+          echo "cid=$(cat .deploy-cache/cid)" >> "$GITHUB_OUTPUT"
+          echo "::notice::Found cached CID: $(cat .deploy-cache/cid)"
+
+      - name: Setup IPFS Kubo
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: ipfs/download-ipfs-distribution-action@v1
+        with:
+          name: kubo
+          version: v0.33.0
+
+      - name: Initialize IPFS
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: ipfs init
+
+      - name: Install bulletin-deploy
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: npm install -g bulletin-deploy
+
+      - name: Deploy to Polkadot
+        id: deploy
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 15
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: |
+            export MNEMONIC='${{ secrets.MNEMONIC }}'
+            export NODE_OPTIONS='--max-old-space-size=8192'
+            bulletin-deploy 'build' '${{ steps.domain.outputs.value }}'
+
+      - name: Save deployment to cache
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p .deploy-cache
+          echo "${{ steps.deploy.outputs.cid }}" > .deploy-cache/cid
+
+      - name: Set outputs
+        id: final
+        run: |
+          DOMAIN="${{ steps.domain.outputs.value }}"
+          DOMAIN="${DOMAIN%.dot}"
+          if [ "${{ steps.cache.outputs.cache-hit }}" == "true" ]; then
+            echo "cid=${{ steps.cached-deploy.outputs.cid }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "cid=${{ steps.deploy.outputs.cid }}" >> "$GITHUB_OUTPUT"
+          fi
+          echo "domain=${DOMAIN}" >> "$GITHUB_OUTPUT"
+
+      - name: Deployment summary
+        run: |
+          DOMAIN="${{ steps.final.outputs.domain }}"
+          CID="${{ steps.final.outputs.cid }}"
+          if [ -z "$DOMAIN" ]; then
+            echo "### Deployment completed but domain output is missing" >> $GITHUB_STEP_SUMMARY
+            echo "CID \`${CID}\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ${DOMAIN}.dot" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Browser &nbsp; https://${DOMAIN}.dot.li" >> $GITHUB_STEP_SUMMARY
+            echo "Desktop &nbsp; \`${DOMAIN}.dot\`" >> $GITHUB_STEP_SUMMARY
+            echo "CID &nbsp; \`${CID}\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Comment on PR
+        if: github.event.pull_request && steps.final.outputs.domain != ''
+        uses: actions/github-script@v7
+        env:
+          DOMAIN: ${{ steps.final.outputs.domain }}
+        with:
+          script: |
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const domain = process.env.DOMAIN;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `**${domain}.dot** · [logs](${runUrl})\n\nhttps://${domain}.paseo.li`
+            });
+
+  post-deploy:
+    name: Mark as Deployed
+    needs: [check, deploy]
+    if: needs.deploy.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create deployment marker
+        run: echo "deployed" > .deployment-marker
+
+      - name: Cache deployment marker
+        uses: actions/cache/save@v4
+        with:
+          path: .deployment-marker
+          key: deploy-browse-${{ needs.check.outputs.source-hash }}

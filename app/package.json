@@ -6,22 +6,38 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "format": "prettier --write src/",
+    "format:check": "prettier --check src/",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@ensdomains/content-hash": "^3.0.0",
     "@noble/hashes": "^2.0.1",
     "@novasamatech/product-sdk": "^0.6.6-1",
+    "@preact/preset-vite": "^2.10.5",
     "buffer": "^6.0.3",
     "polkadot-api": "^1.23.3",
+    "preact": "^10.29.1",
     "smoldot": "^2.0.40"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@polkadot/api": "^16.5.4",
     "@polkadot/keyring": "^14.0.2",
     "@polkadot/util": "^14.0.2",
     "@polkadot/util-crypto": "^14.0.2",
+    "@typescript-eslint/eslint-plugin": "^8.58.0",
+    "@typescript-eslint/parser": "^8.58.0",
+    "eslint": "^10.2.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import-x": "^4.16.2",
+    "eslint-plugin-prettier": "^5.5.5",
+    "prettier": "^3.8.1",
     "typescript": "^5.4.0",
+    "typescript-eslint": "^8.58.0",
     "vite": "^6.0.0",
     "vite-plugin-node-polyfills": "^0.25.0",
     "ws": "^8.20.0"

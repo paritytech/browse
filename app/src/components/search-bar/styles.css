@@ -16,8 +16,9 @@
   pointer-events: none;
   z-index: 1;
   will-change: transform;
-  transition: transform 280ms cubic-bezier(0.25, 0.1, 0.25, 1),
-              color 200ms ease;
+  transition:
+    transform 280ms cubic-bezier(0.25, 0.1, 0.25, 1),
+    color 200ms ease;
 }
 
 .search-bar--focus .search-bar__icon,
@@ -32,7 +33,11 @@
   top: 50%;
   transform: translate(calc(-50% + 12px), -50%);
   color: rgba(255, 255, 255, 0.3);
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-family:
+    'Inter',
+    system-ui,
+    -apple-system,
+    sans-serif;
   font-size: 14px;
   font-weight: 400;
   white-space: nowrap;
@@ -54,7 +59,11 @@
   border: none;
   border-radius: 32px;
   color: #ffffff;
-  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-family:
+    'Inter',
+    system-ui,
+    -apple-system,
+    sans-serif;
   font-weight: 400;
   font-size: 14px;
   line-height: 20px;
