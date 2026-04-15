@@ -1,0 +1,21 @@
+.toast__action {
+  margin-left: 12px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: rgba(255, 255, 255, 0.95);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 150ms ease;
+}
+
+.toast__action:hover {
+  opacity: 0.7;
+}
+
+.toast.toast--interactive {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+}

@@ -39,6 +39,25 @@ export function SearchBar({ value, onInput, placeholder = 'Search' }: SearchBarP
         onFocus={handleFocus}
         onBlur={handleBlur}
       />
+      {hasValue && (
+        <button
+          class='search-bar__clear'
+          onClick={() => {
+            onInput('')
+            inputRef.current?.focus()
+          }}
+          aria-label='Clear search'
+        >
+          <svg width='14' height='14' viewBox='0 0 14 14' fill='none'>
+            <path
+              d='M4 4l6 6M10 4l-6 6'
+              stroke='currentColor'
+              stroke-width='1.5'
+              stroke-linecap='round'
+            />
+          </svg>
+        </button>
+      )}
     </div>
   )
 }

@@ -11,20 +11,29 @@
     "lint:fix": "eslint src/ --fix",
     "format": "prettier --write src/",
     "format:check": "prettier --check src/",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "papi:attestation": "npx papi sol add src/lib/abis/AttestationRegistry.json attestation_registry",
+    "test:e2e": "playwright test --config tests/playwright.config.ts"
   },
   "dependencies": {
     "@ensdomains/content-hash": "^3.0.0",
     "@noble/hashes": "^2.0.1",
     "@novasamatech/product-sdk": "^0.6.6-1",
+    "@polkadot-api/descriptors": "file:.papi/descriptors",
+    "@polkadot-api/sdk-ink": "0.6.2",
     "@preact/preset-vite": "^2.10.5",
+    "@tanstack/react-query": "^5.96.2",
     "buffer": "^6.0.3",
+    "lucide-preact": "^1.8.0",
     "polkadot-api": "^1.23.3",
     "preact": "^10.29.1",
     "smoldot": "^2.0.40"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.59.1",
+    "@polkadot-labs/hdkd": "^0.0.27",
+    "@polkadot-labs/hdkd-helpers": "^0.0.28",
     "@polkadot/api": "^16.5.4",
     "@polkadot/keyring": "^14.0.2",
     "@polkadot/util": "^14.0.2",

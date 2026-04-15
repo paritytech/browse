@@ -1,0 +1,96 @@
+name: E2E Tests
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check for changes
+    runs-on: ubuntu-latest
+    outputs:
+      source-hash: ${{ steps.source-hash.outputs.hash }}
+      skip: ${{ steps.cache-check.outputs.cache-hit == 'true' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute source hash
+        id: source-hash
+        run: echo "hash=$(git ls-files app/src/ app/tests/ app/package.json app/vite.config.ts app/tsconfig.json bun.lock .github/workflows/e2e.yml .github/workflows/build.yml | xargs sha256sum | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Check e2e cache
+        id: cache-check
+        uses: actions/cache@v4
+        with:
+          path: .e2e-marker
+          key: e2e-passed-${{ steps.source-hash.outputs.hash }}
+          lookup-only: true
+
+  build:
+    name: Build
+    needs: check
+    if: needs.check.outputs.skip != 'true'
+    uses: ./.github/workflows/build.yml
+
+  test:
+    name: Test
+    needs: [check, build]
+    if: always() && needs.check.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped')
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+
+    steps:
+      - name: Skip (content unchanged)
+        if: needs.check.outputs.skip == 'true'
+        run: echo "Content unchanged — reusing previous passing result"
+
+      - uses: actions/checkout@v4
+        if: needs.check.outputs.skip != 'true'
+
+      - uses: oven-sh/setup-bun@v2
+        if: needs.check.outputs.skip != 'true'
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        if: needs.check.outputs.skip != 'true'
+        run: bun install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        if: needs.check.outputs.skip != 'true'
+        run: bunx playwright install --with-deps chromium
+
+      - name: Run e2e tests
+        if: needs.check.outputs.skip != 'true'
+        run: bun run test:e2e --retries=1
+
+  mark-passed:
+    name: Mark as passed
+    needs: [check, test]
+    if: needs.test.result == 'success' && needs.check.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create e2e marker
+        run: echo "passed" > .e2e-marker
+
+      - name: Cache e2e marker
+        uses: actions/cache/save@v4
+        with:
+          path: .e2e-marker
+          key: e2e-passed-${{ needs.check.outputs.source-hash }}

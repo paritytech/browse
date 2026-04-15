@@ -1,4 +1,5 @@
 .product-card {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -95,6 +96,75 @@
   line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.product-card__social-proof {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family:
+    'Inter',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.3);
+  line-height: 1;
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+
+.product-card__social-proof:hover {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.product-card__social-proof--active {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.product-card__social-proof-pill {
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.15);
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+
+.product-card__social-proof:hover .product-card__social-proof-pill {
+  opacity: 1;
+}
+
+.product-card__actions {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.product-card--removing {
+  pointer-events: none;
+  animation: productCardOut 400ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+@keyframes productCardOut {
+  to {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
 }
 
 .product-card--skeleton {

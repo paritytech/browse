@@ -1,0 +1,181 @@
+.contacts-manager {
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%) translateY(100%);
+  width: 100%;
+  max-width: 560px;
+  max-height: 70vh;
+  padding: 20px 24px;
+  background: rgba(20, 20, 20, 0.95);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px 16px 0 0;
+  transition:
+    transform 250ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 250ms ease;
+  opacity: 0;
+  z-index: 100;
+  overflow-y: auto;
+}
+
+.contacts-manager--visible {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+.contacts-manager__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.contacts-manager__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.contacts-manager__close {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+.contacts-manager__close:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.contacts-manager__input-row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.contacts-manager__input {
+  flex: 1;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: #ffffff;
+  font-size: 13px;
+  font-family: 'SF Mono', monospace;
+  outline: none;
+}
+
+.contacts-manager__input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.contacts-manager__input:focus {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.contacts-manager__add-btn {
+  padding: 10px 16px;
+  background: rgba(255, 255, 255, 0.14);
+  border: none;
+  border-radius: 10px;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.contacts-manager__add-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.contacts-manager__dropdown {
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.contacts-manager__suggestion {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  text-align: left;
+  transition: background 100ms ease;
+}
+
+.contacts-manager__suggestion:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.contacts-manager__suggestion-name {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.contacts-manager__suggestion-addr {
+  font-family: 'SF Mono', monospace;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.contacts-manager__item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.contacts-manager__username {
+  font-size: 13px;
+  font-weight: 500;
+  color: #ffffff;
+}
+
+.contacts-manager__error {
+  margin: 0 0 8px;
+  font-size: 12px;
+  color: rgba(255, 100, 100, 0.8);
+}
+
+.contacts-manager__list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.contacts-manager__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+.contacts-manager__addr {
+  font-family: 'SF Mono', monospace;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.contacts-manager__remove {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 14px;
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.contacts-manager__remove:hover {
+  color: rgba(255, 100, 100, 0.8);
+}

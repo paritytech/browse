@@ -1,3 +1,7 @@
+import { type QueryClient, queryOptions, useQuery } from '@tanstack/react-query'
+
+import { getCachedAll, setCachedAll } from './cache'
+import { type AppEntry } from './types'
 import {
   decodeAddress,
   decodeAddressArray,
@@ -15,30 +19,13 @@ import {
   type MulticallTarget,
   namehash,
   nodeToSubject
-} from './lib/abi'
-import { lookupOriginalAccount, reviveCall } from './lib/client'
-import { CONTRACTS } from './lib/config'
-import { dlog } from './lib/debug'
-import { multicall } from './lib/multicall'
-import { fetchStoreProducts } from './lib/store'
-
-export interface AppEntry {
-  label: string
-  name: string | null
-  description: string
-  contentHash: string | null
-  isLive: boolean
-  vouchCount: number | null
-  source: 'pcf' | 'all'
-}
-
-export type FilterMode = 'pcf' | 'all'
-
-export function displayName(app: AppEntry): string {
-  return app.name ?? `${app.label}.dot`
-}
-
-export type OnLabelsFound = (apps: AppEntry[]) => void
+} from '../../lib/abi'
+import { lookupOriginalAccount, reviveCall } from '../../lib/client'
+import { CONTRACTS } from '../../lib/config'
+import { dlog } from '../../lib/debug'
+import { isHosted } from '../../lib/local-storage'
+import { multicall } from '../../lib/multicall'
+import { fetchStoreProducts } from '../../lib/store'
 
 async function fetchPcfApps(): Promise<AppEntry[]> {
   const t0 = performance.now()
@@ -59,6 +46,24 @@ async function fetchPcfApps(): Promise<AppEntry[]> {
     vouchCount: null,
     source: 'pcf' as const
   }))
+}
+
+export type GetAppsResult =
+  | { status: 'ok'; apps: AppEntry[] }
+  | { status: 'error'; message: string }
+
+export async function getPcfApps(): Promise<GetAppsResult> {
+  const hosted = isHosted()
+  if (!hosted) {
+    return { status: 'ok', apps: [] }
+  }
+  try {
+    const apps = await fetchPcfApps()
+    return { status: 'ok', apps }
+  } catch (err) {
+    dlog(`PCF fetch failed: ${err}`, 'error')
+    return { status: 'error', message: String(err) }
+  }
 }
 
 export type OnAllProgress = (apps: AppEntry[]) => void
@@ -96,7 +101,7 @@ async function fetchAllApps(onProgress?: OnAllProgress): Promise<AppEntry[]> {
       } catch {
         // skip failed decode
       }
-      if (i % 20 === 0) await new Promise<void>((r) => setTimeout(r, 0))
+      await new Promise<void>((r) => setTimeout(r, 0))
     }
   }
   const lookupWorkers: Promise<void>[] = []
@@ -121,6 +126,7 @@ async function fetchAllApps(onProgress?: OnAllProgress): Promise<AppEntry[]> {
       callData: encodeContenthash(namehash(`${label}.dot`))
     }))
     const chResults = await multicall(chCalls)
+    await new Promise<void>((r) => setTimeout(r, 0))
 
     const liveLabels: { label: string; contentHash: string }[] = []
     for (let i = 0; i < labels.length; i++) {
@@ -148,6 +154,7 @@ async function fetchAllApps(onProgress?: OnAllProgress): Promise<AppEntry[]> {
       )
     }
     const metaResults = await multicall(metaCalls)
+    await new Promise<void>((r) => setTimeout(r, 0))
 
     const batch: AppEntry[] = []
     for (let i = 0; i < liveLabels.length; i++) {
@@ -233,7 +240,7 @@ async function fetchAllApps(onProgress?: OnAllProgress): Promise<AppEntry[]> {
       dlog(`  store[${s}]: failed`, 'warn')
     }
 
-    if (s % 5 === 0) await new Promise<void>((r) => setTimeout(r, 0))
+    await new Promise<void>((r) => setTimeout(r, 0))
   }
 
   let next = 0
@@ -260,80 +267,6 @@ async function fetchAllApps(onProgress?: OnAllProgress): Promise<AppEntry[]> {
   return allApps
 }
 
-const MOCK_PCF_APPS: AppEntry[] = [
-  {
-    label: 'explore',
-    name: 'Explore',
-    description: 'Discover apps and curated collections on Polkadot',
-    contentHash: 'bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi',
-    isLive: true,
-    vouchCount: 15,
-    source: 'pcf'
-  },
-  {
-    label: 'getsome',
-    name: 'Get Some',
-    description: 'The easiest way to get DOT, USDC & USDT on Polkadot',
-    contentHash: 'bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi',
-    isLive: true,
-    vouchCount: 12,
-    source: 'pcf'
-  },
-  {
-    label: 'ohnotes',
-    name: 'Notes',
-    description: 'Notes that follow you everywhere.',
-    contentHash: 'bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenosa7714',
-    isLive: true,
-    vouchCount: 9,
-    source: 'pcf'
-  },
-  {
-    label: 'ignite',
-    name: 'Ignite',
-    description:
-      'Create a campaign in minutes. Back projects you believe in. Trustless. Transparent. On-chain.',
-    contentHash: 'bafybeihdwdcefgh4dqkjv67uzcmw7ojee6xedzdetojuzjevtenosa7714',
-    isLive: true,
-    vouchCount: 10,
-    source: 'pcf'
-  },
-  {
-    label: 'market',
-    name: 'Market',
-    description: 'Buy and sell digital & physical goods',
-    contentHash: 'bafybeibml5uieyxa5tufngvg7fgmrkpvp2rmelbbq4wyqkek5buthpholy',
-    isLive: true,
-    vouchCount: 18,
-    source: 'pcf'
-  }
-]
-
-export function isHosted(): boolean {
-  const isIframe = window !== window.top
-  const isWebview = (window as unknown as Record<string, unknown>)['__HOST_WEBVIEW_MARK__'] === true
-  return isIframe || isWebview
-}
-
-export type GetAppsResult =
-  | { status: 'ok'; apps: AppEntry[] }
-  | { status: 'error'; message: string }
-  | { status: 'mock'; apps: AppEntry[] }
-
-export async function getPcfApps(): Promise<GetAppsResult> {
-  const hosted = isHosted()
-  if (!hosted) {
-    return { status: 'mock', apps: MOCK_PCF_APPS }
-  }
-  try {
-    const apps = await fetchPcfApps()
-    return { status: 'ok', apps }
-  } catch (err) {
-    dlog(`PCF fetch failed: ${err}`, 'error')
-    return { status: 'mock', apps: MOCK_PCF_APPS }
-  }
-}
-
 export async function getAllApps(onProgress?: OnAllProgress): Promise<GetAppsResult> {
   const hosted = isHosted()
   if (!hosted) {
@@ -348,18 +281,33 @@ export async function getAllApps(onProgress?: OnAllProgress): Promise<GetAppsRes
   }
 }
 
-export function filterApps(apps: AppEntry[], query: string, mode: FilterMode = 'pcf'): AppEntry[] {
-  let filtered = apps.filter((app) => app.source === mode)
+const ALL_APPS_KEY = ['apps', 'all'] as const
 
-  const q = query.toLowerCase().trim()
-  if (q) {
-    filtered = filtered.filter(
-      (app) =>
-        app.label.toLowerCase().includes(q) ||
-        (app.name?.toLowerCase().includes(q) ?? false) ||
-        app.description.toLowerCase().includes(q)
-    )
+export function getAllAppsOptions(queryClient: QueryClient) {
+  return queryOptions<AppEntry[]>({
+    queryKey: ALL_APPS_KEY,
+    queryFn: async () => {
+      const result = await getAllApps((progressApps) => {
+        queryClient.setQueryData<AppEntry[]>(ALL_APPS_KEY, progressApps)
+        setCachedAll(progressApps)
+      })
+      if (result.status === 'ok') {
+        setCachedAll(result.apps)
+        return result.apps
+      }
+      throw new Error(result.message)
+    },
+    staleTime: 5 * 60_000
+  })
+}
+
+export function useGetAllApps(queryClient: QueryClient) {
+  return useQuery(getAllAppsOptions(queryClient))
+}
+
+export async function prefetchAllApps(queryClient: QueryClient) {
+  const cached = await getCachedAll()
+  if (cached.length > 0) {
+    queryClient.setQueryData<AppEntry[]>(ALL_APPS_KEY, cached)
   }
-
-  return filtered.sort((a, b) => displayName(a).localeCompare(displayName(b)))
 }

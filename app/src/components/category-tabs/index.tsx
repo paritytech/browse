@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'preact/hooks'
 
-import { type FilterMode } from '../../data'
+import { type FilterMode } from '../../state/apps/types'
 import './styles.css'
 
 interface CategoryTab {
@@ -9,17 +9,27 @@ interface CategoryTab {
   enabled: boolean
 }
 
-const CATEGORIES: CategoryTab[] = [
+const BASE_CATEGORIES: CategoryTab[] = [
   { id: 'pcf', label: 'PCF', enabled: true },
+  { id: 'bookmarks', label: 'Bookmarks', enabled: true },
+  { id: 'all', label: 'All', enabled: true }
+]
+
+const SIGNED_CATEGORIES: CategoryTab[] = [
+  { id: 'pcf', label: 'PCF', enabled: true },
+  { id: 'bookmarks', label: 'Bookmarks', enabled: true },
+  { id: 'following', label: 'Following', enabled: true },
   { id: 'all', label: 'All', enabled: true }
 ]
 
 interface CategoryTabsProps {
   active: FilterMode
+  signed?: boolean
   onSwitch: (mode: FilterMode) => void
 }
 
-export function CategoryTabs({ active, onSwitch }: CategoryTabsProps) {
+export function CategoryTabs({ active, signed, onSwitch }: CategoryTabsProps) {
+  const categories = signed ? SIGNED_CATEGORIES : BASE_CATEGORIES
   const containerRef = useRef<HTMLDivElement>(null)
   const indicatorRef = useRef<HTMLDivElement>(null)
 
@@ -60,7 +70,7 @@ export function CategoryTabs({ active, onSwitch }: CategoryTabsProps) {
   return (
     <div class='category-tabs' ref={containerRef}>
       <div class='category-tabs__indicator' ref={indicatorRef} />
-      {CATEGORIES.map((tab) => (
+      {categories.map((tab) => (
         <button
           key={tab.id}
           class={`category-tab${tab.id === active ? ' category-tab--active' : ''}${!tab.enabled ? ' category-tab--disabled' : ''}`}

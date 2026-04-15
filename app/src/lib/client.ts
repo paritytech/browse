@@ -47,7 +47,7 @@ async function doEnsureApi(): Promise<ReturnType<PolkadotClient['getUnsafeApi']>
   return apiInstance
 }
 
-async function ensureApi(): Promise<ReturnType<PolkadotClient['getUnsafeApi']>> {
+export async function ensureApi(): Promise<ReturnType<PolkadotClient['getUnsafeApi']>> {
   if (apiInstance) return apiInstance
   if (!ensurePromise) {
     ensurePromise = doEnsureApi().catch((err) => {
@@ -56,6 +56,11 @@ async function ensureApi(): Promise<ReturnType<PolkadotClient['getUnsafeApi']>> 
     })
   }
   return ensurePromise
+}
+
+export async function ensureClient(): Promise<PolkadotClient> {
+  await ensureApi()
+  return clientInstance!
 }
 
 export async function lookupOriginalAccount(h160: string): Promise<string | null> {
@@ -95,7 +100,8 @@ export async function reviveCall(
     0n,
     DRY_RUN_WEIGHT_LIMIT,
     DRY_RUN_STORAGE_LIMIT,
-    Binary.fromHex(encodedData)
+    Binary.fromHex(encodedData),
+    { at: 'best' }
   )) as { result: ReviveExecResult }
 
   const execResult = result.result

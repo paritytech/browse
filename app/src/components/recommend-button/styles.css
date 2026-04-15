@@ -1,0 +1,49 @@
+.recommend-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  transition:
+    color 300ms ease,
+    transform 300ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.recommend-button:hover {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.recommend-button--active {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.recommend-button--active:hover {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.recommend-button--pop {
+  transform: scale(1.25);
+}
+
+.recommend-button--shrink {
+  transform: scale(0.7);
+}
+
+.recommend-button:active {
+  transform: scale(0.85);
+}
+
+.recommend-button:focus-visible {
+  outline: 2px solid #ffffff;
+  outline-offset: 2px;
+}
+
+.recommend-button__icon {
+  display: block;
+}

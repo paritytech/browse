@@ -6,5 +6,11 @@
     "dev": "bun run --cwd app dev",
     "build": "./scripts/build.sh",
     "deploy": ". ./.env && cd app && ../scripts/deploy.sh"
+  },
+  "dependencies": {
+    "@novasamatech/product-sdk": "0.6.15"
+  },
+  "devDependencies": {
+    "@parity/host-api-test-sdk": "^0.3.0"
   }
 }

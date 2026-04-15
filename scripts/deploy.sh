@@ -5,7 +5,7 @@
 # Usage:
 #   ./deploy.sh [name]
 #
-# Defaults to "browse" if no name given (deploys to browse.dot).
+# Defaults to "browse-beta00" if no name given (deploys to browse-beta00.dot).
 #
 # Prerequisites:
 #   - bulletin-deploy: npm install -g bulletin-deploy
@@ -14,7 +14,7 @@
 #
 set -euo pipefail
 
-NAME="${1:-browse}"
+NAME="${1:-browse-beta00}"
 DOMAIN="${NAME}.dot"
 BUILD_DIR="./dist"
 
