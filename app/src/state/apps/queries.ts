@@ -20,6 +20,7 @@ import {
   namehash,
   nodeToSubject
 } from '../../lib/abi'
+import { getCachedPcf, setCachedPcf } from '../../lib/cache'
 import { lookupOriginalAccount, reviveCall } from '../../lib/client'
 import { CONTRACTS } from '../../lib/config'
 import { dlog } from '../../lib/debug'
@@ -48,23 +49,35 @@ async function fetchPcfApps(): Promise<AppEntry[]> {
   }))
 }
 
+const PCF_APPS_KEY = ['apps', 'pcf'] as const
+
+function getPcfAppsOptions() {
+  return queryOptions<AppEntry[]>({
+    queryKey: PCF_APPS_KEY,
+    queryFn: async () => {
+      if (!isHosted()) return []
+      const apps = await fetchPcfApps()
+      setCachedPcf(apps)
+      return apps
+    },
+    staleTime: 5 * 60_000
+  })
+}
+
+export function useGetPcfApps() {
+  return useQuery(getPcfAppsOptions())
+}
+
+export async function prefetchPcfApps(queryClient: QueryClient) {
+  const cached = await getCachedPcf()
+  if (cached.length > 0) {
+    queryClient.setQueryData<AppEntry[]>(PCF_APPS_KEY, cached)
+  }
+}
+
 export type GetAppsResult =
   | { status: 'ok'; apps: AppEntry[] }
   | { status: 'error'; message: string }
-
-export async function getPcfApps(): Promise<GetAppsResult> {
-  const hosted = isHosted()
-  if (!hosted) {
-    return { status: 'ok', apps: [] }
-  }
-  try {
-    const apps = await fetchPcfApps()
-    return { status: 'ok', apps }
-  } catch (err) {
-    dlog(`PCF fetch failed: ${err}`, 'error')
-    return { status: 'error', message: String(err) }
-  }
-}
 
 export type OnAllProgress = (apps: AppEntry[]) => void
 

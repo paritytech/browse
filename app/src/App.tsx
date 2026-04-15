@@ -8,10 +8,9 @@ import { ContactsManager } from './components/contacts-manager'
 import { ProductCard } from './components/product-card'
 import { SearchBar } from './components/search-bar'
 import { Toast } from './components/toast'
-import { getCachedPcf, setCachedPcf } from './lib/cache'
 import { setupDebugConsole } from './lib/debug'
-import { getPcfApps, useGetAllApps } from './state/apps/queries'
-import { type AppEntry, filterApps, type FilterMode } from './state/apps/types'
+import { useGetAllApps, useGetPcfApps } from './state/apps/queries'
+import { filterApps, type FilterMode } from './state/apps/types'
 import { useAttestApp, useRevokeApp } from './state/attestations/mutations'
 import { useGetAttestationsByContacts } from './state/attestations/queries'
 import { addBookmark, getBookmarks, removeBookmark } from './state/bookmarks/api'
@@ -20,7 +19,6 @@ import { addRecommended, getRecommended, removeRecommended } from './state/recom
 
 export function App() {
   const queryClient = useQueryClient()
-  const [pcfApps, setPcfApps] = useState<AppEntry[]>([])
   const [currentMode, setCurrentMode] = useState<FilterMode>('pcf')
   const [query, setQuery] = useState('')
   const [bookmarks, setBookmarks] = useState<Set<string>>(new Set())
@@ -37,6 +35,7 @@ export function App() {
 
   const rootRef = useRef<HTMLDivElement>(null)
 
+  const { data: pcfApps = [], isFetching: pcfFetching } = useGetPcfApps()
   const { data: allApps = [], isFetching: allFetching } = useGetAllApps(queryClient)
 
   const allAppsCombined = useMemo(() => {
@@ -180,32 +179,16 @@ export function App() {
     setupDebugConsole()
   }, [])
 
-  useEffect(() => {
-    async function loadPcf() {
-      const cachedPcf = await getCachedPcf()
-      if (cachedPcf.length > 0) {
-        setPcfApps(cachedPcf)
-      }
-
-      getPcfApps().then((result) => {
-        if (result.status === 'ok') {
-          setPcfApps(result.apps)
-          setCachedPcf(result.apps)
-        }
-      })
-    }
-
-    loadPcf()
-  }, [])
-
   const filtered = filterApps(allAppsCombined, query, currentMode, bookmarks, followedLabels)
   const modeTotal = filterApps(allAppsCombined, '', currentMode, bookmarks, followedLabels).length
   const isLoading =
-    currentMode === 'pcf' || currentMode === 'bookmarks'
-      ? false
-      : currentMode === 'following'
-        ? followingLoading
-        : allFetching
+    currentMode === 'pcf'
+      ? pcfFetching
+      : currentMode === 'bookmarks'
+        ? false
+        : currentMode === 'following'
+          ? followingLoading
+          : allFetching
 
   const emptyBookmarks = currentMode === 'bookmarks' && modeTotal === 0 && !query
   const emptyFollowingNoContacts = currentMode === 'following' && contacts.length === 0 && !query

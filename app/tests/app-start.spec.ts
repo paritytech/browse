@@ -45,6 +45,15 @@ test.describe('App Start', () => {
       await expect(activeTab).toHaveText('PCF')
     })
 
+    test('As an unsigned user, the PCF tab loads apps on start', async () => {
+      // Then
+      await expect(frame.locator('.loading-dots')).toBeVisible()
+      const cards = frame.locator('.product-card')
+      await expect(cards.first()).toBeVisible({ timeout: 10_000 })
+      expect(await cards.count()).toBeGreaterThan(0)
+      await expect(frame.locator('.loading-dots')).not.toBeVisible()
+    })
+
     test('As an unsigned user, I see the browse.dot header', async () => {
       // Then
       const title = frame.locator('.title')
