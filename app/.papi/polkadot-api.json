@@ -10,6 +10,8 @@
     }
   },
   "sol": {
-    "attestation_registry": ".papi/contracts/attestation_registry.json"
+    "attestation_registry": ".papi/contracts/attestation_registry.json",
+    "attestation_service": ".papi/contracts/attestation_service.json",
+    "schema_registry": ".papi/contracts/schema_registry.json"
   }
 }

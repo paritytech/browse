@@ -28,7 +28,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: app/dist
-          key: build-${{ hashFiles('app/src/**', 'app/package.json', 'app/vite.config.ts', 'app/tsconfig.json', 'bun.lock') }}
+          key: build-${{ hashFiles('app/src/**', 'app/package.json', 'app/vite.config.ts', 'app/tsconfig.json', 'bun.lock', 'app/.papi/**') }}
 
       - name: Install dependencies
         if: steps.cache.outputs.cache-hit != 'true'

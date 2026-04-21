@@ -51,7 +51,7 @@ const SEL = {
   contenthash: computeSelector('contenthash(bytes32)'),
   text: computeSelector('text(bytes32,string)'),
   aggregate3: computeSelector('aggregate3((address,bool,bytes)[])'),
-  attestCount: computeSelector('count(address)'),
+  countByRecipientAndSchema: computeSelector('countByRecipientAndSchema(address,uint256)'),
   owner: computeSelector('owner()')
 } as const
 
@@ -224,8 +224,11 @@ export function nodeToSubject(node: `0x${string}`): `0x${string}` {
   return `0x${hex.slice(24)}`
 }
 
-export function encodeAttestCount(subject: `0x${string}`): `0x${string}` {
-  return `0x${SEL.attestCount}${stripPrefix(subject).padStart(64, '0')}`
+export function encodeCountByRecipientAndSchema(
+  recipient: `0x${string}`,
+  schemaId: bigint
+): `0x${string}` {
+  return `0x${SEL.countByRecipientAndSchema}${stripPrefix(recipient).padStart(64, '0')}${uint256Hex(schemaId)}`
 }
 
 export function decodeUint64(data: `0x${string}`): number | null {

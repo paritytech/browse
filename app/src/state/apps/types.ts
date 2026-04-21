@@ -4,7 +4,8 @@ export interface AppEntry {
   description: string
   contentHash: string | null
   isLive: boolean
-  vouchCount: number | null
+  attestationCount: number | null
+  hasUserAttested: boolean
   source: 'pcf' | 'all'
 }
 
@@ -21,14 +22,13 @@ export function filterApps(
   bookmarks?: Set<string>,
   followedLabels?: Set<string>
 ): AppEntry[] {
-  let filtered =
-    mode === 'pcf'
-      ? apps.filter((app) => app.source === 'pcf')
-      : mode === 'bookmarks'
-        ? apps.filter((app) => bookmarks?.has(app.label))
-        : mode === 'following'
-          ? apps.filter((app) => followedLabels?.has(app.label))
-          : apps
+  const filterByMode: Record<FilterMode, (app: AppEntry) => boolean> = {
+    pcf: (app) => app.source === 'pcf',
+    all: (app) => app.source === 'all',
+    bookmarks: (app) => bookmarks?.has(app.label) ?? false,
+    following: (app) => followedLabels?.has(app.label) ?? false
+  }
+  let filtered = apps.filter(filterByMode[mode])
 
   const q = query.toLowerCase().trim()
   if (q) {

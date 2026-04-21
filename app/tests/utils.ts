@@ -29,22 +29,47 @@ export async function navigateToTestHost(page: Page, hostUrl: string): Promise<v
   )
 }
 
-const SEED_ALL_APPS = [
-  { label: 'e2e-test-app-alpha', name: 'Alpha App', description: 'First test app', contentHash: null, isLive: true, vouchCount: 5, source: 'all' },
-  { label: 'e2e-test-app-beta', name: 'Beta App', description: 'Second test app', contentHash: null, isLive: true, vouchCount: 3, source: 'all' },
-  { label: 'e2e-test-app-gamma', name: 'Gamma App', description: 'Third test app', contentHash: null, isLive: true, vouchCount: 1, source: 'all' }
+// Fake store address for test-seeded apps — not a real on-chain store.
+const SEED_STORE_ADDRESS = '0x000000000000000000000000000000000e2e7e57'
+
+const SEED_LABEL_ENTRIES = [
+  { label: 'e2e-test-app-alpha', name: 'Alpha App', description: 'First test app', contentHash: 'ipfs://QmE2eTestAlpha', attestationCount: 0 },
+  { label: 'e2e-test-app-beta', name: 'Beta App', description: 'Second test app', contentHash: 'ipfs://QmE2eTestBeta', attestationCount: 0 },
+  { label: 'e2e-test-app-gamma', name: 'Gamma App', description: 'Third test app', contentHash: 'ipfs://QmE2eTestGamma', attestationCount: 0 },
 ]
 
 /**
- * Seed the All apps cache into the host page's localStorage so cards
- * render immediately without waiting for the on-chain scan.
+ * Seed the All apps cache into IndexedDB at the app origin so cards render
+ * immediately without waiting for the on-chain scan.
+ * Opens a temporary page at APP_URL to write to the correct IDB origin.
  * Must be called before navigateToTestHost.
  */
-export async function seedAllApps(page: Page): Promise<void> {
-  await page.addInitScript((apps: typeof SEED_ALL_APPS) => {
-    const data = { apps, timestamp: Date.now() }
-    localStorage.setItem('test-host:browse:all', JSON.stringify(data))
-  }, SEED_ALL_APPS)
+export async function seedAppsInAllTab(page: Page): Promise<void> {
+  const seedPage = await page.context().newPage()
+  await seedPage.goto(APP_URL, { waitUntil: 'load' })
+  await seedPage.evaluate(
+    async ({ labels, storeAddress }) => {
+      await new Promise<void>((resolve, reject) => {
+        const req = indexedDB.open('browse-cache', 1)
+        req.onsuccess = () => {
+          const db = req.result
+          const tx = db.transaction(['labelToMetadata', 'storeAddressToStore'], 'readwrite')
+          for (const entry of labels) tx.objectStore('labelToMetadata').put(entry)
+          tx.objectStore('storeAddressToStore').put({
+            storeAddress,
+            ownerH160Address: null,
+            ownerSS58Address: 'e2e-test-owner',
+            labels: labels.map((l: { label: string }) => l.label),
+          })
+          tx.oncomplete = () => { db.close(); resolve() }
+          tx.onerror = () => { db.close(); reject(tx.error) }
+        }
+        req.onerror = () => reject(req.error)
+      })
+    },
+    { labels: SEED_LABEL_ENTRIES, storeAddress: SEED_STORE_ADDRESS }
+  )
+  await seedPage.close()
 }
 
 export async function getProductFrame(

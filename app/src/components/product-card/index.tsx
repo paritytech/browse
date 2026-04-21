@@ -12,7 +12,7 @@ interface ProductCardProps {
   showStar?: boolean
   onClick: (label: string) => void
   onStar?: (label: string) => void
-  onRecommend?: (label: string) => void
+  onClickAttestation?: () => void
 }
 
 export function ProductCard({
@@ -23,12 +23,13 @@ export function ProductCard({
   showStar = true,
   onClick,
   onStar,
-  onRecommend
+  onClickAttestation
 }: ProductCardProps) {
   const instant = index < 0
   const delay = instant ? 0 : Math.min(index * 60, 400)
   const name = displayName(app)
   const letter = name[0].toLowerCase()
+  const displayCount = app.attestationCount ?? 0
 
   return (
     <div
@@ -50,21 +51,21 @@ export function ProductCard({
       <div class='product-card__body'>
         <span class='product-card__name'>{name}</span>
         <p class='product-card__desc'>{app.description}</p>
-        {onRecommend && (
+        {onClickAttestation && (
           <button
             class={`product-card__social-proof${recommended ? ' product-card__social-proof--active' : ''}`}
             onClick={(e) => {
               e.stopPropagation()
-              onRecommend(app.label)
+              onClickAttestation()
             }}
           >
-            <ThumbsUp size={12} />
-            {app.vouchCount != null && app.vouchCount >= 1 ? (
-              app.vouchCount
+            <ThumbsUp size={12} fill={recommended ? 'currentColor' : 'none'} />
+            {displayCount >= 1 ? (
+              <span class='product-card__count'>{displayCount}</span>
             ) : (
               <span class='product-card__social-proof-pill'>Be the first to recommend</span>
             )}
-            {app.vouchCount != null && app.vouchCount >= 1 && !recommended && (
+            {displayCount >= 1 && !recommended && (
               <span class='product-card__social-proof-pill'>Recommend</span>
             )}
           </button>

@@ -4,48 +4,88 @@
  * Validates recommendation, contacts, and following behaviour.
  */
 
-import type { BrowserContext } from '@playwright/test'
+import type { BrowserContext, Frame, Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 
-import { attestFromDev, revokeFromDev } from './fixtures/attest'
-import { getProductFrame, navigateToTestHost, seedAllApps, startSignedHost } from './utils'
+import { createAttestation } from './fixtures/attest'
+import { createRevokedAttestation } from './fixtures/revoke-attestation'
+import { getProductFrame, navigateToTestHost, seedAppsInAllTab, startSignedHost } from './utils'
 
 test.describe('Attestation', () => {
   let host: Awaited<ReturnType<typeof startSignedHost>>
   let context: BrowserContext
+  let page: Page
+  let frame: Frame
 
   test.beforeAll(async ({ browser }) => {
+    test.setTimeout(30_000)
+    await createRevokedAttestation('e2e-test-app-alpha', 'Alice').catch(() => {})
     host = await startSignedHost('alice')
     context = await browser.newContext({ ignoreHTTPSErrors: true })
   })
 
   test.afterAll(async () => {
+    await page?.close()
+    await createRevokedAttestation('e2e-test-app-alpha', 'Alice').catch(() => {})
     await context?.close()
     await host?.close()
   })
 
-  test('As Alice, I recommend an app and see the confirmation toast', async () => {
+  test('As Alice, I recommend an app, the count increases, and a toast confirms', async () => {
     test.setTimeout(15_000)
-    const page = await context.newPage()
+    page = await context.newPage()
 
     // Given
-    await seedAllApps(page)
+    await seedAppsInAllTab(page)
     await navigateToTestHost(page, host.url)
-    const frame = await getProductFrame(page, '.category-tab')
+    frame = await getProductFrame(page, '.category-tab')
     await frame.locator('.category-tab', { hasText: 'All' }).click()
     await frame.waitForSelector('.product-card', { timeout: 10_000 })
-    await frame.waitForTimeout(500)
-    const firstCard = frame.locator('.product-card').first()
-    const socialProof = firstCard.locator('.product-card__social-proof')
+    const alphaCard = frame.locator('.product-card[data-label="e2e-test-app-alpha"]')
+    const socialProof = alphaCard.locator('.product-card__social-proof')
+
+    // Then
+    await expect(socialProof.locator('.product-card__count')).not.toBeVisible()
 
     // When
     await socialProof.click()
 
     // Then
     await expect(socialProof).toHaveClass(/product-card__social-proof--active/)
-    await expect(frame.locator('.toast--visible')).toContainText('Recommended!')
+    await expect(socialProof.locator('.product-card__count')).toHaveText('1')
+    await expect(socialProof.locator('svg')).toHaveAttribute('fill', 'currentColor')
+    await expect(frame.locator('.toast--visible')).toContainText('Recommended!', {
+      timeout: 15_000
+    })
+  })
 
-    await page.close()
+  test('As Alice, I un-recommend an app, the count decreases, and a toast confirms', async () => {
+    test.setTimeout(30_000)
+    page = await context.newPage()
+
+    // Given
+    await createAttestation('e2e-test-app-alpha', 'Alice')
+    await seedAppsInAllTab(page)
+    await navigateToTestHost(page, host.url)
+    frame = await getProductFrame(page, '.category-tab')
+    await frame.locator('.category-tab', { hasText: 'All' }).click()
+    await frame.waitForSelector('.product-card', { timeout: 10_000 })
+    const alphaCard = frame.locator('.product-card[data-label="e2e-test-app-alpha"]')
+    const socialProof = alphaCard.locator('.product-card__social-proof')
+    await expect(socialProof).toHaveClass(/product-card__social-proof--active/, { timeout: 10_000 })
+    await expect(socialProof.locator('.product-card__count')).toHaveText('1')
+    await expect(socialProof.locator('svg')).toHaveAttribute('fill', 'currentColor')
+
+    // When
+    await socialProof.click()
+
+    // Then
+    await expect(socialProof).not.toHaveClass(/product-card__social-proof--active/)
+    await expect(socialProof.locator('.product-card__count')).not.toBeVisible()
+    await expect(socialProof.locator('svg')).toHaveAttribute('fill', 'none')
+    await expect(frame.locator('.toast--visible')).toContainText('Unrecommended!', {
+      timeout: 15_000
+    })
   })
 })
 
@@ -54,6 +94,9 @@ test.describe('Contacts', () => {
   let context: BrowserContext
 
   test.beforeAll(async ({ browser }) => {
+    test.setTimeout(30_000)
+    await createRevokedAttestation('e2e-test-app-alpha', 'Alice').catch(() => {})
+    await createAttestation('e2e-test-app-alpha', 'Alice')
     host = await startSignedHost('bob')
     context = await browser.newContext({ ignoreHTTPSErrors: true })
   })
@@ -64,10 +107,11 @@ test.describe('Contacts', () => {
   })
 
   test('As Bob, I add Alice as a contact', async () => {
+    test.setTimeout(30_000)
     const page = await context.newPage()
 
     // Given
-    await seedAllApps(page)
+    await seedAppsInAllTab(page)
     await navigateToTestHost(page, host.url)
     const frame = await getProductFrame(page, '.category-tab')
 
@@ -110,7 +154,7 @@ test.describe('Contacts', () => {
     const page = await context.newPage()
 
     // Given
-    await seedAllApps(page)
+    await seedAppsInAllTab(page)
     await navigateToTestHost(page, host.url)
     const frame = await getProductFrame(page, '.category-tab')
 
@@ -134,9 +178,9 @@ test.describe('Following', () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(30_000)
-    await revokeFromDev('e2e-test-app-alpha', 'Alice').catch(() => {})
-    await revokeFromDev('e2e-test-app-gamma', 'Alice').catch(() => {})
-    await attestFromDev('e2e-test-app-alpha', 'Alice')
+    await createRevokedAttestation('e2e-test-app-alpha', 'Alice').catch(() => {})
+    await createRevokedAttestation('e2e-test-app-gamma', 'Alice').catch(() => {})
+    await createAttestation('e2e-test-app-alpha', 'Alice')
 
     host = await startSignedHost('bob')
     context = await browser.newContext({ ignoreHTTPSErrors: true })
@@ -152,7 +196,7 @@ test.describe('Following', () => {
     const page = await context.newPage()
 
     // Given
-    await seedAllApps(page)
+    await seedAppsInAllTab(page)
     await navigateToTestHost(page, host.url)
     const frame = await getProductFrame(page, '.category-tab')
 
@@ -176,11 +220,11 @@ test.describe('Following', () => {
     test.setTimeout(30_000)
 
     // Given
-    await attestFromDev('e2e-test-app-gamma', 'Alice')
+    await createAttestation('e2e-test-app-gamma', 'Alice')
 
     // When
     const page = await context.newPage()
-    await seedAllApps(page)
+    await seedAppsInAllTab(page)
     await navigateToTestHost(page, host.url)
     const frame = await getProductFrame(page, '.category-tab')
 
@@ -193,6 +237,6 @@ test.describe('Following', () => {
     await page.close()
 
     // Cleanup
-    await revokeFromDev('e2e-test-app-gamma', 'Alice').catch(() => {})
+    await createRevokedAttestation('e2e-test-app-gamma', 'Alice').catch(() => {})
   })
 })

@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
+    "postinstall": "papi generate",
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
@@ -12,7 +13,8 @@
     "format": "prettier --write src/",
     "format:check": "prettier --check src/",
     "typecheck": "tsc --noEmit",
-    "papi:attestation": "npx papi sol add src/lib/abis/AttestationRegistry.json attestation_registry",
+    "papi:attestation-service": "npx papi sol add src/lib/abis/AttestationService.json attestation_service",
+    "papi:schema-registry": "npx papi sol add src/lib/abis/SchemaRegistry.json schema_registry",
     "test:e2e": "playwright test --config tests/playwright.config.ts"
   },
   "dependencies": {
@@ -24,6 +26,7 @@
     "@preact/preset-vite": "^2.10.5",
     "@tanstack/react-query": "^5.96.2",
     "buffer": "^6.0.3",
+    "idb": "^8.0.3",
     "lucide-preact": "^1.8.0",
     "polkadot-api": "^1.23.3",
     "preact": "^10.29.1",

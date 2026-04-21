@@ -7,12 +7,8 @@
 import type { BrowserContext, Frame } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 
-import {
-  getProductFrame,
-  navigateToTestHost,
-  startSignedHost,
-  startUnsignedHost
-} from './utils'
+import { createCachedApps } from './fixtures/cache'
+import { getProductFrame, navigateToTestHost, startSignedHost, startUnsignedHost } from './utils'
 
 test.describe('App Start', () => {
   test.describe('unsigned user', () => {
@@ -52,6 +48,17 @@ test.describe('App Start', () => {
       await expect(cards.first()).toBeVisible({ timeout: 10_000 })
       expect(await cards.count()).toBeGreaterThan(0)
       await expect(frame.locator('.loading-dots')).not.toBeVisible()
+
+      // When
+      const reloaded = await context.newPage()
+      await navigateToTestHost(reloaded, host.url)
+      const reloadedFrame = await getProductFrame(reloaded, '.category-tab')
+
+      // Then
+      await expect(reloadedFrame.locator('.product-card').first()).toBeVisible()
+      await expect(reloadedFrame.locator('.loading-dots')).not.toBeVisible()
+
+      await reloaded.close()
     })
 
     test('As an unsigned user, I see the browse.dot header', async () => {
@@ -107,32 +114,57 @@ test.describe('App Start', () => {
       await expect(activeTab).toHaveText('PCF')
     })
 
-    test('As a signed user, the All tab loads a sorted list of apps', async () => {
-      test.setTimeout(60_000)
-      const page = await context.newPage()
-      await navigateToTestHost(page, host.url)
-      const frame = await getProductFrame(page, '.category-tab')
+    test('As a un/signed user, the All tab loads a sorted list of apps', async () => {
+      test.setTimeout(45_000)
 
       // When
       await frame.locator('.category-tab', { hasText: 'All' }).click()
 
       // Then
+      await expect(frame.locator('.product-card')).toHaveCount(0)
       await expect(frame.locator('.loading-dots')).toBeVisible()
       await frame.waitForSelector('.product-card', { timeout: 50_000 })
       await expect(frame.locator('.product-card').first()).toBeVisible()
       const names = await frame.locator('.product-card__name').allTextContents()
-      expect(names.length).toBeGreaterThan(0)
+      expect(names.length).toBeGreaterThan(1)
       const sorted = [...names].sort((a, b) => a.localeCompare(b))
       expect(names).toEqual(sorted)
 
-      await page.close()
+      // Then
+      const { labelCount, storeCount } = await frame.evaluate(async () => {
+        return new Promise<{ labelCount: number; storeCount: number }>((resolve, reject) => {
+          const req = indexedDB.open('browse-cache', 1)
+          req.onsuccess = () => {
+            const db = req.result
+            const tx = db.transaction(['labelToMetadata', 'storeAddressToStore'], 'readonly')
+            const labelReq = tx.objectStore('labelToMetadata').count()
+            const storeReq = tx.objectStore('storeAddressToStore').count()
+            tx.oncomplete = () => {
+              db.close()
+              resolve({ labelCount: labelReq.result, storeCount: storeReq.result })
+            }
+            tx.onerror = () => {
+              db.close()
+              reject(tx.error)
+            }
+          }
+          req.onerror = () => reject(req.error)
+        })
+      })
+      expect(labelCount).toBeGreaterThan(1)
+      expect(storeCount).toBeGreaterThan(0)
     })
 
-    test('As a signed user, cached All apps show on reload with loading indicator', async () => {
-      test.setTimeout(60_000)
+    test('As a signed user, cached All apps show instantly on reload while syncing in the background', async () => {
+      test.setTimeout(45_000)
       const page = await context.newPage()
       await navigateToTestHost(page, host.url)
-      const frame = await getProductFrame(page, '.category-tab')
+      let frame: Frame = await getProductFrame(page, '.category-tab')
+
+      // Given
+      await createCachedApps(frame)
+      await page.reload({ waitUntil: 'commit' })
+      frame = await getProductFrame(page, '.category-tab')
 
       // When
       await frame.locator('.category-tab', { hasText: 'All' }).click()
@@ -140,6 +172,25 @@ test.describe('App Start', () => {
       // Then
       await expect(frame.locator('.product-card').first()).toBeVisible()
       await expect(frame.locator('.loading-dots')).toBeVisible()
+      await expect(frame.locator('.product-card').nth(3)).toBeVisible({ timeout: 90_000 })
+
+      // Then
+      const { labelCount, storeCount } = await frame.evaluate(async () => {
+        return new Promise<{ labelCount: number; storeCount: number }>((resolve, reject) => {
+          const req = indexedDB.open('browse-cache', 1)
+          req.onsuccess = () => {
+            const db = req.result
+            const tx = db.transaction(['labelToMetadata', 'storeAddressToStore'], 'readonly')
+            const labelReq = tx.objectStore('labelToMetadata').count()
+            const storeReq = tx.objectStore('storeAddressToStore').count()
+            tx.oncomplete = () => { db.close(); resolve({ labelCount: labelReq.result, storeCount: storeReq.result }) }
+            tx.onerror = () => { db.close(); reject(tx.error) }
+          }
+          req.onerror = () => reject(req.error)
+        })
+      })
+      expect(labelCount).toBeGreaterThan(3)
+      expect(storeCount).toBeGreaterThan(0)
 
       await page.close()
     })
