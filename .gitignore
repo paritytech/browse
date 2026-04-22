@@ -35,4 +35,4 @@ test-results/
 playwright-report/
 
 # Claude Code
-.claude/
+.claude/settings.*
