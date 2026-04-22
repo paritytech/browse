@@ -131,25 +131,13 @@ test.describe('App Start', () => {
       expect(names).toEqual(sorted)
 
       // Then
-      const { labelCount, storeCount } = await frame.evaluate(async () => {
-        return new Promise<{ labelCount: number; storeCount: number }>((resolve, reject) => {
-          const req = indexedDB.open('browse-cache', 1)
-          req.onsuccess = () => {
-            const db = req.result
-            const tx = db.transaction(['labelToMetadata', 'storeAddressToStore'], 'readonly')
-            const labelReq = tx.objectStore('labelToMetadata').count()
-            const storeReq = tx.objectStore('storeAddressToStore').count()
-            tx.oncomplete = () => {
-              db.close()
-              resolve({ labelCount: labelReq.result, storeCount: storeReq.result })
-            }
-            tx.onerror = () => {
-              db.close()
-              reject(tx.error)
-            }
-          }
-          req.onerror = () => reject(req.error)
-        })
+      const { labelCount, storeCount } = await frame.page().evaluate(() => {
+        const labels = localStorage.getItem('test-host:browse:labels')
+        const stores = localStorage.getItem('test-host:browse:stores')
+        return {
+          labelCount: labels ? (JSON.parse(labels) as unknown[]).length : 0,
+          storeCount: stores ? (JSON.parse(stores) as unknown[]).length : 0
+        }
       })
       expect(labelCount).toBeGreaterThan(1)
       expect(storeCount).toBeGreaterThan(0)
@@ -162,7 +150,7 @@ test.describe('App Start', () => {
       let frame: Frame = await getProductFrame(page, '.category-tab')
 
       // Given
-      await createCachedApps(frame)
+      await createCachedApps(page)
       await page.reload({ waitUntil: 'commit' })
       frame = await getProductFrame(page, '.category-tab')
 
@@ -175,19 +163,13 @@ test.describe('App Start', () => {
       await expect(frame.locator('.product-card').nth(3)).toBeVisible({ timeout: 90_000 })
 
       // Then
-      const { labelCount, storeCount } = await frame.evaluate(async () => {
-        return new Promise<{ labelCount: number; storeCount: number }>((resolve, reject) => {
-          const req = indexedDB.open('browse-cache', 1)
-          req.onsuccess = () => {
-            const db = req.result
-            const tx = db.transaction(['labelToMetadata', 'storeAddressToStore'], 'readonly')
-            const labelReq = tx.objectStore('labelToMetadata').count()
-            const storeReq = tx.objectStore('storeAddressToStore').count()
-            tx.oncomplete = () => { db.close(); resolve({ labelCount: labelReq.result, storeCount: storeReq.result }) }
-            tx.onerror = () => { db.close(); reject(tx.error) }
-          }
-          req.onerror = () => reject(req.error)
-        })
+      const { labelCount, storeCount } = await page.evaluate(() => {
+        const labels = localStorage.getItem('test-host:browse:labels')
+        const stores = localStorage.getItem('test-host:browse:stores')
+        return {
+          labelCount: labels ? (JSON.parse(labels) as unknown[]).length : 0,
+          storeCount: stores ? (JSON.parse(stores) as unknown[]).length : 0
+        }
       })
       expect(labelCount).toBeGreaterThan(3)
       expect(storeCount).toBeGreaterThan(0)

@@ -1,10 +1,8 @@
-import { sr25519CreateDerive } from '@polkadot-labs/hdkd'
-import { DEV_PHRASE, mnemonicToMiniSecret, ss58Encode } from '@polkadot-labs/hdkd-helpers'
 import { paseoHub } from '@polkadot-api/descriptors'
 import { createClient } from 'polkadot-api'
-import { getPolkadotSigner } from 'polkadot-api/signer'
 import { getWsProvider } from 'polkadot-api/ws-provider/node'
 
+import { createDevSigner } from './fund'
 import { AttestationService } from '../../src/lib/attestation-service'
 
 const RPC_ENDPOINTS = [
@@ -12,20 +10,6 @@ const RPC_ENDPOINTS = [
   'wss://asset-hub-paseo.dotters.network',
   'wss://asset-hub-paseo-rpc.dwellir.com'
 ]
-
-function createDevSigner(name: string) {
-  const miniSecret = mnemonicToMiniSecret(DEV_PHRASE, '')
-  const derive = sr25519CreateDerive(miniSecret)
-  const wallet = derive(`//${name}`)
-
-  return {
-    signer: getPolkadotSigner(wallet.publicKey, 'Sr25519', async (input: Uint8Array) =>
-      wallet.sign(input)
-    ),
-    address: ss58Encode(wallet.publicKey, 42),
-    publicKey: wallet.publicKey
-  }
-}
 
 export async function withAttestationService<T>(
   devAccount: string,

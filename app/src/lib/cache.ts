@@ -1,5 +1,5 @@
-import { dlog } from './debug'
-import { storage } from './local-storage'
+import { hiddenLog } from './debug'
+import { localStorage } from './local-storage'
 import { type AppEntry } from '../state/apps/types'
 
 const KEY_PCF = 'browse:pcf'
@@ -10,11 +10,15 @@ interface CachedData {
 }
 
 export async function getCachedPcf(): Promise<AppEntry[]> {
-  const cached = await storage.readJSON<CachedData>(KEY_PCF)
-  return cached?.apps ?? []
+  const cached = await localStorage.readJSON<CachedData>(KEY_PCF)
+  const apps = cached?.apps ?? []
+  if (apps.length > 0) {
+    hiddenLog(`Loaded ${apps.length} curated apps from cache`)
+  }
+  return apps
 }
 
 export async function setCachedPcf(apps: AppEntry[]): Promise<void> {
-  await storage.writeJSON(KEY_PCF, { apps, timestamp: Date.now() })
-  dlog(`Cache: saved ${apps.length} PCF apps`)
+  await localStorage.writeJSON(KEY_PCF, { apps, timestamp: Date.now() })
+  hiddenLog(`Saved ${apps.length} curated apps to cache`)
 }

@@ -1,3 +1,5 @@
+import { memo } from 'preact/compat'
+
 import { ThumbsUp } from 'lucide-preact'
 
 import { type AppEntry, displayName } from '../../state/apps/types'
@@ -15,7 +17,7 @@ interface ProductCardProps {
   onClickAttestation?: () => void
 }
 
-export function ProductCard({
+export const ProductCard = memo(function ProductCard({
   app,
   index,
   starred,
@@ -78,4 +80,4 @@ export function ProductCard({
       )}
     </div>
   )
-}
+})

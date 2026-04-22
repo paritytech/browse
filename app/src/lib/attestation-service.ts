@@ -5,7 +5,7 @@ import {
   createReviveSdk,
   type ReviveSdkTypedApi
 } from '@polkadot-api/sdk-ink'
-import { type Binary, type PolkadotSigner, type SS58String } from 'polkadot-api'
+import { AccountId, type Binary, type PolkadotSigner, type SS58String } from 'polkadot-api'
 
 import { ensureApi, type PaseoHubApi } from './client'
 import { CONTRACTS, DUMMY_ORIGIN } from './config'
@@ -37,16 +37,22 @@ async function hostSigner(): Promise<{
   }
   return {
     signer: accountsProvider.getNonProductAccountSigner(account),
-    origin: DUMMY_ORIGIN,
+    origin: AccountId().dec(accounts[0].publicKey),
     publicKey: accounts[0].publicKey
   }
 }
 
 export type AttestationRecord = {
-  attester: `0x${string}`
-  recipient: `0x${string}`
+  id: bigint
   schema: bigint
-  revoked: boolean
+  time: bigint
+  expirationTime: bigint
+  revocationTime: bigint
+  refId: bigint
+  recipient: `0x${string}`
+  attester: `0x${string}`
+  revocable: boolean
+  data: `0x${string}`
 }
 
 export type TxResult = { txHash: string; block: string }
@@ -56,6 +62,8 @@ const STORAGE = 1_000_000_000_000n
 
 export class AttestationService {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private sdkInstance: any = null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private contractInstance: any = null
 
   constructor(
@@ -64,14 +72,22 @@ export class AttestationService {
     private truapi: boolean = true
   ) {}
 
-  private async getContract() {
-    if (!this.contractInstance) {
+  private async getSdk() {
+    if (!this.sdkInstance) {
       const api = await this.api()
-      this.contractInstance = createReviveSdk(
+      this.sdkInstance = createReviveSdk(
         api as unknown as ReviveSdkTypedApi,
         contracts.attestation_service,
         { atBest: true }
-      ).getContract(CONTRACTS.ATTESTATION_SERVICE)
+      )
+    }
+    return this.sdkInstance
+  }
+
+  private async getContract() {
+    if (!this.contractInstance) {
+      const sdk = await this.getSdk()
+      this.contractInstance = sdk.getContract(CONTRACTS.ATTESTATION_SERVICE)
     }
     return this.contractInstance
   }
@@ -107,6 +123,39 @@ export class AttestationService {
     })
     if (!result.success) throw new Error('countByRecipientAndSchema dry-run failed')
     return result.value.response as bigint
+  }
+
+  async countByAttester(attester: `0x${string}`): Promise<bigint> {
+    const contract = await this.getContract()
+    const result = await contract.query('countByAttester', {
+      origin: DUMMY_ORIGIN as SS58String,
+      data: { attester },
+      options: { gasLimit: GAS, storageDepositLimit: STORAGE }
+    })
+    if (!result.success) throw new Error('countByAttester dry-run failed')
+    return result.value.response as bigint
+  }
+
+  async listByAttester(attester: `0x${string}`, offset: bigint, limit: bigint): Promise<bigint[]> {
+    const contract = await this.getContract()
+    const result = await contract.query('listByAttester', {
+      origin: DUMMY_ORIGIN as SS58String,
+      data: { attester, offset, limit },
+      options: { gasLimit: GAS, storageDepositLimit: STORAGE }
+    })
+    if (!result.success) throw new Error('listByAttester dry-run failed')
+    return result.value.response as bigint[]
+  }
+
+  async getAttestationByIds(ids: bigint[]): Promise<AttestationRecord[]> {
+    const contract = await this.getContract()
+    const result = await contract.query('getAttestationByIds', {
+      origin: DUMMY_ORIGIN as SS58String,
+      data: { ids },
+      options: { gasLimit: GAS, storageDepositLimit: STORAGE }
+    })
+    if (!result.success) throw new Error('getAttestationByIds dry-run failed')
+    return result.value.response as AttestationRecord[]
   }
 
   async isActiveAny(
@@ -164,18 +213,40 @@ export class AttestationService {
   ): Promise<TxResult> {
     const { signer, origin } = await this.signer()
     const contract = await this.getContract()
+    const sdk = await this.getSdk()
+    const isMapped = await sdk.addressIsMapped(origin as SS58String)
 
-    const dryRun = await contract.query('attest', {
-      origin: origin as SS58String,
-      data: { request: { schema, data: { recipient, expirationTime, revocable, refId, data } } },
-      options: { gasLimit: GAS, storageDepositLimit: STORAGE }
+    const attestArgs = {
+      data: { request: { schema, data: { recipient, expirationTime, revocable, refId, data } } }
+    }
+
+    if (isMapped) {
+      const dryRun = await contract.query('attest', {
+        origin: origin as SS58String,
+        ...attestArgs,
+        options: { gasLimit: GAS, storageDepositLimit: STORAGE }
+      })
+      const bigStr = (_: string, v: unknown) => (typeof v === 'bigint' ? v.toString() : v)
+      if (!dryRun.success)
+        throw new Error(`attest dry-run failed: ${JSON.stringify(dryRun.value, bigStr)}`)
+      return this.submitTx(dryRun.value.send, signer, onPermitted)
+    }
+
+    // Unmapped account: batch map_account + attest in a single utility batch.
+    // Skip the dry-run because it would fail with AccountUnmapped — map_account
+    // runs first in the batch and makes attest valid at execution time.
+    const api = await this.api()
+    const attestTx = contract.send('attest', {
+      ...attestArgs,
+      gasLimit: GAS,
+      storageDepositLimit: STORAGE
     })
+    const attestCall = await attestTx.decodedCall
+    const mapCall = api.tx.Revive.map_account().decodedCall
+    const batchTx = api.tx.Utility.batch_all({ calls: [mapCall, attestCall] })
 
-    const bigStr = (_: string, v: unknown) => (typeof v === 'bigint' ? v.toString() : v)
-    if (!dryRun.success)
-      throw new Error(`attest dry-run failed: ${JSON.stringify(dryRun.value, bigStr)}`)
-
-    return this.submitTx(dryRun.value.send, signer, onPermitted)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return this.submitTx(() => batchTx as any, signer, onPermitted)
   }
 
   async getSigner() {

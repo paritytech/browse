@@ -1,4 +1,4 @@
-import { dlog } from './debug'
+import { hiddenLog } from './debug'
 
 const API_URL = 'https://polkadot-app.api.polkadotcommunity.foundation/api/v1'
 
@@ -29,8 +29,9 @@ export async function fetchUsernames(): Promise<UsernameEntry[]> {
 }
 
 async function doFetch(): Promise<UsernameEntry[]> {
+  const t0 = performance.now()
+  hiddenLog(`Fetching usernames: GET ${API_URL}/usernames`)
   try {
-    dlog('Usernames: fetching from API...')
     const resp = await fetch(`${API_URL}/usernames`)
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
 
@@ -39,11 +40,11 @@ async function doFetch(): Promise<UsernameEntry[]> {
       .filter((u) => u.status === 'ASSIGNED')
       .map((u) => ({ username: u.username, account: u.candidateAccountId }))
 
-    dlog(`Usernames: fetched ${usernames.length} entries`)
+    hiddenLog(`Received ${usernames.length} usernames (${(performance.now() - t0).toFixed(0)}ms)`)
     cachedUsernames = usernames
     return usernames
   } catch (err) {
-    dlog(`Usernames: fetch failed: ${err}`, 'error')
+    hiddenLog(`Failed to fetch usernames: ${err}`, 'error')
     fetchPromise = null
     return []
   }

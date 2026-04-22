@@ -52,6 +52,7 @@ const SEL = {
   text: computeSelector('text(bytes32,string)'),
   aggregate3: computeSelector('aggregate3((address,bool,bytes)[])'),
   countByRecipientAndSchema: computeSelector('countByRecipientAndSchema(address,uint256)'),
+  isActiveAny: computeSelector('isActiveAny(address,uint256,address[])'),
   owner: computeSelector('owner()')
 } as const
 
@@ -231,10 +232,30 @@ export function encodeCountByRecipientAndSchema(
   return `0x${SEL.countByRecipientAndSchema}${stripPrefix(recipient).padStart(64, '0')}${uint256Hex(schemaId)}`
 }
 
+export function encodeIsActiveAny(
+  recipient: `0x${string}`,
+  schemaId: bigint,
+  attesters: `0x${string}`[]
+): `0x${string}` {
+  // head: recipient(32) + schemaId(32) + offset-to-array(32) = 96 bytes
+  const recipientPadded = stripPrefix(recipient).toLowerCase().padStart(64, '0')
+  const schemaPadded = uint256Hex(schemaId)
+  const arrayOffset = uint256Hex(96)
+  const length = uint256Hex(attesters.length)
+  const addresses = attesters.map((a) => stripPrefix(a).toLowerCase().padStart(64, '0')).join('')
+  return `0x${SEL.isActiveAny}${recipientPadded}${schemaPadded}${arrayOffset}${length}${addresses}`
+}
+
 export function decodeUint64(data: `0x${string}`): number | null {
   const hex = stripPrefix(data)
   if (hex.length < 64) return null
   return Number(BigInt('0x' + hex.slice(48, 64)))
+}
+
+export function decodeBool(data: `0x${string}`): boolean {
+  const hex = stripPrefix(data)
+  if (hex.length < 64) return false
+  return BigInt('0x' + hex.slice(0, 64)) !== 0n
 }
 
 export function decodeIpfsContenthash(contenthashHex: string): string | null {

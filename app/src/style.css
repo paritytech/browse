@@ -230,11 +230,13 @@ input {
 .empty-state__text {
   font-size: 0.88rem;
   color: var(--color-secondary);
+  text-align: center;
 }
 
 .empty-state__hint {
   font-size: 0.75rem;
   color: var(--color-muted);
+  text-align: center;
 }
 
 .empty-state__link {

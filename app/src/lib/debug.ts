@@ -1,7 +1,13 @@
 // Debug console — triple-click anywhere to flip the card.
 
 const MAX_ENTRIES = 200
-const entries: { time: number; level: string; msg: string }[] = []
+interface LogEntry {
+  time: number
+  level: string
+  msg: string
+  count: number
+}
+const entries: LogEntry[] = []
 const t0 = performance.now()
 
 // Whether the debug panel is currently visible (flipped open).
@@ -10,8 +16,19 @@ let panelVisible = false
 let logEl: HTMLElement | null = null
 let countEl: HTMLElement | null = null
 
-export function dlog(msg: string, level: 'info' | 'warn' | 'error' = 'info') {
+export function hiddenLog(msg: string, level: 'info' | 'warn' | 'error' = 'info') {
   const time = performance.now() - t0
+
+  // Collapse consecutive identical messages by bumping a counter on the last entry.
+  const last = entries[entries.length - 1]
+  if (last && last.msg === msg && last.level === level) {
+    last.count += 1
+    last.time = time
+    if (panelVisible && logEl?.lastElementChild) {
+      replaceEntryEl(logEl.lastElementChild as HTMLElement, last)
+    }
+    return
+  }
 
   // Enforce hard cap: drop oldest entry from both array and DOM.
   if (entries.length >= MAX_ENTRIES) {
@@ -21,15 +38,12 @@ export function dlog(msg: string, level: 'info' | 'warn' | 'error' = 'info') {
     }
   }
 
-  entries.push({ time, level, msg })
-
-  if (level === 'error') console.error(`[browse.dot] ${msg}`)
-  else if (level === 'warn') console.warn(`[browse.dot] ${msg}`)
-  else console.log(`[browse.dot] ${msg}`)
+  const entry: LogEntry = { time, level, msg, count: 1 }
+  entries.push(entry)
 
   // Append to DOM only when panel is visible — O(1) per call.
   if (panelVisible && logEl) {
-    logEl.appendChild(makeEntryEl({ time, level, msg }))
+    logEl.appendChild(makeEntryEl(entry))
     if (countEl) countEl.textContent = `${entries.length} entries`
     // Defer scroll to avoid forced layout during the same task.
     requestAnimationFrame(() => {
@@ -43,15 +57,25 @@ function formatTime(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`
 }
 
-function makeEntryEl(e: { time: number; level: string; msg: string }): HTMLElement {
+function makeEntryEl(e: LogEntry): HTMLElement {
   const div = document.createElement('div')
   div.className = `debug-entry debug-entry--${e.level}`
   const timeSpan = document.createElement('span')
   timeSpan.className = 'debug-time'
   timeSpan.textContent = formatTime(e.time)
   div.appendChild(timeSpan)
-  div.appendChild(document.createTextNode(e.msg))
+  div.appendChild(document.createTextNode(e.count > 1 ? `${e.msg} ×${e.count}` : e.msg))
   return div
+}
+
+function replaceEntryEl(el: HTMLElement, e: LogEntry) {
+  el.className = `debug-entry debug-entry--${e.level}`
+  el.innerHTML = ''
+  const timeSpan = document.createElement('span')
+  timeSpan.className = 'debug-time'
+  timeSpan.textContent = formatTime(e.time)
+  el.appendChild(timeSpan)
+  el.appendChild(document.createTextNode(e.count > 1 ? `${e.msg} ×${e.count}` : e.msg))
 }
 
 /** One-shot render of all buffered entries using a DocumentFragment (called on flip-open). */

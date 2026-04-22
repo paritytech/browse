@@ -12,7 +12,7 @@ export class LocalStorage {
       if (isHosted()) {
         return (await hostLocalStorage.readJSON(key)) as T
       }
-      const raw = localStorage.getItem(key)
+      const raw = window.localStorage.getItem(key)
       if (!raw) return null
       return JSON.parse(raw) as T
     } catch {
@@ -25,7 +25,7 @@ export class LocalStorage {
       if (isHosted()) {
         await hostLocalStorage.writeJSON(key, value)
       } else {
-        localStorage.setItem(key, JSON.stringify(value))
+        window.localStorage.setItem(key, JSON.stringify(value))
       }
     } catch {
       // silent fail
@@ -33,4 +33,4 @@ export class LocalStorage {
   }
 }
 
-export const storage = new LocalStorage()
+export const localStorage = new LocalStorage()

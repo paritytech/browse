@@ -8,10 +8,12 @@ import type { BrowserContext, Frame, Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 
 import { createAttestation } from './fixtures/attest'
+import { createCachedApps } from './fixtures/cache'
+import { fund } from './fixtures/fund'
 import { createRevokedAttestation } from './fixtures/revoke-attestation'
-import { getProductFrame, navigateToTestHost, seedAppsInAllTab, startSignedHost } from './utils'
+import { getProductFrame, navigateToTestHost, startSignedHost } from './utils'
 
-test.describe('Attestation', () => {
+test.describe('Attestation works', () => {
   let host: Awaited<ReturnType<typeof startSignedHost>>
   let context: BrowserContext
   let page: Page
@@ -19,24 +21,25 @@ test.describe('Attestation', () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(30_000)
-    await createRevokedAttestation('e2e-test-app-alpha', 'Alice').catch(() => {})
-    host = await startSignedHost('alice')
+    await fund('Charlie')
+    await createRevokedAttestation('e2e-test-app-alpha', 'Charlie').catch(() => {})
+    host = await startSignedHost('charlie')
     context = await browser.newContext({ ignoreHTTPSErrors: true })
   })
 
   test.afterAll(async () => {
     await page?.close()
-    await createRevokedAttestation('e2e-test-app-alpha', 'Alice').catch(() => {})
+    await createRevokedAttestation('e2e-test-app-alpha', 'Charlie').catch(() => {})
     await context?.close()
     await host?.close()
   })
 
-  test('As Alice, I recommend an app, the count increases, and a toast confirms', async () => {
+  test('As Charlie, I recommend an app, the count increases, and a toast confirms', async () => {
     test.setTimeout(15_000)
     page = await context.newPage()
 
     // Given
-    await seedAppsInAllTab(page)
+    await createCachedApps(page)
     await navigateToTestHost(page, host.url)
     frame = await getProductFrame(page, '.category-tab')
     await frame.locator('.category-tab', { hasText: 'All' }).click()
@@ -59,13 +62,16 @@ test.describe('Attestation', () => {
     })
   })
 
-  test('As Alice, I un-recommend an app, the count decreases, and a toast confirms', async () => {
+  test('As Charlie, I un-recommend an app, the count decreases, and a toast confirms', async () => {
     test.setTimeout(30_000)
     page = await context.newPage()
 
     // Given
-    await createAttestation('e2e-test-app-alpha', 'Alice')
-    await seedAppsInAllTab(page)
+    const attestResult = await createAttestation('e2e-test-app-alpha', 'Charlie')
+    expect(attestResult.attestationCountAfter).toBe(attestResult.attestationCountBefore + 1n)
+    await createCachedApps(page, {
+      overrides: { 'e2e-test-app-alpha': { hasUserAttested: true, attestationCount: 1 } }
+    })
     await navigateToTestHost(page, host.url)
     frame = await getProductFrame(page, '.category-tab')
     await frame.locator('.category-tab', { hasText: 'All' }).click()
@@ -94,9 +100,10 @@ test.describe('Contacts', () => {
   let context: BrowserContext
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(30_000)
-    await createRevokedAttestation('e2e-test-app-alpha', 'Alice').catch(() => {})
-    await createAttestation('e2e-test-app-alpha', 'Alice')
+    test.setTimeout(60_000)
+    await fund('Charlie')
+    await createRevokedAttestation('e2e-test-app-alpha', 'Charlie').catch(() => {})
+    await createAttestation('e2e-test-app-alpha', 'Charlie')
     host = await startSignedHost('bob')
     context = await browser.newContext({ ignoreHTTPSErrors: true })
   })
@@ -106,12 +113,12 @@ test.describe('Contacts', () => {
     await host?.close()
   })
 
-  test('As Bob, I add Alice as a contact', async () => {
+  test('As Bob, I add Charlie as a contact', async () => {
     test.setTimeout(30_000)
     const page = await context.newPage()
 
     // Given
-    await seedAppsInAllTab(page)
+    await createCachedApps(page)
     await navigateToTestHost(page, host.url)
     const frame = await getProductFrame(page, '.category-tab')
 
@@ -131,7 +138,7 @@ test.describe('Contacts', () => {
 
     // When
     const input = frame.locator('.contacts-manager__input')
-    await input.fill('5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY')
+    await input.fill('5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y')
     await frame.locator('.contacts-manager__add-btn').click()
 
     // Then
@@ -154,7 +161,7 @@ test.describe('Contacts', () => {
     const page = await context.newPage()
 
     // Given
-    await seedAppsInAllTab(page)
+    await createCachedApps(page)
     await navigateToTestHost(page, host.url)
     const frame = await getProductFrame(page, '.category-tab')
 
@@ -172,15 +179,16 @@ test.describe('Contacts', () => {
 
 test.describe('Following', () => {
   test.describe.configure({ timeout: 15_000 })
-  const ALICE_ADDRESS = '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY'
+  const CHARLIE_ADDRESS = '5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y'
   let host: Awaited<ReturnType<typeof startSignedHost>>
   let context: BrowserContext
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(30_000)
-    await createRevokedAttestation('e2e-test-app-alpha', 'Alice').catch(() => {})
-    await createRevokedAttestation('e2e-test-app-gamma', 'Alice').catch(() => {})
-    await createAttestation('e2e-test-app-alpha', 'Alice')
+    test.setTimeout(60_000)
+    await fund('Charlie')
+    await createRevokedAttestation('e2e-test-app-alpha', 'Charlie').catch(() => {})
+    await createRevokedAttestation('e2e-test-app-gamma', 'Charlie').catch(() => {})
+    await createAttestation('e2e-test-app-alpha', 'Charlie')
 
     host = await startSignedHost('bob')
     context = await browser.newContext({ ignoreHTTPSErrors: true })
@@ -191,12 +199,12 @@ test.describe('Following', () => {
     await host?.close()
   })
 
-  test('As Bob, I add Alice as a contact and see 1 attested app in the Following tab', async () => {
+  test('As Bob, I add Charlie as a contact and see 1 attested app in the Following tab', async () => {
     test.setTimeout(30_000)
     const page = await context.newPage()
 
     // Given
-    await seedAppsInAllTab(page)
+    await createCachedApps(page)
     await navigateToTestHost(page, host.url)
     const frame = await getProductFrame(page, '.category-tab')
 
@@ -205,7 +213,7 @@ test.describe('Following', () => {
     await frame.waitForTimeout(300)
     await frame.locator('.empty-state__btn').click()
     await expect(frame.locator('.contacts-manager--visible')).toBeVisible()
-    await frame.locator('.contacts-manager__input').fill(ALICE_ADDRESS)
+    await frame.locator('.contacts-manager__input').fill(CHARLIE_ADDRESS)
     await frame.locator('.contacts-manager__add-btn').click()
     await frame.locator('.contacts-manager__close').click()
 
@@ -216,15 +224,15 @@ test.describe('Following', () => {
     await page.close()
   })
 
-  test('As Bob, after Alice attests another app I see 2 apps, then she revokes it', async () => {
+  test('As Bob, after Charlie attests another app I see 2 apps, then he revokes it', async () => {
     test.setTimeout(30_000)
 
     // Given
-    await createAttestation('e2e-test-app-gamma', 'Alice')
+    await createAttestation('e2e-test-app-gamma', 'Charlie')
 
     // When
     const page = await context.newPage()
-    await seedAppsInAllTab(page)
+    await createCachedApps(page)
     await navigateToTestHost(page, host.url)
     const frame = await getProductFrame(page, '.category-tab')
 
@@ -237,6 +245,42 @@ test.describe('Following', () => {
     await page.close()
 
     // Cleanup
-    await createRevokedAttestation('e2e-test-app-gamma', 'Alice').catch(() => {})
+    await createRevokedAttestation('e2e-test-app-gamma', 'Charlie').catch(() => {})
+  })
+})
+
+test.describe('Attestation fails', () => {
+  let host: Awaited<ReturnType<typeof startSignedHost>>
+  let context: BrowserContext
+
+  test.beforeAll(async ({ browser }) => {
+    // Unique derivation per run → fresh keypair → guaranteed zero balance on chain.
+    const uri = `//e2e-unfunded-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    host = await startSignedHost({ name: 'Unfunded', uri })
+    context = await browser.newContext({ ignoreHTTPSErrors: true })
+  })
+
+  test.afterAll(async () => {
+    await context?.close()
+    await host?.close()
+  })
+
+  test('As a signed user, when I recommend an app and it fails, I see an error badge with a message', async () => {
+    test.setTimeout(30_000)
+    const page = await context.newPage()
+
+    // Given
+    await navigateToTestHost(page, host.url)
+    const frame = await getProductFrame(page, '.product-card')
+    const firstCard = frame.locator('.product-card').first()
+    const socialProof = firstCard.locator('.product-card__social-proof')
+
+    // When
+    await socialProof.click()
+
+    // Then
+    await expect(frame.locator('.toast--visible')).toContainText('Not enough funds', {
+      timeout: 15_000
+    })
   })
 })

@@ -1,4 +1,4 @@
-import { storage } from '../../lib/local-storage'
+import { localStorage } from '../../lib/local-storage'
 
 const KEY = 'browse:contacts'
 
@@ -9,7 +9,7 @@ export interface ContactEntry {
 
 export async function getContacts(): Promise<ContactEntry[]> {
   try {
-    const data = await storage.readJSON<unknown[]>(KEY)
+    const data = await localStorage.readJSON<unknown[]>(KEY)
     if (!Array.isArray(data)) return []
     return data.map((item: unknown) =>
       typeof item === 'string' ? { address: item } : (item as ContactEntry)
@@ -23,13 +23,13 @@ export async function addContact(address: string, username?: string): Promise<vo
   const contacts = await getContacts()
   if (!contacts.some((c) => c.address === address)) {
     contacts.push({ address, username })
-    await storage.writeJSON(KEY, contacts)
+    await localStorage.writeJSON(KEY, contacts)
   }
 }
 
 export async function removeContact(address: string): Promise<void> {
   const contacts = await getContacts()
-  await storage.writeJSON(
+  await localStorage.writeJSON(
     KEY,
     contacts.filter((c) => c.address !== address)
   )

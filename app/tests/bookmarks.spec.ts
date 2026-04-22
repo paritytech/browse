@@ -7,7 +7,8 @@
 import type { BrowserContext } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 
-import { getProductFrame, navigateToTestHost, seedAppsInAllTab, startSignedHost } from './utils'
+import { createCachedApps } from './fixtures/cache'
+import { getProductFrame, navigateToTestHost, startSignedHost } from './utils'
 
 test.describe('Bookmarks', () => {
   let host: Awaited<ReturnType<typeof startSignedHost>>
@@ -28,7 +29,7 @@ test.describe('Bookmarks', () => {
     const page = await context.newPage()
 
     // Given
-    await seedAppsInAllTab(page)
+    await createCachedApps(page)
     await navigateToTestHost(page, host.url)
     const frame = await getProductFrame(page, '.category-tab')
     await frame.locator('.category-tab', { hasText: 'All' }).click()
@@ -61,7 +62,7 @@ test.describe('Bookmarks', () => {
     const page = await context.newPage()
 
     // Given
-    await seedAppsInAllTab(page)
+    await createCachedApps(page)
     await navigateToTestHost(page, host.url)
     const frame = await getProductFrame(page, '.category-tab')
 
@@ -82,7 +83,7 @@ test.describe('Bookmarks', () => {
     const page = await context.newPage()
 
     // Given
-    await seedAppsInAllTab(page)
+    await createCachedApps(page)
     await navigateToTestHost(page, host.url)
     const frame = await getProductFrame(page, '.category-tab')
     await frame.locator('.category-tab', { hasText: 'Bookmarks' }).click()
@@ -103,7 +104,7 @@ test.describe('Bookmarks', () => {
     const page = await context.newPage()
 
     // Given
-    await seedAppsInAllTab(page)
+    await createCachedApps(page)
     await navigateToTestHost(page, host.url)
     const frame = await getProductFrame(page, '.category-tab')
 

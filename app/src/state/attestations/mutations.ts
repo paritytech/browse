@@ -40,6 +40,14 @@ function attestationKey(label: string) {
   return ['attestations', 'app', label] as const
 }
 
+export function describeError(err: unknown): string {
+  const msg = err instanceof Error ? err.message : String(err)
+  if (msg.includes('NotEnoughFunds') || msg.includes('"type": "Payment"')) {
+    return 'Not enough funds'
+  }
+  return 'Failed'
+}
+
 export async function attestLabel(label: string, onPermitted?: () => void) {
   const recipient = nodeToSubject(namehash(`${label}.dot`))
   return attestationService.attest(

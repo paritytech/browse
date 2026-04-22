@@ -2,7 +2,7 @@ import { keccak_256 } from '@noble/hashes/sha3.js'
 
 import { reviveCall } from './client'
 import { CONTRACTS } from './config'
-import { dlog } from './debug'
+import { hiddenLog } from './debug'
 
 export interface StoreProduct {
   label: string
@@ -66,14 +66,16 @@ function decodeStringAt(hex: string, offset: number): string {
 
 export async function fetchStoreProducts(): Promise<StoreProduct[]> {
   const t0 = performance.now()
-  dlog('Store.getProducts()')
+  hiddenLog(`Fetching curated products: reviveCall(${CONTRACTS.STORE}, getProducts())`)
   try {
     const data = await reviveCall(CONTRACTS.STORE, `0x${SEL_GET_PRODUCTS}`)
     const products = decodeProductArray(data)
-    dlog(`Store: ${products.length} products (${(performance.now() - t0).toFixed(0)}ms)`)
+    hiddenLog(
+      `Received ${products.length} curated products (${(performance.now() - t0).toFixed(0)}ms)`
+    )
     return products
   } catch (err) {
-    dlog(`Store.getProducts() failed (${(performance.now() - t0).toFixed(0)}ms): ${err}`, 'error')
+    hiddenLog(`Failed to fetch curated products: ${err}`, 'error')
     return []
   }
 }

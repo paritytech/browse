@@ -10,6 +10,8 @@
   cursor: pointer;
   transition: background 150ms ease;
   animation: productCardIn 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 96px;
 }
 
 .product-card--instant {

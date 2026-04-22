@@ -8,31 +8,63 @@ import { attestationService } from '../../lib/attestation-service'
 import { SCHEMA_LIKE_ID } from '../../lib/config'
 import { type AppEntry } from '../apps/types'
 
+const PAGE_SIZE = 100n
+const PAGE_SIZE_NUM = Number(PAGE_SIZE)
+
+async function listAllAttestationsByAttester(attester: `0x${string}`): Promise<bigint[]> {
+  const count = await attestationService.countByAttester(attester)
+  if (count === 0n) return []
+
+  const ids: bigint[] = []
+  for (let offset = 0n; offset < count; offset += PAGE_SIZE) {
+    const remaining = count - offset
+    const limit = remaining < PAGE_SIZE ? remaining : PAGE_SIZE
+    const page = await attestationService.listByAttester(attester, offset, limit)
+    ids.push(...page)
+  }
+  return ids
+}
+
 async function getFollowedApps(apps: AppEntry[], contacts: string[]): Promise<Set<string>> {
   if (contacts.length === 0 || apps.length === 0) return new Set()
 
-  const h160Contacts = contacts.map((ss58) => ss58ToEthereum(ss58 as SS58String).asHex())
-
-  const results = await Promise.all(
-    apps.map((app) => {
-      const recipient = nodeToSubject(namehash(`${app.label}.dot`))
-      return attestationService.isActiveAny(recipient, SCHEMA_LIKE_ID, h160Contacts)
-    })
+  const h160Contacts = contacts.map(
+    (ss58) => ss58ToEthereum(ss58 as SS58String).asHex() as `0x${string}`
   )
 
-  const matched = new Set<string>()
-  for (let i = 0; i < apps.length; i++) {
-    if (results[i]) matched.add(apps[i].label)
+  const recipientToLabel = new Map<string, string>()
+  for (const app of apps) {
+    const recipient = nodeToSubject(namehash(`${app.label}.dot`)).toLowerCase()
+    recipientToLabel.set(recipient, app.label)
   }
-  return matched
+
+  const idsPerAttester = await Promise.all(h160Contacts.map(listAllAttestationsByAttester))
+  const allIds = idsPerAttester.flat()
+  if (allIds.length === 0) return new Set()
+
+  const now = BigInt(Math.floor(Date.now() / 1000))
+  const followed = new Set<string>()
+
+  for (let i = 0; i < allIds.length; i += PAGE_SIZE_NUM) {
+    const batch = allIds.slice(i, i + PAGE_SIZE_NUM)
+    const records = await attestationService.getAttestationByIds(batch)
+    for (const r of records) {
+      if (r.schema !== SCHEMA_LIKE_ID) continue
+      if (r.revocationTime !== 0n) continue
+      if (r.expirationTime !== 0n && r.expirationTime <= now) continue
+      const label = recipientToLabel.get(r.recipient.toLowerCase())
+      if (label) followed.add(label)
+    }
+  }
+
+  return followed
 }
 
 export function useGetAttestationsByContacts(apps: AppEntry[], contactAddresses: string[]) {
   const sorted = [...contactAddresses].sort()
-  const appCount = apps.length
 
   return useQuery<Set<string>>({
-    queryKey: ['attestations', 'followed', sorted, appCount],
+    queryKey: ['attestations', 'followed', sorted],
     queryFn: async () => {
       const result = await getFollowedApps(apps, contactAddresses)
       setCachedFollowed([...result])
@@ -57,7 +89,13 @@ export function useGetAppAttestation(label: string) {
       ])
       return { attestationCount: Number(count), hasUserAttested }
     },
-    staleTime: 30_000
+    staleTime: Infinity,
+    gcTime: Infinity,
+    retry: 1,
+    retryOnMount: false,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false
   })
 }
 

@@ -1,7 +1,7 @@
 import { ProductCard } from './index'
+import { useEvent } from '../../lib/use-event'
 import { type AppEntry } from '../../state/apps/types'
-import { useAttestApp, useRevokeApp } from '../../state/attestations/mutations'
-import { useGetAppAttestation } from '../../state/attestations/queries'
+import { describeError, useAttestApp, useRevokeApp } from '../../state/attestations/mutations'
 import { useToast } from '../toast/context'
 
 interface ProductCardWithAttestationProps {
@@ -21,30 +21,31 @@ export function ProductCardWithAttestation({
   onClick,
   onStar
 }: ProductCardWithAttestationProps) {
-  const { data } = useGetAppAttestation(app.label)
   const attestApp = useAttestApp()
   const revokeApp = useRevokeApp()
   const { showToast } = useToast()
 
-  const mergedApp = data
-    ? { ...app, attestationCount: data.attestationCount, hasUserAttested: data.hasUserAttested }
-    : app
-
-  function handleAttestation() {
-    if (mergedApp.hasUserAttested) {
-      revokeApp.mutate(app.label, { onSuccess: () => showToast('Unrecommended!') })
+  const handleAttestation = useEvent(() => {
+    if (app.hasUserAttested) {
+      revokeApp.mutate(app.label, {
+        onSuccess: () => showToast('Unrecommended!'),
+        onError: (err) => showToast(describeError(err), true)
+      })
     } else {
-      attestApp.mutate(app.label, { onSuccess: () => showToast('Recommended!') })
+      attestApp.mutate(app.label, {
+        onSuccess: () => showToast('Recommended!'),
+        onError: (err) => showToast(describeError(err), true)
+      })
     }
-  }
+  })
 
   return (
     <ProductCard
-      app={mergedApp}
+      app={app}
       index={index}
       starred={starred}
       showStar={showStar}
-      recommended={mergedApp.hasUserAttested}
+      recommended={app.hasUserAttested}
       onClick={onClick}
       onStar={onStar}
       onClickAttestation={handleAttestation}

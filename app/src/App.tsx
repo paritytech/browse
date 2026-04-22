@@ -1,3 +1,4 @@
+import { useDeferredValue } from 'preact/compat'
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { createAccountsProvider, hostApi } from '@novasamatech/product-sdk'
@@ -5,33 +6,49 @@ import { useQueryClient } from '@tanstack/react-query'
 
 import { CategoryTabs } from './components/category-tabs'
 import { ContactsManager } from './components/contacts-manager'
+import { FOLLOW_ICON, SEARCH_ICON, STAR_ICON } from './components/icons'
 import { ProductCardWithAttestation } from './components/product-card/product-card-with-attestation'
 import { SearchBar } from './components/search-bar'
 import { Toast } from './components/toast'
 import { ToastContext } from './components/toast/context'
 import { setupDebugConsole } from './lib/debug'
-import { useGetAllApps, useGetPcfApps } from './state/apps/queries'
+import { useEvent } from './lib/use-event'
+import { useGetAllApps, useGetPcfApps, useResolveLabel } from './state/apps/queries'
 import { filterApps, type FilterMode } from './state/apps/types'
 import { useGetAttestationsByContacts } from './state/attestations/queries'
 import { addBookmark, getBookmarks, removeBookmark } from './state/bookmarks/api'
 import { addContact, type ContactEntry, getContacts, removeContact } from './state/contacts/api'
 
+const TAB_MODES: FilterMode[] = ['pcf', 'bookmarks', 'following', 'all']
+
+function navigateToDomain(label: string) {
+  if (hostApi?.navigateTo) {
+    hostApi.navigateTo({ tag: 'v1', value: `${label}.dot` })
+  } else {
+    window.open(`https://${label}.dot.li`, '_blank', 'noopener')
+  }
+}
+
 export function App() {
   const queryClient = useQueryClient()
+
   const [currentMode, setCurrentMode] = useState<FilterMode>('pcf')
   const [query, setQuery] = useState('')
-  const [bookmarks, setBookmarks] = useState<Set<string>>(new Set())
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+  const [bookmarks, setBookmarks] = useState<Set<string>>(() => new Set())
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [toastIsError, setToastIsError] = useState(false)
   const [toastAction, setToastAction] = useState<{ label: string; onClick: () => void } | null>(
     null
   )
-
   const [signed, setSigned] = useState(false)
   const [contacts, setContacts] = useState<ContactEntry[]>([])
   const [showContactsManager, setShowContactsManager] = useState(false)
+  const [showTopCount, setShowTopCount] = useState(false)
+  const deferredQuery = useDeferredValue(query)
 
   const rootRef = useRef<HTMLDivElement>(null)
+  const bottomCountRef = useRef<HTMLDivElement>(null)
 
   const { data: pcfApps = [], isFetching: pcfFetching } = useGetPcfApps()
   const { data: allApps = [], isFetching: allFetching } = useGetAllApps(queryClient)
@@ -44,20 +61,45 @@ export function App() {
       return true
     })
   }, [pcfApps, allApps])
-
   const contactAddresses = useMemo(() => contacts.map((c) => c.address), [contacts])
-  const { data: followedLabels = new Set<string>(), isFetching: followingLoading } =
+
+  const { data: followedLabels = new Set<string>(), isLoading: followingLoading } =
     useGetAttestationsByContacts(allAppsCombined, contactAddresses)
 
-  function navigateToDomain(label: string) {
-    if (hostApi?.navigateTo) {
-      hostApi.navigateTo({ tag: 'v1', value: `${label}.dot` })
-    } else {
-      window.open(`https://${label}.dot.li`, '_blank', 'noopener')
-    }
-  }
+  const filtered = useMemo(
+    () => filterApps(allAppsCombined, deferredQuery, currentMode, bookmarks, followedLabels),
+    [allAppsCombined, deferredQuery, currentMode, bookmarks, followedLabels]
+  )
+  const modeTotal = useMemo(
+    () => filterApps(allAppsCombined, '', currentMode, bookmarks, followedLabels).length,
+    [allAppsCombined, currentMode, bookmarks, followedLabels]
+  )
+  const filteredAcrossTabs = useMemo(
+    () =>
+      filterApps(allAppsCombined, query, 'all', bookmarks, followedLabels).concat(
+        filterApps(allAppsCombined, query, 'pcf', bookmarks, followedLabels)
+      ),
+    [allAppsCombined, query, bookmarks, followedLabels]
+  )
+  const otherTabHits = useMemo(() => {
+    if (filtered.length > 0 || !deferredQuery) return []
+    return TAB_MODES.filter((m) => m !== currentMode)
+      .map((m) => ({
+        mode: m,
+        count: filterApps(allAppsCombined, deferredQuery, m, bookmarks, followedLabels).length
+      }))
+      .filter((h) => h.count > 0)
+  }, [filtered.length, deferredQuery, currentMode, allAppsCombined, bookmarks, followedLabels])
 
-  function handleStar(label: string) {
+  const resolverLabel = debouncedQuery
+    .trim()
+    .toLowerCase()
+    .replace(/\.dot$/, '')
+  const shouldResolve =
+    debouncedQuery === query && filteredAcrossTabs.length === 0 && resolverLabel.length > 0
+  const { data: resolvedApp } = useResolveLabel(resolverLabel, shouldResolve)
+
+  const handleStar = useEvent((label: string) => {
     if (bookmarks.has(label)) {
       // Animate card out, then remove from bookmarks
       const card = rootRef.current?.querySelector(`[data-label="${label}"]`) as HTMLElement | null
@@ -91,22 +133,19 @@ export function App() {
       setBookmarks((prev) => new Set(prev).add(label))
       setToastAction(null)
     }
-  }
-
-  function showToast(message: string, isError = false) {
+  })
+  const showToast = useEvent((message: string, isError = false) => {
     setToastIsError(isError)
     setToastMessage(message)
-  }
-
-  function handleAddContact(address: string, username?: string) {
+  })
+  const handleAddContact = useEvent((address: string, username?: string) => {
     addContact(address, username)
     setContacts((prev) => [...prev, { address, username }])
-  }
-
-  function handleRemoveContact(address: string) {
+  })
+  const handleRemoveContact = useEvent((address: string) => {
     removeContact(address)
     setContacts((prev) => prev.filter((c) => c.address !== address))
-  }
+  })
 
   // Subscribe to account connection status
   useEffect(() => {
@@ -144,8 +183,24 @@ export function App() {
     setupDebugConsole()
   }, [])
 
-  const filtered = filterApps(allAppsCombined, query, currentMode, bookmarks, followedLabels)
-  const modeTotal = filterApps(allAppsCombined, '', currentMode, bookmarks, followedLabels).length
+  // Show the top count label only when the bottom one is out of view
+  // (i.e. the list overflows the visible area).
+  useEffect(() => {
+    const el = bottomCountRef.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      (entries) => setShowTopCount(!entries[0].isIntersecting),
+      { threshold: 0 }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedQuery(query), 500)
+    return () => clearTimeout(id)
+  }, [query])
+
   const isLoading =
     currentMode === 'pcf'
       ? pcfFetching
@@ -154,7 +209,6 @@ export function App() {
         : currentMode === 'following'
           ? followingLoading
           : allFetching
-
   const emptyBookmarks = currentMode === 'bookmarks' && modeTotal === 0 && !query
   const emptyFollowingNoContacts = currentMode === 'following' && contacts.length === 0 && !query
   const emptyFollowingNoMatches =
@@ -163,18 +217,6 @@ export function App() {
     modeTotal === 0 &&
     !query &&
     !followingLoading
-
-  const otherTabHits =
-    filtered.length === 0 && query
-      ? (['pcf', 'bookmarks', 'following', 'all'] as FilterMode[])
-          .filter((m) => m !== currentMode)
-          .map((m) => ({
-            mode: m,
-            count: filterApps(allAppsCombined, query, m, bookmarks, followedLabels).length
-          }))
-          .filter((h) => h.count > 0)
-      : []
-
   const countText =
     modeTotal > 0
       ? query
@@ -207,61 +249,19 @@ export function App() {
               />
 
               <div class='app-list' id='app-list'>
-                {isLoading && filtered.length === 0 ? null : emptyBookmarks ? (
+                {showTopCount && countText && (
+                  <div class='list-count list-count--top'>{countText}</div>
+                )}
+                {isLoading && filtered.length === 0 && !query ? null : emptyBookmarks ? (
                   <div class='empty-state'>
-                    <div class='empty-state__icon'>
-                      <svg width='32' height='32' viewBox='0 0 24 24' fill='none'>
-                        <polygon
-                          points='12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2'
-                          stroke='currentColor'
-                          stroke-width='1.5'
-                          stroke-linecap='round'
-                          stroke-linejoin='round'
-                        />
-                      </svg>
-                    </div>
+                    <div class='empty-state__icon'>{STAR_ICON}</div>
                     <p class='empty-state__text'>No bookmarks yet</p>
                     <p class='empty-state__hint'>Tap the star on any app to save it here</p>
                   </div>
                 ) : emptyFollowingNoContacts ? (
                   <div class='empty-state'>
                     <div class='empty-state__icon' style='color: rgba(255, 255, 255, 0.3)'>
-                      <svg width='32' height='32' viewBox='0 0 24 24' fill='none'>
-                        <path
-                          d='M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2'
-                          stroke='currentColor'
-                          stroke-width='1.5'
-                          stroke-linecap='round'
-                          stroke-linejoin='round'
-                        />
-                        <circle
-                          cx='9'
-                          cy='7'
-                          r='4'
-                          stroke='currentColor'
-                          stroke-width='1.5'
-                          stroke-linecap='round'
-                          stroke-linejoin='round'
-                        />
-                        <line
-                          x1='19'
-                          y1='8'
-                          x2='19'
-                          y2='14'
-                          stroke='currentColor'
-                          stroke-width='1.5'
-                          stroke-linecap='round'
-                        />
-                        <line
-                          x1='22'
-                          y1='11'
-                          x2='16'
-                          y2='11'
-                          stroke='currentColor'
-                          stroke-width='1.5'
-                          stroke-linecap='round'
-                        />
-                      </svg>
+                      {FOLLOW_ICON}
                     </div>
                     <p class='empty-state__text'>Follow people to see what they recommend</p>
                     <button class='empty-state__btn' onClick={() => setShowContactsManager(true)}>
@@ -277,46 +277,53 @@ export function App() {
                       Manage contacts
                     </button>
                   </div>
+                ) : filtered.length === 0 && resolvedApp && query ? (
+                  <ProductCardWithAttestation
+                    key={resolvedApp.label}
+                    app={resolvedApp}
+                    index={0}
+                    starred={bookmarks.has(resolvedApp.label)}
+                    showStar
+                    onClick={navigateToDomain}
+                    onStar={handleStar}
+                  />
                 ) : filtered.length === 0 && query ? (
                   <div class='empty-state'>
-                    <div class='empty-state__icon'>
-                      <svg width='32' height='32' viewBox='0 0 32 32' fill='none'>
-                        <circle cx='14' cy='14' r='10' stroke='currentColor' stroke-width='2' />
-                        <path
-                          d='M22 22l6 6'
-                          stroke='currentColor'
-                          stroke-width='2'
-                          stroke-linecap='round'
-                        />
-                      </svg>
-                    </div>
-                    <p class='empty-state__text'>No products matching "{query}"</p>
+                    <div class='empty-state__icon'>{SEARCH_ICON}</div>
+                    {otherTabHits.length > 0 ? (
+                      <p class='empty-state__text'>
+                        Found{' '}
+                        {otherTabHits.map((h, i) => {
+                          const last = i === otherTabHits.length - 1
+                          const separator = i === 0 ? '' : last ? ' and ' : ', '
+                          const tabName = h.mode.charAt(0).toUpperCase() + h.mode.slice(1)
+                          const matchWord = h.count === 1 ? 'match' : 'matches'
+                          return (
+                            <>
+                              {separator}
+                              <a
+                                class='empty-state__link'
+                                href='#'
+                                onClick={(e) => {
+                                  e.preventDefault()
+                                  setCurrentMode(h.mode)
+                                }}
+                              >
+                                {h.count} {matchWord} in {tabName}
+                              </a>
+                            </>
+                          )
+                        })}
+                      </p>
+                    ) : (
+                      <p class='empty-state__text'>No products matching "{query}"</p>
+                    )}
                     <button
                       class='empty-state__btn-ghost'
                       onClick={() => navigateToDomain(query.trim().toLowerCase())}
                     >
-                      Visit {query.trim().toLowerCase()}.dot anyway
+                      Try {query.trim().toLowerCase()}.dot anyway
                     </button>
-                    {otherTabHits.length > 0 ? (
-                      <p class='empty-state__hint'>
-                        Also found in{' '}
-                        {otherTabHits.map((h, i) => (
-                          <>
-                            {i > 0 && ', '}
-                            <a
-                              class='empty-state__link'
-                              href='#'
-                              onClick={(e) => {
-                                e.preventDefault()
-                                setCurrentMode(h.mode)
-                              }}
-                            >
-                              {h.mode.charAt(0).toUpperCase() + h.mode.slice(1)} ({h.count})
-                            </a>
-                          </>
-                        ))}
-                      </p>
-                    ) : null}
                   </div>
                 ) : (
                   filtered.map((app, i) => (
@@ -336,16 +343,16 @@ export function App() {
               <div
                 class='loading-dots'
                 id='loading-dots'
-                style={{ display: isLoading ? 'flex' : 'none' }}
+                style={{ display: isLoading && !query ? 'flex' : 'none' }}
               >
                 <span class='loading-dots__dot' />
                 <span class='loading-dots__dot' />
                 <span class='loading-dots__dot' />
               </div>
 
-              <div class='list-count' id='list-count'>
+              <div class='list-count' id='list-count' ref={bottomCountRef}>
                 {countText}
-                {currentMode === 'following' && contacts.length > 0 && (
+                {currentMode === 'following' && contacts.length > 0 && !emptyFollowingNoMatches && (
                   <button class='list-count__manage' onClick={() => setShowContactsManager(true)}>
                     Manage contacts
                   </button>
