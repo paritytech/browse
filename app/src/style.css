@@ -39,7 +39,12 @@
   --color-accent-glow: rgba(255, 255, 255, 0.18);
   --color-accent-bg: rgba(255, 255, 255, 0.07);
 
-  --color-live: #4ade80;
+  /* DOT brand accent — used sparingly: caret, active state, live dot */
+  --color-dot: #ff2670;
+  --color-dot-soft: rgba(255, 38, 112, 0.55);
+  --color-dot-faint: rgba(255, 38, 112, 0.14);
+
+  --color-live: #ff2670;
 
   --radius-card: 12px;
   --radius-input: 10px;
@@ -69,6 +74,7 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -96,6 +102,7 @@ input {
 }
 
 .page {
+  position: relative;
   min-height: 100dvh;
   display: flex;
   align-items: flex-start;
@@ -110,7 +117,24 @@ input {
     var(--color-bg);
 }
 
+/* Subtle halftone dot grid — editorial nod to the DOT brand */
+.page::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 22px 22px;
+  background-position: 0 0;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, #000 40%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, #000 40%, transparent 100%);
+  opacity: 0.55;
+}
+
 .main {
+  position: relative;
+  z-index: 1;
   width: 100%;
   max-width: 560px;
   display: flex;
@@ -154,10 +178,11 @@ input {
 }
 
 .title {
+  position: relative;
   font-family: var(--font-heading);
   font-size: 3.2rem;
   font-weight: 400;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   line-height: 1;
 }
 
@@ -173,12 +198,26 @@ input {
 
 .subtitle {
   color: var(--color-secondary);
-  font-size: 1.05rem;
-  font-weight: 400;
-  letter-spacing: 0.01em;
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+}
+
+.subtitle__dot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-dot);
+  margin: 0 1.1em 1px;
+  vertical-align: middle;
+  box-shadow: 0 0 10px var(--color-dot-soft);
 }
 
 .card {
+  position: relative;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-card);
@@ -190,6 +229,30 @@ input {
     0 0 0 1px rgba(255, 255, 255, 0.03),
     0 4px 40px rgba(0, 0, 0, 0.5),
     0 0 80px rgba(255, 255, 255, 0.02);
+}
+
+/* Registration marks — thin corner ticks, editorial brand cue */
+.card-flip::before,
+.card-flip::after {
+  content: '';
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--color-border);
+  pointer-events: none;
+  z-index: 2;
+}
+.card-flip::before {
+  top: -5px;
+  left: -5px;
+  border-right: none;
+  border-bottom: none;
+}
+.card-flip::after {
+  bottom: -5px;
+  right: -5px;
+  border-left: none;
+  border-top: none;
 }
 
 .app-list {
@@ -397,6 +460,17 @@ input {
     border: none;
     box-shadow: none;
     padding: 0;
+  }
+
+  .card-flip::before,
+  .card-flip::after {
+    display: none;
+  }
+
+  .page::after {
+    font-size: 9px;
+    top: 10px;
+    left: 12px;
   }
 
   .page {

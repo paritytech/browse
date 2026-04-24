@@ -230,10 +230,13 @@ export function App() {
         <div class='main'>
           <div class='header'>
             <h1 class='title'>
-              <span class='title__white'>browse.</span>
-              <span class='title__muted'>dot</span>
+              <span class='title__white'>browse</span>
             </h1>
-            <p class='subtitle'>products on polkadot</p>
+            <p class='subtitle'>
+              <span>products</span>
+              <span class='subtitle__dot' />
+              <span>on polkadot</span>
+            </p>
           </div>
 
           <div class='card-flip' id='card-flip'>

@@ -61,12 +61,11 @@ test.describe('App Start', () => {
       await reloaded.close()
     })
 
-    test('As an unsigned user, I see the browse.dot header', async () => {
+    test('As an unsigned user, I see the browse header', async () => {
       // Then
       const title = frame.locator('.title')
       await expect(title).toBeVisible()
-      await expect(title).toContainText('browse.')
-      await expect(title).toContainText('dot')
+      await expect(title).toContainText('browse')
     })
 
     test('As an unsigned user, I see the search bar', async () => {
