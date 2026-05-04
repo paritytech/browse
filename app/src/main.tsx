@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 import { App } from './App'
 import { prefetchAllApps, prefetchPcfApps } from './state/apps/queries'
-import './style.css'
+import './styles/main.css'
 
 const queryClient = new QueryClient()
 

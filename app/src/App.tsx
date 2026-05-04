@@ -1,7 +1,7 @@
 import { useDeferredValue } from 'preact/compat'
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
-import { createAccountsProvider, hostApi } from '@novasamatech/product-sdk'
+import { createAccountsProvider } from '@novasamatech/product-sdk'
 import { useQueryClient } from '@tanstack/react-query'
 
 import { CategoryTabs } from './components/category-tabs'
@@ -12,6 +12,7 @@ import { SearchBar } from './components/search-bar'
 import { Toast } from './components/toast'
 import { ToastContext } from './components/toast/context'
 import { setupDebugConsole } from './lib/debug'
+import { navigateToDomain } from './lib/navigate'
 import { useEvent } from './lib/use-event'
 import { useGetAllApps, useGetPcfApps, useResolveLabel } from './state/apps/queries'
 import { filterApps, type FilterMode } from './state/apps/types'
@@ -20,14 +21,6 @@ import { addBookmark, getBookmarks, removeBookmark } from './state/bookmarks/api
 import { addContact, type ContactEntry, getContacts, removeContact } from './state/contacts/api'
 
 const TAB_MODES: FilterMode[] = ['pcf', 'bookmarks', 'following', 'all']
-
-function navigateToDomain(label: string) {
-  if (hostApi?.navigateTo) {
-    hostApi.navigateTo({ tag: 'v1', value: `${label}.dot` })
-  } else {
-    window.open(`https://${label}.dot.li`, '_blank', 'noopener')
-  }
-}
 
 export function App() {
   const queryClient = useQueryClient()

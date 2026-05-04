@@ -1,11 +1,10 @@
 #!/usr/bin/env bash
 #
-# deploy.sh — Build and deploy browse to Polkadot via bulletin-deploy
-#
 # Usage:
-#   ./deploy.sh [name]
+#   ./deploy.sh [domain] [modality]
 #
-# Defaults to "browse-beta00" if no name given (deploys to browse-beta00.dot).
+# modality: "spa" (default) deploys to <domain>.dot
+#           "widget"        deploys to widget.<domain>.dot
 #
 # Prerequisites:
 #   - bulletin-deploy: npm install -g bulletin-deploy
@@ -14,9 +13,24 @@
 #
 set -euo pipefail
 
-NAME="${1:-browse-beta00}"
-DOMAIN="${NAME}.dot"
-BUILD_DIR="./dist"
+DOMAIN="${1:-browse-beta00}"
+MODALITY="${2:-spa}"
+
+case "$MODALITY" in
+  spa)
+    FULL_DOMAIN="${DOMAIN}.dot"
+    ;;
+  widget)
+    FULL_DOMAIN="widget.${DOMAIN}.dot"
+    ;;
+  *)
+    echo "Error: unknown modality '$MODALITY'. Use 'spa' or 'widget'."
+    exit 1
+    ;;
+esac
+
+BUILD_SCRIPT="build:${MODALITY}"
+BUILD_DIR="./dist/${MODALITY}"
 
 if [ -z "${MNEMONIC:-}" ]; then
   echo "Error: MNEMONIC env var is required."
@@ -28,15 +42,15 @@ if [ -z "${MNEMONIC:-}" ]; then
 fi
 
 echo "==> Building..."
-npm run build
+npm run "$BUILD_SCRIPT"
 
 echo ""
-echo "==> Deploying to ${DOMAIN}"
+echo "==> Deploying to ${FULL_DOMAIN}"
 
 MNEMONIC="$MNEMONIC" \
 NODE_OPTIONS="--max-old-space-size=8192" \
-bulletin-deploy "$BUILD_DIR" "$DOMAIN"
+bulletin-deploy "$BUILD_DIR" "$FULL_DOMAIN"
 
 echo ""
 echo "==> Done! Live at:"
-echo "    https://${NAME}.dot.li"
+echo "    https://${FULL_DOMAIN}.li"

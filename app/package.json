@@ -6,7 +6,8 @@
   "scripts": {
     "postinstall": "papi generate",
     "dev": "vite",
-    "build": "vite build",
+    "build:spa": "VITE_BUILD_TARGET=spa vite build --outDir dist/spa --emptyOutDir",
+    "build:widget": "VITE_BUILD_TARGET=widget vite build --outDir dist/widget --emptyOutDir && mv dist/widget/widget.html dist/widget/index.html",
     "preview": "vite preview",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",

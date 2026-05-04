@@ -1,0 +1,95 @@
+.widget-card {
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border: 1px solid var(--stroke-primary, #ececec);
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    transform 150ms ease,
+    box-shadow 150ms ease;
+  animation: widgetCardIn 400ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.widget-card:hover {
+  border-color: #d8d8d8;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.widget-card:active {
+  transform: scale(0.98);
+}
+
+.widget-card:focus-visible {
+  outline: 2px solid var(--color-dot, #ff2670);
+  outline-offset: 2px;
+}
+
+@keyframes widgetCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.widget-card__thumb {
+  aspect-ratio: 204 / 152;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-surface-nested, #f1f1f1);
+}
+
+.widget-card__icon {
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: var(--bg-illustration-dark, #080808);
+}
+
+.widget-card__letter {
+  font-family: var(--font-heading);
+  font-size: 1.6rem;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.85);
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.widget-card__footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+}
+
+.widget-card__brand {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: var(--bg-illustration-dark, #080808);
+  flex-shrink: 0;
+}
+
+.widget-card__name {
+  font-family:
+    'Inter',
+    system-ui,
+    -apple-system,
+    sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1a1a1a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

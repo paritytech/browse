@@ -1,0 +1,106 @@
+/*
+ * Widget-only styles.
+ */
+
+body.widget-mode {
+  --stroke-primary: #ececec;
+  --bg-illustration-dark: #080808;
+  --bg-surface-nested: #f1f1f1;
+  --text-primary: #1a1a1a;
+  --text-secondary: #666666;
+  --text-muted: #999999;
+
+  background: #ffffff;
+  color: var(--text-primary);
+}
+
+.widget {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.widget__search {
+  display: flex;
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.widget__search .search-bar {
+  width: 80%;
+  margin: 0;
+}
+
+.widget__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.widget__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 2rem 1rem;
+}
+
+.widget__empty-text {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.widget__empty-btn {
+  margin-top: 4px;
+  padding: 7px 18px;
+  background: transparent;
+  border: 1px solid var(--stroke-primary);
+  border-radius: 10px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition:
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+.widget__empty-btn:hover {
+  border-color: var(--text-secondary);
+  color: var(--text-primary);
+}
+
+.widget .search-bar__input,
+.widget .search-bar__input:focus {
+  background: #ffffff;
+  color: var(--text-primary);
+  border: 1px solid var(--stroke-primary, #ececec);
+}
+
+.widget .search-bar__input:focus {
+  border-color: #d8d8d8;
+}
+
+.widget .search-bar__icon {
+  color: var(--text-muted);
+}
+
+.widget .search-bar--has-value .search-bar__icon,
+.widget .search-bar--focus .search-bar__icon {
+  color: var(--text-secondary);
+}
+
+.widget .search-bar__placeholder {
+  color: var(--text-muted);
+}
+
+.widget .search-bar__clear {
+  background: rgba(0, 0, 0, 0.08);
+  color: var(--text-secondary);
+}
+
+.widget .search-bar__clear:hover {
+  background: rgba(0, 0, 0, 0.14);
+  color: var(--text-primary);
+}

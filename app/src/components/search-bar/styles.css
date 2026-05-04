@@ -11,7 +11,7 @@
   position: absolute;
   left: 12px;
   top: 50%;
-  transform: translate(calc(50cqi - 12px - 8px - 30px), -50%);
+  transform: translate(calc(50cqi - 12px - 8px - var(--placeholder-half-width, 30px)), -50%);
   color: rgba(255, 255, 255, 0.3);
   pointer-events: none;
   z-index: 1;

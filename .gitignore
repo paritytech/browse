@@ -28,7 +28,7 @@ contracts/lib/
 app/bundle/
 app/browse.prod
 app/chain-specs/
-app/dist.car
+*.car
 
 # Testing
 test-results/

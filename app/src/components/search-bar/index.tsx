@@ -1,4 +1,4 @@
-import { useRef, useState } from 'preact/hooks'
+import { useLayoutEffect, useRef, useState } from 'preact/hooks'
 import './styles.css'
 
 interface SearchBarProps {
@@ -9,7 +9,17 @@ interface SearchBarProps {
 
 export function SearchBar({ value, onInput, placeholder = 'Search' }: SearchBarProps) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const placeholderRef = useRef<HTMLSpanElement>(null)
+  const rootRef = useRef<HTMLDivElement>(null)
   const [focused, setFocused] = useState(false)
+
+  // Measure the placeholder so the icon can sit just left of the centered
+  // text regardless of placeholder length. Exposed as --placeholder-half-width.
+  useLayoutEffect(() => {
+    if (!placeholderRef.current || !rootRef.current) return
+    const halfWidth = placeholderRef.current.offsetWidth / 2
+    rootRef.current.style.setProperty('--placeholder-half-width', `${halfWidth}px`)
+  }, [placeholder])
 
   const hasValue = value.length > 0
   const classes = [
@@ -21,12 +31,14 @@ export function SearchBar({ value, onInput, placeholder = 'Search' }: SearchBarP
     .join(' ')
 
   return (
-    <div class={classes}>
+    <div class={classes} ref={rootRef}>
       <svg class='search-bar__icon' width='16' height='16' viewBox='0 0 16 16' fill='none'>
         <circle cx='7' cy='7' r='5.5' stroke='currentColor' stroke-width='1.3' />
         <path d='M11 11l3.5 3.5' stroke='currentColor' stroke-width='1.3' stroke-linecap='round' />
       </svg>
-      <span class='search-bar__placeholder'>{placeholder}</span>
+      <span class='search-bar__placeholder' ref={placeholderRef}>
+        {placeholder}
+      </span>
       <input
         ref={inputRef}
         class='search-bar__input'
