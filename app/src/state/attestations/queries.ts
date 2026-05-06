@@ -104,6 +104,8 @@ export async function prefetchFollowedLabels(
 ) {
   const cached = await getCachedFollowed()
   if (cached.length > 0) {
-    queryClient.setQueryData(['attestations', 'followed'], new Set(cached))
+    // updatedAt: 0 marks the cached data as stale so useQuery will trigger a
+    // background refetch when a subscriber mounts.
+    queryClient.setQueryData(['attestations', 'followed'], new Set(cached), { updatedAt: 0 })
   }
 }

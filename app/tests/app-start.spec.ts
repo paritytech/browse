@@ -142,6 +142,70 @@ test.describe('App Start', () => {
       expect(storeCount).toBeGreaterThan(0)
     })
 
+    test('As a un/signed user, cached label metadata older than the TTL is refreshed (and fresh entries are not)', async () => {
+      test.setTimeout(45_000)
+      const page = await context.newPage()
+
+      // Given
+      const STALE_TS = Date.now() - 25 * 3_600_000
+      const FRESH_TS = Date.now() - 60_000
+      await page.addInitScript(
+        ({ stale, fresh }) => {
+          const labels = [
+            {
+              label: 'e2e-stale-test',
+              name: 'Outdated',
+              description: 'Old',
+              contentHash: 'ipfs://outdated',
+              attestationCount: 0,
+              hasUserAttested: false,
+              fetchedAt: stale
+            },
+            {
+              label: 'e2e-fresh-test',
+              name: 'Recent',
+              description: 'New',
+              contentHash: 'ipfs://recent',
+              attestationCount: 0,
+              hasUserAttested: false,
+              fetchedAt: fresh
+            }
+          ]
+          localStorage.setItem('test-host:browse:labels', JSON.stringify(labels))
+        },
+        { stale: STALE_TS, fresh: FRESH_TS }
+      )
+      await navigateToTestHost(page, host.url)
+      const frame = await getProductFrame(page, '.category-tab')
+
+      // When
+      await frame.locator('.category-tab', { hasText: 'All' }).click()
+
+      // Then
+      await page.waitForFunction(
+        (stale) => {
+          const labels = JSON.parse(
+            localStorage.getItem('test-host:browse:labels') ?? '[]'
+          ) as Array<{ label: string; fetchedAt?: number }>
+          const entry = labels.find((l) => l.label === 'e2e-stale-test')
+          return entry !== undefined && (entry.fetchedAt ?? 0) > stale
+        },
+        STALE_TS,
+        { timeout: 30_000 }
+      )
+
+      // Then
+      const freshEntryTs = await page.evaluate(() => {
+        const labels = JSON.parse(
+          localStorage.getItem('test-host:browse:labels') ?? '[]'
+        ) as Array<{ label: string; fetchedAt?: number }>
+        return labels.find((l) => l.label === 'e2e-fresh-test')?.fetchedAt
+      })
+      expect(freshEntryTs).toBe(FRESH_TS)
+
+      await page.close()
+    })
+
     test('As a signed user, cached All apps show instantly on reload while syncing in the background', async () => {
       test.setTimeout(45_000)
       const page = await context.newPage()

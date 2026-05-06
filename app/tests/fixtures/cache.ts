@@ -64,8 +64,14 @@ export async function createCachedApps(
     orphans?: OrphanLabel[]
   } = {}
 ): Promise<void> {
-  const seeded = SEED_LABEL_ENTRIES.map((l) => ({ ...l, ...(options.overrides?.[l.label] ?? {}) }))
-  const allLabels = [...seeded, ...(options.orphans ?? [])]
+  const fetchedAt = Date.now()
+  const seeded = SEED_LABEL_ENTRIES.map((l) => ({
+    ...l,
+    ...(options.overrides?.[l.label] ?? {}),
+    fetchedAt
+  }))
+  const orphans = (options.orphans ?? []).map((l) => ({ ...l, fetchedAt }))
+  const allLabels = [...seeded, ...orphans]
   const stores = [
     {
       storeAddress: SEED_STORE_ADDRESS,

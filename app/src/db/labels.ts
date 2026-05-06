@@ -7,6 +7,7 @@ export interface LabelEntry {
   contentHash: string | null
   attestationCount: number | null
   hasUserAttested: boolean
+  fetchedAt?: number
 }
 
 const KEY = 'browse:labels'

@@ -36,6 +36,7 @@ import { multicall } from '../../lib/multicall'
 import { fetchStoreProducts } from '../../lib/store'
 
 const BATCH_SIZE = 200
+const METADATA_TTL_MS = 24 * 60 * 60 * 1000
 
 function tryDecode<T>(
   r: { success: boolean; returnData: `0x${string}` } | undefined,
@@ -167,7 +168,8 @@ async function flushLabelBatch(
         description: 'No description',
         contentHash: cid,
         attestationCount: null,
-        hasUserAttested: false
+        hasUserAttested: false,
+        fetchedAt: Date.now()
       }
       labels.set(chunk[j], entry)
       chunkEntries.push(entry)
@@ -219,7 +221,8 @@ async function flushLabelBatch(
         description: description || 'No description',
         contentHash,
         attestationCount,
-        hasUserAttested
+        hasUserAttested,
+        fetchedAt: Date.now()
       }
       labels.set(label, entry)
       return entry
@@ -403,12 +406,31 @@ async function syncAllApps(
   // Only scan stores not yet cached
   const toScan = current.filter((addr) => !stores.has(addr))
 
-  if (toScan.length > 0) {
+  // Refresh labels whose metadata is older than the TTL (or missing a timestamp
+  // from a pre-TTL cache). Runs through flushLabelBatch so contenthash is also
+  // re-checked — a label that went non-live since last sync gets detected here.
+  const nowMs = Date.now()
+  const staleLabels: string[] = []
+  for (const l of labels.values()) {
+    if (!l.fetchedAt || nowMs - l.fetchedAt > METADATA_TTL_MS) staleLabels.push(l.label)
+  }
+
+  if (toScan.length > 0 || staleLabels.length > 0) {
     const userH160 = await resolveUserH160()
-    hiddenLog(
-      `Scanning ${toScan.length} new stores${userH160 ? ' (including your attestations)' : ''}`
-    )
-    await scanStores(toScan, stores, labels, userH160, onProgress)
+
+    if (staleLabels.length > 0) {
+      hiddenLog(
+        `Refreshing ${staleLabels.length} stale label(s) (TTL ${METADATA_TTL_MS / 3_600_000}h)`
+      )
+      await flushLabelBatch(stores, labels, staleLabels, userH160, onProgress)
+    }
+
+    if (toScan.length > 0) {
+      hiddenLog(
+        `Scanning ${toScan.length} new stores${userH160 ? ' (including your attestations)' : ''}`
+      )
+      await scanStores(toScan, stores, labels, userH160, onProgress)
+    }
   }
 
   const apps = materialize([...stores.values()], labels)
