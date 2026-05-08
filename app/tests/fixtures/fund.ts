@@ -3,7 +3,8 @@ import { DEV_PHRASE, mnemonicToMiniSecret, ss58Encode } from '@polkadot-labs/hdk
 import { MultiAddress, paseoHub } from '@polkadot-api/descriptors'
 import { createClient, type SS58String } from 'polkadot-api'
 import { getPolkadotSigner } from 'polkadot-api/signer'
-import { getWsProvider } from 'polkadot-api/ws-provider/node'
+import { getWsProvider } from 'polkadot-api/ws'
+import { WebSocket } from 'ws'
 
 export function createDevSigner(name: string) {
   const miniSecret = mnemonicToMiniSecret(DEV_PHRASE, '')
@@ -53,7 +54,7 @@ export async function transfer(
 ): Promise<TransferResult> {
   const from = createDevSigner(fromAccount)
   const to = createDevSigner(toAccount)
-  const client = createClient(getWsProvider(RPC_ENDPOINTS))
+  const client = createClient(getWsProvider(RPC_ENDPOINTS, { websocketClass: WebSocket as unknown as typeof globalThis.WebSocket }))
   try {
     const api = client.getTypedApi(paseoHub)
     const tx = api.tx.Balances.transfer_keep_alive({
@@ -107,7 +108,7 @@ export async function fund(
   amount: bigint = DEFAULT_TRANSFER_AMOUNT
 ): Promise<FundResult> {
   const to = createDevSigner(toAccount)
-  const client = createClient(getWsProvider(RPC_ENDPOINTS))
+  const client = createClient(getWsProvider(RPC_ENDPOINTS, { websocketClass: WebSocket as unknown as typeof globalThis.WebSocket }))
   let freeBalance: bigint
   try {
     const api = client.getTypedApi(paseoHub)

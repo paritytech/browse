@@ -344,7 +344,7 @@ async function resolveUserH160(): Promise<`0x${string}` | null> {
   try {
     const { publicKey } = await attestationService.getSigner()
     const ss58 = AccountId().dec(publicKey)
-    return ss58ToEthereum(ss58 as SS58String).asHex() as `0x${string}`
+    return ss58ToEthereum(ss58 as SS58String) as `0x${string}`
   } catch {
     return null
   }

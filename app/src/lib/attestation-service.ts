@@ -1,16 +1,13 @@
 import { createAccountsProvider, hostApi, type ProductAccount } from '@novasamatech/product-sdk'
 import { contracts } from '@polkadot-api/descriptors'
-import {
-  type AsyncTransaction,
-  createReviveSdk,
-  type ReviveSdkTypedApi
-} from '@polkadot-api/sdk-ink'
-import { AccountId, type Binary, type PolkadotSigner, type SS58String } from 'polkadot-api'
+import { type AsyncTransaction, createInkSdk } from '@polkadot-api/sdk-ink'
+import { AccountId, type PolkadotClient, type PolkadotSigner, type SS58String } from 'polkadot-api'
 
-import { ensureApi, type PaseoHubApi } from './client'
+import { ensureApi, ensureClient, type PaseoHubApi } from './client'
 import { CONTRACTS, DUMMY_ORIGIN } from './config'
 
 export type ApiProvider = () => Promise<PaseoHubApi>
+export type ClientProvider = () => Promise<PolkadotClient>
 export type SignerProvider = () => Promise<{
   signer: PolkadotSigner
   origin: string
@@ -23,7 +20,7 @@ async function hostSigner(): Promise<{
   publicKey: Uint8Array
 }> {
   const accountsProvider = createAccountsProvider()
-  const accountsResult = await accountsProvider.getNonProductAccounts()
+  const accountsResult = await accountsProvider.getLegacyAccounts()
   if (accountsResult.isErr()) {
     throw new Error(accountsResult.error.name ?? 'Failed to get accounts')
   }
@@ -36,7 +33,7 @@ async function hostSigner(): Promise<{
     publicKey: accounts[0].publicKey
   }
   return {
-    signer: accountsProvider.getNonProductAccountSigner(account),
+    signer: accountsProvider.getLegacyAccountSigner(account),
     origin: AccountId().dec(accounts[0].publicKey),
     publicKey: accounts[0].publicKey
   }
@@ -68,18 +65,15 @@ export class AttestationService {
 
   constructor(
     private api: ApiProvider = ensureApi,
+    private client: ClientProvider = ensureClient,
     private signer: SignerProvider = hostSigner,
     private truapi: boolean = true
   ) {}
 
   private async getSdk() {
     if (!this.sdkInstance) {
-      const api = await this.api()
-      this.sdkInstance = createReviveSdk(
-        api as unknown as ReviveSdkTypedApi,
-        contracts.attestation_service,
-        { atBest: true }
-      )
+      const client = await this.client()
+      this.sdkInstance = createInkSdk(client, { atBest: true })
     }
     return this.sdkInstance
   }
@@ -87,7 +81,10 @@ export class AttestationService {
   private async getContract() {
     if (!this.contractInstance) {
       const sdk = await this.getSdk()
-      this.contractInstance = sdk.getContract(CONTRACTS.ATTESTATION_SERVICE)
+      this.contractInstance = sdk.getContract(
+        contracts.attestation_service,
+        CONTRACTS.ATTESTATION_SERVICE
+      )
     }
     return this.contractInstance
   }
@@ -208,7 +205,7 @@ export class AttestationService {
     expirationTime: bigint,
     revocable: boolean,
     refId: bigint,
-    data: Binary,
+    data: `0x${string}`,
     onPermitted?: () => void
   ): Promise<TxResult> {
     const { signer, origin } = await this.signer()
@@ -278,7 +275,7 @@ export class AttestationService {
   ): Promise<TxResult> {
     if (this.truapi) {
       const permitted = await hostApi
-        .permission({ tag: 'v1', value: { tag: 'TransactionSubmit', value: undefined } })
+        .permission({ tag: 'v1', value: { tag: 'ChainSubmit', value: undefined } })
         .match(
           (res) => res.value,
           () => false

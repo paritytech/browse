@@ -1,5 +1,5 @@
 import { ss58ToEthereum } from '@polkadot-api/sdk-ink'
-import { type Binary, type SS58String } from 'polkadot-api'
+import { type SS58String } from 'polkadot-api'
 
 import { namehash, nodeToSubject } from '../../src/lib/abi'
 import { SCHEMA_LIKE_ID } from '../../src/lib/config'
@@ -15,14 +15,14 @@ interface AttestResult {
 export async function createAttestation(label: string, devAccount = 'Alice'): Promise<AttestResult> {
   return withAttestationService(devAccount, async (service, address) => {
     const recipient = nodeToSubject(namehash(`${label}.dot`))
-    const attesterH160 = ss58ToEthereum(address as SS58String).asHex()
+    const attesterH160 = ss58ToEthereum(address as SS58String) as `0x${string}`
     const attestationCountBefore = await service.countByRecipientAndSchema(
       recipient,
       SCHEMA_LIKE_ID
     )
     const alreadyAttested = await service.isActiveAny(recipient, SCHEMA_LIKE_ID, [attesterH160])
     if (!alreadyAttested) {
-      await service.attest(SCHEMA_LIKE_ID, recipient, 0n, true, 0n, '0x' as unknown as Binary)
+      await service.attest(SCHEMA_LIKE_ID, recipient, 0n, true, 0n, '0x')
     }
     return {
       success: true,

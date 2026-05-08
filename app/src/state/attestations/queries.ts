@@ -28,9 +28,7 @@ async function listAllAttestationsByAttester(attester: `0x${string}`): Promise<b
 async function getFollowedApps(apps: AppEntry[], contacts: string[]): Promise<Set<string>> {
   if (contacts.length === 0 || apps.length === 0) return new Set()
 
-  const h160Contacts = contacts.map(
-    (ss58) => ss58ToEthereum(ss58 as SS58String).asHex() as `0x${string}`
-  )
+  const h160Contacts = contacts.map((ss58) => ss58ToEthereum(ss58 as SS58String) as `0x${string}`)
 
   const recipientToLabel = new Map<string, string>()
   for (const app of apps) {
@@ -82,7 +80,7 @@ export function useGetAppAttestation(label: string) {
       const recipient = nodeToSubject(namehash(`${label}.dot`))
       const { publicKey } = await attestationService.getSigner()
       const ss58 = AccountId().dec(publicKey)
-      const userH160 = ss58ToEthereum(ss58 as SS58String).asHex()
+      const userH160 = ss58ToEthereum(ss58 as SS58String) as `0x${string}`
       const [count, hasUserAttested] = await Promise.all([
         attestationService.countByRecipientAndSchema(recipient, SCHEMA_LIKE_ID),
         attestationService.isActiveAny(recipient, SCHEMA_LIKE_ID, [userH160])

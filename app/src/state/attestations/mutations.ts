@@ -1,6 +1,6 @@
 import { ss58ToEthereum } from '@polkadot-api/sdk-ink'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { AccountId, type Binary, type SS58String } from 'polkadot-api'
+import { AccountId, type SS58String } from 'polkadot-api'
 
 import { namehash, nodeToSubject } from '../../lib/abi'
 import { attestationService } from '../../lib/attestation-service'
@@ -50,23 +50,13 @@ export function describeError(err: unknown): string {
 
 export async function attestLabel(label: string, onPermitted?: () => void) {
   const recipient = nodeToSubject(namehash(`${label}.dot`))
-  return attestationService.attest(
-    SCHEMA_LIKE_ID,
-    recipient,
-    0n,
-    true,
-    0n,
-    '0x' as unknown as Binary,
-    onPermitted
-  )
+  return attestationService.attest(SCHEMA_LIKE_ID, recipient, 0n, true, 0n, '0x', onPermitted)
 }
 
 async function getAttesterH160(): Promise<string> {
   const { publicKey } = await attestationService.getSigner()
   const ss58 = AccountId().dec(publicKey)
-  return ss58ToEthereum(ss58 as SS58String)
-    .asHex()
-    .toLowerCase()
+  return (ss58ToEthereum(ss58 as SS58String) as `0x${string}`).toLowerCase()
 }
 
 export async function revokeLabel(label: string, onPermitted?: () => void) {

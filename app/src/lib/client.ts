@@ -1,12 +1,6 @@
 import { paseoHub } from '@polkadot-api/descriptors'
 import type { SS58String } from 'polkadot-api'
-import {
-  Binary,
-  createClient,
-  FixedSizeBinary,
-  type PolkadotClient,
-  type TypedApi
-} from 'polkadot-api'
+import { Binary, createClient, type PolkadotClient, type TypedApi } from 'polkadot-api'
 
 import {
   ASSET_HUB_PASEO_GENESIS,
@@ -88,7 +82,7 @@ export async function lookupOriginalAccount(h160: string): Promise<string | null
   await rpcGate()
   try {
     const h160Hex = (h160.startsWith('0x') ? h160 : `0x${h160}`) as `0x${string}`
-    const mapped = await api.query.Revive.OriginalAccount.getValue(FixedSizeBinary.fromHex(h160Hex))
+    const mapped = await api.query.Revive.OriginalAccount.getValue(h160Hex)
     return mapped?.toString?.() ?? null
   } catch {
     return null
@@ -106,7 +100,7 @@ export async function reviveCall(
 
   const dryRun = await api.apis.ReviveApi.call(
     origin as SS58String,
-    FixedSizeBinary.fromHex(contractAddress as `0x${string}`),
+    contractAddress as `0x${string}`,
     0n,
     DRY_RUN_WEIGHT_LIMIT,
     DRY_RUN_STORAGE_LIMIT,
@@ -117,5 +111,5 @@ export async function reviveCall(
   if (!dryRun.result.success) throw new Error('Revive call failed')
   const { flags, data } = dryRun.result.value
   if ((flags & 1) === 1) throw new Error('Contract execution reverted')
-  return data.asHex() as `0x${string}`
+  return Binary.toHex(data) as `0x${string}`
 }

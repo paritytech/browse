@@ -10,7 +10,7 @@ export async function createRevokedAttestation(label: string, devAccount = 'Alic
     const recipient = nodeToSubject(namehash(`${label}.dot`))
     const { publicKey } = await service.getSigner()
     const ss58 = AccountId().dec(publicKey)
-    const attesterH160 = ss58ToEthereum(ss58 as SS58String).asHex().toLowerCase()
+    const attesterH160 = (ss58ToEthereum(ss58 as SS58String) as `0x${string}`).toLowerCase()
 
     const ids = await service.listByRecipientAndSchema(recipient, SCHEMA_LIKE_ID, 0n, 100n)
     if (ids.length === 0) return
