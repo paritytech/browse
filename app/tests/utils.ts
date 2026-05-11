@@ -9,9 +9,12 @@ export { APP_URL, PORT }
 
 export async function startSignedHost(...accounts: Account[]) {
   const { createTestHostServer, PASEO_ASSET_HUB } = await import('@parity/host-api-test-sdk')
+  const list = accounts.length > 0 ? accounts : ['alice']
+  const productAccounts: Record<string, Account> = { [`localhost:${PORT}/0`]: list[0] }
   return createTestHostServer({
     productUrl: APP_URL,
-    accounts: accounts.length > 0 ? accounts : ['alice'],
+    accounts: list,
+    productAccounts,
     chain: PASEO_ASSET_HUB
   })
 }
@@ -29,10 +32,7 @@ export async function navigateToTestHost(page: Page, hostUrl: string): Promise<v
   )
 }
 
-export async function getProductFrame(
-  page: Page,
-  readySelector = '.product-card'
-): Promise<Frame> {
+export async function getProductFrame(page: Page, readySelector = '.product-card'): Promise<Frame> {
   const deadline = Date.now() + 90_000
   while (Date.now() < deadline) {
     const frames = page.frames()

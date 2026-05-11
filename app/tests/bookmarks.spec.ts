@@ -1,7 +1,8 @@
 /**
  * Bookmarks E2E Tests
  *
- * Validates that signed users can star/unstar apps and see them in Bookmarks.
+ * Validates that signed users can bookmark/unbookmark apps and see them in
+ * Bookmarks. Bookmark toggles live inside each card's 3-dot menu.
  */
 
 import type { BrowserContext } from '@playwright/test'
@@ -25,7 +26,7 @@ test.describe('Bookmarks', () => {
     await host?.close()
   })
 
-  test('As Alice, I star an app on the All tab and it appears in Bookmarks', async () => {
+  test('As Alice, I bookmark an app on the All tab and it appears in Bookmarks', async () => {
     const page = await context.newPage()
 
     // Given
@@ -39,11 +40,8 @@ test.describe('Bookmarks', () => {
     appName = (await firstCard.locator('.product-card__name').textContent())!
 
     // When
-    await firstCard.locator('.star-button').click()
-
-    // Then
-    await expect(firstCard.locator('.star-button')).toHaveClass(/star-button--active/)
-    await expect(firstCard.locator('.star-button')).toHaveAttribute('aria-pressed', 'true')
+    await firstCard.locator('.card-menu__trigger').click()
+    await frame.locator('.card-menu__item', { hasText: 'Bookmark' }).click()
 
     // When
     await frame.locator('.category-tab', { hasText: 'Bookmarks' }).click()
@@ -58,7 +56,7 @@ test.describe('Bookmarks', () => {
     await page.close()
   })
 
-  test('As Alice, the starred app persists in Bookmarks after reload', async () => {
+  test('As Alice, the bookmarked app persists in Bookmarks after reload', async () => {
     const page = await context.newPage()
 
     // Given
@@ -79,7 +77,7 @@ test.describe('Bookmarks', () => {
     await page.close()
   })
 
-  test('As Alice, I unstar the app and Bookmarks is empty', async () => {
+  test('As Alice, I remove the bookmark and Bookmarks is empty', async () => {
     const page = await context.newPage()
 
     // Given
@@ -90,7 +88,8 @@ test.describe('Bookmarks', () => {
     await frame.waitForTimeout(300)
 
     // When
-    await frame.locator('.product-card').first().locator('.star-button').click()
+    await frame.locator('.product-card').first().locator('.card-menu__trigger').click()
+    await frame.locator('.card-menu__item', { hasText: 'Remove bookmark' }).click()
     await frame.waitForTimeout(500)
 
     // Then
@@ -100,7 +99,7 @@ test.describe('Bookmarks', () => {
     await page.close()
   })
 
-  test('As Alice, the unstarred app stays gone after reload', async () => {
+  test('As Alice, the un-bookmarked app stays gone after reload', async () => {
     const page = await context.newPage()
 
     // Given

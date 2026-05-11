@@ -101,7 +101,7 @@ export function ContactsManager({
   return (
     <div class={`contacts-manager${visible ? ' contacts-manager--visible' : ''}`}>
       <div class='contacts-manager__header'>
-        <span class='contacts-manager__title'>Manage contacts</span>
+        <span class='contacts-manager__title'>Addresses I follow</span>
         <button class='contacts-manager__close' onClick={onDismiss}>
           ✕
         </button>

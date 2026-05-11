@@ -45,18 +45,18 @@ test.describe('Attestation works', () => {
     await frame.locator('.category-tab', { hasText: 'All' }).click()
     await frame.waitForSelector('.product-card', { timeout: 10_000 })
     const alphaCard = frame.locator('.product-card[data-label="e2e-test-app-alpha"]')
-    const socialProof = alphaCard.locator('.product-card__social-proof')
+    const upvote = alphaCard.locator('.product-card__upvote')
 
     // Then
-    await expect(socialProof.locator('.product-card__count')).not.toBeVisible()
+    await expect(upvote.locator('.product-card__upvote-count')).not.toBeVisible()
 
     // When
-    await socialProof.click()
+    await upvote.click()
 
     // Then
-    await expect(socialProof).toHaveClass(/product-card__social-proof--active/)
-    await expect(socialProof.locator('.product-card__count')).toHaveText('1')
-    await expect(socialProof.locator('svg')).toHaveAttribute('fill', 'currentColor')
+    await expect(upvote).toHaveClass(/product-card__upvote--active/)
+    await expect(upvote.locator('.product-card__upvote-count')).toHaveText('1')
+    await expect(upvote.locator('svg')).toHaveAttribute('fill', 'currentColor')
     await expect(frame.locator('.toast--visible')).toContainText('Recommended!', {
       timeout: 15_000
     })
@@ -77,18 +77,18 @@ test.describe('Attestation works', () => {
     await frame.locator('.category-tab', { hasText: 'All' }).click()
     await frame.waitForSelector('.product-card', { timeout: 10_000 })
     const alphaCard = frame.locator('.product-card[data-label="e2e-test-app-alpha"]')
-    const socialProof = alphaCard.locator('.product-card__social-proof')
-    await expect(socialProof).toHaveClass(/product-card__social-proof--active/, { timeout: 10_000 })
-    await expect(socialProof.locator('.product-card__count')).toHaveText('1')
-    await expect(socialProof.locator('svg')).toHaveAttribute('fill', 'currentColor')
+    const upvote = alphaCard.locator('.product-card__upvote')
+    await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 10_000 })
+    await expect(upvote.locator('.product-card__upvote-count')).toHaveText('1')
+    await expect(upvote.locator('svg')).toHaveAttribute('fill', 'currentColor')
 
     // When
-    await socialProof.click()
+    await upvote.click()
 
     // Then
-    await expect(socialProof).not.toHaveClass(/product-card__social-proof--active/)
-    await expect(socialProof.locator('.product-card__count')).not.toBeVisible()
-    await expect(socialProof.locator('svg')).toHaveAttribute('fill', 'none')
+    await expect(upvote).not.toHaveClass(/product-card__upvote--active/)
+    await expect(upvote.locator('.product-card__upvote-count')).not.toBeVisible()
+    await expect(upvote.locator('svg')).toHaveAttribute('fill', 'none')
     await expect(frame.locator('.toast--visible')).toContainText('Unrecommended!', {
       timeout: 15_000
     })
@@ -153,6 +153,7 @@ test.describe('Contacts', () => {
     await expect(frame.locator('.product-card').first()).toBeVisible({ timeout: 15_000 })
     const cards = frame.locator('.product-card')
     expect(await cards.count()).toBeGreaterThan(0)
+    await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
 
     await page.close()
   })
@@ -220,6 +221,7 @@ test.describe('Following', () => {
     // Then
     await expect(frame.locator('.product-card').first()).toBeVisible({ timeout: 20_000 })
     await expect(frame.locator('.product-card')).toHaveCount(1)
+    await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
 
     await page.close()
   })
@@ -273,10 +275,10 @@ test.describe('Attestation fails', () => {
     await navigateToTestHost(page, host.url)
     const frame = await getProductFrame(page, '.product-card')
     const firstCard = frame.locator('.product-card').first()
-    const socialProof = firstCard.locator('.product-card__social-proof')
+    const upvote = firstCard.locator('.product-card__upvote')
 
     // When
-    await socialProof.click()
+    await upvote.click()
 
     // Then
     await expect(frame.locator('.toast--visible')).toContainText('Not enough funds', {

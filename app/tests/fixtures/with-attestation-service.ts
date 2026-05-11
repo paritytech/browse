@@ -34,6 +34,12 @@ export async function withAttestationService<T>(
     )
     return await fn(service, address)
   } finally {
-    client.destroy()
+    // papi 2.x throws a synchronous DisjointError if a chainHead follow is
+    // still active when the client is destroyed; harmless during teardown.
+    try {
+      client.destroy()
+    } catch {
+      // ignore
+    }
   }
 }

@@ -14,6 +14,12 @@
   contain-intrinsic-size: 0 96px;
 }
 
+.product-card:has(.card-menu__popover) {
+  z-index: 20;
+  content-visibility: visible;
+  overflow: visible;
+}
+
 .product-card--instant {
   animation: none;
 }
@@ -40,30 +46,25 @@
 .product-card__thumb {
   width: 64px;
   height: 64px;
+  flex-shrink: 0;
+  overflow: hidden;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
 }
 
-.product-card__letter {
-  font-family:
-    'Inter',
-    system-ui,
-    -apple-system,
-    sans-serif;
-  font-size: 20px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.4);
-  text-transform: uppercase;
-  line-height: 1;
+.product-card__thumb > svg {
+  display: block;
+  width: 28px;
+  height: 28px;
 }
 
 .product-card__body {
   flex: 1;
   min-width: 0;
+  padding-right: 40px;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -100,51 +101,67 @@
   overflow: hidden;
 }
 
-.product-card__social-proof {
+.product-card__upvote {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  margin-top: 4px;
-  padding: 0;
+  justify-content: center;
+  gap: 0;
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
   border: none;
-  background: none;
+  border-radius: 8px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.45);
   font-family:
     'Inter',
     system-ui,
     -apple-system,
     sans-serif;
   font-size: 12px;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.3);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
   line-height: 1;
   cursor: pointer;
   transition: color 150ms ease;
 }
 
-.product-card__social-proof:hover {
-  color: rgba(255, 255, 255, 0.5);
+.product-card__upvote:hover {
+  color: #ffffff;
 }
 
-.product-card__social-proof--active {
-  color: rgba(255, 255, 255, 0.6);
+.product-card__upvote:hover svg {
+  fill: currentColor;
 }
 
-.product-card__social-proof-pill {
-  margin-left: 4px;
-  padding: 1px 6px;
+.product-card__upvote--active {
+  color: #ffffff;
+}
+
+.product-card__upvote--active .product-card__upvote-count {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.product-card__upvote-tip {
+  position: absolute;
+  right: calc(100% + 6px);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 3px 8px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.15);
-  font-size: 10px;
+  background: rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 11px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.7);
+  line-height: 1;
   white-space: nowrap;
   opacity: 0;
   pointer-events: none;
   transition: opacity 150ms ease;
 }
 
-.product-card__social-proof:hover .product-card__social-proof-pill {
+.product-card__upvote:hover .product-card__upvote-tip {
   opacity: 1;
 }
 
@@ -152,9 +169,11 @@
   position: absolute;
   top: 8px;
   right: 8px;
+  bottom: 8px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  justify-content: space-between;
+  align-items: flex-end;
 }
 
 .product-card--removing {

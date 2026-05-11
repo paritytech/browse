@@ -1,36 +1,40 @@
 import { memo } from 'preact/compat'
 
-import { ThumbsUp } from 'lucide-preact'
+import { ArrowBigUp } from 'lucide-preact'
 
 import { type AppEntry, displayName } from '../../state/apps/types'
-import { StarButton } from '../star-button'
+import { CardMenu } from '../card-menu'
+import { Identicon } from '../identicon'
 import './styles.css'
 
 interface ProductCardProps {
   app: AppEntry
   index: number
-  starred?: boolean
+  bookmarked?: boolean
   recommended?: boolean
-  showStar?: boolean
+  showMenu?: boolean
   onClick: (label: string) => void
-  onStar?: (label: string) => void
+  onBookmark?: (label: string) => void
+  onFollowPublisher?: (label: string) => void
+  onShare?: (app: AppEntry) => void
   onClickAttestation?: () => void
 }
 
 export const ProductCard = memo(function ProductCard({
   app,
   index,
-  starred,
+  bookmarked,
   recommended,
-  showStar = true,
+  showMenu = true,
   onClick,
-  onStar,
+  onBookmark,
+  onFollowPublisher,
+  onShare,
   onClickAttestation
 }: ProductCardProps) {
   const instant = index < 0
   const delay = instant ? 0 : Math.min(index * 60, 400)
   const name = displayName(app)
-  const letter = name[0].toLowerCase()
   const displayCount = app.attestationCount ?? 0
 
   return (
@@ -48,34 +52,43 @@ export const ProductCard = memo(function ProductCard({
       }}
     >
       <div class='product-card__thumb'>
-        <span class='product-card__letter'>{letter}</span>
+        <Identicon seed={app.label} size={64} />
       </div>
       <div class='product-card__body'>
         <span class='product-card__name'>{name}</span>
         <p class='product-card__desc'>{app.description}</p>
-        {onClickAttestation && (
-          <button
-            class={`product-card__social-proof${recommended ? ' product-card__social-proof--active' : ''}`}
-            onClick={(e) => {
-              e.stopPropagation()
-              onClickAttestation()
-            }}
-          >
-            <ThumbsUp size={12} fill={recommended ? 'currentColor' : 'none'} />
-            {displayCount >= 1 ? (
-              <span class='product-card__count'>{displayCount}</span>
-            ) : (
-              <span class='product-card__social-proof-pill'>Be the first to recommend</span>
-            )}
-            {displayCount >= 1 && !recommended && (
-              <span class='product-card__social-proof-pill'>Recommend</span>
-            )}
-          </button>
-        )}
       </div>
-      {showStar && onStar && (
+      {showMenu && onBookmark && onFollowPublisher && onShare && (
         <div class='product-card__actions'>
-          <StarButton starred={!!starred} onClick={() => onStar(app.label)} />
+          <CardMenu
+            bookmarked={!!bookmarked}
+            onBookmark={() => onBookmark(app.label)}
+            onFollowPublisher={() => onFollowPublisher(app.label)}
+            onShare={() => onShare(app)}
+          />
+          {onClickAttestation && (
+            <button
+              class={`product-card__upvote${recommended ? ' product-card__upvote--active' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation()
+                onClickAttestation()
+              }}
+              aria-label={recommended ? 'Remove recommendation' : 'Recommend'}
+              aria-pressed={recommended}
+            >
+              <ArrowBigUp size={15} fill={recommended ? 'currentColor' : 'none'} />
+              {displayCount >= 1 && (
+                <span class='product-card__upvote-count'>
+                  {displayCount > 999 ? '999+' : displayCount}
+                </span>
+              )}
+              {!recommended && (
+                <span class='product-card__upvote-tip'>
+                  {displayCount === 0 ? 'Be the first to recommend' : 'Recommend'}
+                </span>
+              )}
+            </button>
+          )}
         </div>
       )}
     </div>

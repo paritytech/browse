@@ -1,5 +1,3 @@
-import { useCallback, useEffect, useRef } from 'preact/hooks'
-
 import { type FilterMode } from '../../state/apps/types'
 import './styles.css'
 
@@ -23,57 +21,21 @@ const SIGNED_CATEGORIES: CategoryTab[] = [
 ]
 
 interface CategoryTabsProps {
-  active: FilterMode
+  active: FilterMode[]
   signed?: boolean
   onSwitch: (mode: FilterMode) => void
 }
 
 export function CategoryTabs({ active, signed, onSwitch }: CategoryTabsProps) {
   const categories = signed ? SIGNED_CATEGORIES : BASE_CATEGORIES
-  const containerRef = useRef<HTMLDivElement>(null)
-  const indicatorRef = useRef<HTMLDivElement>(null)
-
-  const positionIndicator = useCallback((animate = true) => {
-    const container = containerRef.current
-    const indicator = indicatorRef.current
-    if (!container || !indicator) return
-
-    const activeEl = container.querySelector<HTMLElement>('.category-tab--active')
-    if (!activeEl) {
-      indicator.style.opacity = '0'
-      return
-    }
-
-    const containerRect = container.getBoundingClientRect()
-    const activeRect = activeEl.getBoundingClientRect()
-
-    if (!animate) indicator.style.transition = 'none'
-
-    indicator.style.width = `${activeRect.width}px`
-    indicator.style.transform = `translateX(${activeRect.left - containerRect.left}px)`
-    indicator.style.opacity = '1'
-
-    if (!animate) {
-      void indicator.offsetHeight // force reflow
-      indicator.style.transition = ''
-    }
-  }, [])
-
-  useEffect(() => {
-    requestAnimationFrame(() => positionIndicator(false))
-  }, [])
-
-  useEffect(() => {
-    positionIndicator(true)
-  }, [active, positionIndicator])
+  const activeSet = new Set(active)
 
   return (
-    <div class='category-tabs' ref={containerRef}>
-      <div class='category-tabs__indicator' ref={indicatorRef} />
+    <div class='category-tabs'>
       {categories.map((tab) => (
         <button
           key={tab.id}
-          class={`category-tab${tab.id === active ? ' category-tab--active' : ''}${!tab.enabled ? ' category-tab--disabled' : ''}`}
+          class={`category-tab${activeSet.has(tab.id) ? ' category-tab--active' : ''}${!tab.enabled ? ' category-tab--disabled' : ''}`}
           data-mode={tab.id}
           disabled={!tab.enabled}
           onClick={() => tab.enabled && onSwitch(tab.id)}

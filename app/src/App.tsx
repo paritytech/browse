@@ -3,24 +3,26 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { createAccountsProvider } from '@novasamatech/product-sdk'
 import { useQueryClient } from '@tanstack/react-query'
+import { ArrowBigUp, Bookmark, MoreHorizontal } from 'lucide-preact'
 
 import { CategoryTabs } from './components/category-tabs'
 import { ContactsManager } from './components/contacts-manager'
-import { FOLLOW_ICON, SEARCH_ICON, STAR_ICON } from './components/icons'
+import { FOLLOW_ICON, SEARCH_ICON } from './components/icons'
 import { ProductCardWithAttestation } from './components/product-card/product-card-with-attestation'
 import { SearchBar } from './components/search-bar'
 import { Toast } from './components/toast'
 import { ToastContext } from './components/toast/context'
+import { readAllStores } from './db/stores'
 import { setupDebugConsole } from './lib/debug'
 import { navigateToDomain } from './lib/navigate'
 import { useEvent } from './lib/use-event'
 import { useGetAllApps, useGetPcfApps, useResolveLabel } from './state/apps/queries'
-import { filterApps, type FilterMode } from './state/apps/types'
+import { type AppEntry, filterApps, type FilterMode } from './state/apps/types'
 import { useGetAttestationsByContacts } from './state/attestations/queries'
 import { addBookmark, getBookmarks, removeBookmark } from './state/bookmarks/api'
 import { addContact, type ContactEntry, getContacts, removeContact } from './state/contacts/api'
 
-const TAB_MODES: FilterMode[] = ['pcf', 'bookmarks', 'following', 'all']
+const SEARCH_GROUP_PRIORITY: FilterMode[] = ['bookmarks', 'following', 'pcf', 'all']
 
 export function App() {
   const queryClient = useQueryClient()
@@ -37,11 +39,9 @@ export function App() {
   const [signed, setSigned] = useState(false)
   const [contacts, setContacts] = useState<ContactEntry[]>([])
   const [showContactsManager, setShowContactsManager] = useState(false)
-  const [showTopCount, setShowTopCount] = useState(false)
   const deferredQuery = useDeferredValue(query)
 
   const rootRef = useRef<HTMLDivElement>(null)
-  const bottomCountRef = useRef<HTMLDivElement>(null)
 
   const { data: pcfApps = [], isFetching: pcfFetching } = useGetPcfApps()
   const { data: allApps = [], isFetching: allFetching } = useGetAllApps(queryClient)
@@ -63,36 +63,37 @@ export function App() {
     () => filterApps(allAppsCombined, deferredQuery, currentMode, bookmarks, followedLabels),
     [allAppsCombined, deferredQuery, currentMode, bookmarks, followedLabels]
   )
-  const modeTotal = useMemo(
-    () => filterApps(allAppsCombined, '', currentMode, bookmarks, followedLabels).length,
-    [allAppsCombined, currentMode, bookmarks, followedLabels]
-  )
-  const filteredAcrossTabs = useMemo(
-    () =>
-      filterApps(allAppsCombined, query, 'all', bookmarks, followedLabels).concat(
-        filterApps(allAppsCombined, query, 'pcf', bookmarks, followedLabels)
-      ),
-    [allAppsCombined, query, bookmarks, followedLabels]
-  )
-  const otherTabHits = useMemo(() => {
-    if (filtered.length > 0 || !deferredQuery) return []
-    return TAB_MODES.filter((m) => m !== currentMode)
-      .map((m) => ({
-        mode: m,
-        count: filterApps(allAppsCombined, deferredQuery, m, bookmarks, followedLabels).length
-      }))
-      .filter((h) => h.count > 0)
-  }, [filtered.length, deferredQuery, currentMode, allAppsCombined, bookmarks, followedLabels])
+  // While the user is typing, search ignores tabs: matches across every source
+  // are flattened into a single list, ordered by primary source (bookmarks
+  // first, then following, then pcf, then all). Each app appears once.
+  const searchMatches = useMemo<AppEntry[] | null>(() => {
+    if (!deferredQuery.trim()) return null
+    const seen = new Set<string>()
+    const matches: AppEntry[] = []
+    for (const mode of SEARCH_GROUP_PRIORITY) {
+      const m = filterApps(allAppsCombined, deferredQuery, mode, bookmarks, followedLabels)
+      for (const app of m) {
+        if (seen.has(app.label)) continue
+        seen.add(app.label)
+        matches.push(app)
+      }
+    }
+    return matches
+  }, [deferredQuery, allAppsCombined, bookmarks, followedLabels])
 
+  const tryLabel = query
+    .trim()
+    .toLowerCase()
+    .replace(/\.dot$/, '')
   const resolverLabel = debouncedQuery
     .trim()
     .toLowerCase()
     .replace(/\.dot$/, '')
   const shouldResolve =
-    debouncedQuery === query && filteredAcrossTabs.length === 0 && resolverLabel.length > 0
+    debouncedQuery === query && searchMatches?.length === 0 && resolverLabel.length > 0
   const { data: resolvedApp } = useResolveLabel(resolverLabel, shouldResolve)
 
-  const handleStar = useEvent((label: string) => {
+  const handleBookmark = useEvent((label: string) => {
     if (bookmarks.has(label)) {
       // Animate card out, then remove from bookmarks
       const card = rootRef.current?.querySelector(`[data-label="${label}"]`) as HTMLElement | null
@@ -140,6 +141,35 @@ export function App() {
     setContacts((prev) => prev.filter((c) => c.address !== address))
   })
 
+  const handleFollowPublisher = useEvent(async (label: string) => {
+    const stores = await readAllStores()
+    const store = stores.find((s) => s.labels.includes(label))
+    const address = store?.ownerSS58Address
+    if (!address) {
+      showToast('Publisher address unavailable', true)
+      return
+    }
+    if (contacts.some((c) => c.address === address)) {
+      showToast('Already following this publisher')
+      return
+    }
+    handleAddContact(address)
+    showToast('Now following publisher')
+  })
+
+  const handleShare = useEvent(async (app: AppEntry) => {
+    const domain = `${app.label}.dot`
+    const hasDescription = app.description && app.description !== 'No description'
+    const header = [app.name, hasDescription ? app.description : null].filter(Boolean).join(', ')
+    const text = header ? `${header}\n${domain}` : domain
+    try {
+      await navigator.clipboard.writeText(text)
+      showToast('Copied to clipboard')
+    } catch {
+      showToast('Could not copy to clipboard', true)
+    }
+  })
+
   // Subscribe to account connection status
   useEffect(() => {
     const provider = createAccountsProvider()
@@ -176,19 +206,6 @@ export function App() {
     setupDebugConsole()
   }, [])
 
-  // Show the top count label only when the bottom one is out of view
-  // (i.e. the list overflows the visible area).
-  useEffect(() => {
-    const el = bottomCountRef.current
-    if (!el) return
-    const observer = new IntersectionObserver(
-      (entries) => setShowTopCount(!entries[0].isIntersecting),
-      { threshold: 0 }
-    )
-    observer.observe(el)
-    return () => observer.disconnect()
-  }, [])
-
   useEffect(() => {
     const id = setTimeout(() => setDebouncedQuery(query), 500)
     return () => clearTimeout(id)
@@ -202,20 +219,28 @@ export function App() {
         : currentMode === 'following'
           ? followingLoading
           : allFetching
-  const emptyBookmarks = currentMode === 'bookmarks' && modeTotal === 0 && !query
+  const renderCard = (app: AppEntry, i: number) => (
+    <ProductCardWithAttestation
+      key={app.label}
+      app={app}
+      index={i}
+      bookmarked={bookmarks.has(app.label)}
+      showMenu
+      onClick={navigateToDomain}
+      onBookmark={handleBookmark}
+      onFollowPublisher={handleFollowPublisher}
+      onShare={handleShare}
+    />
+  )
+
+  const emptyBookmarks = currentMode === 'bookmarks' && filtered.length === 0 && !query
   const emptyFollowingNoContacts = currentMode === 'following' && contacts.length === 0 && !query
   const emptyFollowingNoMatches =
     currentMode === 'following' &&
     contacts.length > 0 &&
-    modeTotal === 0 &&
+    filtered.length === 0 &&
     !query &&
     !followingLoading
-  const countText =
-    modeTotal > 0
-      ? query
-        ? `${filtered.length} of ${modeTotal} products`
-        : `${modeTotal} products`
-      : ''
 
   return (
     <ToastContext.Provider value={{ showToast }}>
@@ -236,23 +261,27 @@ export function App() {
             <div class='card front' id='card-front'>
               <SearchBar value={query} onInput={setQuery} />
               <CategoryTabs
-                active={currentMode}
+                active={searchMatches ? [] : [currentMode]}
                 signed={signed}
                 onSwitch={(mode) => {
                   setCurrentMode(mode)
+                  setQuery('')
                   setShowContactsManager(false)
                 }}
               />
 
               <div class='app-list' id='app-list'>
-                {showTopCount && countText && (
-                  <div class='list-count list-count--top'>{countText}</div>
-                )}
                 {isLoading && filtered.length === 0 && !query ? null : emptyBookmarks ? (
                   <div class='empty-state'>
-                    <div class='empty-state__icon'>{STAR_ICON}</div>
+                    <div class='empty-state__icon'>
+                      <Bookmark size={32} />
+                    </div>
                     <p class='empty-state__text'>No bookmarks yet</p>
-                    <p class='empty-state__hint'>Tap the star on any app to save it here</p>
+                    <p class='empty-state__hint'>
+                      Open the <MoreHorizontal size={14} class='empty-state__inline-icon' /> menu on
+                      a product and tap <Bookmark size={14} class='empty-state__inline-icon' /> to
+                      save it here
+                    </p>
                   </div>
                 ) : emptyFollowingNoContacts ? (
                   <div class='empty-state'>
@@ -267,72 +296,30 @@ export function App() {
                 ) : emptyFollowingNoMatches ? (
                   <div class='empty-state'>
                     <p class='empty-state__text'>
-                      None of your contacts have recommended any apps yet
+                      None of the addresses you follow have recommended{' '}
+                      <ArrowBigUp size={14} class='empty-state__inline-icon' /> any apps yet
                     </p>
                     <button class='empty-state__btn' onClick={() => setShowContactsManager(true)}>
-                      Manage contacts
+                      Manage following
                     </button>
                   </div>
-                ) : filtered.length === 0 && resolvedApp && query ? (
-                  <ProductCardWithAttestation
-                    key={resolvedApp.label}
-                    app={resolvedApp}
-                    index={0}
-                    starred={bookmarks.has(resolvedApp.label)}
-                    showStar
-                    onClick={navigateToDomain}
-                    onStar={handleStar}
-                  />
-                ) : filtered.length === 0 && query ? (
+                ) : searchMatches && searchMatches.length > 0 ? (
+                  searchMatches.map(renderCard)
+                ) : searchMatches && resolvedApp ? (
+                  renderCard(resolvedApp, 0)
+                ) : searchMatches ? (
                   <div class='empty-state'>
                     <div class='empty-state__icon'>{SEARCH_ICON}</div>
-                    {otherTabHits.length > 0 ? (
-                      <p class='empty-state__text'>
-                        Found{' '}
-                        {otherTabHits.map((h, i) => {
-                          const last = i === otherTabHits.length - 1
-                          const separator = i === 0 ? '' : last ? ' and ' : ', '
-                          const tabName = h.mode.charAt(0).toUpperCase() + h.mode.slice(1)
-                          const matchWord = h.count === 1 ? 'match' : 'matches'
-                          return (
-                            <>
-                              {separator}
-                              <a
-                                class='empty-state__link'
-                                href='#'
-                                onClick={(e) => {
-                                  e.preventDefault()
-                                  setCurrentMode(h.mode)
-                                }}
-                              >
-                                {h.count} {matchWord} in {tabName}
-                              </a>
-                            </>
-                          )
-                        })}
-                      </p>
-                    ) : (
-                      <p class='empty-state__text'>No products matching "{query}"</p>
-                    )}
+                    <p class='empty-state__text'>No products matching "{query}"</p>
                     <button
                       class='empty-state__btn-ghost'
-                      onClick={() => navigateToDomain(query.trim().toLowerCase())}
+                      onClick={() => navigateToDomain(tryLabel)}
                     >
-                      Try {query.trim().toLowerCase()}.dot anyway
+                      Try {tryLabel}.dot anyway
                     </button>
                   </div>
                 ) : (
-                  filtered.map((app, i) => (
-                    <ProductCardWithAttestation
-                      key={app.label}
-                      app={app}
-                      index={i}
-                      starred={bookmarks.has(app.label)}
-                      showStar
-                      onClick={navigateToDomain}
-                      onStar={handleStar}
-                    />
-                  ))
+                  filtered.map(renderCard)
                 )}
               </div>
 
@@ -346,14 +333,13 @@ export function App() {
                 <span class='loading-dots__dot' />
               </div>
 
-              <div class='list-count' id='list-count' ref={bottomCountRef}>
-                {countText}
-                {currentMode === 'following' && contacts.length > 0 && !emptyFollowingNoMatches && (
+              {currentMode === 'following' && contacts.length > 0 && !emptyFollowingNoMatches && (
+                <div class='list-count'>
                   <button class='list-count__manage' onClick={() => setShowContactsManager(true)}>
-                    Manage contacts
+                    Manage following
                   </button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             <div class='card back' id='card-back'>

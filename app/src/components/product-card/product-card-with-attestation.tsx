@@ -7,19 +7,23 @@ import { useToast } from '../toast/context'
 interface ProductCardWithAttestationProps {
   app: AppEntry
   index: number
-  starred: boolean
-  showStar?: boolean
+  bookmarked: boolean
+  showMenu?: boolean
   onClick: (label: string) => void
-  onStar: (label: string) => void
+  onBookmark: (label: string) => void
+  onFollowPublisher: (label: string) => void
+  onShare: (app: AppEntry) => void
 }
 
 export function ProductCardWithAttestation({
   app,
   index,
-  starred,
-  showStar,
+  bookmarked,
+  showMenu,
   onClick,
-  onStar
+  onBookmark,
+  onFollowPublisher,
+  onShare
 }: ProductCardWithAttestationProps) {
   const attestApp = useAttestApp()
   const revokeApp = useRevokeApp()
@@ -43,11 +47,13 @@ export function ProductCardWithAttestation({
     <ProductCard
       app={app}
       index={index}
-      starred={starred}
-      showStar={showStar}
+      bookmarked={bookmarked}
+      showMenu={showMenu}
       recommended={app.hasUserAttested}
       onClick={onClick}
-      onStar={onStar}
+      onBookmark={onBookmark}
+      onFollowPublisher={onFollowPublisher}
+      onShare={onShare}
       onClickAttestation={handleAttestation}
     />
   )

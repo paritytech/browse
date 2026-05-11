@@ -50,7 +50,7 @@ test.describe('Search', () => {
     await page.close()
   })
 
-  test('As an un/signed user, when I search for an app that exists in another tab, I see a hint', async () => {
+  test('As an un/signed user, when I search for an app, the tabs deselect and the card appears in the unified list', async () => {
     const page = await context.newPage()
     await createCachedApps(page)
     await navigateToTestHost(page, host.url)
@@ -65,13 +65,8 @@ test.describe('Search', () => {
     await frame.waitForTimeout(DEBOUNCE_MS + 200)
 
     // Then
-    const hintLink = frame.locator('.empty-state__link')
-    await expect(hintLink).toBeVisible()
-    await hintLink.click()
-    await expect(frame.locator('.category-tab--active')).toHaveText('All')
-    await expect(frame.locator('.product-card[data-label="e2e-test-app-alpha"]')).toBeVisible({
-      timeout: 10_000
-    })
+    await expect(frame.locator('.category-tab--active')).toHaveCount(0)
+    await expect(frame.locator('.product-card[data-label="e2e-test-app-alpha"]')).toBeVisible()
 
     await page.close()
   })
@@ -99,16 +94,17 @@ test.describe('Search', () => {
     const frame = await getProductFrame(page, '.category-tab')
 
     // When
-    await frame.locator('.search-bar__input').fill('nonexistent-xyz')
+    await frame.locator('.search-bar__input').fill('nonexistent-xyz.dot')
     await frame.waitForTimeout(DEBOUNCE_MS + 500)
 
     // Then
     await expect(frame.locator('.empty-state__text')).toContainText(
-      'No products matching "nonexistent-xyz"'
+      'No products matching "nonexistent-xyz.dot"'
     )
     await expect(frame.locator('.empty-state__btn-ghost')).toContainText(
       'Try nonexistent-xyz.dot anyway'
     )
+    await expect(frame.locator('.empty-state__btn-ghost')).not.toContainText('.dot.dot')
     await expect(frame.locator('.product-card')).toHaveCount(0)
 
     await page.close()

@@ -20,24 +20,25 @@ async function hostSigner(): Promise<{
   publicKey: Uint8Array
 }> {
   const accountsProvider = createAccountsProvider()
-  const accountsResult = await accountsProvider.getLegacyAccounts()
-  if (accountsResult.isErr()) {
-    throw new Error(accountsResult.error.name ?? 'Failed to get accounts')
+  const accountResult = await accountsProvider.getProductAccount(PRODUCT_ACCOUNT_IDENTIFIER)
+  if (accountResult.isErr()) {
+    throw new Error(accountResult.error.name ?? 'Failed to get product account')
   }
-  const accounts = accountsResult.value
-  if (accounts.length === 0) throw new Error('No accounts available')
-
+  const publicKey = accountResult.value.publicKey
   const account: ProductAccount = {
-    dotNsIdentifier: '',
+    dotNsIdentifier: PRODUCT_ACCOUNT_IDENTIFIER,
     derivationIndex: 0,
-    publicKey: accounts[0].publicKey
+    publicKey
   }
   return {
-    signer: accountsProvider.getLegacyAccountSigner(account),
-    origin: AccountId().dec(accounts[0].publicKey),
-    publicKey: accounts[0].publicKey
+    signer: accountsProvider.getProductAccountSigner(account),
+    origin: AccountId().dec(publicKey),
+    publicKey
   }
 }
+
+const PRODUCT_ACCOUNT_IDENTIFIER =
+  typeof window !== 'undefined' ? window.location.host : 'browse.dot'
 
 export type AttestationRecord = {
   id: bigint
