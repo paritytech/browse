@@ -6,10 +6,4 @@ Use [GitHub semantic linking](https://docs.github.com/en/issues/tracking-your-wo
 - Related #
 - [ ] This PR fixes a bug or regression
 
-Describe the problem and the fix in 2–5 bullets.
-
-- Problem:
-- Why it matters:
-- What changed:
-
-
+Describe the problem, why it matters, and the fix in 2–5 bullets.

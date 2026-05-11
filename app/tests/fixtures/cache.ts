@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+
 import type { Page } from '@playwright/test'
 
 const SEED_STORE_ADDRESS = '0x000000000000000000000000000000000e2e7e57'
@@ -91,4 +93,34 @@ export async function createCachedApps(
     },
     { labels: allLabels, stores }
   )
+}
+
+/**
+ * Seed the host localStorage from a captured cache snapshot.
+ *
+ * Pass `staleLabels: true` to rewrite every label's `fetchedAt` to >24h old
+ * so the TTL refresh fires on the next sync. Registers an init script — call
+ * before navigation.
+ */
+export async function seedCacheFromSnapshot(
+  page: Page,
+  snapshotPath: string,
+  staleLabels = false
+): Promise<void> {
+  const snapshot = JSON.parse(readFileSync(snapshotPath, 'utf8')) as Record<string, unknown>
+
+  if (staleLabels && Array.isArray(snapshot['browse:labels'])) {
+    const stale = Date.now() - 25 * 3_600_000
+    snapshot['browse:labels'] = (snapshot['browse:labels'] as Array<{ fetchedAt?: number }>).map(
+      (l) => ({ ...l, fetchedAt: stale })
+    )
+  }
+
+  await page.addInitScript((data) => {
+    for (const [k, v] of Object.entries(data)) {
+      const json = JSON.stringify(v)
+      localStorage.setItem(`test-host:${k}`, json)
+      localStorage.setItem(k, json)
+    }
+  }, snapshot)
 }

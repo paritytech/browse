@@ -3,9 +3,9 @@ import { type QueryClient, queryOptions, useQuery } from '@tanstack/react-query'
 import { AccountId, type SS58String } from 'polkadot-api'
 
 import { type AppEntry } from './types'
-import { readSS58Address, updateSS58Address } from '../../db/addresses'
-import { type LabelEntry, readAllLabels, updateLabels } from '../../db/labels'
-import { readAllStores, removeStores, type StoreEntry, updateStores } from '../../db/stores'
+import { type AddressMap, readAllAddresses, writeAllAddresses } from '../../db/addresses'
+import { type LabelEntry, readAllLabels, writeAllLabels } from '../../db/labels'
+import { readAllStores, type StoreEntry, writeAllStores } from '../../db/stores'
 import {
   decodeAddress,
   decodeAddressArray,
@@ -122,19 +122,18 @@ function materialize(stores: StoreEntry[], labelMetadata: Map<string, LabelEntry
   return apps
 }
 
-async function cachedLookupSS58Address(h160Address: string): Promise<string | null> {
+async function cachedLookupSS58Address(
+  h160Address: string,
+  addresses: AddressMap
+): Promise<string | null> {
   const normalizedH160Address = h160Address.toLowerCase()
-  const cachedSS58Address = await readSS58Address(normalizedH160Address)
-  if (cachedSS58Address) return cachedSS58Address
+  const cached = addresses[normalizedH160Address]
+  if (cached) return cached
   const resolvedSS58Address = await lookupOriginalAccount(normalizedH160Address)
-  if (resolvedSS58Address) await updateSS58Address(normalizedH160Address, resolvedSS58Address)
+  if (resolvedSS58Address) addresses[normalizedH160Address] = resolvedSS58Address
   return resolvedSS58Address
 }
 
-// Process labels one aggregate3 chunk at a time:
-//   1. contenthash×CHUNK  → persist live entries (label as display name) → UI flush
-//   2. text(name)×live    → persist real names → UI flush
-// Between each RPC the rate gate enforces spacing so we never overrun the host limiter.
 const FLUSH_CHUNK_SIZE = 30
 
 async function flushLabelBatch(
@@ -156,97 +155,99 @@ async function flushLabelBatch(
     )
     const chResults = await multicall(chCalls)
 
-    // Build entries for ALL labels in this chunk — live (with contenthash) and non-live (null).
-    // Persisting non-live entries too lets a future rescan know they were already checked.
-    const chunkEntries: LabelEntry[] = []
-    const liveInChunk: { label: string; contentHash: string }[] = []
+    const contentHashes: (string | null)[] = chunk.map((_, j) =>
+      tryDecode(chResults[j], (d) => decodeIpfsContenthash(decodeBytes(d)))
+    )
+    const liveIndexes: number[] = []
     for (let j = 0; j < chunk.length; j++) {
-      const cid = tryDecode(chResults[j], (d) => decodeIpfsContenthash(decodeBytes(d)))
+      if (contentHashes[j]) liveIndexes.push(j)
+    }
+
+    const callsPerLive = userH160 ? 4 : 3
+    let metaResults: Awaited<ReturnType<typeof multicall>> = []
+    if (liveIndexes.length > 0) {
+      const metaCalls: MulticallTarget[] = []
+      for (const j of liveIndexes) {
+        const node = namehash(`${chunk[j]}.dot`)
+        const subject = nodeToSubject(node)
+        metaCalls.push(
+          { target: CONTRACTS.CONTENT_RESOLVER, callData: encodeText(node, 'name') },
+          { target: CONTRACTS.CONTENT_RESOLVER, callData: encodeText(node, 'description') },
+          {
+            target: CONTRACTS.ATTESTATION_SERVICE,
+            callData: encodeCountByRecipientAndSchema(subject, SCHEMA_LIKE_ID)
+          }
+        )
+        if (userH160) {
+          metaCalls.push({
+            target: CONTRACTS.ATTESTATION_SERVICE,
+            callData: encodeIsActiveAny(subject, SCHEMA_LIKE_ID, [userH160])
+          })
+        }
+      }
+      hiddenLog(
+        `Fetching metadata for ${liveIndexes.length} live labels: multicall(${CONTRACTS.MULTICALL3}, [${metaCalls.length} calls])`
+      )
+      metaResults = await multicall(metaCalls)
+    }
+
+    const fetchedAt = Date.now()
+    const chunkEntries: LabelEntry[] = []
+    let metaIdx = 0
+    for (let j = 0; j < chunk.length; j++) {
+      const cid = contentHashes[j]
+      let name: string | null = null
+      let description = 'No description'
+      let attestationCount: number | null = null
+      let hasUserAttested = false
+      if (cid) {
+        const base = metaIdx * callsPerLive
+        name = tryDecode(metaResults[base], decodeString) || null
+        description = tryDecode(metaResults[base + 1], decodeString) || 'No description'
+        attestationCount = tryDecode(metaResults[base + 2], decodeUint64)
+        hasUserAttested = userH160 ? (tryDecode(metaResults[base + 3], decodeBool) ?? false) : false
+        metaIdx++
+      }
       const entry: LabelEntry = {
         label: chunk[j],
-        name: null,
-        description: 'No description',
+        name,
+        description,
         contentHash: cid,
-        attestationCount: null,
-        hasUserAttested: false,
-        fetchedAt: Date.now()
+        attestationCount,
+        hasUserAttested,
+        fetchedAt
       }
       labels.set(chunk[j], entry)
       chunkEntries.push(entry)
-      if (cid) liveInChunk.push({ label: chunk[j], contentHash: cid })
     }
-    await updateLabels(chunkEntries)
+
     onProgress?.(materialize([...stores.values()], labels))
 
-    if (liveInChunk.length === 0) continue
-
-    // Fetch name + description + attestation count (+ optionally isActiveAny for
-    // the signed-in user) for live labels in a single multicall.
-    const callsPerLive = userH160 ? 4 : 3
-    const metaCalls: MulticallTarget[] = []
-    for (const { label } of liveInChunk) {
-      const node = namehash(`${label}.dot`)
-      const subject = nodeToSubject(node)
-      metaCalls.push(
-        { target: CONTRACTS.CONTENT_RESOLVER, callData: encodeText(node, 'name') },
-        { target: CONTRACTS.CONTENT_RESOLVER, callData: encodeText(node, 'description') },
-        {
-          target: CONTRACTS.ATTESTATION_SERVICE,
-          callData: encodeCountByRecipientAndSchema(subject, SCHEMA_LIKE_ID)
-        }
-      )
-      if (userH160) {
-        metaCalls.push({
-          target: CONTRACTS.ATTESTATION_SERVICE,
-          callData: encodeIsActiveAny(subject, SCHEMA_LIKE_ID, [userH160])
-        })
-      }
-    }
-    hiddenLog(
-      `Fetching metadata for ${liveInChunk.length} live labels: multicall(${CONTRACTS.MULTICALL3}, [${metaCalls.length} calls])`
-    )
-    const metaResults = await multicall(metaCalls)
-
-    const namedEntries: LabelEntry[] = liveInChunk.map(({ label, contentHash }, idx) => {
-      const base = idx * callsPerLive
-      const name = tryDecode(metaResults[base], decodeString) || null
-      const description = tryDecode(metaResults[base + 1], decodeString) || ''
-      const attestationCount = tryDecode(metaResults[base + 2], decodeUint64)
-      const hasUserAttested = userH160
-        ? (tryDecode(metaResults[base + 3], decodeBool) ?? false)
-        : false
-      const entry: LabelEntry = {
-        label,
-        name,
-        description: description || 'No description',
-        contentHash,
-        attestationCount,
-        hasUserAttested,
-        fetchedAt: Date.now()
-      }
-      labels.set(label, entry)
-      return entry
-    })
-    await updateLabels(namedEntries)
-    onProgress?.(materialize([...stores.values()], labels))
+    // Persist after the first chunk so cards-on-screen are durably backed
+    // within seconds, not at the end of a long batch.
+    if (i === 0) await writeAllLabels([...labels.values()])
   }
+
+  // Final persist captures all labels resolved across remaining chunks.
+  await writeAllLabels([...labels.values()])
 }
 
 async function scanStores(
-  addresses: string[],
+  storeAddresses: string[],
   stores: Map<string, StoreEntry>,
   labels: Map<string, LabelEntry>,
+  addressMap: AddressMap,
   userH160: `0x${string}` | null,
   onProgress?: (apps: AppEntry[]) => void
 ): Promise<void> {
-  if (addresses.length === 0) return
+  if (storeAddresses.length === 0) return
 
-  const ownerCalls: MulticallTarget[] = addresses.map((addr) => ({
+  const ownerCalls: MulticallTarget[] = storeAddresses.map((addr) => ({
     target: addr as `0x${string}`,
     callData: encodeOwner()
   }))
   const ownersT0 = performance.now()
-  hiddenLog(`Fetching owners: multicall(${CONTRACTS.MULTICALL3}, [owner×${addresses.length}])`)
+  hiddenLog(`Fetching owners: multicall(${CONTRACTS.MULTICALL3}, [owner×${storeAddresses.length}])`)
   const ownerResults = await multicall(ownerCalls)
   hiddenLog(
     `Received ${ownerResults.length} owners (${(performance.now() - ownersT0).toFixed(0)}ms)`
@@ -258,13 +259,12 @@ async function scanStores(
 
   const seenLabels = new Set<string>(labels.keys())
   let pending: string[] = []
-  const newStoreEntries: StoreEntry[] = []
 
-  for (let i = 0; i < addresses.length; i++) {
-    const storeAddress = addresses[i]
+  for (let i = 0; i < storeAddresses.length; i++) {
+    const storeAddress = storeAddresses[i]
     const ownerH160Address = ownerH160Addresses[i]
     const ownerSS58Address = ownerH160Address
-      ? await cachedLookupSS58Address(ownerH160Address)
+      ? await cachedLookupSS58Address(ownerH160Address, addressMap)
       : null
 
     if (!ownerSS58Address) {
@@ -275,7 +275,6 @@ async function scanStores(
         labels: []
       }
       stores.set(storeAddress, entry)
-      newStoreEntries.push(entry)
       continue
     }
 
@@ -300,13 +299,6 @@ async function scanStores(
       labels: normalized
     }
     stores.set(storeAddress, entry)
-    // Push the store eagerly and persist immediately so downstream readers
-    // (and the test harness) see stores in localStorage as soon as each one
-    // is discovered, rather than waiting for the next flush. If the sync is
-    // interrupted before the inner loop finishes, the incomplete-label-metadata
-    // check in syncAllApps will re-scan this store on the next sync.
-    newStoreEntries.push(entry)
-    await updateStores(newStoreEntries)
 
     for (const l of storeLabels) {
       if (!l) continue
@@ -317,18 +309,24 @@ async function scanStores(
         seenLabels.add(n)
         pending.push(n)
       }
-      if (pending.length >= BATCH_SIZE) {
-        await flushLabelBatch(stores, labels, pending, userH160, onProgress)
-        await updateStores(newStoreEntries)
-        pending = []
-      }
+    }
+
+    // Flush mid-scan so the UI shows cards while the per-store loop is still
+    // running. Without this, materialize returns 0 apps until every store has
+    // been scanned and the tail flush completes.
+    if (pending.length >= BATCH_SIZE) {
+      // Persist stores first so they're durable before the long label flush —
+      // the labels Map gets its own early persist inside flushLabelBatch.
+      await writeAllStores([...stores.values()])
+      await flushLabelBatch(stores, labels, pending, userH160, onProgress)
+      pending = []
     }
 
     const scanned = i + 1
-    if (scanned % 10 === 0 || scanned === addresses.length) {
+    if (scanned % 10 === 0 || scanned === storeAddresses.length) {
       const total = materialize([...stores.values()], labels).length
       hiddenLog(
-        `Synchronization status: ${scanned} of ${addresses.length} stores. Total: ${total} apps`
+        `Synchronization status: ${scanned} of ${storeAddresses.length} stores. Total: ${total} apps`
       )
     }
   }
@@ -337,7 +335,8 @@ async function scanStores(
     await flushLabelBatch(stores, labels, pending, userH160, onProgress)
   }
 
-  await updateStores(newStoreEntries)
+  await writeAllStores([...stores.values()])
+  await writeAllAddresses(addressMap)
 }
 
 async function resolveUserH160(): Promise<`0x${string}` | null> {
@@ -353,6 +352,7 @@ async function resolveUserH160(): Promise<`0x${string}` | null> {
 async function syncAllApps(
   cachedStores: StoreEntry[],
   cachedLabels: LabelEntry[],
+  cachedAddresses: AddressMap,
   onProgress?: (apps: AppEntry[]) => void
 ): Promise<AppEntry[]> {
   const t0 = performance.now()
@@ -361,6 +361,7 @@ async function syncAllApps(
   )
   const stores = new Map(cachedStores.map((s) => [s.storeAddress, s]))
   const labels = new Map(cachedLabels.map((l) => [l.label, l]))
+  const addresses = { ...cachedAddresses }
 
   let current: string[]
   const storesT0 = performance.now()
@@ -378,30 +379,25 @@ async function syncAllApps(
     `Received ${current.length} store addresses (${(performance.now() - storesT0).toFixed(0)}ms)`
   )
 
-  // Remove stores that no longer exist
+  // Drop stores that no longer exist on chain.
   const currentSet = new Set(current)
-  const toDelete: string[] = []
-  for (const addr of stores.keys()) {
-    if (!currentSet.has(addr)) toDelete.push(addr)
-  }
-  if (toDelete.length > 0) {
-    hiddenLog(`Removing ${toDelete.length} stale stores`)
-    await removeStores(toDelete)
-    for (const addr of toDelete) stores.delete(addr)
+  let dirty = false
+  for (const addr of [...stores.keys()]) {
+    if (!currentSet.has(addr)) {
+      stores.delete(addr)
+      dirty = true
+    }
   }
 
-  // Detect cached stores that were persisted with incomplete label metadata
-  // (legacy state from before we persisted non-live labels). Drop them so they
-  // get re-scanned below.
-  const incomplete: string[] = []
-  for (const [addr, store] of stores) {
-    if (store.labels.some((l) => !labels.has(l))) incomplete.push(addr)
+  // Drop cached stores persisted with incomplete label metadata (legacy state
+  // from before non-live labels were persisted) so they get re-scanned below.
+  for (const [addr, store] of [...stores]) {
+    if (store.labels.some((l) => !labels.has(l))) {
+      stores.delete(addr)
+      dirty = true
+    }
   }
-  if (incomplete.length > 0) {
-    hiddenLog(`Re-scanning ${incomplete.length} stores with incomplete data`)
-    await removeStores(incomplete)
-    for (const addr of incomplete) stores.delete(addr)
-  }
+  if (dirty) await writeAllStores([...stores.values()])
 
   // Only scan stores not yet cached
   const toScan = current.filter((addr) => !stores.has(addr))
@@ -429,7 +425,7 @@ async function syncAllApps(
       hiddenLog(
         `Scanning ${toScan.length} new stores${userH160 ? ' (including your attestations)' : ''}`
       )
-      await scanStores(toScan, stores, labels, userH160, onProgress)
+      await scanStores(toScan, stores, labels, addresses, userH160, onProgress)
     }
   }
 
@@ -442,12 +438,35 @@ async function syncAllApps(
 
 const ALL_APPS_KEY = ['apps', 'all'] as const
 
+// Shared between prefetchAllApps and the queryFn so the cached stores, labels,
+// and addresses blobs are read from the host bridge once at app startup.
+interface InitialDiskState {
+  stores: StoreEntry[]
+  labels: LabelEntry[]
+  addresses: AddressMap
+}
+
+let initialDiskLoad: Promise<InitialDiskState> | null = null
+
+function loadInitialDiskState(): Promise<InitialDiskState> {
+  if (!initialDiskLoad) {
+    initialDiskLoad = Promise.all([readAllStores(), readAllLabels(), readAllAddresses()]).then(
+      ([stores, labels, addresses]) => ({ stores, labels, addresses })
+    )
+  }
+  return initialDiskLoad
+}
+
 export function getAllAppsOptions(queryClient: QueryClient) {
   return queryOptions<AppEntry[]>({
     queryKey: ALL_APPS_KEY,
     queryFn: async () => {
-      const [cachedStores, cachedLabels] = await Promise.all([readAllStores(), readAllLabels()])
-      return syncAllApps(cachedStores, cachedLabels, (progressApps) => {
+      const {
+        stores: cachedStores,
+        labels: cachedLabels,
+        addresses: cachedAddresses
+      } = await loadInitialDiskState()
+      return syncAllApps(cachedStores, cachedLabels, cachedAddresses, (progressApps) => {
         queryClient.setQueryData<AppEntry[]>(ALL_APPS_KEY, progressApps)
       })
     },
@@ -460,7 +479,7 @@ export function useGetAllApps(queryClient: QueryClient) {
 }
 
 export async function prefetchAllApps(queryClient: QueryClient) {
-  const [stores, labelEntries] = await Promise.all([readAllStores(), readAllLabels()])
+  const { stores, labels: labelEntries } = await loadInitialDiskState()
   const labels = new Map(labelEntries.map((l) => [l.label, l]))
   const cached = materialize(stores, labels)
   if (cached.length > 0) {
