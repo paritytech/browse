@@ -11,7 +11,6 @@ interface ProductCardWithAttestationProps {
   showMenu?: boolean
   onClick: (label: string) => void
   onBookmark: (label: string) => void
-  onFollowPublisher: (label: string) => void
   onShare: (app: AppEntry) => void
 }
 
@@ -22,7 +21,6 @@ export function ProductCardWithAttestation({
   showMenu,
   onClick,
   onBookmark,
-  onFollowPublisher,
   onShare
 }: ProductCardWithAttestationProps) {
   const attestApp = useAttestApp()
@@ -52,7 +50,6 @@ export function ProductCardWithAttestation({
       recommended={app.hasUserAttested}
       onClick={onClick}
       onBookmark={onBookmark}
-      onFollowPublisher={onFollowPublisher}
       onShare={onShare}
       onClickAttestation={handleAttestation}
     />

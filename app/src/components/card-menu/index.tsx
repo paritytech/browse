@@ -1,17 +1,17 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 
-import { Bookmark, MoreHorizontal, Share2, UserPlus } from 'lucide-preact'
+import { Bookmark, MessageSquare, MoreHorizontal, Share2 } from 'lucide-preact'
 
 import './styles.css'
 
 interface CardMenuProps {
   bookmarked: boolean
+  hasChat?: boolean
   onBookmark: () => void
-  onFollowPublisher: () => void
   onShare: () => void
 }
 
-export function CardMenu({ bookmarked, onBookmark, onFollowPublisher, onShare }: CardMenuProps) {
+export function CardMenu({ bookmarked, hasChat, onBookmark, onShare }: CardMenuProps) {
   const [open, setOpen] = useState(false)
   const rootRef = useRef<HTMLDivElement>(null)
 
@@ -62,14 +62,16 @@ export function CardMenu({ bookmarked, onBookmark, onFollowPublisher, onShare }:
             <Bookmark size={16} fill={bookmarked ? 'currentColor' : 'none'} />
             <span>{bookmarked ? 'Remove bookmark' : 'Bookmark'}</span>
           </button>
-          <button class='card-menu__item' onClick={pick(onFollowPublisher)} role='menuitem'>
-            <UserPlus size={16} />
-            <span>Follow publisher</span>
-          </button>
           <button class='card-menu__item' onClick={pick(onShare)} role='menuitem'>
             <Share2 size={16} />
             <span>Share</span>
           </button>
+          {hasChat && (
+            <button class='card-menu__item' role='menuitem' disabled aria-disabled='true'>
+              <MessageSquare size={16} />
+              <span>Open chat</span>
+            </button>
+          )}
         </div>
       )}
     </div>

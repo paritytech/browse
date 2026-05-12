@@ -12,7 +12,6 @@ import { ProductCardWithAttestation } from './components/product-card/product-ca
 import { SearchBar } from './components/search-bar'
 import { Toast } from './components/toast'
 import { ToastContext } from './components/toast/context'
-import { readAllStores } from './db/stores'
 import { setupDebugConsole } from './lib/debug'
 import { navigateToDomain } from './lib/navigate'
 import { useEvent } from './lib/use-event'
@@ -141,22 +140,6 @@ export function App() {
     setContacts((prev) => prev.filter((c) => c.address !== address))
   })
 
-  const handleFollowPublisher = useEvent(async (label: string) => {
-    const stores = await readAllStores()
-    const store = stores.find((s) => s.labels.includes(label))
-    const address = store?.ownerSS58Address
-    if (!address) {
-      showToast('Publisher address unavailable', true)
-      return
-    }
-    if (contacts.some((c) => c.address === address)) {
-      showToast('Already following this publisher')
-      return
-    }
-    handleAddContact(address)
-    showToast('Now following publisher')
-  })
-
   const handleShare = useEvent(async (app: AppEntry) => {
     const domain = `${app.label}.dot`
     const hasDescription = app.description && app.description !== 'No description'
@@ -228,7 +211,6 @@ export function App() {
       showMenu
       onClick={navigateToDomain}
       onBookmark={handleBookmark}
-      onFollowPublisher={handleFollowPublisher}
       onShare={handleShare}
     />
   )
@@ -259,16 +241,17 @@ export function App() {
 
           <div class='card-flip' id='card-flip'>
             <div class='card front' id='card-front'>
-              <SearchBar value={query} onInput={setQuery} />
-              <CategoryTabs
-                active={searchMatches ? [] : [currentMode]}
-                signed={signed}
-                onSwitch={(mode) => {
-                  setCurrentMode(mode)
-                  setQuery('')
-                  setShowContactsManager(false)
-                }}
-              />
+              <SearchBar value={query} onInput={setQuery} onCancel={() => setQuery('')} />
+              {!searchMatches && (
+                <CategoryTabs
+                  active={[currentMode]}
+                  signed={signed}
+                  onSwitch={(mode) => {
+                    setCurrentMode(mode)
+                    setShowContactsManager(false)
+                  }}
+                />
+              )}
 
               <div class='app-list' id='app-list'>
                 {isLoading && filtered.length === 0 && !query ? null : emptyBookmarks ? (

@@ -1,11 +1,13 @@
 import { memo } from 'preact/compat'
 
-import { ArrowBigUp } from 'lucide-preact'
+import { ArrowBigUp, MessageSquare } from 'lucide-preact'
 
 import { type AppEntry, displayName } from '../../state/apps/types'
 import { CardMenu } from '../card-menu'
 import { Identicon } from '../identicon'
 import './styles.css'
+
+const CHAT_ENABLED_LABELS = new Set(['coinflipgame03'])
 
 interface ProductCardProps {
   app: AppEntry
@@ -15,7 +17,6 @@ interface ProductCardProps {
   showMenu?: boolean
   onClick: (label: string) => void
   onBookmark?: (label: string) => void
-  onFollowPublisher?: (label: string) => void
   onShare?: (app: AppEntry) => void
   onClickAttestation?: () => void
 }
@@ -28,7 +29,6 @@ export const ProductCard = memo(function ProductCard({
   showMenu = true,
   onClick,
   onBookmark,
-  onFollowPublisher,
   onShare,
   onClickAttestation
 }: ProductCardProps) {
@@ -53,17 +53,22 @@ export const ProductCard = memo(function ProductCard({
     >
       <div class='product-card__thumb'>
         <Identicon seed={app.label} size={64} />
+        {CHAT_ENABLED_LABELS.has(app.label) && (
+          <span class='product-card__chat-badge' aria-label='Has chat'>
+            <MessageSquare size={12} fill='currentColor' strokeWidth={0} />
+          </span>
+        )}
       </div>
       <div class='product-card__body'>
         <span class='product-card__name'>{name}</span>
         <p class='product-card__desc'>{app.description}</p>
       </div>
-      {showMenu && onBookmark && onFollowPublisher && onShare && (
+      {showMenu && onBookmark && onShare && (
         <div class='product-card__actions'>
           <CardMenu
             bookmarked={!!bookmarked}
+            hasChat={CHAT_ENABLED_LABELS.has(app.label)}
             onBookmark={() => onBookmark(app.label)}
-            onFollowPublisher={() => onFollowPublisher(app.label)}
             onShare={() => onShare(app)}
           />
           {onClickAttestation && (
@@ -80,11 +85,6 @@ export const ProductCard = memo(function ProductCard({
               {displayCount >= 1 && (
                 <span class='product-card__upvote-count'>
                   {displayCount > 999 ? '999+' : displayCount}
-                </span>
-              )}
-              {!recommended && (
-                <span class='product-card__upvote-tip'>
-                  {displayCount === 0 ? 'Be the first to recommend' : 'Recommend'}
                 </span>
               )}
             </button>
