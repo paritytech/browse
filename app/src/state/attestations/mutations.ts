@@ -40,6 +40,31 @@ function attestationKey(label: string) {
   return ['attestations', 'app', label] as const
 }
 
+type MutationCtx = {
+  pcf: AppEntry[] | undefined
+  all: AppEntry[] | undefined
+  attestation: AttestationQueryData | undefined
+}
+
+function snapshot(queryClient: ReturnType<typeof useQueryClient>, label: string): MutationCtx {
+  return {
+    pcf: queryClient.getQueryData<AppEntry[]>(PCF_KEY),
+    all: queryClient.getQueryData<AppEntry[]>(ALL_KEY),
+    attestation: queryClient.getQueryData<AttestationQueryData>(attestationKey(label))
+  }
+}
+
+function rollback(
+  queryClient: ReturnType<typeof useQueryClient>,
+  label: string,
+  ctx: MutationCtx
+): void {
+  if (ctx.pcf !== undefined) queryClient.setQueryData(PCF_KEY, ctx.pcf)
+  if (ctx.all !== undefined) queryClient.setQueryData(ALL_KEY, ctx.all)
+  if (ctx.attestation !== undefined)
+    queryClient.setQueryData(attestationKey(label), ctx.attestation)
+}
+
 export function describeError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err)
   if (msg.includes('NotEnoughFunds') || msg.includes('"type": "Payment"')) {
@@ -95,8 +120,8 @@ export async function getAttestationId(label: string): Promise<bigint | null> {
 
 export function useAttestApp() {
   const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (label: string) =>
+  return useMutation<unknown, Error, string, MutationCtx>({
+    mutationFn: (label) =>
       attestLabel(label, () => {
         queryClient.setQueryData<AppEntry[]>(PCF_KEY, (prev) => updateApp(prev, label, attestPatch))
         queryClient.setQueryData<AppEntry[]>(ALL_KEY, (prev) => updateApp(prev, label, attestPatch))
@@ -106,17 +131,17 @@ export function useAttestApp() {
             : { attestationCount: 1, hasUserAttested: true }
         )
       }),
-    onError: (_err, label) => {
-      queryClient.invalidateQueries({ queryKey: ['apps'] })
-      queryClient.invalidateQueries({ queryKey: attestationKey(label) })
+    onMutate: (label) => snapshot(queryClient, label),
+    onError: (_err, label, ctx) => {
+      if (ctx) rollback(queryClient, label, ctx)
     }
   })
 }
 
 export function useRevokeApp() {
   const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (label: string) =>
+  return useMutation<unknown, Error, string, MutationCtx>({
+    mutationFn: (label) =>
       revokeLabel(label, () => {
         queryClient.setQueryData<AppEntry[]>(PCF_KEY, (prev) => updateApp(prev, label, revokePatch))
         queryClient.setQueryData<AppEntry[]>(ALL_KEY, (prev) => updateApp(prev, label, revokePatch))
@@ -126,9 +151,9 @@ export function useRevokeApp() {
             : { attestationCount: 0, hasUserAttested: false }
         )
       }),
-    onError: (_err, label) => {
-      queryClient.invalidateQueries({ queryKey: ['apps'] })
-      queryClient.invalidateQueries({ queryKey: attestationKey(label) })
+    onMutate: (label) => snapshot(queryClient, label),
+    onError: (_err, label, ctx) => {
+      if (ctx) rollback(queryClient, label, ctx)
     }
   })
 }

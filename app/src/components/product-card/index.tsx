@@ -55,7 +55,7 @@ export const ProductCard = memo(function ProductCard({
       }}
     >
       <div class='product-card__thumb'>
-        <Identicon seed={app.label} size={56} />
+        <Identicon seed={app.label} size={42} />
       </div>
       <div class='product-card__body'>
         <div class='product-card__title-row'>
