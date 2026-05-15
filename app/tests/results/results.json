@@ -54,7 +54,7 @@
     "updateSnapshots": "missing",
     "updateSourceMethod": "patch",
     "version": "1.59.1",
-    "workers": 4,
+    "workers": 1,
     "webServer": {
       "command": "bunx vite --port 5173",
       "cwd": "/Users/tiago/Projects/browse/app",
@@ -72,13 +72,13 @@
       "specs": [],
       "suites": [
         {
-          "title": "Attestation fails",
+          "title": "Attestation works",
           "file": "attestation.spec.ts",
-          "line": 252,
+          "line": 16,
           "column": 6,
           "specs": [
             {
-              "title": "As a signed user, when I recommend an app and it fails, I see an error badge with a message",
+              "title": "As Charlie, I un-recommend an app, the count decreases, and a toast confirms",
               "ok": true,
               "tags": [],
               "tests": [
@@ -93,12 +93,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 3298,
+                      "duration": 10071,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-04-22T21:27:13.682Z",
+                      "startTime": "2026-05-15T15:30:29.684Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -106,9 +106,9 @@
                   "status": "expected"
                 }
               ],
-              "id": "e33738f0440e497481af-72c3917c5edf53a96cd4",
+              "id": "e33738f0440e497481af-673cf91e5ac0300baa85",
               "file": "attestation.spec.ts",
-              "line": 268,
+              "line": 65,
               "column": 3
             }
           ]
@@ -118,8 +118,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-04-22T21:27:12.383Z",
-    "duration": 4902.343,
+    "startTime": "2026-05-15T15:30:26.814Z",
+    "duration": 20041.959,
     "expected": 1,
     "skipped": 0,
     "unexpected": 0,

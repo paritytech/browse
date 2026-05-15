@@ -4,7 +4,7 @@ import { AccountId, type SS58String } from 'polkadot-api'
 
 import { namehash, nodeToSubject } from '../../lib/abi'
 import { attestationService } from '../../lib/attestation-service'
-import { SCHEMA_LIKE_ID } from '../../lib/config'
+import { BACKEND } from '../../lib/config'
 import { type AppEntry } from '../apps/types'
 
 const PCF_KEY = ['apps', 'pcf'] as const
@@ -50,7 +50,7 @@ export function describeError(err: unknown): string {
 
 export async function attestLabel(label: string, onPermitted?: () => void) {
   const recipient = nodeToSubject(namehash(`${label}.dot`))
-  return attestationService.attest(SCHEMA_LIKE_ID, recipient, 0n, true, 0n, '0x', onPermitted)
+  return attestationService.attest(BACKEND.SCHEMA_ID, recipient, 0n, true, 0n, '0x', onPermitted)
 }
 
 async function getAttesterH160(): Promise<string> {
@@ -61,7 +61,12 @@ async function getAttesterH160(): Promise<string> {
 
 export async function revokeLabel(label: string, onPermitted?: () => void) {
   const recipient = nodeToSubject(namehash(`${label}.dot`))
-  const ids = await attestationService.listByRecipientAndSchema(recipient, SCHEMA_LIKE_ID, 0n, 100n)
+  const ids = await attestationService.listByRecipientAndSchema(
+    recipient,
+    BACKEND.SCHEMA_ID,
+    0n,
+    100n
+  )
   if (ids.length === 0) throw new Error('No attestation to revoke')
 
   const attesterH160 = await getAttesterH160()
@@ -69,12 +74,17 @@ export async function revokeLabel(label: string, onPermitted?: () => void) {
   const match = ids.find((_, i) => attestations[i].attester.toLowerCase() === attesterH160)
   if (match === undefined) throw new Error('No attestation to revoke')
 
-  return attestationService.revoke(SCHEMA_LIKE_ID, match, onPermitted)
+  return attestationService.revoke(BACKEND.SCHEMA_ID, match, onPermitted)
 }
 
 export async function getAttestationId(label: string): Promise<bigint | null> {
   const recipient = nodeToSubject(namehash(`${label}.dot`))
-  const ids = await attestationService.listByRecipientAndSchema(recipient, SCHEMA_LIKE_ID, 0n, 100n)
+  const ids = await attestationService.listByRecipientAndSchema(
+    recipient,
+    BACKEND.SCHEMA_ID,
+    0n,
+    100n
+  )
   if (ids.length === 0) return null
 
   const attesterH160 = await getAttesterH160()

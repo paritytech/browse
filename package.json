@@ -8,9 +8,9 @@
     "deploy": ". ./.env && cd app && ../scripts/deploy.sh"
   },
   "dependencies": {
-    "@novasamatech/product-sdk": "0.7.7"
+    "@novasamatech/product-sdk": "0.7.9-4"
   },
   "devDependencies": {
-    "@parity/host-api-test-sdk": "^0.7.3"
+    "@parity/host-api-test-sdk": "^0.8.2"
   }
 }

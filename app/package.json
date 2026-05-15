@@ -21,9 +21,12 @@
   "dependencies": {
     "@ensdomains/content-hash": "^3.0.0",
     "@noble/hashes": "^2.0.1",
-    "@novasamatech/product-sdk": "^0.7.7",
+    "@novasamatech/product-sdk": "0.7.9-4",
     "@polkadot-api/descriptors": "file:.papi/descriptors",
     "@polkadot-api/sdk-ink": "^0.7.0",
+    "@polkadot-api/signers-common": "^0.2.2",
+    "@polkadot-api/substrate-bindings": "^0.20.2",
+    "@polkadot-api/utils": "^0.4.0",
     "@preact/preset-vite": "^2.10.5",
     "@tanstack/react-query": "^5.96.2",
     "buffer": "^6.0.3",

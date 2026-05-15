@@ -5,12 +5,9 @@ import { WebSocket } from 'ws'
 
 import { createDevSigner } from './fund'
 import { AttestationService } from '../../src/lib/attestation-service'
+import { BACKEND } from '../../src/lib/config'
 
-const RPC_ENDPOINTS = [
-  'wss://sys.ibp.network/asset-hub-paseo',
-  'wss://asset-hub-paseo.dotters.network',
-  'wss://asset-hub-paseo-rpc.dwellir.com'
-]
+const RPC_ENDPOINTS = [...BACKEND.rpcs]
 
 export async function withAttestationService<T>(
   devAccount: string,

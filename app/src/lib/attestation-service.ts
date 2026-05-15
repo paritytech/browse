@@ -1,10 +1,17 @@
-import { createAccountsProvider, hostApi, type ProductAccount } from '@novasamatech/product-sdk'
+import { createAccountsProvider, hostApi } from '@novasamatech/product-sdk'
 import { contracts } from '@polkadot-api/descriptors'
 import { type AsyncTransaction, createInkSdk } from '@polkadot-api/sdk-ink'
-import { AccountId, type PolkadotClient, type PolkadotSigner, type SS58String } from 'polkadot-api'
+import {
+  AccountId,
+  Binary,
+  type PolkadotClient,
+  type PolkadotSigner,
+  type SS58String
+} from 'polkadot-api'
+import { getPolkadotSigner } from 'polkadot-api/signer'
 
 import { ensureApi, ensureClient, type PaseoHubApi } from './client'
-import { CONTRACTS, DUMMY_ORIGIN } from './config'
+import { BACKEND, DUMMY_ORIGIN } from './config'
 
 export type ApiProvider = () => Promise<PaseoHubApi>
 export type ClientProvider = () => Promise<PolkadotClient>
@@ -20,25 +27,40 @@ async function hostSigner(): Promise<{
   publicKey: Uint8Array
 }> {
   const accountsProvider = createAccountsProvider()
-  const accountResult = await accountsProvider.getProductAccount(PRODUCT_ACCOUNT_IDENTIFIER)
-  if (accountResult.isErr()) {
-    throw new Error(accountResult.error.name ?? 'Failed to get product account')
+  const accountsResult = await accountsProvider.getLegacyAccounts()
+  if (accountsResult.isErr()) {
+    throw new Error(accountsResult.error.name ?? 'Failed to get accounts')
   }
-  const publicKey = accountResult.value.publicKey
-  const account: ProductAccount = {
-    dotNsIdentifier: PRODUCT_ACCOUNT_IDENTIFIER,
-    derivationIndex: 0,
-    publicKey
+  const accounts = accountsResult.value
+  if (accounts.length === 0) throw new Error('No accounts available')
+
+  const publicKey = accounts[0].publicKey
+  const signerHex = Binary.toHex(publicKey)
+
+  const signBytes = async (data: Uint8Array): Promise<Uint8Array> => {
+    const result = await hostApi.signRawWithLegacyAccount({
+      tag: 'v1',
+      value: { signer: signerHex, payload: { tag: 'Bytes', value: data } }
+    })
+    return result.match(
+      (res) => {
+        const sig = res.value.signature
+        return typeof sig === 'string' ? Binary.fromHex(sig as `0x${string}`) : sig
+      },
+      (err) => {
+        const v = err.value as { name?: string; reason?: string } | undefined
+        const msg = [v?.name, v?.reason].filter(Boolean).join(': ')
+        throw new Error(msg || 'signRawWithLegacyAccount failed')
+      }
+    )
   }
+
   return {
-    signer: accountsProvider.getProductAccountSigner(account),
+    signer: getPolkadotSigner(publicKey, 'Sr25519', signBytes),
     origin: AccountId().dec(publicKey),
     publicKey
   }
 }
-
-const PRODUCT_ACCOUNT_IDENTIFIER =
-  typeof window !== 'undefined' ? window.location.host : 'browse.dot'
 
 export type AttestationRecord = {
   id: bigint
@@ -63,6 +85,8 @@ export class AttestationService {
   private sdkInstance: any = null
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private contractInstance: any = null
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private resolverInstance: any = null
 
   constructor(
     private api: ApiProvider = ensureApi,
@@ -84,10 +108,21 @@ export class AttestationService {
       const sdk = await this.getSdk()
       this.contractInstance = sdk.getContract(
         contracts.attestation_service,
-        CONTRACTS.ATTESTATION_SERVICE
+        BACKEND.ATTESTATION_SERVICE
       )
     }
     return this.contractInstance
+  }
+
+  private async getResolver() {
+    if (!this.resolverInstance) {
+      const sdk = await this.getSdk()
+      this.resolverInstance = sdk.getContract(
+        contracts.attestation_service,
+        BACKEND.ATTESTATION_INDEX_RESOLVER
+      )
+    }
+    return this.resolverInstance
   }
 
   async isActive(id: bigint): Promise<boolean> {
@@ -113,7 +148,7 @@ export class AttestationService {
   }
 
   async countByRecipientAndSchema(recipient: `0x${string}`, schema: bigint): Promise<bigint> {
-    const contract = await this.getContract()
+    const contract = await this.getResolver()
     const result = await contract.query('countByRecipientAndSchema', {
       origin: DUMMY_ORIGIN as SS58String,
       data: { recipient, schema },
@@ -124,7 +159,7 @@ export class AttestationService {
   }
 
   async countByAttester(attester: `0x${string}`): Promise<bigint> {
-    const contract = await this.getContract()
+    const contract = await this.getResolver()
     const result = await contract.query('countByAttester', {
       origin: DUMMY_ORIGIN as SS58String,
       data: { attester },
@@ -135,7 +170,7 @@ export class AttestationService {
   }
 
   async listByAttester(attester: `0x${string}`, offset: bigint, limit: bigint): Promise<bigint[]> {
-    const contract = await this.getContract()
+    const contract = await this.getResolver()
     const result = await contract.query('listByAttester', {
       origin: DUMMY_ORIGIN as SS58String,
       data: { attester, offset, limit },
@@ -161,7 +196,7 @@ export class AttestationService {
     schema: bigint,
     attesters: `0x${string}`[]
   ): Promise<boolean> {
-    const contract = await this.getContract()
+    const contract = await this.getResolver()
     const result = await contract.query('isActiveAny', {
       origin: DUMMY_ORIGIN as SS58String,
       data: { recipient, schema, attesters },
@@ -178,7 +213,7 @@ export class AttestationService {
     limit: bigint
   ): Promise<bigint[]> {
     const { origin } = await this.signer()
-    const contract = await this.getContract()
+    const contract = await this.getResolver()
     const result = await contract.query('listByRecipientAndSchema', {
       origin: origin as SS58String,
       data: { recipient, schema, offset, limit },
@@ -227,12 +262,10 @@ export class AttestationService {
       const bigStr = (_: string, v: unknown) => (typeof v === 'bigint' ? v.toString() : v)
       if (!dryRun.success)
         throw new Error(`attest dry-run failed: ${JSON.stringify(dryRun.value, bigStr)}`)
-      return this.submitTx(dryRun.value.send, signer, onPermitted)
+      const storageDeposit = (dryRun.value as { storageDeposit?: bigint }).storageDeposit ?? 0n
+      return this.submitTx(dryRun.value.send, signer, origin, storageDeposit, onPermitted)
     }
 
-    // Unmapped account: batch map_account + attest in a single utility batch.
-    // Skip the dry-run because it would fail with AccountUnmapped — map_account
-    // runs first in the batch and makes attest valid at execution time.
     const api = await this.api()
     const attestTx = contract.send('attest', {
       ...attestArgs,
@@ -244,7 +277,7 @@ export class AttestationService {
     const batchTx = api.tx.Utility.batch_all({ calls: [mapCall, attestCall] })
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return this.submitTx(() => batchTx as any, signer, onPermitted)
+    return this.submitTx(() => batchTx as any, signer, origin, 0n, onPermitted)
   }
 
   async getSigner() {
@@ -265,13 +298,16 @@ export class AttestationService {
     if (!dryRun.success)
       throw new Error(`revoke dry-run failed: ${JSON.stringify(dryRun.value, bigStr)}`)
 
-    return this.submitTx(dryRun.value.send, signer, onPermitted)
+    const storageDeposit = (dryRun.value as { storageDeposit?: bigint }).storageDeposit ?? 0n
+    return this.submitTx(dryRun.value.send, signer, origin, storageDeposit, onPermitted)
   }
 
   private async submitTx(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     send: () => AsyncTransaction<any, any, any, any>,
     signer: PolkadotSigner,
+    origin: string,
+    storageDeposit: bigint,
     onPermitted?: () => void
   ): Promise<TxResult> {
     if (this.truapi) {
@@ -282,6 +318,31 @@ export class AttestationService {
           () => false
         )
       if (!permitted) throw new Error('Transaction submit permission denied')
+    }
+
+    const api = await this.api()
+    const accountInfo = await api.query.System.Account.getValue(origin as SS58String)
+    const free = accountInfo.data.free
+    if (storageDeposit > 0n && free < storageDeposit) {
+      if (!this.truapi) {
+        throw new Error(
+          `NotEnoughFunds: need ${storageDeposit} PAS plancks, have ${free}. Fund the account with PAS.`
+        )
+      }
+      const allocated = await hostApi
+        .requestResourceAllocation({
+          tag: 'v1',
+          value: [{ tag: 'SmartContractAllowance', value: 0 }]
+        })
+        .match(
+          (res) => res.value.some((o) => o.tag === 'Allocated'),
+          () => false
+        )
+      if (!allocated) {
+        throw new Error(
+          `NotEnoughFunds: need ${storageDeposit} PAS plancks, have ${free} and the host declined to cover gas. Fund the account with PAS.`
+        )
+      }
     }
 
     onPermitted?.()

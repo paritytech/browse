@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { createAccountsProvider } from '@novasamatech/product-sdk'
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowBigUp, Bookmark, MoreHorizontal } from 'lucide-preact'
+import { ArrowUp, Bookmark, MoreHorizontal } from 'lucide-preact'
 
 import { CategoryTabs } from './components/category-tabs'
 import { ContactsManager } from './components/contacts-manager'
@@ -271,7 +271,10 @@ export function App() {
                     <div class='empty-state__icon' style='color: rgba(255, 255, 255, 0.3)'>
                       {FOLLOW_ICON}
                     </div>
-                    <p class='empty-state__text'>Follow people to see what they recommend</p>
+                    <p class='empty-state__text'>
+                      Follow people to see what they recommend{' '}
+                      <ArrowUp size={14} class='empty-state__inline-icon' />
+                    </p>
                     <button class='empty-state__btn' onClick={() => setShowContactsManager(true)}>
                       Add address
                     </button>
@@ -279,8 +282,8 @@ export function App() {
                 ) : emptyFollowingNoMatches ? (
                   <div class='empty-state'>
                     <p class='empty-state__text'>
-                      None of the addresses you follow have recommended{' '}
-                      <ArrowBigUp size={14} class='empty-state__inline-icon' /> any apps yet
+                      None of the people you follow have recommended{' '}
+                      <ArrowUp size={14} class='empty-state__inline-icon' /> any products yet
                     </p>
                     <button class='empty-state__btn' onClick={() => setShowContactsManager(true)}>
                       Manage following

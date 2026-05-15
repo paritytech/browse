@@ -5,7 +5,7 @@ import {
   type MulticallTarget
 } from './abi'
 import { type PaseoHubApi, reviveCall } from './client'
-import { CONTRACTS } from './config'
+import { BACKEND } from './config'
 
 const MULTICALL_CHUNK_SIZE = 30
 
@@ -33,7 +33,7 @@ export async function multicall(
 
   for (const batch of batches) {
     const calldata = encodeAggregate3(batch)
-    const returnData = await reviveCall(CONTRACTS.MULTICALL3, calldata, undefined, api)
+    const returnData = await reviveCall(BACKEND.MULTICALL3, calldata, undefined, api)
     const batchResults = decodeAggregate3Result(returnData)
     results.push(...batchResults)
   }

@@ -5,7 +5,7 @@
     "paseoHub": {
       "chain": "paseo_asset_hub",
       "metadata": ".papi/metadata/paseoHub.scale",
-      "genesis": "0xd6eec26135305a8ad257a20d003357284c8aa03d0bdb2b357ab0a22371e11ef2",
+      "genesis": "0x173cea9df45656cf612c8b8ece56e04e9a693c69cfaac47d3628dae735067af8",
       "codeHash": "0xc66e1574f0df569b29c04d46ae77aeebb622c79fd582de906913886f7853e74b"
     }
   },

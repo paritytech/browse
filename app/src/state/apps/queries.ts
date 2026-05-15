@@ -17,8 +17,8 @@ import {
   decodeUint64,
   encodeContenthash,
   encodeCountByRecipientAndSchema,
-  encodeGetAllDeployedStores,
-  encodeGetValues,
+  encodeGetLabels,
+  encodeGetLabelStores,
   encodeIsActiveAny,
   encodeOwner,
   encodeText,
@@ -29,14 +29,20 @@ import {
 import { attestationService } from '../../lib/attestation-service'
 import { getCachedPcf, setCachedPcf } from '../../lib/cache'
 import { lookupOriginalAccount, reviveCall } from '../../lib/client'
-import { CONTRACTS, SCHEMA_LIKE_ID } from '../../lib/config'
+import { BACKEND } from '../../lib/config'
 import { hiddenLog } from '../../lib/debug'
 import { isHosted } from '../../lib/local-storage'
 import { multicall } from '../../lib/multicall'
-import { fetchStoreProducts } from '../../lib/store'
-
 const BATCH_SIZE = 200
 const METADATA_TTL_MS = 24 * 60 * 60 * 1000
+const STORE_FACTORY_PAGE_LIMIT = 1000
+const LABEL_STORE_PAGE_LIMIT = 1000
+
+const PCF_PRODUCTS: ReadonlyArray<{ label: string; name: string; description: string }> = [
+  { label: 'coinflipgame03', name: 'Coin Flip', description: 'A simple coin flip app.' },
+  { label: 'crosswords', name: 'Mini Crossword', description: 'A quick 5x5 crossword puzzle.' },
+  { label: 'ohnotes', name: 'Notes', description: 'Notes that follow you everywhere.' }
+]
 
 function tryDecode<T>(
   r: { success: boolean; returnData: `0x${string}` } | undefined,
@@ -51,13 +57,10 @@ function tryDecode<T>(
 }
 
 async function fetchPcfApps(): Promise<AppEntry[]> {
-  const storeProducts = await fetchStoreProducts()
-  if (storeProducts.length === 0) return []
-
-  return storeProducts.map((p) => ({
+  return PCF_PRODUCTS.map((p) => ({
     label: p.label,
-    name: p.name || null,
-    description: p.description || 'No description',
+    name: p.name,
+    description: p.description,
     contentHash: null,
     isLive: true,
     attestationCount: null,
@@ -147,11 +150,11 @@ async function flushLabelBatch(
     const chunk = batch.slice(i, i + FLUSH_CHUNK_SIZE)
 
     const chCalls: MulticallTarget[] = chunk.map((label) => ({
-      target: CONTRACTS.CONTENT_RESOLVER,
+      target: BACKEND.CONTENT_RESOLVER,
       callData: encodeContenthash(namehash(`${label}.dot`))
     }))
     hiddenLog(
-      `Fetching content hashes: multicall(${CONTRACTS.MULTICALL3}, [contenthash×${chunk.length}])`
+      `Fetching content hashes: multicall(${BACKEND.MULTICALL3}, [contenthash×${chunk.length}])`
     )
     const chResults = await multicall(chCalls)
 
@@ -171,22 +174,22 @@ async function flushLabelBatch(
         const node = namehash(`${chunk[j]}.dot`)
         const subject = nodeToSubject(node)
         metaCalls.push(
-          { target: CONTRACTS.CONTENT_RESOLVER, callData: encodeText(node, 'name') },
-          { target: CONTRACTS.CONTENT_RESOLVER, callData: encodeText(node, 'description') },
+          { target: BACKEND.CONTENT_RESOLVER, callData: encodeText(node, 'name') },
+          { target: BACKEND.CONTENT_RESOLVER, callData: encodeText(node, 'description') },
           {
-            target: CONTRACTS.ATTESTATION_SERVICE,
-            callData: encodeCountByRecipientAndSchema(subject, SCHEMA_LIKE_ID)
+            target: BACKEND.ATTESTATION_INDEX_RESOLVER,
+            callData: encodeCountByRecipientAndSchema(subject, BACKEND.SCHEMA_ID)
           }
         )
         if (userH160) {
           metaCalls.push({
-            target: CONTRACTS.ATTESTATION_SERVICE,
-            callData: encodeIsActiveAny(subject, SCHEMA_LIKE_ID, [userH160])
+            target: BACKEND.ATTESTATION_INDEX_RESOLVER,
+            callData: encodeIsActiveAny(subject, BACKEND.SCHEMA_ID, [userH160])
           })
         }
       }
       hiddenLog(
-        `Fetching metadata for ${liveIndexes.length} live labels: multicall(${CONTRACTS.MULTICALL3}, [${metaCalls.length} calls])`
+        `Fetching metadata for ${liveIndexes.length} live labels: multicall(${BACKEND.MULTICALL3}, [${metaCalls.length} calls])`
       )
       metaResults = await multicall(metaCalls)
     }
@@ -247,7 +250,7 @@ async function scanStores(
     callData: encodeOwner()
   }))
   const ownersT0 = performance.now()
-  hiddenLog(`Fetching owners: multicall(${CONTRACTS.MULTICALL3}, [owner×${storeAddresses.length}])`)
+  hiddenLog(`Fetching owners: multicall(${BACKEND.MULTICALL3}, [owner×${storeAddresses.length}])`)
   const ownerResults = await multicall(ownerCalls)
   hiddenLog(
     `Received ${ownerResults.length} owners (${(performance.now() - ownersT0).toFixed(0)}ms)`
@@ -282,7 +285,7 @@ async function scanStores(
     try {
       const raw = await reviveCall(
         storeAddress as `0x${string}`,
-        encodeGetValues(),
+        encodeGetLabels(0n, BigInt(LABEL_STORE_PAGE_LIMIT)),
         ownerSS58Address
       )
       storeLabels = decodeStringArray(raw)
@@ -364,20 +367,16 @@ async function syncAllApps(
   const addresses = { ...cachedAddresses }
 
   let current: string[]
-  const storesT0 = performance.now()
-  hiddenLog(
-    `Fetching deployed stores: reviveCall(${CONTRACTS.STORE_FACTORY}, getAllDeployedStores())`
-  )
   try {
-    const raw = await reviveCall(CONTRACTS.STORE_FACTORY, encodeGetAllDeployedStores())
+    const raw = await reviveCall(
+      BACKEND.STORE_FACTORY,
+      encodeGetLabelStores(0n, BigInt(STORE_FACTORY_PAGE_LIMIT))
+    )
     current = decodeAddressArray(raw).map((a) => a.toLowerCase())
   } catch (err) {
     hiddenLog(`Failed to fetch deployed stores: ${err}`, 'error')
     return materialize([...stores.values()], labels)
   }
-  hiddenLog(
-    `Received ${current.length} store addresses (${(performance.now() - storesT0).toFixed(0)}ms)`
-  )
 
   // Drop stores that no longer exist on chain.
   const currentSet = new Set(current)
@@ -458,6 +457,22 @@ function loadInitialDiskState(): Promise<InitialDiskState> {
 }
 
 export function getAllAppsOptions(queryClient: QueryClient) {
+  const pendingLabels = (): Set<string> => {
+    const labels = new Set<string>()
+    for (const m of queryClient.getMutationCache().findAll({ status: 'pending' })) {
+      const v = m.state.variables
+      if (typeof v === 'string') labels.add(v)
+    }
+    return labels
+  }
+  const merge = (prev: AppEntry[] | undefined, fresh: AppEntry[]): AppEntry[] => {
+    const pending = pendingLabels()
+    if (!prev || pending.size === 0) return fresh
+    const prevByLabel = new Map(prev.map((a) => [a.label, a]))
+    return fresh.map((next) =>
+      pending.has(next.label) ? (prevByLabel.get(next.label) ?? next) : next
+    )
+  }
   return queryOptions<AppEntry[]>({
     queryKey: ALL_APPS_KEY,
     queryFn: async () => {
@@ -466,9 +481,15 @@ export function getAllAppsOptions(queryClient: QueryClient) {
         labels: cachedLabels,
         addresses: cachedAddresses
       } = await loadInitialDiskState()
-      return syncAllApps(cachedStores, cachedLabels, cachedAddresses, (progressApps) => {
-        queryClient.setQueryData<AppEntry[]>(ALL_APPS_KEY, progressApps)
-      })
+      const finalApps = await syncAllApps(
+        cachedStores,
+        cachedLabels,
+        cachedAddresses,
+        (progressApps) => {
+          queryClient.setQueryData<AppEntry[]>(ALL_APPS_KEY, (prev) => merge(prev, progressApps))
+        }
+      )
+      return merge(queryClient.getQueryData<AppEntry[]>(ALL_APPS_KEY), finalApps)
     },
     staleTime: 5 * 60_000
   })
@@ -509,9 +530,9 @@ async function resolveLabel(name: string): Promise<AppEntry | null> {
 
   const node = namehash(`${name}.dot`)
   const calls: MulticallTarget[] = [
-    { target: CONTRACTS.CONTENT_RESOLVER, callData: encodeContenthash(node) },
-    { target: CONTRACTS.CONTENT_RESOLVER, callData: encodeText(node, 'name') },
-    { target: CONTRACTS.CONTENT_RESOLVER, callData: encodeText(node, 'description') }
+    { target: BACKEND.CONTENT_RESOLVER, callData: encodeContenthash(node) },
+    { target: BACKEND.CONTENT_RESOLVER, callData: encodeText(node, 'name') },
+    { target: BACKEND.CONTENT_RESOLVER, callData: encodeText(node, 'description') }
   ]
   const results = await multicall(calls)
 

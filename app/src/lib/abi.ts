@@ -46,8 +46,8 @@ function computeSelector(sig: string): string {
 }
 
 const SEL = {
-  getAllDeployedStores: computeSelector('getAllDeployedStores()'),
-  getValues: computeSelector('getValues()'),
+  getLabelStores: computeSelector('getLabelStores(uint256,uint256)'),
+  getLabels: computeSelector('getLabels(uint256,uint256)'),
   contenthash: computeSelector('contenthash(bytes32)'),
   text: computeSelector('text(bytes32,string)'),
   aggregate3: computeSelector('aggregate3((address,bool,bytes)[])'),
@@ -56,16 +56,16 @@ const SEL = {
   owner: computeSelector('owner()')
 } as const
 
-export function encodeGetAllDeployedStores(): `0x${string}` {
-  return `0x${SEL.getAllDeployedStores}`
+export function encodeGetLabelStores(offset: bigint, limit: bigint): `0x${string}` {
+  return `0x${SEL.getLabelStores}${uint256Hex(offset)}${uint256Hex(limit)}`
+}
+
+export function encodeGetLabels(offset: bigint, limit: bigint): `0x${string}` {
+  return `0x${SEL.getLabels}${uint256Hex(offset)}${uint256Hex(limit)}`
 }
 
 export function encodeOwner(): `0x${string}` {
   return `0x${SEL.owner}`
-}
-
-export function encodeGetValues(): `0x${string}` {
-  return `0x${SEL.getValues}`
 }
 
 export function encodeContenthash(node: `0x${string}`): `0x${string}` {

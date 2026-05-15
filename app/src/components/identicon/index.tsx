@@ -30,22 +30,35 @@ export function Identicon({ seed, size = 64 }: IdenticonProps) {
     cells.push([a, b, c, b, a])
   }
 
+  let minR = 5
+  let maxR = -1
+  for (let r = 0; r < 5; r++) {
+    if (cells[r].some(Boolean)) {
+      if (r < minR) minR = r
+      maxR = r
+    }
+  }
+  const rowSpan = maxR - minR + 1
+  const offsetY = maxR < 0 ? 0 : ((5 - rowSpan) / 2 - minR) * cellSize
+
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role='img' aria-hidden='true'>
-      {cells.flatMap((row, r) =>
-        row.map((on, c) =>
-          on ? (
-            <rect
-              key={`${r}-${c}`}
-              x={c * cellSize}
-              y={r * cellSize}
-              width={cellSize}
-              height={cellSize}
-              fill='#ffffff'
-            />
-          ) : null
-        )
-      )}
+      <g transform={`translate(0 ${offsetY})`}>
+        {cells.flatMap((row, r) =>
+          row.map((on, c) =>
+            on ? (
+              <rect
+                key={`${r}-${c}`}
+                x={c * cellSize}
+                y={r * cellSize}
+                width={cellSize}
+                height={cellSize}
+                fill='#ffffff'
+              />
+            ) : null
+          )
+        )}
+      </g>
     </svg>
   )
 }

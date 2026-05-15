@@ -101,7 +101,7 @@ export function ContactsManager({
   return (
     <div class={`contacts-manager${visible ? ' contacts-manager--visible' : ''}`}>
       <div class='contacts-manager__header'>
-        <span class='contacts-manager__title'>Addresses I follow</span>
+        <span class='contacts-manager__title'>Following</span>
         <button class='contacts-manager__close' onClick={onDismiss}>
           ✕
         </button>
@@ -163,10 +163,11 @@ export function ContactsManager({
         {contacts.map((contact) => (
           <div key={contact.address} class='contacts-manager__item'>
             <div class='contacts-manager__item-info'>
-              {contact.username && (
+              {contact.username ? (
                 <span class='contacts-manager__username'>@{contact.username}</span>
+              ) : (
+                <span class='contacts-manager__addr'>{truncateAddress(contact.address)}</span>
               )}
-              <span class='contacts-manager__addr'>{truncateAddress(contact.address)}</span>
             </div>
             <button class='contacts-manager__remove' onClick={() => onRemove(contact.address)}>
               ✕

@@ -2,7 +2,7 @@ import { ss58ToEthereum } from '@polkadot-api/sdk-ink'
 import { type SS58String } from 'polkadot-api'
 
 import { namehash, nodeToSubject } from '../../src/lib/abi'
-import { SCHEMA_LIKE_ID } from '../../src/lib/config'
+import { BACKEND } from '../../src/lib/config'
 import { withAttestationService } from './with-attestation-service'
 
 interface AttestResult {
@@ -12,17 +12,22 @@ interface AttestResult {
   attestationCountAfter: bigint
 }
 
-export async function createAttestation(label: string, devAccount = 'Alice'): Promise<AttestResult> {
+export async function createAttestation(
+  label: string,
+  devAccount = 'Alice'
+): Promise<AttestResult> {
   return withAttestationService(devAccount, async (service, address) => {
     const recipient = nodeToSubject(namehash(`${label}.dot`))
     const attesterH160 = ss58ToEthereum(address as SS58String) as `0x${string}`
     const attestationCountBefore = await service.countByRecipientAndSchema(
       recipient,
-      SCHEMA_LIKE_ID
+      BACKEND.SCHEMA_ID
     )
-    const alreadyAttested = await service.isActiveAny(recipient, SCHEMA_LIKE_ID, [attesterH160])
+    const alreadyAttested = await service.isActiveAny(recipient, BACKEND.SCHEMA_ID, [
+      attesterH160
+    ])
     if (!alreadyAttested) {
-      await service.attest(SCHEMA_LIKE_ID, recipient, 0n, true, 0n, '0x')
+      await service.attest(BACKEND.SCHEMA_ID, recipient, 0n, true, 0n, '0x')
     }
     return {
       success: true,
@@ -36,6 +41,12 @@ export async function createAttestation(label: string, devAccount = 'Alice'): Pr
 if (import.meta.url === `file://${process.argv[1]}`) {
   const [, , label = 'e2e-test-app-alpha', account = 'Alice'] = process.argv
   createAttestation(label, account)
-    .then((r) => { console.log('[main] done', r); process.exit(0) })
-    .catch((e: Error) => { console.error('[main] error', e); process.exit(1) })
+    .then((r) => {
+      console.log('[main] done', r)
+      process.exit(0)
+    })
+    .catch((e: Error) => {
+      console.error('[main] error', e)
+      process.exit(1)
+    })
 }

@@ -2,7 +2,7 @@
  * Bookmarks E2E Tests
  *
  * Validates that signed users can bookmark/unbookmark apps and see them in
- * Bookmarks. Bookmark toggles live inside each card's 3-dot menu.
+ * Bookmarks. The bookmark toggle is an inline icon button on each card.
  */
 
 import type { BrowserContext } from '@playwright/test'
@@ -40,8 +40,8 @@ test.describe('Bookmarks', () => {
     appName = (await firstCard.locator('.product-card__name').textContent())!
 
     // When
-    await firstCard.locator('.card-menu__trigger').click()
-    await frame.locator('.card-menu__item', { hasText: 'Bookmark' }).click()
+    await firstCard.locator('.product-card__bookmark').click()
+    await expect(firstCard.locator('.product-card__bookmark--active')).toBeVisible()
 
     // When
     await frame.locator('.category-tab', { hasText: 'Bookmarks' }).click()
@@ -88,8 +88,7 @@ test.describe('Bookmarks', () => {
     await frame.waitForTimeout(300)
 
     // When
-    await frame.locator('.product-card').first().locator('.card-menu__trigger').click()
-    await frame.locator('.card-menu__item', { hasText: 'Remove bookmark' }).click()
+    await frame.locator('.product-card').first().locator('.product-card__bookmark').click()
     await frame.waitForTimeout(500)
 
     // Then

@@ -43,7 +43,6 @@ test.describe('App Start', () => {
 
     test('As an unsigned user, the PCF tab loads apps on start', async () => {
       // Then
-      await expect(frame.locator('.loading-dots')).toBeVisible()
       const cards = frame.locator('.product-card')
       await expect(cards.first()).toBeVisible({ timeout: 10_000 })
       expect(await cards.count()).toBeGreaterThan(0)

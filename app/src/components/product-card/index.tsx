@@ -1,9 +1,8 @@
 import { memo } from 'preact/compat'
 
-import { ArrowBigUp, MessageSquare } from 'lucide-preact'
+import { ArrowUp, Bookmark, MessageCircle, Share2 } from 'lucide-preact'
 
 import { type AppEntry, displayName } from '../../state/apps/types'
-import { CardMenu } from '../card-menu'
 import { Identicon } from '../identicon'
 import './styles.css'
 
@@ -19,6 +18,7 @@ interface ProductCardProps {
   onBookmark?: (label: string) => void
   onShare?: (app: AppEntry) => void
   onClickAttestation?: () => void
+  onChat?: (label: string) => void
 }
 
 export const ProductCard = memo(function ProductCard({
@@ -30,12 +30,15 @@ export const ProductCard = memo(function ProductCard({
   onClick,
   onBookmark,
   onShare,
-  onClickAttestation
+  onClickAttestation,
+  onChat
 }: ProductCardProps) {
   const instant = index < 0
   const delay = instant ? 0 : Math.min(index * 60, 400)
   const name = displayName(app)
   const displayCount = app.attestationCount ?? 0
+  const hasChat = CHAT_ENABLED_LABELS.has(app.label)
+  const showActions = showMenu && onBookmark && onShare
 
   return (
     <div
@@ -52,45 +55,84 @@ export const ProductCard = memo(function ProductCard({
       }}
     >
       <div class='product-card__thumb'>
-        <Identicon seed={app.label} size={64} />
-        {CHAT_ENABLED_LABELS.has(app.label) && (
-          <span class='product-card__chat-badge' aria-label='Has chat'>
-            <MessageSquare size={12} fill='currentColor' strokeWidth={0} />
-          </span>
-        )}
+        <Identicon seed={app.label} size={56} />
       </div>
       <div class='product-card__body'>
-        <span class='product-card__name'>{name}</span>
-        <p class='product-card__desc'>{app.description}</p>
-      </div>
-      {showMenu && onBookmark && onShare && (
-        <div class='product-card__actions'>
-          <CardMenu
-            bookmarked={!!bookmarked}
-            hasChat={CHAT_ENABLED_LABELS.has(app.label)}
-            onBookmark={() => onBookmark(app.label)}
-            onShare={() => onShare(app)}
-          />
-          {onClickAttestation && (
+        <div class='product-card__title-row'>
+          <span class='product-card__name'>{name}</span>
+          {showActions && (
             <button
-              class={`product-card__upvote${recommended ? ' product-card__upvote--active' : ''}`}
+              class={`product-card__bookmark${bookmarked ? ' product-card__bookmark--active' : ''}`}
               onClick={(e) => {
                 e.stopPropagation()
-                onClickAttestation()
+                onBookmark(app.label)
               }}
-              aria-label={recommended ? 'Remove recommendation' : 'Recommend'}
-              aria-pressed={recommended}
+              aria-label={bookmarked ? 'Remove bookmark' : 'Bookmark'}
+              aria-pressed={bookmarked}
             >
-              <ArrowBigUp size={15} fill={recommended ? 'currentColor' : 'none'} />
-              {displayCount >= 1 && (
-                <span class='product-card__upvote-count'>
-                  {displayCount > 999 ? '999+' : displayCount}
-                </span>
-              )}
+              <Bookmark size={16} fill={bookmarked ? 'currentColor' : 'none'} />
             </button>
           )}
         </div>
-      )}
+        <p class='product-card__desc'>{app.description}</p>
+        <div class='product-card__footer'>
+          <button
+            class='product-card__open'
+            onClick={(e) => {
+              e.stopPropagation()
+              onClick(app.label)
+            }}
+          >
+            <span>Open</span>
+          </button>
+          {hasChat && (
+            <button
+              class='product-card__chat'
+              onClick={(e) => {
+                e.stopPropagation()
+                onChat?.(app.label)
+              }}
+              disabled={!onChat}
+              aria-disabled={!onChat}
+              aria-label='Open chat'
+            >
+              <MessageCircle size={16} />
+            </button>
+          )}
+          {showActions && (
+            <div class='product-card__footer-end'>
+              {onClickAttestation && (
+                <button
+                  class={`product-card__upvote${recommended ? ' product-card__upvote--active' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onClickAttestation()
+                  }}
+                  aria-label={recommended ? 'Remove recommendation' : 'Recommend'}
+                  aria-pressed={recommended}
+                >
+                  <ArrowUp size={16} />
+                  {displayCount > 0 && (
+                    <span class='product-card__upvote-count'>
+                      {displayCount > 999 ? '999+' : displayCount}
+                    </span>
+                  )}
+                </button>
+              )}
+              <button
+                class='product-card__share'
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onShare(app)
+                }}
+                aria-label='Share'
+              >
+                <Share2 size={16} />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 })
