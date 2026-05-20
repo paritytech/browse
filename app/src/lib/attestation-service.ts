@@ -34,13 +34,14 @@ async function hostSigner(): Promise<{
   const accounts = accountsResult.value
   if (accounts.length === 0) throw new Error('No accounts available')
 
-  const publicKey = accounts[0].publicKey
-  const signerHex = Binary.toHex(publicKey)
+  const account = accounts[0]
+  const publicKey = account.publicKey
+  const origin = AccountId().dec(publicKey)
 
   const signBytes = async (data: Uint8Array): Promise<Uint8Array> => {
     const result = await hostApi.signRawWithLegacyAccount({
       tag: 'v1',
-      value: { signer: signerHex, payload: { tag: 'Bytes', value: data } }
+      value: { signer: origin, payload: { tag: 'Bytes', value: data } }
     })
     return result.match(
       (res) => {
@@ -57,7 +58,7 @@ async function hostSigner(): Promise<{
 
   return {
     signer: getPolkadotSigner(publicKey, 'Sr25519', signBytes),
-    origin: AccountId().dec(publicKey),
+    origin,
     publicKey
   }
 }
@@ -323,10 +324,20 @@ export class AttestationService {
     const api = await this.api()
     const accountInfo = await api.query.System.Account.getValue(origin as SS58String)
     const free = accountInfo.data.free
-    if (storageDeposit > 0n && free < storageDeposit) {
+
+    const tx = send()
+    let estimatedFees = 0n
+    try {
+      estimatedFees = await tx.getEstimatedFees(origin as SS58String)
+    } catch {
+      // fall back to 0
+    }
+    const totalNeeded = storageDeposit + estimatedFees
+
+    if (free < totalNeeded) {
       if (!this.truapi) {
         throw new Error(
-          `NotEnoughFunds: need ${storageDeposit} PAS plancks, have ${free}. Fund the account with PAS.`
+          `NotEnoughFunds: need ${totalNeeded} (fees ${estimatedFees} + storage ${storageDeposit}), have ${free}.`
         )
       }
       const allocated = await hostApi
@@ -340,13 +351,12 @@ export class AttestationService {
         )
       if (!allocated) {
         throw new Error(
-          `NotEnoughFunds: need ${storageDeposit} PAS plancks, have ${free} and the host declined to cover gas. Fund the account with PAS.`
+          `NotEnoughFunds: need ${totalNeeded} (fees ${estimatedFees} + storage ${storageDeposit}), have ${free} and the host declined PGAS coverage.`
         )
       }
     }
 
     onPermitted?.()
-    const tx = send()
 
     return new Promise((resolve, reject) => {
       tx.signSubmitAndWatch(signer).subscribe({

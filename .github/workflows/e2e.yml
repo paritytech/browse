@@ -58,6 +58,7 @@ jobs:
     steps:
       - name: Skip (content unchanged)
         if: needs.check.outputs.skip == 'true'
+        working-directory: .
         run: echo "Content unchanged — reusing previous passing result"
 
       - uses: actions/checkout@v4

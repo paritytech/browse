@@ -2,6 +2,7 @@ import { ss58ToEthereum } from '@polkadot-api/sdk-ink'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AccountId, type SS58String } from 'polkadot-api'
 
+import { updateAttestationCount } from '../../db/labels'
 import { namehash, nodeToSubject } from '../../lib/abi'
 import { attestationService } from '../../lib/attestation-service'
 import { BACKEND } from '../../lib/config'
@@ -70,18 +71,28 @@ export function describeError(err: unknown): string {
   if (msg.includes('NotEnoughFunds') || msg.includes('"type": "Payment"')) {
     return 'Not enough funds'
   }
+  if (msg.includes('Chain sync timed out')) {
+    return 'Network unavailable'
+  }
   return 'Failed'
 }
 
 export async function attestLabel(label: string, onPermitted?: () => void) {
   const recipient = nodeToSubject(namehash(`${label}.dot`))
+  const { ss58, h160 } = await getAttester()
+  console.log('attestation:publish', JSON.stringify({ label, attester: { ss58, h160 }, recipient }))
   return attestationService.attest(BACKEND.SCHEMA_ID, recipient, 0n, true, 0n, '0x', onPermitted)
 }
 
-async function getAttesterH160(): Promise<string> {
+async function getAttester(): Promise<{ ss58: SS58String; h160: string }> {
   const { publicKey } = await attestationService.getSigner()
-  const ss58 = AccountId().dec(publicKey)
-  return (ss58ToEthereum(ss58 as SS58String) as `0x${string}`).toLowerCase()
+  const ss58 = AccountId().dec(publicKey) as SS58String
+  const h160 = (ss58ToEthereum(ss58) as `0x${string}`).toLowerCase()
+  return { ss58, h160 }
+}
+
+async function getAttesterH160(): Promise<string> {
+  return (await getAttester()).h160
 }
 
 export async function revokeLabel(label: string, onPermitted?: () => void) {
@@ -94,11 +105,15 @@ export async function revokeLabel(label: string, onPermitted?: () => void) {
   )
   if (ids.length === 0) throw new Error('No attestation to revoke')
 
-  const attesterH160 = await getAttesterH160()
+  const { ss58, h160 } = await getAttester()
   const attestations = await Promise.all(ids.map((id) => attestationService.getAttestationById(id)))
-  const match = ids.find((_, i) => attestations[i].attester.toLowerCase() === attesterH160)
+  const match = ids.find((_, i) => attestations[i].attester.toLowerCase() === h160)
   if (match === undefined) throw new Error('No attestation to revoke')
 
+  console.log(
+    'attestation:revoke',
+    JSON.stringify({ label, attester: { ss58, h160 }, recipient, id: match.toString() })
+  )
   return attestationService.revoke(BACKEND.SCHEMA_ID, match, onPermitted)
 }
 
@@ -118,7 +133,7 @@ export async function getAttestationId(label: string): Promise<bigint | null> {
   return idx === -1 ? null : ids[idx]
 }
 
-export function useAttestApp() {
+export function useAttestProduct() {
   const queryClient = useQueryClient()
   return useMutation<unknown, Error, string, MutationCtx>({
     mutationFn: (label) =>
@@ -134,6 +149,9 @@ export function useAttestApp() {
     onMutate: (label) => snapshot(queryClient, label),
     onError: (_err, label, ctx) => {
       if (ctx) rollback(queryClient, label, ctx)
+    },
+    onSuccess: (_data, label) => {
+      void updateAttestationCount(label, 1, true)
     }
   })
 }
@@ -154,6 +172,9 @@ export function useRevokeApp() {
     onMutate: (label) => snapshot(queryClient, label),
     onError: (_err, label, ctx) => {
       if (ctx) rollback(queryClient, label, ctx)
+    },
+    onSuccess: (_data, label) => {
+      void updateAttestationCount(label, -1, false)
     }
   })
 }

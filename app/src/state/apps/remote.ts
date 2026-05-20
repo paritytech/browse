@@ -1,0 +1,254 @@
+/**
+ * Remote reads for the apps subsystem.
+ *
+ * Inputs are plain values, outputs are decoded chain data. Persistence,
+ * chunking, and progress reporting live in `./sync`.
+ */
+
+import { keccak_256 } from '@noble/hashes/sha3.js'
+
+import type { LabelEntry } from './types'
+import {
+  decodeBool,
+  decodeBytes,
+  decodeBytes32Array,
+  decodeIpfsContenthash,
+  decodeString,
+  decodeUint64,
+  encodeContenthash,
+  encodeCountByRecipientAndSchema,
+  encodeGetPublished,
+  encodeIsActiveAny,
+  encodeLabelOf,
+  encodeText,
+  labelhashToTokenId,
+  type MulticallTarget,
+  namehash,
+  nodeToSubject
+} from '../../lib/abi'
+import { reviveCall } from '../../lib/client'
+import { BACKEND } from '../../lib/config'
+import { hiddenLog } from '../../lib/debug'
+import { multicall } from '../../lib/multicall'
+
+const PUBLISHER_PAGE_LIMIT = 1000n
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
+
+export const HYDRATE_CHUNK_SIZE = 30
+
+/** Decode one Multicall3 sub-result, swallowing per-call failures as `null`. */
+export function tryDecode<T>(
+  r: { success: boolean; returnData: `0x${string}` } | undefined,
+  fn: (d: `0x${string}`) => T | null
+): T | null {
+  if (!r?.success) return null
+  try {
+    return fn(r.returnData)
+  } catch {
+    return null
+  }
+}
+
+/** `keccak256(bytes(label))`, the dotNS labelhash for a bare `.dot` label. */
+export function labelhashOf(label: string): `0x${string}` {
+  const bytes = new TextEncoder().encode(label)
+  const hash = keccak_256(bytes)
+  let out = '0x'
+  for (let i = 0; i < hash.length; i++) out += hash[i].toString(16).padStart(2, '0')
+  return out as `0x${string}`
+}
+
+/**
+ * Read the full published-set labelhashes from `Publisher.getPublished`.
+ *
+ * Order is not stable across unpublishes (Publisher uses swap-and-pop) so
+ * callers should reduce by labelhash. Retries once with a 1s backoff. Empty
+ * array when no Publisher is configured for the active network.
+ */
+export async function readPublishedLabelhashes(): Promise<`0x${string}`[]> {
+  if (BACKEND.PUBLISHER === ZERO_ADDRESS) {
+    hiddenLog('Publisher not deployed on this network; returning empty set', 'error')
+    return []
+  }
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      return await readPublishedLabelhashesOnce()
+    } catch (err) {
+      if (attempt === 1) throw err
+      hiddenLog(`getPublished failed (attempt ${attempt + 1}/2): ${err}`, 'error')
+      await sleep(1_000)
+    }
+  }
+  return []
+}
+
+async function readPublishedLabelhashesOnce(): Promise<`0x${string}`[]> {
+  let offset = 0n
+  const all: `0x${string}`[] = []
+  for (;;) {
+    const raw = await reviveCall(
+      BACKEND.PUBLISHER,
+      encodeGetPublished(offset, PUBLISHER_PAGE_LIMIT)
+    )
+    const page = decodeBytes32Array(raw)
+    all.push(...page)
+    if (page.length < Number(PUBLISHER_PAGE_LIMIT)) break
+    offset += PUBLISHER_PAGE_LIMIT
+  }
+  return all
+}
+
+/**
+ * Resolve labelhashes to `.dot` label strings via `registrar.labelOf`.
+ *
+ * Hashes already represented in `cached` are reused; only the remainder
+ * hits the chain (single Multicall3 batch).
+ */
+export async function resolveLabels(
+  labelhashes: `0x${string}`[],
+  cached: ReadonlyMap<string, LabelEntry>
+): Promise<Map<`0x${string}`, string>> {
+  const result = new Map<`0x${string}`, string>()
+  const cachedByHash = new Map<`0x${string}`, string>()
+  for (const l of cached.values()) cachedByHash.set(labelhashOf(l.label), l.label)
+
+  const toResolve: `0x${string}`[] = []
+  for (const lh of labelhashes) {
+    const hit = cachedByHash.get(lh)
+    if (hit) result.set(lh, hit)
+    else toResolve.push(lh)
+  }
+  if (toResolve.length === 0) return result
+
+  hiddenLog(
+    `Resolving ${toResolve.length} new labelhashes: multicall(${BACKEND.MULTICALL3}, [labelOf×${toResolve.length}])`
+  )
+  const calls: MulticallTarget[] = toResolve.map((lh) => ({
+    target: BACKEND.REGISTRAR,
+    callData: encodeLabelOf(labelhashToTokenId(lh))
+  }))
+  const results = await multicall(calls)
+  for (let i = 0; i < toResolve.length; i++) {
+    const name = tryDecode(results[i], decodeString)
+    if (name) result.set(toResolve[i], name)
+  }
+  return result
+}
+
+/**
+ * Hydrate a chunk of labels with content + attestation metadata.
+ *
+ * Two-pass: first batch fetches `contenthash` to identify live labels, the
+ * second batch fetches `name`/`description`/attestation count (plus a per-user
+ * "have I attested?" probe when `userH160` is provided). Non-live labels come
+ * back with `contentHash: null`. Caller chunks input to {@link HYDRATE_CHUNK_SIZE}.
+ */
+export async function hydrateLabelChunk(
+  chunk: string[],
+  userH160: `0x${string}` | null
+): Promise<LabelEntry[]> {
+  const chCalls: MulticallTarget[] = chunk.map((label) => ({
+    target: BACKEND.CONTENT_RESOLVER,
+    callData: encodeContenthash(namehash(`${label}.dot`))
+  }))
+  hiddenLog(
+    `Fetching content hashes: multicall(${BACKEND.MULTICALL3}, [contenthash×${chunk.length}])`
+  )
+  const chResults = await multicall(chCalls)
+
+  const contentHashes: (string | null)[] = chunk.map((_, j) =>
+    tryDecode(chResults[j], (d) => decodeIpfsContenthash(decodeBytes(d)))
+  )
+  const liveIndexes: number[] = []
+  for (let j = 0; j < chunk.length; j++) {
+    if (contentHashes[j]) liveIndexes.push(j)
+  }
+
+  const callsPerLive = userH160 ? 4 : 3
+  let metaResults: Awaited<ReturnType<typeof multicall>> = []
+  if (liveIndexes.length > 0) {
+    const metaCalls: MulticallTarget[] = []
+    for (const j of liveIndexes) {
+      const node = namehash(`${chunk[j]}.dot`)
+      const subject = nodeToSubject(node)
+      metaCalls.push(
+        { target: BACKEND.CONTENT_RESOLVER, callData: encodeText(node, 'name') },
+        { target: BACKEND.CONTENT_RESOLVER, callData: encodeText(node, 'description') },
+        {
+          target: BACKEND.ATTESTATION_INDEX_RESOLVER,
+          callData: encodeCountByRecipientAndSchema(subject, BACKEND.SCHEMA_ID)
+        }
+      )
+      if (userH160) {
+        metaCalls.push({
+          target: BACKEND.ATTESTATION_INDEX_RESOLVER,
+          callData: encodeIsActiveAny(subject, BACKEND.SCHEMA_ID, [userH160])
+        })
+      }
+    }
+    hiddenLog(
+      `Fetching metadata for ${liveIndexes.length} live labels: multicall(${BACKEND.MULTICALL3}, [${metaCalls.length} calls])`
+    )
+    metaResults = await multicall(metaCalls)
+  }
+
+  const fetchedAt = Date.now()
+  const out: LabelEntry[] = []
+  let metaIdx = 0
+  for (let j = 0; j < chunk.length; j++) {
+    const cid = contentHashes[j]
+    let name: string | null = null
+    let description = 'No description'
+    let attestationCount: number | null = null
+    let hasUserAttested = false
+    if (cid) {
+      const base = metaIdx * callsPerLive
+      name = tryDecode(metaResults[base], decodeString) || null
+      description = tryDecode(metaResults[base + 1], decodeString) || 'No description'
+      attestationCount = tryDecode(metaResults[base + 2], decodeUint64)
+      hasUserAttested = userH160 ? (tryDecode(metaResults[base + 3], decodeBool) ?? false) : false
+      metaIdx++
+    }
+    out.push({
+      label: chunk[j],
+      name,
+      description,
+      contentHash: cid,
+      attestationCount,
+      hasUserAttested,
+      fetchedAt
+    })
+  }
+  return out
+}
+
+/**
+ * Read a single label's content-resolver fields.
+ *
+ * Returns `null` when the label has no content hash (treated as not-an-app).
+ * Used by the search-bar single-label resolver.
+ */
+export async function readContentByName(label: string): Promise<{
+  contentHash: string
+  name: string | null
+  description: string
+} | null> {
+  const node = namehash(`${label}.dot`)
+  const calls: MulticallTarget[] = [
+    { target: BACKEND.CONTENT_RESOLVER, callData: encodeContenthash(node) },
+    { target: BACKEND.CONTENT_RESOLVER, callData: encodeText(node, 'name') },
+    { target: BACKEND.CONTENT_RESOLVER, callData: encodeText(node, 'description') }
+  ]
+  const results = await multicall(calls)
+  const contentHash = tryDecode(results[0], (d) => decodeIpfsContenthash(decodeBytes(d)))
+  if (!contentHash) return null
+  return {
+    contentHash,
+    name: tryDecode(results[1], decodeString) || null,
+    description: tryDecode(results[2], decodeString) || 'No description'
+  }
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}

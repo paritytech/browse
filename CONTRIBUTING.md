@@ -26,10 +26,12 @@ export async function resolveLabel(label: string): Promise<Cid | null> {
 
 ```ts
 /**
- * Two-build, CID-subdomain bridge.
+ * Verifies a Substrate-style compact Merkle proof.
  *
- * The host shell at name.dot.li resolves the label, then iframes
- * cid.app.dot.li with the resolved CID. Each CID gets a distinct origin so SW, storage, and auth stay isolated per app.
+ * Compact proofs (produced by `sp_trie::generate_trie_proof`) replace path
+ * children with an empty inline placeholder and omit the target leaf's value.
+ * Both are reconstructed during verification from `expected_value`, which for
+ * state version V1 is hashed when its length is 32 bytes or more.
  */
 ```
 

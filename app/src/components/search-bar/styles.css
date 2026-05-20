@@ -11,7 +11,7 @@
   margin-left: 0;
   border: none;
   background: transparent;
-  color: #ffffff;
+  color: var(--color-heading);
   font-family: inherit;
   font-size: 14px;
   font-weight: 600;
@@ -57,7 +57,7 @@
   left: 12px;
   top: 50%;
   transform: translate(calc(50cqi - 12px - 12px - var(--placeholder-half-width, 30px)), -50%);
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--fg-6);
   pointer-events: none;
   z-index: 1;
   will-change: transform;
@@ -69,7 +69,7 @@
 .search-bar--focus .search-bar__icon,
 .search-bar--has-value .search-bar__icon {
   transform: translate(0, -50%);
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--fg-5);
 }
 
 .search-bar__placeholder {
@@ -77,7 +77,7 @@
   left: 50%;
   top: 50%;
   transform: translate(calc(-50% + 12px), -50%);
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--fg-6);
   font-family:
     'Inter',
     system-ui,
@@ -107,10 +107,10 @@
   width: 100%;
   height: 100%;
   padding: 0 36px 0 36px;
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--input-bg);
   border: 1px solid transparent;
   border-radius: 32px;
-  color: #ffffff;
+  color: var(--color-heading);
   font-family:
     'Inter',
     system-ui,
@@ -127,8 +127,8 @@
 }
 
 .search-bar__input:focus {
-  background: rgba(255, 255, 255, 0.16);
-  border-color: rgba(255, 255, 255, 0.18);
+  background: var(--input-bg-focus);
+  border-color: var(--input-stroke-focus);
 }
 
 .search-bar__clear {
@@ -143,14 +143,14 @@
   height: 22px;
   padding: 0;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.15);
-  color: rgba(255, 255, 255, 0.5);
+  background: rgb(var(--fg-rgb) / 0.15);
+  color: var(--fg-5);
   transition:
     background 150ms ease,
     color 150ms ease;
 }
 
 .search-bar__clear:hover {
-  background: rgba(255, 255, 255, 0.25);
-  color: rgba(255, 255, 255, 0.8);
+  background: var(--surface-7);
+  color: rgb(var(--fg-rgb) / 0.8);
 }

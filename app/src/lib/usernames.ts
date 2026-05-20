@@ -1,6 +1,6 @@
 import { hiddenLog } from './debug'
 
-const API_URL = 'https://polkadot-app.api.polkadotcommunity.foundation/api/v1'
+const API_URL = 'https://identity-backend-next.parity-testnet.parity.io/api/v1'
 
 export interface UsernameEntry {
   username: string
@@ -30,15 +30,17 @@ export async function fetchUsernames(): Promise<UsernameEntry[]> {
 
 async function doFetch(): Promise<UsernameEntry[]> {
   const t0 = performance.now()
-  hiddenLog(`Fetching usernames: GET ${API_URL}/usernames`)
+  const url = `${API_URL}/usernames?status=ASSIGNED`
+  hiddenLog(`Fetching usernames: GET ${url}`)
   try {
-    const resp = await fetch(`${API_URL}/usernames`)
+    const resp = await fetch(url)
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
 
     const data = (await resp.json()) as ApiUsername[]
-    const usernames: UsernameEntry[] = data
-      .filter((u) => u.status === 'ASSIGNED')
-      .map((u) => ({ username: u.username, account: u.candidateAccountId }))
+    const usernames: UsernameEntry[] = data.map((u) => ({
+      username: u.username,
+      account: u.candidateAccountId
+    }))
 
     hiddenLog(`Received ${usernames.length} usernames (${(performance.now() - t0).toFixed(0)}ms)`)
     cachedUsernames = usernames

@@ -8,9 +8,9 @@
   max-height: 70dvh;
   padding: 20px 24px;
   padding-bottom: max(20px, env(safe-area-inset-bottom));
-  background: rgba(20, 20, 20, 0.95);
+  background: var(--sheet-bg);
   backdrop-filter: blur(16px);
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-top: 1px solid var(--stroke-2);
   border-radius: 16px 16px 0 0;
   transition:
     transform 250ms cubic-bezier(0.22, 1, 0.36, 1),
@@ -35,20 +35,20 @@
 .contacts-manager__title {
   font-size: 15px;
   font-weight: 600;
-  color: #ffffff;
+  color: var(--color-heading);
 }
 
 .contacts-manager__close {
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--fg-5);
   font-size: 16px;
   cursor: pointer;
   padding: 4px 8px;
 }
 
 .contacts-manager__close:hover {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--fg-3);
 }
 
 .contacts-manager__input-row {
@@ -60,29 +60,30 @@
 .contacts-manager__input {
   flex: 1;
   padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--input-bg);
+  border: 1px solid var(--color-border);
   border-radius: 10px;
-  color: #ffffff;
+  color: var(--color-heading);
   font-size: 13px;
   font-family: 'SF Mono', monospace;
   outline: none;
 }
 
 .contacts-manager__input::placeholder {
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--fg-5);
 }
 
 .contacts-manager__input:focus {
-  border-color: rgba(255, 255, 255, 0.25);
+  background: var(--input-bg-focus);
+  border-color: var(--input-stroke-focus);
 }
 
 .contacts-manager__add-btn {
   padding: 10px 16px;
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--surface-4);
   border: none;
   border-radius: 10px;
-  color: #ffffff;
+  color: var(--color-heading);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -90,11 +91,11 @@
 }
 
 .contacts-manager__add-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--surface-6);
 }
 
 .contacts-manager__dropdown {
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--stroke-2);
   border-radius: 10px;
   overflow: hidden;
   margin-bottom: 8px;
@@ -108,14 +109,14 @@
   padding: 10px 12px;
   background: none;
   border: none;
-  color: #ffffff;
+  color: var(--color-heading);
   cursor: pointer;
   text-align: left;
   transition: background 100ms ease;
 }
 
 .contacts-manager__suggestion:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--surface-3);
 }
 
 .contacts-manager__suggestion-name {
@@ -126,7 +127,7 @@
 .contacts-manager__suggestion-addr {
   font-family: 'SF Mono', monospace;
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--fg-5);
 }
 
 .contacts-manager__item-info {
@@ -138,7 +139,7 @@
 .contacts-manager__username {
   font-size: 13px;
   font-weight: 500;
-  color: #ffffff;
+  color: var(--color-heading);
 }
 
 .contacts-manager__error {
@@ -158,25 +159,25 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-1);
   border-radius: 8px;
 }
 
 .contacts-manager__addr {
   font-family: 'SF Mono', monospace;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--fg-3);
 }
 
 .contacts-manager__remove {
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--fg-6);
   font-size: 14px;
   cursor: pointer;
   padding: 2px 6px;
 }
 
 .contacts-manager__remove:hover {
-  color: rgba(255, 100, 100, 0.8);
+  color: rgba(255, 100, 100, 0.85);
 }

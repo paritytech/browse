@@ -112,7 +112,7 @@ test.describe('App Start', () => {
       await expect(activeTab).toHaveText('PCF')
     })
 
-    test('As a un/signed user, the All tab loads a sorted list of apps', async () => {
+    test('As a un/signed user, the published apps view loads sorted by recommendations', async () => {
       test.setTimeout(45_000)
 
       // When
@@ -123,89 +123,105 @@ test.describe('App Start', () => {
       await expect(frame.locator('.loading-dots')).toBeVisible()
       await frame.waitForSelector('.product-card', { timeout: 50_000 })
       await expect(frame.locator('.product-card').first()).toBeVisible()
-      const names = await frame.locator('.product-card__name').allTextContents()
-      expect(names.length).toBeGreaterThan(1)
-      const sorted = [...names].sort((a, b) => a.localeCompare(b))
-      expect(names).toEqual(sorted)
+      const cards = frame.locator('.product-card')
+      const cardCount = await cards.count()
+      expect(cardCount).toBeGreaterThan(1)
+      const cardData: Array<{ name: string; count: number }> = []
+      for (let i = 0; i < cardCount; i++) {
+        const card = cards.nth(i)
+        const name = (await card.locator('.product-card__name').textContent()) ?? ''
+        const upvoteCount = card.locator('.product-card__upvote-count')
+        const hasCount = (await upvoteCount.count()) > 0
+        const text = hasCount ? ((await upvoteCount.textContent()) ?? '') : ''
+        const count = text === '' ? 0 : text === '999+' ? 1000 : Number(text)
+        cardData.push({ name, count })
+      }
+      const sorted = [...cardData].sort((a, b) => {
+        if (a.count !== b.count) return b.count - a.count
+        return a.name.localeCompare(b.name)
+      })
+      expect(cardData).toEqual(sorted)
 
       // Then
-      const { labelCount, storeCount } = await frame.page().evaluate(() => {
+      const labelCount = await frame.page().evaluate(() => {
         const labels = localStorage.getItem('test-host:browse:labels')
-        const stores = localStorage.getItem('test-host:browse:stores')
-        return {
-          labelCount: labels ? (JSON.parse(labels) as unknown[]).length : 0,
-          storeCount: stores ? (JSON.parse(stores) as unknown[]).length : 0
-        }
+        return labels ? (JSON.parse(labels) as unknown[]).length : 0
       })
       expect(labelCount).toBeGreaterThan(1)
-      expect(storeCount).toBeGreaterThan(0)
     })
 
     test('As a un/signed user, cached label metadata older than the TTL is refreshed (and fresh entries are not)', async () => {
       test.setTimeout(45_000)
       const page = await context.newPage()
+      const KEY = 'test-host:browse:labels'
 
       // Given
-      const STALE_TS = Date.now() - 25 * 3_600_000
-      const FRESH_TS = Date.now() - 60_000
-      await page.addInitScript(
-        ({ stale, fresh }) => {
-          const labels = [
-            {
-              label: 'e2e-stale-test',
-              name: 'Outdated',
-              description: 'Old',
-              contentHash: 'ipfs://outdated',
-              attestationCount: 0,
-              hasUserAttested: false,
-              fetchedAt: stale
-            },
-            {
-              label: 'e2e-fresh-test',
-              name: 'Recent',
-              description: 'New',
-              contentHash: 'ipfs://recent',
-              attestationCount: 0,
-              hasUserAttested: false,
-              fetchedAt: fresh
-            }
-          ]
-          localStorage.setItem('test-host:browse:labels', JSON.stringify(labels))
-        },
-        { stale: STALE_TS, fresh: FRESH_TS }
-      )
       await navigateToTestHost(page, host.url)
-      const frame = await getProductFrame(page, '.category-tab')
+      const frameInit = await getProductFrame(page, '.category-tab')
+      await frameInit.locator('.category-tab', { hasText: 'All' }).click()
+      await frameInit.waitForSelector('.product-card', { timeout: 50_000 })
+      const labelsAfterSync = await page.evaluate(
+        (key) =>
+          JSON.parse(localStorage.getItem(key) ?? '[]') as Array<{
+            label: string
+            fetchedAt?: number
+          }>,
+        KEY
+      )
+      expect(labelsAfterSync.length).toBeGreaterThan(1)
+      const staleLabel = labelsAfterSync[0].label
+      const freshLabel = labelsAfterSync[1].label
+      const originalFreshTs = labelsAfterSync[1].fetchedAt
+      const STALE_TS = Date.now() - 25 * 3_600_000
+      await page.evaluate(
+        ({ key, target, stale }) => {
+          const arr = JSON.parse(localStorage.getItem(key) ?? '[]') as Array<{
+            label: string
+            fetchedAt?: number
+          }>
+          const e = arr.find((l) => l.label === target)
+          if (e) e.fetchedAt = stale
+          localStorage.setItem(key, JSON.stringify(arr))
+        },
+        { key: KEY, target: staleLabel, stale: STALE_TS }
+      )
 
       // When
+      await page.reload({ waitUntil: 'commit' })
+      const frame = await getProductFrame(page, '.category-tab')
       await frame.locator('.category-tab', { hasText: 'All' }).click()
 
       // Then
       await page.waitForFunction(
-        (stale) => {
-          const labels = JSON.parse(
-            localStorage.getItem('test-host:browse:labels') ?? '[]'
-          ) as Array<{ label: string; fetchedAt?: number }>
-          const entry = labels.find((l) => l.label === 'e2e-stale-test')
-          return entry !== undefined && (entry.fetchedAt ?? 0) > stale
+        ({ key, target, stale }) => {
+          const arr = JSON.parse(localStorage.getItem(key) ?? '[]') as Array<{
+            label: string
+            fetchedAt?: number
+          }>
+          const e = arr.find((l) => l.label === target)
+          return e !== undefined && (e.fetchedAt ?? 0) > stale
         },
-        STALE_TS,
+        { key: KEY, target: staleLabel, stale: STALE_TS },
         { timeout: 30_000 }
       )
 
       // Then
-      const freshEntryTs = await page.evaluate(() => {
-        const labels = JSON.parse(
-          localStorage.getItem('test-host:browse:labels') ?? '[]'
-        ) as Array<{ label: string; fetchedAt?: number }>
-        return labels.find((l) => l.label === 'e2e-fresh-test')?.fetchedAt
-      })
-      expect(freshEntryTs).toBe(FRESH_TS)
+      const freshTsAfter = await page.evaluate(
+        ({ key, target }) => {
+          const arr = JSON.parse(localStorage.getItem(key) ?? '[]') as Array<{
+            label: string
+            fetchedAt?: number
+          }>
+          return arr.find((l) => l.label === target)?.fetchedAt
+        },
+        { key: KEY, target: freshLabel }
+      )
+      expect(freshTsAfter).toBe(originalFreshTs)
 
       await page.close()
     })
 
-    test('As a signed user, cached All apps show instantly on reload while syncing in the background', async () => {
+    test('As a signed user, cached apps show instantly on reload while syncing in the background', async () => {
       test.setTimeout(45_000)
       const page = await context.newPage()
       await navigateToTestHost(page, host.url)
@@ -225,16 +241,11 @@ test.describe('App Start', () => {
       await expect(frame.locator('.product-card').nth(3)).toBeVisible({ timeout: 90_000 })
 
       // Then
-      const { labelCount, storeCount } = await page.evaluate(() => {
+      const labelCount = await page.evaluate(() => {
         const labels = localStorage.getItem('test-host:browse:labels')
-        const stores = localStorage.getItem('test-host:browse:stores')
-        return {
-          labelCount: labels ? (JSON.parse(labels) as unknown[]).length : 0,
-          storeCount: stores ? (JSON.parse(stores) as unknown[]).length : 0
-        }
+        return labels ? (JSON.parse(labels) as unknown[]).length : 0
       })
       expect(labelCount).toBeGreaterThan(3)
-      expect(storeCount).toBeGreaterThan(0)
 
       await page.close()
     })

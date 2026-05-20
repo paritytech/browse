@@ -1,7 +1,7 @@
 import { useDeferredValue } from 'preact/compat'
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
-import { createAccountsProvider } from '@novasamatech/product-sdk'
+import { createAccountsProvider, createThemeProvider } from '@novasamatech/product-sdk'
 import { useQueryClient } from '@tanstack/react-query'
 import { ArrowUp, Bookmark, MoreHorizontal } from 'lucide-preact'
 
@@ -48,8 +48,9 @@ export function App() {
   const allAppsCombined = useMemo(() => {
     const seen = new Set<string>()
     return [...pcfApps, ...allApps].filter((app) => {
-      if (seen.has(app.label)) return false
-      seen.add(app.label)
+      const key = `${app.source}:${app.label}`
+      if (seen.has(key)) return false
+      seen.add(key)
       return true
     })
   }, [pcfApps, allApps])
@@ -62,9 +63,7 @@ export function App() {
     () => filterApps(allAppsCombined, deferredQuery, currentMode, bookmarks, followedLabels),
     [allAppsCombined, deferredQuery, currentMode, bookmarks, followedLabels]
   )
-  // While the user is typing, search ignores tabs: matches across every source
-  // are flattened into a single list, ordered by primary source (bookmarks
-  // first, then following, then pcf, then all). Each app appears once.
+  // While the user is typing, search ignores tabs.
   const searchMatches = useMemo<AppEntry[] | null>(() => {
     if (!deferredQuery.trim()) return null
     const seen = new Set<string>()
@@ -158,6 +157,14 @@ export function App() {
     const provider = createAccountsProvider()
     const sub = provider.subscribeAccountConnectionStatus((status) => {
       setSigned(status === 'connected')
+    })
+    return () => sub.unsubscribe()
+  }, [])
+
+  useEffect(() => {
+    const provider = createThemeProvider()
+    const sub = provider.subscribeTheme((theme) => {
+      document.documentElement.dataset.theme = theme
     })
     return () => sub.unsubscribe()
   }, [])
@@ -268,9 +275,7 @@ export function App() {
                   </div>
                 ) : emptyFollowingNoContacts ? (
                   <div class='empty-state'>
-                    <div class='empty-state__icon' style='color: rgba(255, 255, 255, 0.3)'>
-                      {FOLLOW_ICON}
-                    </div>
+                    <div class='empty-state__icon empty-state__icon--faint'>{FOLLOW_ICON}</div>
                     <p class='empty-state__text'>
                       Follow people to see what they recommend{' '}
                       <ArrowUp size={14} class='empty-state__inline-icon' />

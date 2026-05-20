@@ -49,7 +49,7 @@ export type LabelOverride = Partial<{
 }>
 
 /**
- * Seed the All apps cache into the host page's localStorage so cards render
+ * Seed the cache into the host page's localStorage so cards render
  * immediately on the next navigation/reload without waiting for the on-chain
  * scan. Registers an init script — call before the navigation you want to
  * affect.

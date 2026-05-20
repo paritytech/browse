@@ -26,7 +26,13 @@ const EXPLORER = "https://blockscout-passet-hub.parity-testnet.parity.io";
 
 // Read the resolc-compiled bytecode from forge output
 function loadBytecode(): string {
-  const artifactPath = join(__dirname, "..", "out", "Multicall3.sol", "Multicall3.json");
+  const artifactPath = join(
+    __dirname,
+    "..",
+    "out",
+    "Multicall3.sol",
+    "Multicall3.json"
+  );
   const artifact = JSON.parse(readFileSync(artifactPath, "utf-8"));
   const bytecode = artifact.bytecode?.object;
   if (!bytecode || bytecode === "0x") {
@@ -38,9 +44,13 @@ function loadBytecode(): string {
 async function main() {
   const seed = process.env.CONTRACT_DEPLOY_SEED;
   if (!seed) {
-    console.error("Error: CONTRACT_DEPLOY_SEED env var is required (mnemonic phrase).");
+    console.error(
+      "Error: CONTRACT_DEPLOY_SEED env var is required (mnemonic phrase)."
+    );
     console.error("");
-    console.error('  CONTRACT_DEPLOY_SEED="your twelve word mnemonic" bun run deploy-multicall3.ts');
+    console.error(
+      '  CONTRACT_DEPLOY_SEED="your twelve word mnemonic" bun run deploy-multicall3.ts'
+    );
     process.exit(1);
   }
 
@@ -60,7 +70,7 @@ async function main() {
   const signer = getPolkadotSigner(
     account.publicKey,
     "Sr25519",
-    async (input) => account.sign(input),
+    async (input) => account.sign(input)
   );
 
   // 3. Connect to chain
@@ -78,7 +88,7 @@ async function main() {
   console.log("\n--- Ensuring account mapped ---");
   try {
     const mappedAccount = await api.query.Revive.OriginalAccount.getValue(
-      Binary.fromHex(evmAddress),
+      Binary.fromHex(evmAddress)
     );
     if (mappedAccount) {
       console.log("  Already mapped");
@@ -88,22 +98,30 @@ async function main() {
   } catch {
     console.log("  Submitting map_account()...");
     try {
-      await api.tx.Revive.map_account().signSubmitAndWatch(signer).then((events) => {
-        return new Promise<void>((resolve, reject) => {
-          events.subscribe({
-            next: (event: any) => {
-              if (event.type === "finalized") {
-                if (event.dispatchError) {
-                  reject(new Error(`map_account failed: ${JSON.stringify(event.dispatchError)}`));
-                } else {
-                  resolve();
+      await api.tx.Revive.map_account()
+        .signSubmitAndWatch(signer)
+        .then((events) => {
+          return new Promise<void>((resolve, reject) => {
+            events.subscribe({
+              next: (event: any) => {
+                if (event.type === "finalized") {
+                  if (event.dispatchError) {
+                    reject(
+                      new Error(
+                        `map_account failed: ${JSON.stringify(
+                          event.dispatchError
+                        )}`
+                      )
+                    );
+                  } else {
+                    resolve();
+                  }
                 }
-              }
-            },
-            error: reject,
+              },
+              error: reject,
+            });
           });
         });
-      });
     } catch (err: any) {
       if (err?.message?.includes("AccountAlreadyMapped")) {
         console.log("  Already mapped (caught)");
@@ -116,7 +134,9 @@ async function main() {
 
   // 6. Check balance
   console.log("\n--- Checking balance ---");
-  const accountInfo = await (api as any).query.System.Account.getValue(substrateAddress);
+  const accountInfo = await (api as any).query.System.Account.getValue(
+    substrateAddress
+  );
   const free = BigInt(accountInfo.data.free);
   const decimals = 10;
   console.log(`  Balance: ${Number(free) / 10 ** decimals} PAS`);
@@ -127,7 +147,9 @@ async function main() {
   }
 
   // 7. Deploy via Revive.instantiate_with_code
-  console.log("\n--- Deploying Multicall3 via Revive.instantiate_with_code ---");
+  console.log(
+    "\n--- Deploying Multicall3 via Revive.instantiate_with_code ---"
+  );
 
   const code = Binary.fromHex(bytecodeHex as `0x${string}`);
   const data = Binary.fromHex("0x"); // no constructor args
@@ -143,7 +165,10 @@ async function main() {
     data,
   });
 
-  const { txHash, contractAddress } = await new Promise<{ txHash: string; contractAddress: string }>((resolve, reject) => {
+  const { txHash, contractAddress } = await new Promise<{
+    txHash: string;
+    contractAddress: string;
+  }>((resolve, reject) => {
     let hash = "";
     let contract = "";
     deployTx.signSubmitAndWatch(signer).subscribe({
@@ -161,7 +186,11 @@ async function main() {
             break;
           case "finalized":
             if (event.dispatchError) {
-              reject(new Error(`Deploy failed: ${JSON.stringify(event.dispatchError)}`));
+              reject(
+                new Error(
+                  `Deploy failed: ${JSON.stringify(event.dispatchError)}`
+                )
+              );
               return;
             }
             console.log("  Finalized");
@@ -169,13 +198,13 @@ async function main() {
             // Extract contract address from Revive.Instantiated event
             if (event.events) {
               for (const ev of event.events) {
-                if (
-                  ev.type === "Revive" &&
-                  ev.value?.type === "Instantiated"
-                ) {
+                if (ev.type === "Revive" && ev.value?.type === "Instantiated") {
                   const addr = ev.value?.value?.contract;
                   if (addr) {
-                    contract = typeof addr.asHex === "function" ? addr.asHex() : `0x${addr}`;
+                    contract =
+                      typeof addr.asHex === "function"
+                        ? addr.asHex()
+                        : `0x${addr}`;
                   }
                 }
               }
@@ -212,7 +241,9 @@ async function main() {
       evmDeployer: evmAddress,
       network: "asset-hub-paseo",
       rpcUrl: RPC_URL,
-      explorer: contractAddress ? `${EXPLORER}/address/${contractAddress}` : `${EXPLORER}/tx/${txHash}`,
+      explorer: contractAddress
+        ? `${EXPLORER}/address/${contractAddress}`
+        : `${EXPLORER}/tx/${txHash}`,
       deployedAt: new Date().toISOString(),
       compiler: "resolc v1.0.0, solc 0.8.30",
       method: "Revive.instantiate_with_code",
@@ -226,9 +257,18 @@ async function main() {
   // Copy ABI for the app
   const appAbisDir = join(__dirname, "..", "..", "app", "abis");
   mkdirSync(appAbisDir, { recursive: true });
-  const artifactPath = join(__dirname, "..", "out", "Multicall3.sol", "Multicall3.json");
+  const artifactPath = join(
+    __dirname,
+    "..",
+    "out",
+    "Multicall3.sol",
+    "Multicall3.json"
+  );
   const artifact = JSON.parse(readFileSync(artifactPath, "utf-8"));
-  writeFileSync(join(appAbisDir, "Multicall3.json"), JSON.stringify(artifact.abi, null, 2));
+  writeFileSync(
+    join(appAbisDir, "Multicall3.json"),
+    JSON.stringify(artifact.abi, null, 2)
+  );
   console.log(`  ABI: ${appAbisDir}/Multicall3.json`);
 
   console.log("\n=== Deployment Complete ===");

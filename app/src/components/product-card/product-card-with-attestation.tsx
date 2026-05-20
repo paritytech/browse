@@ -1,7 +1,7 @@
 import { ProductCard } from './index'
 import { useEvent } from '../../lib/use-event'
 import { type AppEntry } from '../../state/apps/types'
-import { describeError, useAttestApp, useRevokeApp } from '../../state/attestations/mutations'
+import { describeError, useAttestProduct, useRevokeApp } from '../../state/attestations/mutations'
 import { useToast } from '../toast/context'
 
 interface ProductCardWithAttestationProps {
@@ -23,7 +23,7 @@ export function ProductCardWithAttestation({
   onBookmark,
   onShare
 }: ProductCardWithAttestationProps) {
-  const attestApp = useAttestApp()
+  const attestProduct = useAttestProduct()
   const revokeApp = useRevokeApp()
   const { showToast } = useToast()
 
@@ -34,7 +34,7 @@ export function ProductCardWithAttestation({
         onError: (err) => showToast(describeError(err), true)
       })
     } else {
-      attestApp.mutate(app.label, {
+      attestProduct.mutate(app.label, {
         onSuccess: () => showToast('Recommended!'),
         onError: (err) => showToast(describeError(err), true)
       })

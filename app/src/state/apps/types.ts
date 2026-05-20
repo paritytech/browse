@@ -1,3 +1,13 @@
+export interface LabelEntry {
+  label: string
+  name: string | null
+  description: string
+  contentHash: string | null
+  attestationCount: number | null
+  hasUserAttested: boolean
+  fetchedAt?: number
+}
+
 export interface AppEntry {
   label: string
   name: string | null
@@ -30,6 +40,18 @@ export function filterApps(
   }
   let filtered = apps.filter(filterByMode[mode])
 
+  // Bookmarks/following match by label only and the source-aware dedup in
+  // `App.tsx` keeps both a PCF and an All entry for shared labels — collapse
+  // them here so a bookmarked label that exists in both sources shows once.
+  if (mode === 'bookmarks' || mode === 'following') {
+    const seen = new Set<string>()
+    filtered = filtered.filter((app) => {
+      if (seen.has(app.label)) return false
+      seen.add(app.label)
+      return true
+    })
+  }
+
   const q = query.toLowerCase().trim()
   if (q) {
     filtered = filtered.filter(
@@ -41,5 +63,13 @@ export function filterApps(
     )
   }
 
+  if (mode === 'all') {
+    return filtered.sort((a, b) => {
+      const ua = a.attestationCount ?? 0
+      const ub = b.attestationCount ?? 0
+      if (ua !== ub) return ub - ua
+      return displayName(a).localeCompare(displayName(b))
+    })
+  }
   return filtered.sort((a, b) => displayName(a).localeCompare(displayName(b)))
 }

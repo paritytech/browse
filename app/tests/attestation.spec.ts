@@ -22,7 +22,7 @@ test.describe('Attestation works', () => {
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(30_000)
     await fund('Charlie')
-    await createRevokedAttestation('host-playground33', 'Charlie').catch(() => {})
+    await createRevokedAttestation('host-playground', 'Charlie').catch(() => {})
     await createRevokedAttestation('e2e-test-app-alpha', 'Charlie').catch(() => {})
     host = await startSignedHost('charlie')
     context = await browser.newContext({ ignoreHTTPSErrors: true })
@@ -30,7 +30,7 @@ test.describe('Attestation works', () => {
 
   test.afterAll(async () => {
     await page?.close()
-    await createRevokedAttestation('host-playground33', 'Charlie').catch(() => {})
+    await createRevokedAttestation('host-playground', 'Charlie').catch(() => {})
     await createRevokedAttestation('e2e-test-app-alpha', 'Charlie').catch(() => {})
     await context?.close()
     await host?.close()
@@ -44,19 +44,20 @@ test.describe('Attestation works', () => {
     await navigateToTestHost(page, host.url)
     frame = await getProductFrame(page, '.category-tab')
     await frame.locator('.category-tab', { hasText: 'All' }).click()
-    const card = frame.locator('.product-card[data-label="host-playground33"]')
+    const card = frame.locator('.product-card[data-label="host-playground"]')
     await expect(card).toBeVisible({ timeout: 15_000 })
     const upvote = card.locator('.product-card__upvote')
-
-    // Then
-    await expect(upvote.locator('.product-card__upvote-count')).not.toBeVisible()
+    const upvoteCount = upvote.locator('.product-card__upvote-count')
+    const hasCount = (await upvoteCount.count()) > 0
+    const beforeText = hasCount ? ((await upvoteCount.textContent()) ?? '') : ''
+    const before = beforeText === '' ? 0 : beforeText === '999+' ? 1000 : Number(beforeText)
 
     // When
     await upvote.click()
 
     // Then
     await expect(upvote).toHaveClass(/product-card__upvote--active/)
-    await expect(upvote.locator('.product-card__upvote-count')).toHaveText('1')
+    await expect(upvoteCount).toHaveText(String(before + 1))
     await expect(frame.locator('.toast--visible')).toContainText('Recommended!', {
       timeout: 15_000
     })
@@ -67,12 +68,12 @@ test.describe('Attestation works', () => {
     page = await context.newPage()
 
     // Given
-    const attestResult = await createAttestation('host-playground33', 'Charlie')
+    const attestResult = await createAttestation('host-playground', 'Charlie')
     expect(attestResult.attestationCountAfter).toBe(attestResult.attestationCountBefore + 1n)
     await navigateToTestHost(page, host.url)
     frame = await getProductFrame(page, '.category-tab')
     await frame.locator('.category-tab', { hasText: 'All' }).click()
-    const card = frame.locator('.product-card[data-label="host-playground33"]')
+    const card = frame.locator('.product-card[data-label="host-playground"]')
     await expect(card).toBeVisible({ timeout: 15_000 })
     const upvote = card.locator('.product-card__upvote')
     const upvoteCount = upvote.locator('.product-card__upvote-count')

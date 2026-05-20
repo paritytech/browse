@@ -1,24 +1,35 @@
 import { decode as decodeContentHashLib, getCodec } from '@ensdomains/content-hash'
 import { keccak_256 } from '@noble/hashes/sha3.js'
+import {
+  type Address,
+  decodeAbiParameters,
+  encodeFunctionData,
+  type Hex,
+  parseAbi,
+  namehash as viemNamehash
+} from 'viem'
 
-function toHex(bytes: Uint8Array): `0x${string}` {
-  return `0x${Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')}`
+/** ENS-style namehash; viem-backed. Re-exported as the canonical name across the app. */
+export const namehash = viemNamehash
+
+/** Namehash of the `.dot` TLD. Mirrors `DotnsConstants.DOT_NODE` on-chain. */
+const DOT_NODE = namehash('dot')
+
+/** `keccak256(DOT_NODE || labelhash)` cast to uint256. */
+export function labelhashToTokenId(labelhash: Hex): bigint {
+  const concat = new Uint8Array(64)
+  concat.set(hexToBytes(DOT_NODE), 0)
+  concat.set(hexToBytes(labelhash), 32)
+  return BigInt(`0x${bytesToHex(keccak_256(concat))}`)
 }
 
-function uint256Hex(n: number | bigint): string {
-  return BigInt(n).toString(16).padStart(64, '0')
-}
-
-function padRight(hex: string, byteLen: number): string {
-  return hex.padEnd(byteLen * 2, '0')
-}
-
-function stripPrefix(hex: string): string {
-  return hex.startsWith('0x') ? hex.slice(2) : hex
+/** Truncate a 32-byte namehash to its low 20 bytes (the form used as the EAS subject). */
+export function nodeToSubject(node: Hex): Address {
+  return `0x${node.slice(-40)}` as Address
 }
 
 function hexToBytes(hex: string): Uint8Array {
-  const h = stripPrefix(hex)
+  const h = hex.startsWith('0x') ? hex.slice(2) : hex
   const bytes = new Uint8Array(h.length / 2)
   for (let i = 0; i < bytes.length; i++) {
     bytes[i] = parseInt(h.slice(i * 2, i * 2 + 2), 16)
@@ -26,240 +37,234 @@ function hexToBytes(hex: string): Uint8Array {
   return bytes
 }
 
-export function namehash(name: string): `0x${string}` {
-  let node = new Uint8Array(32)
-  if (name === '') return toHex(node)
-  const labels = name.split('.').reverse()
-  for (const label of labels) {
-    const labelHash = keccak_256(new TextEncoder().encode(label))
-    const combined = new Uint8Array(64)
-    combined.set(node, 0)
-    combined.set(labelHash, 32)
-    node = new Uint8Array(keccak_256(combined))
-  }
-  return toHex(node)
+function bytesToHex(bytes: Uint8Array): string {
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
 }
 
-function computeSelector(sig: string): string {
-  const hash = keccak_256(new TextEncoder().encode(sig))
-  return toHex(hash.slice(0, 4)).slice(2)
+const PUBLISHER_ABI = parseAbi([
+  'function getPublished(uint256 offset, uint256 limit) view returns (bytes32[])',
+  'function publishedCount() view returns (uint256)'
+])
+
+const REGISTRAR_ABI = parseAbi(['function labelOf(uint256 tokenId) view returns (string)'])
+
+const CONTENT_RESOLVER_ABI = parseAbi([
+  'function contenthash(bytes32 node) view returns (bytes)',
+  'function text(bytes32 node, string key) view returns (string)'
+])
+
+const ATTESTATION_ABI = parseAbi([
+  'function countByRecipientAndSchema(address recipient, uint256 schemaId) view returns (uint64)',
+  'function isActiveAny(address recipient, uint256 schemaId, address[] attesters) view returns (bool)'
+])
+
+const STORE_FACTORY_ABI = parseAbi([
+  'function getLabelStores(uint256 offset, uint256 limit) view returns (address[])'
+])
+
+const LABEL_STORE_ABI = parseAbi([
+  'function getLabels(uint256 offset, uint256 limit) view returns (string[])',
+  'function owner() view returns (address)'
+])
+
+const MULTICALL3_ABI = parseAbi([
+  'struct Call3 { address target; bool allowFailure; bytes callData; }',
+  'struct Result { bool success; bytes returnData; }',
+  'function aggregate3(Call3[] calls) view returns (Result[])'
+])
+
+export function encodeGetPublished(offset: bigint, limit: bigint): Hex {
+  return encodeFunctionData({
+    abi: PUBLISHER_ABI,
+    functionName: 'getPublished',
+    args: [offset, limit]
+  })
 }
 
-const SEL = {
-  getLabelStores: computeSelector('getLabelStores(uint256,uint256)'),
-  getLabels: computeSelector('getLabels(uint256,uint256)'),
-  contenthash: computeSelector('contenthash(bytes32)'),
-  text: computeSelector('text(bytes32,string)'),
-  aggregate3: computeSelector('aggregate3((address,bool,bytes)[])'),
-  countByRecipientAndSchema: computeSelector('countByRecipientAndSchema(address,uint256)'),
-  isActiveAny: computeSelector('isActiveAny(address,uint256,address[])'),
-  owner: computeSelector('owner()')
-} as const
-
-export function encodeGetLabelStores(offset: bigint, limit: bigint): `0x${string}` {
-  return `0x${SEL.getLabelStores}${uint256Hex(offset)}${uint256Hex(limit)}`
+export function encodePublishedCount(): Hex {
+  return encodeFunctionData({ abi: PUBLISHER_ABI, functionName: 'publishedCount' })
 }
 
-export function encodeGetLabels(offset: bigint, limit: bigint): `0x${string}` {
-  return `0x${SEL.getLabels}${uint256Hex(offset)}${uint256Hex(limit)}`
+export function encodeLabelOf(tokenId: bigint): Hex {
+  return encodeFunctionData({ abi: REGISTRAR_ABI, functionName: 'labelOf', args: [tokenId] })
 }
 
-export function encodeOwner(): `0x${string}` {
-  return `0x${SEL.owner}`
+export function encodeContenthash(node: Hex): Hex {
+  return encodeFunctionData({
+    abi: CONTENT_RESOLVER_ABI,
+    functionName: 'contenthash',
+    args: [node]
+  })
 }
 
-export function encodeContenthash(node: `0x${string}`): `0x${string}` {
-  return `0x${SEL.contenthash}${stripPrefix(node).padStart(64, '0')}`
+export function encodeText(node: Hex, key: string): Hex {
+  return encodeFunctionData({
+    abi: CONTENT_RESOLVER_ABI,
+    functionName: 'text',
+    args: [node, key]
+  })
 }
 
-export function encodeText(node: `0x${string}`, key: string): `0x${string}` {
-  const nodeHex = stripPrefix(node).padStart(64, '0')
-  const offset = uint256Hex(64)
+export function encodeOwner(): Hex {
+  return encodeFunctionData({ abi: LABEL_STORE_ABI, functionName: 'owner' })
+}
 
-  const keyBytes = new TextEncoder().encode(key)
-  const keyHex = Array.from(keyBytes, (b) => b.toString(16).padStart(2, '0')).join('')
-  const paddedKeyLen = Math.ceil(keyBytes.length / 32) * 32
-  const keyEncoded = uint256Hex(keyBytes.length) + padRight(keyHex, paddedKeyLen)
+export function encodeGetLabelStores(offset: bigint, limit: bigint): Hex {
+  return encodeFunctionData({
+    abi: STORE_FACTORY_ABI,
+    functionName: 'getLabelStores',
+    args: [offset, limit]
+  })
+}
 
-  return `0x${SEL.text}${nodeHex}${offset}${keyEncoded}`
+export function encodeGetLabels(offset: bigint, limit: bigint): Hex {
+  return encodeFunctionData({
+    abi: LABEL_STORE_ABI,
+    functionName: 'getLabels',
+    args: [offset, limit]
+  })
+}
+
+export function encodeCountByRecipientAndSchema(recipient: Address, schemaId: bigint): Hex {
+  return encodeFunctionData({
+    abi: ATTESTATION_ABI,
+    functionName: 'countByRecipientAndSchema',
+    args: [recipient, schemaId]
+  })
+}
+
+export function encodeIsActiveAny(recipient: Address, schemaId: bigint, attesters: Address[]): Hex {
+  return encodeFunctionData({
+    abi: ATTESTATION_ABI,
+    functionName: 'isActiveAny',
+    args: [recipient, schemaId, attesters]
+  })
 }
 
 export interface MulticallTarget {
   target: string
-  callData: `0x${string}`
+  callData: Hex
 }
 
-export function encodeAggregate3(calls: MulticallTarget[]): `0x${string}` {
-  const n = calls.length
+export function encodeAggregate3(calls: MulticallTarget[]): Hex {
+  return encodeFunctionData({
+    abi: MULTICALL3_ABI,
+    functionName: 'aggregate3',
+    args: [
+      calls.map((c) => ({
+        target: c.target as Address,
+        allowFailure: true,
+        callData: c.callData
+      }))
+    ]
+  })
+}
 
-  let result = SEL.aggregate3 + uint256Hex(32)
-  result += uint256Hex(n)
-
-  const encodedElements: string[] = []
-  for (const call of calls) {
-    const addr = stripPrefix(call.target).toLowerCase().padStart(64, '0')
-    const allow = uint256Hex(1)
-    const bytesOffset = uint256Hex(96)
-
-    const callDataHex = stripPrefix(call.callData)
-    const callDataBytes = callDataHex.length / 2
-    const paddedLen = Math.ceil(callDataBytes / 32) * 32
-    const bytesEncoded = uint256Hex(callDataBytes) + padRight(callDataHex, paddedLen)
-
-    encodedElements.push(addr + allow + bytesOffset + bytesEncoded)
+/**
+ * Decoders are lenient: malformed or empty data returns a sensible default
+ * rather than throwing. Call sites that wrap in `tryDecode` get an extra
+ * safety layer; direct callers (e.g. `dotns.ts`'s storeLabels read) rely on
+ * the empty-array fallback.
+ */
+export function decodeAddress(data: Hex): Address {
+  try {
+    const [addr] = decodeAbiParameters([{ type: 'address' }], data)
+    return addr
+  } catch {
+    return '0x0000000000000000000000000000000000000000'
   }
+}
 
-  let currentOffset = n * 32
-  for (const elem of encodedElements) {
-    result += uint256Hex(currentOffset)
-    currentOffset += elem.length / 2
+export function decodeAddressArray(data: Hex): Address[] {
+  try {
+    const [arr] = decodeAbiParameters([{ type: 'address[]' }], data)
+    return arr as Address[]
+  } catch {
+    return []
   }
+}
 
-  for (const elem of encodedElements) {
-    result += elem
+export function decodeBytes32Array(data: Hex): Hex[] {
+  try {
+    const [arr] = decodeAbiParameters([{ type: 'bytes32[]' }], data)
+    return arr as Hex[]
+  } catch {
+    return []
   }
-
-  return `0x${result}`
 }
 
-export function decodeAddress(data: `0x${string}`): string {
-  const hex = stripPrefix(data)
-  return '0x' + hex.slice(24, 64)
-}
-
-export function decodeAddressArray(data: `0x${string}`): string[] {
-  const hex = stripPrefix(data)
-  if (hex.length < 128) return []
-
-  const offset = parseInt(hex.slice(0, 64), 16) * 2
-  const length = parseInt(hex.slice(offset, offset + 64), 16)
-  const addresses: string[] = []
-
-  for (let i = 0; i < length; i++) {
-    const start = offset + 64 + i * 64
-    addresses.push('0x' + hex.slice(start + 24, start + 64))
+export function decodeStringArray(data: Hex): string[] {
+  try {
+    const [arr] = decodeAbiParameters([{ type: 'string[]' }], data)
+    return arr as string[]
+  } catch {
+    return []
   }
-
-  return addresses
 }
 
-export function decodeStringArray(data: `0x${string}`): string[] {
-  const hex = stripPrefix(data)
-  if (hex.length < 128) return []
-
-  const arrayOffset = parseInt(hex.slice(0, 64), 16) * 2
-  const length = parseInt(hex.slice(arrayOffset, arrayOffset + 64), 16)
-  const strings: string[] = []
-
-  for (let i = 0; i < length; i++) {
-    const offsetPos = arrayOffset + 64 + i * 64
-    const strOffset = parseInt(hex.slice(offsetPos, offsetPos + 64), 16) * 2
-    const strStart = arrayOffset + 64 + strOffset
-    const strLen = parseInt(hex.slice(strStart, strStart + 64), 16)
-
-    if (strLen === 0) {
-      strings.push('')
-      continue
-    }
-
-    const strHex = hex.slice(strStart + 64, strStart + 64 + strLen * 2)
-    strings.push(new TextDecoder().decode(hexToBytes(strHex)))
+export function decodeBytes(data: Hex): Hex {
+  try {
+    const [bytes] = decodeAbiParameters([{ type: 'bytes' }], data)
+    return bytes
+  } catch {
+    return '0x'
   }
-
-  return strings
 }
 
-export function decodeBytes(data: `0x${string}`): `0x${string}` {
-  const hex = stripPrefix(data)
-  if (hex.length < 128) return '0x'
-  const offset = parseInt(hex.slice(0, 64), 16) * 2
-  const length = parseInt(hex.slice(offset, offset + 64), 16) * 2
-  return `0x${hex.slice(offset + 64, offset + 64 + length)}`
+export function decodeString(data: Hex): string {
+  try {
+    const [str] = decodeAbiParameters([{ type: 'string' }], data)
+    return str
+  } catch {
+    return ''
+  }
 }
 
-export function decodeString(data: `0x${string}`): string {
-  const hex = stripPrefix(data)
-  if (hex.length < 128) return ''
-  const offset = parseInt(hex.slice(0, 64), 16) * 2
-  const strLen = parseInt(hex.slice(offset, offset + 64), 16)
-  if (strLen === 0) return ''
-  const strHex = hex.slice(offset + 64, offset + 64 + strLen * 2)
-  return new TextDecoder().decode(hexToBytes(strHex))
+export function decodeUint64(data: Hex): number | null {
+  try {
+    const [val] = decodeAbiParameters([{ type: 'uint64' }], data)
+    return Number(val)
+  } catch {
+    return null
+  }
+}
+
+export function decodeBool(data: Hex): boolean {
+  try {
+    const [b] = decodeAbiParameters([{ type: 'bool' }], data)
+    return b
+  } catch {
+    return false
+  }
 }
 
 export interface AggregateResult {
   success: boolean
-  returnData: `0x${string}`
+  returnData: Hex
 }
 
-export function decodeAggregate3Result(data: `0x${string}`): AggregateResult[] {
-  const hex = stripPrefix(data)
-  if (hex.length < 128) return []
-
-  const arrayOffset = parseInt(hex.slice(0, 64), 16) * 2
-  const length = parseInt(hex.slice(arrayOffset, arrayOffset + 64), 16)
-  const results: AggregateResult[] = []
-
-  for (let i = 0; i < length; i++) {
-    const offsetPos = arrayOffset + 64 + i * 64
-    const elemOffset = parseInt(hex.slice(offsetPos, offsetPos + 64), 16) * 2
-    const elemStart = arrayOffset + 64 + elemOffset
-
-    const success = parseInt(hex.slice(elemStart, elemStart + 64), 16) !== 0
-    const bytesOffset = parseInt(hex.slice(elemStart + 64, elemStart + 128), 16) * 2
-    const bytesStart = elemStart + bytesOffset
-    const bytesLen = parseInt(hex.slice(bytesStart, bytesStart + 64), 16) * 2
-    const returnData = hex.slice(bytesStart + 64, bytesStart + 64 + bytesLen)
-
-    results.push({
-      success,
-      returnData: `0x${returnData}`
-    })
+export function decodeAggregate3Result(data: Hex): AggregateResult[] {
+  try {
+    const [results] = decodeAbiParameters(
+      [
+        {
+          type: 'tuple[]',
+          components: [
+            { type: 'bool', name: 'success' },
+            { type: 'bytes', name: 'returnData' }
+          ]
+        }
+      ],
+      data
+    )
+    return results as AggregateResult[]
+  } catch {
+    return []
   }
-
-  return results
-}
-
-export function nodeToSubject(node: `0x${string}`): `0x${string}` {
-  const hex = stripPrefix(node).padStart(64, '0')
-  return `0x${hex.slice(24)}`
-}
-
-export function encodeCountByRecipientAndSchema(
-  recipient: `0x${string}`,
-  schemaId: bigint
-): `0x${string}` {
-  return `0x${SEL.countByRecipientAndSchema}${stripPrefix(recipient).padStart(64, '0')}${uint256Hex(schemaId)}`
-}
-
-export function encodeIsActiveAny(
-  recipient: `0x${string}`,
-  schemaId: bigint,
-  attesters: `0x${string}`[]
-): `0x${string}` {
-  // head: recipient(32) + schemaId(32) + offset-to-array(32) = 96 bytes
-  const recipientPadded = stripPrefix(recipient).toLowerCase().padStart(64, '0')
-  const schemaPadded = uint256Hex(schemaId)
-  const arrayOffset = uint256Hex(96)
-  const length = uint256Hex(attesters.length)
-  const addresses = attesters.map((a) => stripPrefix(a).toLowerCase().padStart(64, '0')).join('')
-  return `0x${SEL.isActiveAny}${recipientPadded}${schemaPadded}${arrayOffset}${length}${addresses}`
-}
-
-export function decodeUint64(data: `0x${string}`): number | null {
-  const hex = stripPrefix(data)
-  if (hex.length < 64) return null
-  return Number(BigInt('0x' + hex.slice(48, 64)))
-}
-
-export function decodeBool(data: `0x${string}`): boolean {
-  const hex = stripPrefix(data)
-  if (hex.length < 64) return false
-  return BigInt('0x' + hex.slice(0, 64)) !== 0n
 }
 
 export function decodeIpfsContenthash(contenthashHex: string): string | null {
-  const hex = stripPrefix(contenthashHex)
+  const hex = contenthashHex.startsWith('0x') ? contenthashHex.slice(2) : contenthashHex
   if (!hex || hex === '0' || hex.length < 4) return null
   try {
     if (getCodec(hex) !== 'ipfs') return null

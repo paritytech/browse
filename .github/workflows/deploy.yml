@@ -65,10 +65,12 @@ jobs:
             display-name: Paseo Next V2
             genesis: '0x173cea9df45656cf612c8b8ece56e04e9a693c69cfaac47d3628dae735067af8'
             reuse-artifact: true
+            required: true
           - env: preview
             display-name: Preview
             genesis: '0x7765f98d559faf44baff547e8876a47c64cd1161f239d7df5a9e26194617f775'
             reuse-artifact: false
+            required: false
     outputs:
       cid: ${{ steps.final.outputs.cid }}
       domain: ${{ steps.final.outputs.domain }}
@@ -150,6 +152,7 @@ jobs:
       - name: Deploy to Polkadot
         id: deploy
         if: steps.cache.outputs.cache-hit != 'true'
+        continue-on-error: ${{ matrix.target.required != true }}
         uses: nick-fields/retry@v3
         with:
           timeout_minutes: 15
@@ -161,7 +164,7 @@ jobs:
             bulletin-deploy 'build' '${{ steps.domain.outputs.value }}' --env '${{ matrix.target.env }}'
 
       - name: Save deployment to cache
-        if: steps.cache.outputs.cache-hit != 'true'
+        if: steps.cache.outputs.cache-hit != 'true' && steps.deploy.outcome == 'success'
         run: |
           mkdir -p .deploy-cache
           echo "${{ steps.deploy.outputs.cid }}" > .deploy-cache/cid

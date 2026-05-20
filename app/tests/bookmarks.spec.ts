@@ -26,7 +26,7 @@ test.describe('Bookmarks', () => {
     await host?.close()
   })
 
-  test('As Alice, I bookmark an app on the All tab and it appears in Bookmarks', async () => {
+  test('As Alice, when I bookmark an app, it shows up in Bookmarks', async () => {
     const page = await context.newPage()
 
     // Given
