@@ -11,7 +11,7 @@ interface CachedData {
 
 export async function getCachedFollowed(): Promise<string[]> {
   const cached = await localStorage.readJSON<CachedData>(KEY_FOLLOWED)
-  return cached?.apps?.map((a) => a.label) ?? []
+  return cached?.apps?.map((app) => app.label) ?? []
 }
 
 export async function setCachedFollowed(labels: string[]): Promise<void> {

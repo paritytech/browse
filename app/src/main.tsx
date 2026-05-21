@@ -3,13 +3,11 @@ import { render } from 'preact'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
 import { App } from './App'
-import { prefetchAllApps, prefetchPcfApps } from './state/apps/queries'
+import { prefetchAllApps } from './state/apps/queries'
 import './styles/main.css'
 
 const queryClient = new QueryClient()
 
-// Prefetch
-prefetchPcfApps(queryClient)
 prefetchAllApps(queryClient)
 
 render(

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { createAccountsProvider, createThemeProvider } from '@novasamatech/product-sdk'
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowUp, Bookmark, MoreHorizontal } from 'lucide-preact'
+import { ArrowUp, Bookmark, Check, Copy } from 'lucide-preact'
 
 import { CategoryTabs } from './components/category-tabs'
 import { ContactsManager } from './components/contacts-manager'
@@ -12,56 +12,76 @@ import { ProductCardWithAttestation } from './components/product-card/product-ca
 import { SearchBar } from './components/search-bar'
 import { Toast } from './components/toast'
 import { ToastContext } from './components/toast/context'
+import { createBookmark, deleteBookmark, readBookmarks } from './db/bookmarks'
+import { upsertLabel } from './db/labels'
+import { attestationService } from './lib/attestation-service'
 import { setupDebugConsole } from './lib/debug'
 import { navigateToDomain } from './lib/navigate'
 import { useEvent } from './lib/use-event'
-import { useGetAllApps, useGetPcfApps, useResolveLabel } from './state/apps/queries'
-import { type AppEntry, filterApps, type FilterMode } from './state/apps/types'
+import { LABELS_KEY, useGetAllApps, useLabelsStorage, useResolveLabel } from './state/apps/queries'
+import { type AppEntry, filterApps, type FilterMode, isFilterMode } from './state/apps/types'
 import { useGetAttestationsByContacts } from './state/attestations/queries'
-import { addBookmark, getBookmarks, removeBookmark } from './state/bookmarks/api'
 import { addContact, type ContactEntry, getContacts, removeContact } from './state/contacts/api'
 
-const SEARCH_GROUP_PRIORITY: FilterMode[] = ['bookmarks', 'following', 'pcf', 'all']
+const SEARCH_GROUP_PRIORITY: FilterMode[] = ['bookmarks', 'following', 'all']
 
 export function App() {
   const queryClient = useQueryClient()
 
-  const [currentMode, setCurrentMode] = useState<FilterMode>('pcf')
+  const [currentMode, setCurrentMode] = useState<FilterMode>('all')
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
-  const [bookmarks, setBookmarks] = useState<Set<string>>(() => new Set())
+  const [bookmarkedApps, setBookmarkedApps] = useState<Set<string>>(() => new Set())
+  const [bookmarkedAppsLoaded, setBookmarkedAppsLoaded] = useState(false)
   const [toastMessage, setToastMessage] = useState<string | null>(null)
   const [toastIsError, setToastIsError] = useState(false)
   const [toastAction, setToastAction] = useState<{ label: string; onClick: () => void } | null>(
     null
   )
   const [signed, setSigned] = useState(false)
+  const [signerAddress, setSignerAddress] = useState<string | null>(null)
+  const [signerAddressCopied, setSignerAddressCopied] = useState(false)
   const [contacts, setContacts] = useState<ContactEntry[]>([])
   const [showContactsManager, setShowContactsManager] = useState(false)
   const deferredQuery = useDeferredValue(query)
 
   const rootRef = useRef<HTMLDivElement>(null)
 
-  const { data: pcfApps = [], isFetching: pcfFetching } = useGetPcfApps()
   const { data: allApps = [], isFetching: allFetching } = useGetAllApps(queryClient)
+  const { data: labelDb } = useLabelsStorage()
+  const contactAddresses = useMemo(() => contacts.map((contact) => contact.address), [contacts])
 
-  const allAppsCombined = useMemo(() => {
-    const seen = new Set<string>()
-    return [...pcfApps, ...allApps].filter((app) => {
-      const key = `${app.source}:${app.label}`
-      if (seen.has(key)) return false
-      seen.add(key)
-      return true
-    })
-  }, [pcfApps, allApps])
-  const contactAddresses = useMemo(() => contacts.map((c) => c.address), [contacts])
+  const { data: followingApps = new Set<string>(), isLoading: followingLoading } =
+    useGetAttestationsByContacts(allApps, contactAddresses)
 
-  const { data: followedLabels = new Set<string>(), isLoading: followingLoading } =
-    useGetAttestationsByContacts(allAppsCombined, contactAddresses)
+  const appsForFiltering = useMemo(() => {
+    const byLabel = new Map<string, AppEntry>()
+    for (const app of allApps) byLabel.set(app.label, app)
+    const addLabel = (label: string) => {
+      if (byLabel.has(label)) return
+      // Pull metadata from the labels DB when available — covers labels
+      // outside the Publisher set (bookmarked search results, followed-only).
+      const cached = labelDb?.get(label)
+      byLabel.set(label, {
+        label,
+        name: cached?.name ?? null,
+        description: cached?.description ?? 'No description',
+        iconCid: cached?.iconCid ?? null,
+        hasChat: cached?.hasChat ?? false,
+        contentHash: cached?.contentHash ?? null,
+        isLive: cached?.contentHash != null,
+        attestationCount: cached?.attestationCount ?? null,
+        hasUserAttested: cached?.hasUserAttested ?? false
+      })
+    }
+    for (const label of followingApps) addLabel(label)
+    for (const label of bookmarkedApps) addLabel(label)
+    return [...byLabel.values()]
+  }, [allApps, followingApps, bookmarkedApps, labelDb])
 
   const filtered = useMemo(
-    () => filterApps(allAppsCombined, deferredQuery, currentMode, bookmarks, followedLabels),
-    [allAppsCombined, deferredQuery, currentMode, bookmarks, followedLabels]
+    () => filterApps(appsForFiltering, deferredQuery, currentMode, bookmarkedApps, followingApps),
+    [appsForFiltering, deferredQuery, currentMode, bookmarkedApps, followingApps]
   )
   // While the user is typing, search ignores tabs.
   const searchMatches = useMemo<AppEntry[] | null>(() => {
@@ -69,15 +89,21 @@ export function App() {
     const seen = new Set<string>()
     const matches: AppEntry[] = []
     for (const mode of SEARCH_GROUP_PRIORITY) {
-      const m = filterApps(allAppsCombined, deferredQuery, mode, bookmarks, followedLabels)
-      for (const app of m) {
+      const modeMatches = filterApps(
+        appsForFiltering,
+        deferredQuery,
+        mode,
+        bookmarkedApps,
+        followingApps
+      )
+      for (const app of modeMatches) {
         if (seen.has(app.label)) continue
         seen.add(app.label)
         matches.push(app)
       }
     }
     return matches
-  }, [deferredQuery, allAppsCombined, bookmarks, followedLabels])
+  }, [deferredQuery, appsForFiltering, bookmarkedApps, followingApps])
 
   const tryLabel = query
     .trim()
@@ -87,23 +113,56 @@ export function App() {
     .trim()
     .toLowerCase()
     .replace(/\.dot$/, '')
-  const shouldResolve =
-    debouncedQuery === query && searchMatches?.length === 0 && resolverLabel.length > 0
+  const shouldResolve = debouncedQuery === query && resolverLabel.length >= 3
   const { data: resolvedApp } = useResolveLabel(resolverLabel, shouldResolve)
 
+  // Persist resolvedApp into the labels DB so a later bookmark/follow can
+  // render with full metadata even after reload.
+  useEffect(() => {
+    if (!resolvedApp) return
+    void upsertLabel({
+      label: resolvedApp.label,
+      name: resolvedApp.name,
+      description: resolvedApp.description,
+      iconCid: resolvedApp.iconCid,
+      hasChat: resolvedApp.hasChat,
+      contentHash: resolvedApp.contentHash,
+      attestationCount: resolvedApp.attestationCount,
+      hasUserAttested: resolvedApp.hasUserAttested,
+      fetchedAt: Date.now()
+    }).then(() => queryClient.invalidateQueries({ queryKey: LABELS_KEY }))
+  }, [resolvedApp, queryClient])
+
+  // Snapshot the current AppEntry into the labels DB so the bookmark survives
+  // reloads with full metadata.
+  const persistLabelFromApp = useEvent(async (app: AppEntry) => {
+    await upsertLabel({
+      label: app.label,
+      name: app.name,
+      description: app.description,
+      iconCid: app.iconCid,
+      hasChat: app.hasChat,
+      contentHash: app.contentHash,
+      attestationCount: app.attestationCount,
+      hasUserAttested: app.hasUserAttested,
+      fetchedAt: Date.now()
+    })
+    await queryClient.invalidateQueries({ queryKey: LABELS_KEY })
+  })
+
   const handleBookmark = useEvent((label: string) => {
-    if (bookmarks.has(label)) {
+    if (bookmarkedApps.has(label)) {
       // Animate card out, then remove from bookmarks
       const card = rootRef.current?.querySelector(`[data-label="${label}"]`) as HTMLElement | null
       const doRemove = () => {
-        removeBookmark(label)
-        setBookmarks((prev) => {
+        deleteBookmark(label)
+        setBookmarkedApps((prev) => {
           const next = new Set(prev)
           next.delete(label)
           return next
         })
       }
-      if (card && currentMode === 'bookmarks') {
+      if (card && currentMode === 'bookmarks' && !searchMatches) {
         card.classList.add('product-card--removing')
         setTimeout(doRemove, 400)
       } else {
@@ -113,30 +172,45 @@ export function App() {
       setToastAction({
         label: 'Undo',
         onClick: () => {
-          addBookmark(label)
-          setBookmarks((prev) => new Set(prev).add(label))
+          createBookmark(label)
+          setBookmarkedApps((prev) => new Set(prev).add(label))
           setToastMessage(null)
           setToastAction(null)
         }
       })
       setToastMessage('Removed from bookmarks')
     } else {
-      addBookmark(label)
-      setBookmarks((prev) => new Set(prev).add(label))
+      createBookmark(label)
+      setBookmarkedApps((prev) => new Set(prev).add(label))
+      setToastIsError(false)
       setToastAction(null)
+      setToastMessage('Bookmark added')
+      const app = appsForFiltering.find((entry) => entry.label === label)
+      if (app) void persistLabelFromApp(app)
     }
   })
   const showToast = useEvent((message: string, isError = false) => {
     setToastIsError(isError)
     setToastMessage(message)
   })
-  const handleAddContact = useEvent((address: string, username?: string) => {
-    addContact(address, username)
-    setContacts((prev) => [...prev, { address, username }])
+  const handleAddContact = useEvent((address: string) => {
+    addContact(address)
+    setContacts((prev) => [...prev, { address }])
   })
   const handleRemoveContact = useEvent((address: string) => {
     removeContact(address)
-    setContacts((prev) => prev.filter((c) => c.address !== address))
+    setContacts((prev) => prev.filter((contact) => contact.address !== address))
+  })
+
+  const handleCopySignerAddress = useEvent(async () => {
+    if (!signerAddress) return
+    try {
+      await navigator.clipboard.writeText(signerAddress)
+      setSignerAddressCopied(true)
+      setTimeout(() => setSignerAddressCopied(false), 1500)
+    } catch {
+      showToast('Copy failed', true)
+    }
   })
 
   const handleShare = useEvent(async (app: AppEntry) => {
@@ -161,6 +235,26 @@ export function App() {
     return () => sub.unsubscribe()
   }, [])
 
+  // Resolve the local product-account SS58 for the debug panel
+  useEffect(() => {
+    if (!signed) {
+      setSignerAddress(null)
+      return
+    }
+    let cancelled = false
+    attestationService
+      .getSigner()
+      .then(({ origin }) => {
+        if (!cancelled) setSignerAddress(origin)
+      })
+      .catch(() => {
+        if (!cancelled) setSignerAddress(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [signed])
+
   useEffect(() => {
     const provider = createThemeProvider()
     const sub = provider.subscribeTheme((theme) => {
@@ -171,21 +265,26 @@ export function App() {
 
   // Load bookmarks and contacts on mount
   useEffect(() => {
-    getBookmarks().then(setBookmarks)
+    readBookmarks().then((bookmark) => {
+      setBookmarkedApps(new Set(bookmark))
+      setBookmarkedAppsLoaded(true)
+    })
     getContacts().then(setContacts)
   }, [])
+
+  const initialTabPicked = useRef(false)
+  useEffect(() => {
+    if (!bookmarkedAppsLoaded || initialTabPicked.current) return
+    initialTabPicked.current = true
+    const hash = location.hash.slice(1).toLowerCase()
+    if (isFilterMode(hash)) return
+    setCurrentMode(bookmarkedApps.size > 0 ? 'bookmarks' : 'all')
+  }, [bookmarkedAppsLoaded, bookmarkedApps])
 
   useEffect(() => {
     function onHashChange() {
       const segment = location.hash.slice(1).toLowerCase()
-      if (
-        segment === 'pcf' ||
-        segment === 'all' ||
-        segment === 'bookmarks' ||
-        segment === 'following'
-      ) {
-        setCurrentMode(segment as FilterMode)
-      }
+      if (isFilterMode(segment)) setCurrentMode(segment)
     }
     onHashChange()
     window.addEventListener('hashchange', onHashChange)
@@ -202,19 +301,17 @@ export function App() {
   }, [query])
 
   const isLoading =
-    currentMode === 'pcf'
-      ? pcfFetching
-      : currentMode === 'bookmarks'
-        ? false
-        : currentMode === 'following'
-          ? followingLoading
-          : allFetching
+    currentMode === 'bookmarks'
+      ? false
+      : currentMode === 'following'
+        ? followingLoading
+        : allFetching
   const renderCard = (app: AppEntry, i: number) => (
     <ProductCardWithAttestation
       key={app.label}
       app={app}
       index={i}
-      bookmarked={bookmarks.has(app.label)}
+      bookmarked={bookmarkedApps.has(app.label)}
       showMenu
       onClick={navigateToDomain}
       onBookmark={handleBookmark}
@@ -267,11 +364,6 @@ export function App() {
                       <Bookmark size={32} />
                     </div>
                     <p class='empty-state__text'>No bookmarks yet</p>
-                    <p class='empty-state__hint'>
-                      Open the <MoreHorizontal size={14} class='empty-state__inline-icon' /> menu on
-                      a product and tap <Bookmark size={14} class='empty-state__inline-icon' /> to
-                      save it here
-                    </p>
                   </div>
                 ) : emptyFollowingNoContacts ? (
                   <div class='empty-state'>
@@ -294,10 +386,13 @@ export function App() {
                       Manage following
                     </button>
                   </div>
-                ) : searchMatches && searchMatches.length > 0 ? (
-                  searchMatches.map(renderCard)
-                ) : searchMatches && resolvedApp ? (
-                  renderCard(resolvedApp, 0)
+                ) : searchMatches && (searchMatches.length > 0 || resolvedApp) ? (
+                  [
+                    ...searchMatches,
+                    ...(resolvedApp && !searchMatches.some((app) => app.label === resolvedApp.label)
+                      ? [resolvedApp]
+                      : [])
+                  ].map(renderCard)
                 ) : searchMatches ? (
                   <div class='empty-state'>
                     <div class='empty-state__icon'>{SEARCH_ICON}</div>
@@ -324,12 +419,36 @@ export function App() {
                 <span class='loading-dots__dot' />
               </div>
 
-              {currentMode === 'following' && contacts.length > 0 && !emptyFollowingNoMatches && (
-                <div class='list-count'>
-                  <button class='list-count__manage' onClick={() => setShowContactsManager(true)}>
-                    Manage following
-                  </button>
-                </div>
+              {currentMode === 'following' && contacts.length > 0 && (
+                <button
+                  type='button'
+                  class='corner-chip corner-chip--manage'
+                  onClick={() => setShowContactsManager(true)}
+                  aria-label={`Manage following — ${contacts.length} address${contacts.length === 1 ? '' : 'es'}`}
+                >
+                  <span class='corner-chip__label'>Following</span>
+                  <span class='corner-chip__addr'>{contacts.length}</span>
+                </button>
+              )}
+
+              {currentMode === 'following' && signerAddress && (
+                <button
+                  type='button'
+                  class={`corner-chip${signerAddressCopied ? ' corner-chip--copied' : ''}`}
+                  title={signerAddress}
+                  aria-label={`Copy your address, ${signerAddress}`}
+                  onClick={handleCopySignerAddress}
+                >
+                  {signerAddressCopied ? (
+                    <Check size={12} aria-hidden='true' />
+                  ) : (
+                    <Copy size={12} aria-hidden='true' />
+                  )}
+                  <span class='corner-chip__label'>you</span>
+                  <span class='corner-chip__addr'>
+                    {`${signerAddress.slice(0, 6)}…${signerAddress.slice(-4)}`}
+                  </span>
+                </button>
               )}
             </div>
 

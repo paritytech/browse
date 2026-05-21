@@ -90,6 +90,9 @@
 
   --color-live: #ff2670;
 
+  --color-success: #4ade80;
+  --color-danger: #ef4444;
+
   --radius-card: 12px;
   --radius-input: 10px;
   --radius-pill: 20px;
@@ -353,6 +356,10 @@ input {
   padding: 0 8px;
 }
 
+.card.front:has(.corner-chip) .app-list {
+  padding-bottom: 2rem;
+}
+
 .skeleton-pulse {
   animation: skeletonPulse 1.6s ease-in-out infinite;
 }
@@ -512,30 +519,74 @@ input {
   transform: translateX(-50%) translateY(0);
 }
 
-.list-count {
-  display: flex;
-  justify-content: flex-end;
+.corner-chip {
+  position: absolute;
+  right: calc(1.5rem + 16px);
+  bottom: 1rem;
+  z-index: 1;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 0.7rem;
-  color: var(--color-muted);
-  min-height: 1rem;
-  letter-spacing: 0.02em;
-}
-
-.list-count__manage {
-  background: none;
+  gap: 6px;
+  padding: 4px 0;
   border: none;
-  color: var(--color-secondary);
-  font-size: 0.7rem;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1;
+  color: var(--color-muted);
   cursor: pointer;
-  padding: 0;
-  text-decoration: none;
-  transition: color var(--transition-fast);
 }
 
-.list-count__manage:hover {
+.corner-chip--manage {
+  left: calc(1.5rem + 16px);
+  right: auto;
+}
+
+.corner-chip:hover,
+.corner-chip:hover .corner-chip__label {
   color: var(--color-text);
+}
+
+.corner-chip:focus-visible {
+  outline: 2px solid var(--color-border);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.corner-chip--copied,
+.corner-chip--copied:hover,
+.corner-chip--copied .corner-chip__label,
+.corner-chip--copied .corner-chip__addr {
+  color: var(--color-heading);
+}
+
+.corner-chip__label {
+  color: var(--color-muted);
+}
+
+.corner-chip__addr {
+  color: var(--color-heading);
+}
+
+/* Hide the address on the "you" chip at rest; reveal on hover/focus/copied. */
+.corner-chip:not(.corner-chip--manage) .corner-chip__addr {
+  max-width: 0;
+  opacity: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  margin-left: -6px;
+  transition:
+    max-width 360ms cubic-bezier(0.4, 0, 0.2, 1),
+    margin-left 360ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 360ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.corner-chip:not(.corner-chip--manage):hover .corner-chip__addr,
+.corner-chip:not(.corner-chip--manage):focus-visible .corner-chip__addr,
+.corner-chip--copied .corner-chip__addr {
+  max-width: 200px;
+  margin-left: 0;
+  opacity: 1;
 }
 
 .footer {

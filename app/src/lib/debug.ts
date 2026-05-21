@@ -82,8 +82,8 @@ function replaceEntryEl(el: HTMLElement, e: LogEntry) {
 function renderAll() {
   if (!logEl || !countEl) return
   const frag = document.createDocumentFragment()
-  for (const e of entries) {
-    frag.appendChild(makeEntryEl(e))
+  for (const entry of entries) {
+    frag.appendChild(makeEntryEl(entry))
   }
   logEl.innerHTML = ''
   logEl.appendChild(frag)

@@ -12,6 +12,7 @@ const ASSETHUB_GENESIS_TO_BACKEND_CONFIG = {
     SCHEMA_REGISTRY: '0xb50a0be72877a06b90e093a02db6aa659644ddf3',
     ATTESTATION_SERVICE: '0xff35f0da2de747f800baef2a01b03f51af7d111d',
     ATTESTATION_INDEX_RESOLVER: '0xff35f0da2de747f800baef2a01b03f51af7d111d',
+    IPFS_GATEWAY: 'https://paseo-ipfs.polkadot.io',
     SCHEMA_ID: 1n,
     rpcs: [
       'wss://sys.ibp.network/asset-hub-paseo',
@@ -30,6 +31,7 @@ const ASSETHUB_GENESIS_TO_BACKEND_CONFIG = {
     SCHEMA_REGISTRY: '0xbe92a66b697dc9bd4a35b1b8e3aead484d2010a7',
     ATTESTATION_SERVICE: '0x24af868f14605460f6385aae166986cee9800514',
     ATTESTATION_INDEX_RESOLVER: '0x5d701a1aca551b0e1cd6a00172554e5ff2348104',
+    IPFS_GATEWAY: 'https://paseo-bulletin-next-ipfs.polkadot.io',
     SCHEMA_ID: 1n,
     rpcs: ['wss://paseo-asset-hub-next-rpc.polkadot.io']
   },
@@ -44,6 +46,7 @@ const ASSETHUB_GENESIS_TO_BACKEND_CONFIG = {
     SCHEMA_REGISTRY: ZERO_ADDRESS,
     ATTESTATION_SERVICE: ZERO_ADDRESS,
     ATTESTATION_INDEX_RESOLVER: ZERO_ADDRESS,
+    IPFS_GATEWAY: 'https://previewnet.substrate.dev/ipfs',
     SCHEMA_ID: 1n,
     rpcs: ['wss://previewnet-asset-hub-rpc.polkadot.io']
   }

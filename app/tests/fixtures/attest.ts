@@ -1,7 +1,7 @@
 import { ss58ToEthereum } from '@polkadot-api/sdk-ink'
 import { type SS58String } from 'polkadot-api'
 
-import { namehash, nodeToSubject } from '../../src/lib/abi'
+import { encodeAttestationLabel, namehash, nodeToSubject } from '../../src/lib/abi'
 import { BACKEND } from '../../src/lib/config'
 import { withAttestationService } from './with-attestation-service'
 
@@ -27,7 +27,8 @@ export async function createAttestation(
       attesterH160
     ])
     if (!alreadyAttested) {
-      await service.attest(BACKEND.SCHEMA_ID, recipient, 0n, true, 0n, '0x')
+      const data = encodeAttestationLabel(label)
+      await service.attest(BACKEND.SCHEMA_ID, recipient, 0n, true, 0n, data)
     }
     return {
       success: true,

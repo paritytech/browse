@@ -3,6 +3,7 @@ import { keccak_256 } from '@noble/hashes/sha3.js'
 import {
   type Address,
   decodeAbiParameters,
+  encodeAbiParameters,
   encodeFunctionData,
   type Hex,
   parseAbi,
@@ -28,17 +29,33 @@ export function nodeToSubject(node: Hex): Address {
   return `0x${node.slice(-40)}` as Address
 }
 
+const LABEL_DATA_PARAMS = [{ type: 'string' as const }]
+
+export function encodeAttestationLabel(label: string): Hex {
+  return encodeAbiParameters(LABEL_DATA_PARAMS, [label]) as Hex
+}
+
+export function decodeAttestationLabel(data: Hex | string | undefined): string | null {
+  if (!data || data === '0x') return null
+  try {
+    const [label] = decodeAbiParameters(LABEL_DATA_PARAMS, data as Hex)
+    return typeof label === 'string' && label.length > 0 ? label : null
+  } catch {
+    return null
+  }
+}
+
 function hexToBytes(hex: string): Uint8Array {
-  const h = hex.startsWith('0x') ? hex.slice(2) : hex
-  const bytes = new Uint8Array(h.length / 2)
+  const stripped = hex.startsWith('0x') ? hex.slice(2) : hex
+  const bytes = new Uint8Array(stripped.length / 2)
   for (let i = 0; i < bytes.length; i++) {
-    bytes[i] = parseInt(h.slice(i * 2, i * 2 + 2), 16)
+    bytes[i] = parseInt(stripped.slice(i * 2, i * 2 + 2), 16)
   }
   return bytes
 }
 
 function bytesToHex(bytes: Uint8Array): string {
-  return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
 const PUBLISHER_ABI = parseAbi([
@@ -66,6 +83,8 @@ const LABEL_STORE_ABI = parseAbi([
   'function getLabels(uint256 offset, uint256 limit) view returns (string[])',
   'function owner() view returns (address)'
 ])
+
+const REGISTRY_ABI = parseAbi(['function owner(bytes32 node) view returns (address)'])
 
 const MULTICALL3_ABI = parseAbi([
   'struct Call3 { address target; bool allowFailure; bytes callData; }',
@@ -107,6 +126,10 @@ export function encodeText(node: Hex, key: string): Hex {
 
 export function encodeOwner(): Hex {
   return encodeFunctionData({ abi: LABEL_STORE_ABI, functionName: 'owner' })
+}
+
+export function encodeNodeOwner(node: Hex): Hex {
+  return encodeFunctionData({ abi: REGISTRY_ABI, functionName: 'owner', args: [node] })
 }
 
 export function encodeGetLabelStores(offset: bigint, limit: bigint): Hex {
@@ -151,10 +174,10 @@ export function encodeAggregate3(calls: MulticallTarget[]): Hex {
     abi: MULTICALL3_ABI,
     functionName: 'aggregate3',
     args: [
-      calls.map((c) => ({
-        target: c.target as Address,
+      calls.map((call) => ({
+        target: call.target as Address,
         allowFailure: true,
-        callData: c.callData
+        callData: call.callData
       }))
     ]
   })

@@ -7,8 +7,10 @@
 
 import { keccak_256 } from '@noble/hashes/sha3.js'
 
-import type { LabelEntry } from './types'
+import { parseRootManifest } from './manifest'
+import type { LabelEntry } from '../../db/labels'
 import {
+  decodeAddress,
   decodeBool,
   decodeBytes,
   decodeBytes32Array,
@@ -20,6 +22,7 @@ import {
   encodeGetPublished,
   encodeIsActiveAny,
   encodeLabelOf,
+  encodeNodeOwner,
   encodeText,
   labelhashToTokenId,
   type MulticallTarget,
@@ -110,13 +113,13 @@ export async function resolveLabels(
 ): Promise<Map<`0x${string}`, string>> {
   const result = new Map<`0x${string}`, string>()
   const cachedByHash = new Map<`0x${string}`, string>()
-  for (const l of cached.values()) cachedByHash.set(labelhashOf(l.label), l.label)
+  for (const entry of cached.values()) cachedByHash.set(labelhashOf(entry.label), entry.label)
 
   const toResolve: `0x${string}`[] = []
-  for (const lh of labelhashes) {
-    const hit = cachedByHash.get(lh)
-    if (hit) result.set(lh, hit)
-    else toResolve.push(lh)
+  for (const labelhash of labelhashes) {
+    const hit = cachedByHash.get(labelhash)
+    if (hit) result.set(labelhash, hit)
+    else toResolve.push(labelhash)
   }
   if (toResolve.length === 0) return result
 
@@ -156,24 +159,25 @@ export async function hydrateLabelChunk(
   )
   const chResults = await multicall(chCalls)
 
-  const contentHashes: (string | null)[] = chunk.map((_, j) =>
-    tryDecode(chResults[j], (d) => decodeIpfsContenthash(decodeBytes(d)))
+  const contentHashes: (string | null)[] = chunk.map((_, chunkIndex) =>
+    tryDecode(chResults[chunkIndex], (data) => decodeIpfsContenthash(decodeBytes(data)))
   )
   const liveIndexes: number[] = []
-  for (let j = 0; j < chunk.length; j++) {
-    if (contentHashes[j]) liveIndexes.push(j)
+  for (let chunkIndex = 0; chunkIndex < chunk.length; chunkIndex++) {
+    if (contentHashes[chunkIndex]) liveIndexes.push(chunkIndex)
   }
 
   const callsPerLive = userH160 ? 4 : 3
   let metaResults: Awaited<ReturnType<typeof multicall>> = []
   if (liveIndexes.length > 0) {
     const metaCalls: MulticallTarget[] = []
-    for (const j of liveIndexes) {
-      const node = namehash(`${chunk[j]}.dot`)
+    for (const chunkIndex of liveIndexes) {
+      const node = namehash(`${chunk[chunkIndex]}.dot`)
+      const workerNode = namehash(`worker.${chunk[chunkIndex]}.dot`)
       const subject = nodeToSubject(node)
       metaCalls.push(
-        { target: BACKEND.CONTENT_RESOLVER, callData: encodeText(node, 'name') },
-        { target: BACKEND.CONTENT_RESOLVER, callData: encodeText(node, 'description') },
+        { target: BACKEND.CONTENT_RESOLVER, callData: encodeText(node, 'manifest') },
+        { target: BACKEND.REGISTRY, callData: encodeNodeOwner(workerNode) },
         {
           target: BACKEND.ATTESTATION_INDEX_RESOLVER,
           callData: encodeCountByRecipientAndSchema(subject, BACKEND.SCHEMA_ID)
@@ -195,24 +199,35 @@ export async function hydrateLabelChunk(
   const fetchedAt = Date.now()
   const out: LabelEntry[] = []
   let metaIdx = 0
-  for (let j = 0; j < chunk.length; j++) {
-    const cid = contentHashes[j]
+  for (let chunkIndex = 0; chunkIndex < chunk.length; chunkIndex++) {
+    const cid = contentHashes[chunkIndex]
     let name: string | null = null
     let description = 'No description'
+    let iconCid: string | null = null
+    let hasChat = false
     let attestationCount: number | null = null
     let hasUserAttested = false
     if (cid) {
       const base = metaIdx * callsPerLive
-      name = tryDecode(metaResults[base], decodeString) || null
-      description = tryDecode(metaResults[base + 1], decodeString) || 'No description'
+      const manifestRaw = tryDecode(metaResults[base], decodeString) ?? ''
+      const manifest = parseRootManifest(manifestRaw)
+      if (manifest) {
+        name = manifest.displayName
+        description = manifest.description || 'No description'
+        iconCid = manifest.icon.cid
+      }
+      const workerOwner = tryDecode(metaResults[base + 1], decodeAddress)
+      hasChat = workerOwner !== null && workerOwner !== '0x0000000000000000000000000000000000000000'
       attestationCount = tryDecode(metaResults[base + 2], decodeUint64)
       hasUserAttested = userH160 ? (tryDecode(metaResults[base + 3], decodeBool) ?? false) : false
       metaIdx++
     }
     out.push({
-      label: chunk[j],
+      label: chunk[chunkIndex],
       name,
       description,
+      iconCid,
+      hasChat,
       contentHash: cid,
       attestationCount,
       hasUserAttested,
@@ -232,20 +247,27 @@ export async function readContentByName(label: string): Promise<{
   contentHash: string
   name: string | null
   description: string
+  iconCid: string | null
+  hasChat: boolean
 } | null> {
   const node = namehash(`${label}.dot`)
+  const workerNode = namehash(`worker.${label}.dot`)
   const calls: MulticallTarget[] = [
     { target: BACKEND.CONTENT_RESOLVER, callData: encodeContenthash(node) },
-    { target: BACKEND.CONTENT_RESOLVER, callData: encodeText(node, 'name') },
-    { target: BACKEND.CONTENT_RESOLVER, callData: encodeText(node, 'description') }
+    { target: BACKEND.CONTENT_RESOLVER, callData: encodeText(node, 'manifest') },
+    { target: BACKEND.REGISTRY, callData: encodeNodeOwner(workerNode) }
   ]
   const results = await multicall(calls)
-  const contentHash = tryDecode(results[0], (d) => decodeIpfsContenthash(decodeBytes(d)))
+  const contentHash = tryDecode(results[0], (data) => decodeIpfsContenthash(decodeBytes(data)))
   if (!contentHash) return null
+  const manifest = parseRootManifest(tryDecode(results[1], decodeString) ?? '')
+  const workerOwner = tryDecode(results[2], decodeAddress)
   return {
     contentHash,
-    name: tryDecode(results[1], decodeString) || null,
-    description: tryDecode(results[2], decodeString) || 'No description'
+    name: manifest?.displayName ?? null,
+    description: manifest?.description || 'No description',
+    iconCid: manifest?.icon.cid ?? null,
+    hasChat: workerOwner !== null && workerOwner !== '0x0000000000000000000000000000000000000000'
   }
 }
 

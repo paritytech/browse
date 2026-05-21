@@ -78,6 +78,16 @@
   border-color: var(--input-stroke-focus);
 }
 
+.contacts-manager__input--valid,
+.contacts-manager__input--valid:focus {
+  border-color: var(--color-success);
+}
+
+.contacts-manager__input--invalid,
+.contacts-manager__input--invalid:focus {
+  border-color: var(--color-danger);
+}
+
 .contacts-manager__add-btn {
   padding: 10px 16px;
   background: var(--surface-4);

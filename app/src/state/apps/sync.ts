@@ -2,7 +2,7 @@
  * Orchestrates apps discovery, hydration, and persistence.
  *
  * Owns chunking, TTL refresh, mid-batch persistence, and progress reporting.
- * Sits between `./remote` (pure on-chain reads) and `./queries` (React Query).
+ * Sits between `./remote` and `./queries` (React Query).
  */
 
 import { resolveUserH160 } from './identity'
@@ -12,23 +12,23 @@ import {
   readPublishedLabelhashes,
   resolveLabels
 } from './remote'
-import type { AppEntry, LabelEntry } from './types'
-import { createOrUpdateLabels } from '../../db/labels'
+import type { AppEntry } from './types'
+import { createOrUpdateLabels, type LabelEntry } from '../../db/labels'
 import { hiddenLog } from '../../lib/debug'
 
-const METADATA_TTL_MS = 24 * 60 * 60 * 1000
+const METADATA_TTL_MS = 60 * 1000
 
-/** Shape a {@link LabelEntry} as an `'all'`-source {@link AppEntry}. */
 function labelToApp(l: LabelEntry): AppEntry {
   return {
     label: l.label,
     name: l.name,
     description: l.description,
+    iconCid: l.iconCid ?? null,
+    hasChat: l.hasChat ?? false,
     contentHash: l.contentHash,
     isLive: l.contentHash !== null,
     attestationCount: l.attestationCount,
-    hasUserAttested: l.hasUserAttested,
-    source: 'all' as const
+    hasUserAttested: l.hasUserAttested
   }
 }
 
@@ -82,7 +82,7 @@ export async function syncAllApps(
 ): Promise<AppEntry[]> {
   const t0 = performance.now()
   hiddenLog(`Starting synchronization - cache holds ${cachedLabels.length} labels`)
-  const labels = new Map(cachedLabels.map((l) => [l.label, l]))
+  const labels = new Map(cachedLabels.map((entry) => [entry.label, entry]))
 
   let published: `0x${string}`[]
   try {
@@ -112,17 +112,15 @@ export async function syncAllApps(
   // gets detected here.
   const nowMs = Date.now()
   const staleLabels: string[] = []
-  for (const l of labels.values()) {
-    if (!l.fetchedAt || nowMs - l.fetchedAt > METADATA_TTL_MS) staleLabels.push(l.label)
+  for (const entry of labels.values()) {
+    if (!entry.fetchedAt || nowMs - entry.fetchedAt > METADATA_TTL_MS) staleLabels.push(entry.label)
   }
 
   const toRefresh = [...staleLabels, ...newLabels]
   if (toRefresh.length > 0) {
     const userH160 = await resolveUserH160()
     if (staleLabels.length > 0) {
-      hiddenLog(
-        `Refreshing ${staleLabels.length} stale label(s) (TTL ${METADATA_TTL_MS / 3_600_000}h)`
-      )
+      hiddenLog(`Refreshing ${staleLabels.length} stale label(s) (TTL ${METADATA_TTL_MS / 1000}s)`)
     }
     if (newLabels.length > 0) {
       hiddenLog(

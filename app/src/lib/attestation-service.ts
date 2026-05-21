@@ -21,6 +21,11 @@ export type SignerProvider = () => Promise<{
   publicKey: Uint8Array
 }>
 
+function bigStr(_: string, v: unknown): unknown {
+  if (typeof v === 'bigint') return v.toString()
+  return v
+}
+
 async function hostSigner(): Promise<{
   signer: PolkadotSigner
   origin: string
@@ -49,8 +54,8 @@ async function hostSigner(): Promise<{
         return typeof sig === 'string' ? Binary.fromHex(sig as `0x${string}`) : sig
       },
       (err) => {
-        const v = err.value as { name?: string; reason?: string } | undefined
-        const msg = [v?.name, v?.reason].filter(Boolean).join(': ')
+        const errValue = err.value as { name?: string; reason?: string } | undefined
+        const msg = [errValue?.name, errValue?.reason].filter(Boolean).join(': ')
         throw new Error(msg || 'signRawWithLegacyAccount failed')
       }
     )
@@ -260,9 +265,9 @@ export class AttestationService {
         ...attestArgs,
         options: { gasLimit: GAS, storageDepositLimit: STORAGE }
       })
-      const bigStr = (_: string, v: unknown) => (typeof v === 'bigint' ? v.toString() : v)
-      if (!dryRun.success)
+      if (!dryRun.success) {
         throw new Error(`attest dry-run failed: ${JSON.stringify(dryRun.value, bigStr)}`)
+      }
       const storageDeposit = (dryRun.value as { storageDeposit?: bigint }).storageDeposit ?? 0n
       return this.submitTx(dryRun.value.send, signer, origin, storageDeposit, onPermitted)
     }
@@ -295,9 +300,9 @@ export class AttestationService {
       options: { gasLimit: GAS, storageDepositLimit: STORAGE }
     })
 
-    const bigStr = (_: string, v: unknown) => (typeof v === 'bigint' ? v.toString() : v)
-    if (!dryRun.success)
+    if (!dryRun.success) {
       throw new Error(`revoke dry-run failed: ${JSON.stringify(dryRun.value, bigStr)}`)
+    }
 
     const storageDeposit = (dryRun.value as { storageDeposit?: bigint }).storageDeposit ?? 0n
     return this.submitTx(dryRun.value.send, signer, origin, storageDeposit, onPermitted)
@@ -346,7 +351,7 @@ export class AttestationService {
           value: [{ tag: 'SmartContractAllowance', value: 0 }]
         })
         .match(
-          (res) => res.value.some((o) => o.tag === 'Allocated'),
+          (res) => res.value.some((outcome) => outcome.tag === 'Allocated'),
           () => false
         )
       if (!allocated) {

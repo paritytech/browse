@@ -54,7 +54,7 @@
     "updateSnapshots": "missing",
     "updateSourceMethod": "patch",
     "version": "1.59.1",
-    "workers": 1,
+    "workers": 4,
     "webServer": {
       "command": "bunx vite --port 5173",
       "cwd": "/Users/tiago/Projects/browse/app",
@@ -93,12 +93,12 @@
                       "workerIndex": 0,
                       "parallelIndex": 0,
                       "status": "passed",
-                      "duration": 10071,
+                      "duration": 15268,
                       "errors": [],
                       "stdout": [],
                       "stderr": [],
                       "retry": 0,
-                      "startTime": "2026-05-15T15:30:29.684Z",
+                      "startTime": "2026-05-21T11:01:17.455Z",
                       "annotations": [],
                       "attachments": []
                     }
@@ -108,7 +108,7 @@
               ],
               "id": "e33738f0440e497481af-673cf91e5ac0300baa85",
               "file": "attestation.spec.ts",
-              "line": 65,
+              "line": 66,
               "column": 3
             }
           ]
@@ -118,8 +118,8 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-05-15T15:30:26.814Z",
-    "duration": 20041.959,
+    "startTime": "2026-05-21T11:01:15.966Z",
+    "duration": 28675.11,
     "expected": 1,
     "skipped": 0,
     "unexpected": 0,

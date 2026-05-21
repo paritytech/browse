@@ -3,12 +3,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AccountId, type SS58String } from 'polkadot-api'
 
 import { updateAttestationCount } from '../../db/labels'
-import { namehash, nodeToSubject } from '../../lib/abi'
+import { encodeAttestationLabel, namehash, nodeToSubject } from '../../lib/abi'
 import { attestationService } from '../../lib/attestation-service'
 import { BACKEND } from '../../lib/config'
 import { type AppEntry } from '../apps/types'
 
-const PCF_KEY = ['apps', 'pcf'] as const
 const ALL_KEY = ['apps', 'all'] as const
 
 function updateApp(
@@ -42,14 +41,12 @@ function attestationKey(label: string) {
 }
 
 type MutationCtx = {
-  pcf: AppEntry[] | undefined
   all: AppEntry[] | undefined
   attestation: AttestationQueryData | undefined
 }
 
 function snapshot(queryClient: ReturnType<typeof useQueryClient>, label: string): MutationCtx {
   return {
-    pcf: queryClient.getQueryData<AppEntry[]>(PCF_KEY),
     all: queryClient.getQueryData<AppEntry[]>(ALL_KEY),
     attestation: queryClient.getQueryData<AttestationQueryData>(attestationKey(label))
   }
@@ -60,7 +57,6 @@ function rollback(
   label: string,
   ctx: MutationCtx
 ): void {
-  if (ctx.pcf !== undefined) queryClient.setQueryData(PCF_KEY, ctx.pcf)
   if (ctx.all !== undefined) queryClient.setQueryData(ALL_KEY, ctx.all)
   if (ctx.attestation !== undefined)
     queryClient.setQueryData(attestationKey(label), ctx.attestation)
@@ -79,20 +75,14 @@ export function describeError(err: unknown): string {
 
 export async function attestLabel(label: string, onPermitted?: () => void) {
   const recipient = nodeToSubject(namehash(`${label}.dot`))
-  const { ss58, h160 } = await getAttester()
-  console.log('attestation:publish', JSON.stringify({ label, attester: { ss58, h160 }, recipient }))
-  return attestationService.attest(BACKEND.SCHEMA_ID, recipient, 0n, true, 0n, '0x', onPermitted)
-}
-
-async function getAttester(): Promise<{ ss58: SS58String; h160: string }> {
-  const { publicKey } = await attestationService.getSigner()
-  const ss58 = AccountId().dec(publicKey) as SS58String
-  const h160 = (ss58ToEthereum(ss58) as `0x${string}`).toLowerCase()
-  return { ss58, h160 }
+  const data = encodeAttestationLabel(label)
+  return attestationService.attest(BACKEND.SCHEMA_ID, recipient, 0n, true, 0n, data, onPermitted)
 }
 
 async function getAttesterH160(): Promise<string> {
-  return (await getAttester()).h160
+  const { publicKey } = await attestationService.getSigner()
+  const ss58 = AccountId().dec(publicKey) as SS58String
+  return (ss58ToEthereum(ss58) as `0x${string}`).toLowerCase()
 }
 
 export async function revokeLabel(label: string, onPermitted?: () => void) {
@@ -105,15 +95,11 @@ export async function revokeLabel(label: string, onPermitted?: () => void) {
   )
   if (ids.length === 0) throw new Error('No attestation to revoke')
 
-  const { ss58, h160 } = await getAttester()
+  const attesterH160 = await getAttesterH160()
   const attestations = await Promise.all(ids.map((id) => attestationService.getAttestationById(id)))
-  const match = ids.find((_, i) => attestations[i].attester.toLowerCase() === h160)
+  const match = ids.find((_, i) => attestations[i].attester.toLowerCase() === attesterH160)
   if (match === undefined) throw new Error('No attestation to revoke')
 
-  console.log(
-    'attestation:revoke',
-    JSON.stringify({ label, attester: { ss58, h160 }, recipient, id: match.toString() })
-  )
   return attestationService.revoke(BACKEND.SCHEMA_ID, match, onPermitted)
 }
 
@@ -138,7 +124,6 @@ export function useAttestProduct() {
   return useMutation<unknown, Error, string, MutationCtx>({
     mutationFn: (label) =>
       attestLabel(label, () => {
-        queryClient.setQueryData<AppEntry[]>(PCF_KEY, (prev) => updateApp(prev, label, attestPatch))
         queryClient.setQueryData<AppEntry[]>(ALL_KEY, (prev) => updateApp(prev, label, attestPatch))
         queryClient.setQueryData<AttestationQueryData>(attestationKey(label), (prev) =>
           prev
@@ -161,7 +146,6 @@ export function useRevokeApp() {
   return useMutation<unknown, Error, string, MutationCtx>({
     mutationFn: (label) =>
       revokeLabel(label, () => {
-        queryClient.setQueryData<AppEntry[]>(PCF_KEY, (prev) => updateApp(prev, label, revokePatch))
         queryClient.setQueryData<AppEntry[]>(ALL_KEY, (prev) => updateApp(prev, label, revokePatch))
         queryClient.setQueryData<AttestationQueryData>(attestationKey(label), (prev) =>
           prev

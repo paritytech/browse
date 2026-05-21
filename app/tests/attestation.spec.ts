@@ -22,7 +22,7 @@ test.describe('Attestation works', () => {
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(30_000)
     await fund('Charlie')
-    await createRevokedAttestation('host-playground', 'Charlie').catch(() => {})
+    await createRevokedAttestation('ohnotes', 'Charlie').catch(() => {})
     await createRevokedAttestation('e2e-test-app-alpha', 'Charlie').catch(() => {})
     host = await startSignedHost('charlie')
     context = await browser.newContext({ ignoreHTTPSErrors: true })
@@ -30,13 +30,13 @@ test.describe('Attestation works', () => {
 
   test.afterAll(async () => {
     await page?.close()
-    await createRevokedAttestation('host-playground', 'Charlie').catch(() => {})
+    await createRevokedAttestation('ohnotes', 'Charlie').catch(() => {})
     await createRevokedAttestation('e2e-test-app-alpha', 'Charlie').catch(() => {})
     await context?.close()
     await host?.close()
   })
 
-  test('As Charlie, I recommend an app, the count increases, and a toast confirms', async () => {
+  test('As a signed user, when I recommend an app, I see the count go up and a confirmation toast', async () => {
     test.setTimeout(15_000)
     page = await context.newPage()
 
@@ -44,7 +44,7 @@ test.describe('Attestation works', () => {
     await navigateToTestHost(page, host.url)
     frame = await getProductFrame(page, '.category-tab')
     await frame.locator('.category-tab', { hasText: 'All' }).click()
-    const card = frame.locator('.product-card[data-label="host-playground"]')
+    const card = frame.locator('.product-card[data-label="ohnotes"]')
     await expect(card).toBeVisible({ timeout: 15_000 })
     const upvote = card.locator('.product-card__upvote')
     const upvoteCount = upvote.locator('.product-card__upvote-count')
@@ -63,17 +63,17 @@ test.describe('Attestation works', () => {
     })
   })
 
-  test('As Charlie, I un-recommend an app, the count decreases, and a toast confirms', async () => {
+  test('As a signed user, when I un-recommend an app, I see the count go down and a confirmation toast', async () => {
     test.setTimeout(30_000)
     page = await context.newPage()
 
     // Given
-    const attestResult = await createAttestation('host-playground', 'Charlie')
+    const attestResult = await createAttestation('ohnotes', 'Charlie')
     expect(attestResult.attestationCountAfter).toBe(attestResult.attestationCountBefore + 1n)
     await navigateToTestHost(page, host.url)
     frame = await getProductFrame(page, '.category-tab')
     await frame.locator('.category-tab', { hasText: 'All' }).click()
-    const card = frame.locator('.product-card[data-label="host-playground"]')
+    const card = frame.locator('.product-card[data-label="ohnotes"]')
     await expect(card).toBeVisible({ timeout: 15_000 })
     const upvote = card.locator('.product-card__upvote')
     const upvoteCount = upvote.locator('.product-card__upvote-count')
@@ -117,7 +117,7 @@ test.describe('Contacts', () => {
     await host?.close()
   })
 
-  test('As Bob, I add Charlie as a contact', async () => {
+  test('As a signed user, when I add an address as a contact, I see it in my Following list', async () => {
     test.setTimeout(30_000)
     const page = await context.newPage()
 
@@ -162,7 +162,7 @@ test.describe('Contacts', () => {
     await page.close()
   })
 
-  test('As Bob, after reload the contacts still show up', async () => {
+  test('As a signed user, when I reload the page, my contacts still show up', async () => {
     const page = await context.newPage()
 
     // Given
@@ -204,12 +204,11 @@ test.describe('Following', () => {
     await host?.close()
   })
 
-  test('As Bob, I add Charlie as a contact and see 1 attested app in the Following tab', async () => {
+  test('As a signed user, when I follow someone, I see their recommended apps in the Following tab', async () => {
     test.setTimeout(30_000)
     const page = await context.newPage()
 
     // Given
-    await createCachedApps(page)
     await navigateToTestHost(page, host.url)
     const frame = await getProductFrame(page, '.category-tab')
 
@@ -230,7 +229,7 @@ test.describe('Following', () => {
     await page.close()
   })
 
-  test('As Bob, after Charlie attests another app I see 2 apps, then he revokes it', async () => {
+  test('As a signed user, when someone I follow recommends another app, I see it appear and disappear when revoked', async () => {
     test.setTimeout(30_000)
 
     // Given

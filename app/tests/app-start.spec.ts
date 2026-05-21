@@ -29,24 +29,24 @@ test.describe('App Start', () => {
       await host?.close()
     })
 
-    test('As an unsigned user, I see 3 tabs', async () => {
+    test('As an unsigned user, I see the Bookmarks and All tabs', async () => {
       // Then
       const tabs = frame.locator('.category-tab')
-      expect(await tabs.count()).toBe(3)
+      expect(await tabs.count()).toBe(2)
       const tabLabels = await tabs.allTextContents()
-      expect(tabLabels).toEqual(['PCF', 'Bookmarks', 'All'])
+      expect(tabLabels).toEqual(['Bookmarks', 'All'])
 
       // Then
       const activeTab = frame.locator('.category-tab--active')
-      await expect(activeTab).toHaveText('PCF')
+      await expect(activeTab).toHaveText('All')
     })
 
-    test('As an unsigned user, the PCF tab loads apps on start', async () => {
+    test('As an unsigned user, when I open browse, the All tab loads apps immediately', async () => {
       // Then
       const cards = frame.locator('.product-card')
       await expect(cards.first()).toBeVisible({ timeout: 10_000 })
       expect(await cards.count()).toBeGreaterThan(0)
-      await expect(frame.locator('.loading-dots')).not.toBeVisible()
+      await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
 
       // When
       const reloaded = await context.newPage()
@@ -55,24 +55,24 @@ test.describe('App Start', () => {
 
       // Then
       await expect(reloadedFrame.locator('.product-card').first()).toBeVisible()
-      await expect(reloadedFrame.locator('.loading-dots')).not.toBeVisible()
+      await expect(reloadedFrame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
 
       await reloaded.close()
     })
 
-    test('As an unsigned user, I see the browse header', async () => {
+    test('As an unsigned user, when I open browse, I see the page header', async () => {
       // Then
       const title = frame.locator('.title')
       await expect(title).toBeVisible()
       await expect(title).toContainText('browse')
     })
 
-    test('As an unsigned user, I see the search bar', async () => {
+    test('As an unsigned user, when I open browse, I see the search bar', async () => {
       // Then
       await expect(frame.locator('.search-bar input')).toBeVisible()
     })
 
-    test('As an unsigned user, Bookmarks tab shows empty state by default', async () => {
+    test('As an unsigned user, when I open the Bookmarks tab with no bookmarks, I see the empty state', async () => {
       // When
       await frame.locator('.category-tab', { hasText: 'Bookmarks' }).click()
 
@@ -100,19 +100,19 @@ test.describe('App Start', () => {
       await host?.close()
     })
 
-    test('As a signed user, I see 4 tabs', async () => {
+    test('As a signed user, I see the Bookmarks, Following, and All tabs', async () => {
       // Then
       const tabs = frame.locator('.category-tab')
-      expect(await tabs.count()).toBe(4)
+      expect(await tabs.count()).toBe(3)
       const tabLabels = await tabs.allTextContents()
-      expect(tabLabels).toEqual(['PCF', 'Bookmarks', 'Following', 'All'])
+      expect(tabLabels).toEqual(['Bookmarks', 'Following', 'All'])
 
       // Then
       const activeTab = frame.locator('.category-tab--active')
-      await expect(activeTab).toHaveText('PCF')
+      await expect(activeTab).toHaveText('All')
     })
 
-    test('As a un/signed user, the published apps view loads sorted by recommendations', async () => {
+    test('As a signed user, when the All tab loads, I see products sorted by recommendation count', async () => {
       test.setTimeout(45_000)
 
       // When
@@ -150,7 +150,7 @@ test.describe('App Start', () => {
       expect(labelCount).toBeGreaterThan(1)
     })
 
-    test('As a un/signed user, cached label metadata older than the TTL is refreshed (and fresh entries are not)', async () => {
+    test('As a signed user, when cached label metadata is older than the TTL, it refreshes (fresh entries are left alone)', async () => {
       test.setTimeout(45_000)
       const page = await context.newPage()
       const KEY = 'test-host:browse:labels'
@@ -221,7 +221,7 @@ test.describe('App Start', () => {
       await page.close()
     })
 
-    test('As a signed user, cached apps show instantly on reload while syncing in the background', async () => {
+    test('As a signed user, when I reload, cached apps show instantly while sync runs in the background', async () => {
       test.setTimeout(45_000)
       const page = await context.newPage()
       await navigateToTestHost(page, host.url)

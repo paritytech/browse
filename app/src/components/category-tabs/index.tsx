@@ -8,13 +8,11 @@ interface CategoryTab {
 }
 
 const BASE_CATEGORIES: CategoryTab[] = [
-  { id: 'pcf', label: 'PCF', enabled: true },
   { id: 'bookmarks', label: 'Bookmarks', enabled: true },
   { id: 'all', label: 'All', enabled: true }
 ]
 
 const SIGNED_CATEGORIES: CategoryTab[] = [
-  { id: 'pcf', label: 'PCF', enabled: true },
   { id: 'bookmarks', label: 'Bookmarks', enabled: true },
   { id: 'following', label: 'Following', enabled: true },
   { id: 'all', label: 'All', enabled: true }

@@ -1,10 +1,6 @@
 /**
  * React Query bindings for the apps subsystem.
  *
- * Two queries: `apps:pcf` (curated, hosted-only) and `apps:all` (Publisher-
- * driven, delegates to {@link syncAllApps}). Plus {@link useResolveLabel} for
- * the search bar. No chain reads happen here; discovery lives in `./sync`,
- * primitive reads in `./remote`.
  */
 
 import { type QueryClient, queryOptions, useQuery } from '@tanstack/react-query'
@@ -12,66 +8,29 @@ import { type QueryClient, queryOptions, useQuery } from '@tanstack/react-query'
 import { readContentByName } from './remote'
 import { materialize, syncAllApps } from './sync'
 import type { AppEntry } from './types'
-import { readAllLabels } from '../../db/labels'
-import { getCachedPcf, setCachedPcf } from '../../lib/cache'
-import { isHosted } from '../../lib/local-storage'
+import { type LabelEntry, readLabels } from '../../db/labels'
 
-const PCF_PRODUCTS: ReadonlyArray<{ label: string; name: string; description: string }> = [
-  { label: 'coinflipgame03', name: 'Coin Flip', description: 'A simple coin flip app.' },
-  { label: 'crosswords', name: 'Mini Crossword', description: 'A quick 5x5 crossword puzzle.' },
-  { label: 'ohnotes', name: 'Notes', description: 'Notes that follow you everywhere.' }
-]
+const ALL_APPS_KEY = ['apps', 'all'] as const
+const LABELS_KEY = ['labels', 'db'] as const
 
-async function fetchPcfApps(): Promise<AppEntry[]> {
-  return PCF_PRODUCTS.map((p) => ({
-    label: p.label,
-    name: p.name,
-    description: p.description,
-    contentHash: null,
-    isLive: true,
-    attestationCount: null,
-    hasUserAttested: false,
-    source: 'pcf' as const
-  }))
-}
-
-const PCF_APPS_KEY = ['apps', 'pcf'] as const
-
-function getPcfAppsOptions() {
-  return queryOptions<AppEntry[]>({
-    queryKey: PCF_APPS_KEY,
-    queryFn: async () => {
-      if (!isHosted()) return []
-      const apps = await fetchPcfApps()
-      setCachedPcf(apps)
-      return apps
-    },
-    staleTime: 5 * 60_000
+/** Subscribe to the full labels DB as a Map. */
+export function useLabelsStorage() {
+  return useQuery<Map<string, LabelEntry>>({
+    queryKey: LABELS_KEY,
+    queryFn: async () => new Map((await readLabels()).map((entry) => [entry.label, entry])),
+    staleTime: Infinity
   })
 }
 
-export function useGetPcfApps() {
-  return useQuery(getPcfAppsOptions())
-}
-
-export async function prefetchPcfApps(queryClient: QueryClient) {
-  const cached = await getCachedPcf()
-  if (cached.length > 0) {
-    // updatedAt: 0 marks the cached data as stale so useQuery will trigger a
-    // background refetch (the actual chain sync) when a subscriber mounts.
-    queryClient.setQueryData<AppEntry[]>(PCF_APPS_KEY, cached, { updatedAt: 0 })
-  }
-}
-
-const ALL_APPS_KEY = ['apps', 'all'] as const
+export { LABELS_KEY }
 
 /** Read the labels blob from the host bridge once per session and materialise it. */
 let initialDiskLoad: Promise<AppEntry[]> | null = null
 
 function loadInitialApps(): Promise<AppEntry[]> {
   if (!initialDiskLoad) {
-    initialDiskLoad = readAllLabels().then((entries) =>
-      materialize(new Map(entries.map((l) => [l.label, l])))
+    initialDiskLoad = readLabels().then((entries) =>
+      materialize(new Map(entries.map((entry) => [entry.label, entry])))
     )
   }
   return initialDiskLoad
@@ -80,16 +39,16 @@ function loadInitialApps(): Promise<AppEntry[]> {
 export function getAllAppsOptions(queryClient: QueryClient) {
   const pendingLabels = (): Set<string> => {
     const labels = new Set<string>()
-    for (const m of queryClient.getMutationCache().findAll({ status: 'pending' })) {
-      const v = m.state.variables
-      if (typeof v === 'string') labels.add(v)
+    for (const mutation of queryClient.getMutationCache().findAll({ status: 'pending' })) {
+      const variables = mutation.state.variables
+      if (typeof variables === 'string') labels.add(variables)
     }
     return labels
   }
   const merge = (prev: AppEntry[] | undefined, fresh: AppEntry[]): AppEntry[] => {
     const pending = pendingLabels()
     if (!prev || pending.size === 0) return fresh
-    const prevByLabel = new Map(prev.map((a) => [a.label, a]))
+    const prevByLabel = new Map(prev.map((app) => [app.label, app]))
     return fresh.map((next) =>
       pending.has(next.label) ? (prevByLabel.get(next.label) ?? next) : next
     )
@@ -97,10 +56,12 @@ export function getAllAppsOptions(queryClient: QueryClient) {
   return queryOptions<AppEntry[]>({
     queryKey: ALL_APPS_KEY,
     queryFn: async () => {
-      const cachedLabels = await readAllLabels()
+      const cachedLabels = await readLabels()
       const finalApps = await syncAllApps(cachedLabels, (progressApps) => {
         queryClient.setQueryData<AppEntry[]>(ALL_APPS_KEY, (prev) => merge(prev, progressApps))
       })
+      // Sync has rewritten the labels DB.
+      await queryClient.invalidateQueries({ queryKey: LABELS_KEY })
       return merge(queryClient.getQueryData<AppEntry[]>(ALL_APPS_KEY), finalApps)
     },
     staleTime: 5 * 60_000
@@ -125,18 +86,19 @@ export async function prefetchAllApps(queryClient: QueryClient) {
  * cache first and falling back to the content resolver.
  */
 async function resolveLabel(name: string): Promise<AppEntry | null> {
-  const cachedLabels = await readAllLabels()
-  const cached = cachedLabels.find((l) => l.label === name)
+  const cachedLabels = await readLabels()
+  const cached = cachedLabels.find((entry) => entry.label === name)
   if (cached?.contentHash) {
     return {
       label: cached.label,
       name: cached.name,
       description: cached.description,
+      iconCid: cached.iconCid,
+      hasChat: cached.hasChat,
       contentHash: cached.contentHash,
       isLive: true,
       attestationCount: cached.attestationCount,
-      hasUserAttested: cached.hasUserAttested,
-      source: 'all'
+      hasUserAttested: cached.hasUserAttested
     }
   }
 
@@ -147,11 +109,12 @@ async function resolveLabel(name: string): Promise<AppEntry | null> {
     label: name,
     name: content.name,
     description: content.description,
+    iconCid: content.iconCid,
+    hasChat: content.hasChat,
     contentHash: content.contentHash,
     isLive: true,
     attestationCount: null,
-    hasUserAttested: false,
-    source: 'all'
+    hasUserAttested: false
   }
 }
 

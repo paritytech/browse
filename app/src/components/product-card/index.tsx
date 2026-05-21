@@ -1,12 +1,11 @@
-import { memo } from 'preact/compat'
+import { memo, useState } from 'preact/compat'
 
 import { ArrowUp, Bookmark, MessageCircle, Share2 } from 'lucide-preact'
 
+import { iconUrl } from '../../state/apps/manifest'
 import { type AppEntry, displayName } from '../../state/apps/types'
 import { Identicon } from '../identicon'
 import './styles.css'
-
-const CHAT_ENABLED_LABELS = new Set(['coinflipgame03'])
 
 interface ProductCardProps {
   app: AppEntry
@@ -37,7 +36,8 @@ export const ProductCard = memo(function ProductCard({
   const delay = instant ? 0 : Math.min(index * 60, 400)
   const name = displayName(app)
   const displayCount = app.attestationCount ?? 0
-  const hasChat = CHAT_ENABLED_LABELS.has(app.label)
+  const [iconFailed, setIconFailed] = useState(false)
+  const showIcon = app.iconCid && !iconFailed
   const showActions = showMenu && onBookmark && onShare
 
   return (
@@ -55,7 +55,16 @@ export const ProductCard = memo(function ProductCard({
       }}
     >
       <div class='product-card__thumb'>
-        <Identicon seed={app.label} size={42} />
+        {showIcon ? (
+          <img
+            class='product-card__thumb-img'
+            src={iconUrl(app.iconCid as string)}
+            alt=''
+            onError={() => setIconFailed(true)}
+          />
+        ) : (
+          <Identicon seed={app.label} size={42} />
+        )}
       </div>
       <div class='product-card__body'>
         <div class='product-card__title-row'>
@@ -85,7 +94,7 @@ export const ProductCard = memo(function ProductCard({
           >
             <span>Open</span>
           </button>
-          {hasChat && (
+          {app.hasChat && (
             <button
               class='product-card__chat'
               onClick={(e) => {

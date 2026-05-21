@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { AccountId, type SS58String } from 'polkadot-api'
 
 import { getCachedFollowed, setCachedFollowed } from './cache'
-import { namehash, nodeToSubject } from '../../lib/abi'
+import { decodeAttestationLabel, namehash, nodeToSubject } from '../../lib/abi'
 import { attestationService } from '../../lib/attestation-service'
 import { BACKEND } from '../../lib/config'
 import { type AppEntry } from '../apps/types'
@@ -26,7 +26,7 @@ async function listAllAttestationsByAttester(attester: `0x${string}`): Promise<b
 }
 
 async function getFollowedApps(apps: AppEntry[], contacts: string[]): Promise<Set<string>> {
-  if (contacts.length === 0 || apps.length === 0) return new Set()
+  if (contacts.length === 0) return new Set()
 
   const h160Contacts = contacts.map((ss58) => ss58ToEthereum(ss58 as SS58String) as `0x${string}`)
 
@@ -46,11 +46,12 @@ async function getFollowedApps(apps: AppEntry[], contacts: string[]): Promise<Se
   for (let i = 0; i < allIds.length; i += PAGE_SIZE_NUM) {
     const batch = allIds.slice(i, i + PAGE_SIZE_NUM)
     const records = await attestationService.getAttestationByIds(batch)
-    for (const r of records) {
-      if (r.schema !== BACKEND.SCHEMA_ID) continue
-      if (r.revocationTime !== 0n) continue
-      if (r.expirationTime !== 0n && r.expirationTime <= now) continue
-      const label = recipientToLabel.get(r.recipient.toLowerCase())
+    for (const record of records) {
+      if (record.schema !== BACKEND.SCHEMA_ID) continue
+      if (record.revocationTime !== 0n) continue
+      if (record.expirationTime !== 0n && record.expirationTime <= now) continue
+      const label =
+        decodeAttestationLabel(record.data) ?? recipientToLabel.get(record.recipient.toLowerCase())
       if (label) followed.add(label)
     }
   }

@@ -9,9 +9,9 @@
 import { ss58ToEthereum } from '@polkadot-api/sdk-ink'
 import { AccountId, type SS58String } from 'polkadot-api'
 
-import { type AppEntry, type LabelEntry } from './types'
+import { type AppEntry } from './types'
 import { type AddressMap, readAllAddresses, writeAllAddresses } from '../../db/addresses'
-import { createOrUpdateLabels, readAllLabels } from '../../db/labels'
+import { createOrUpdateLabels, type LabelEntry, readLabels } from '../../db/labels'
 import { readAllStores, type StoreEntry, writeAllStores } from '../../db/stores'
 import {
   decodeAddress,
@@ -62,11 +62,12 @@ function labelToApp(l: LabelEntry): AppEntry {
     label: l.label,
     name: l.name,
     description: l.description,
+    iconCid: l.iconCid ?? null,
+    hasChat: l.hasChat ?? false,
     contentHash: l.contentHash,
     isLive: l.contentHash !== null,
     attestationCount: l.attestationCount,
-    hasUserAttested: l.hasUserAttested,
-    source: 'all' as const
+    hasUserAttested: l.hasUserAttested
   }
 }
 
@@ -116,8 +117,8 @@ async function flushLabelBatch(
     )
     const chResults = await multicall(chCalls)
 
-    const contentHashes: (string | null)[] = chunk.map((_, j) =>
-      tryDecode(chResults[j], (d) => decodeIpfsContenthash(decodeBytes(d)))
+    const contentHashes: (string | null)[] = chunk.map((_, chunkIndex) =>
+      tryDecode(chResults[chunkIndex], (data) => decodeIpfsContenthash(decodeBytes(data)))
     )
     const liveIndexes: number[] = []
     for (let j = 0; j < chunk.length; j++) {
@@ -172,6 +173,8 @@ async function flushLabelBatch(
         label: chunk[j],
         name,
         description,
+        iconCid: null,
+        hasChat: false,
         contentHash: cid,
         attestationCount,
         hasUserAttested,
@@ -212,8 +215,8 @@ async function scanStores(
     `Received ${ownerResults.length} owners (${(performance.now() - ownersT0).toFixed(0)}ms)`
   )
 
-  const ownerH160Addresses: (string | null)[] = ownerResults.map((r) =>
-    tryDecode(r, (d) => decodeAddress(d).toLowerCase())
+  const ownerH160Addresses: (string | null)[] = ownerResults.map((result) =>
+    tryDecode(result, (data) => decodeAddress(data).toLowerCase())
   )
 
   const seenLabels = new Set<string>(labels.keys())
@@ -259,14 +262,14 @@ async function scanStores(
     }
     stores.set(storeAddress, entry)
 
-    for (const l of storeLabels) {
-      if (!l) continue
-      const n = l.endsWith('.dot') ? l.slice(0, -4) : l
-      if (n.includes('.')) continue
-      normalized.push(n)
-      if (!seenLabels.has(n)) {
-        seenLabels.add(n)
-        pending.push(n)
+    for (const rawLabel of storeLabels) {
+      if (!rawLabel) continue
+      const bareLabel = rawLabel.endsWith('.dot') ? rawLabel.slice(0, -4) : rawLabel
+      if (bareLabel.includes('.')) continue
+      normalized.push(bareLabel)
+      if (!seenLabels.has(bareLabel)) {
+        seenLabels.add(bareLabel)
+        pending.push(bareLabel)
       }
     }
 
@@ -315,8 +318,8 @@ export async function syncAllAppsViaDotns(
   hiddenLog(
     `Starting synchronization - cache holds ${cachedStores.length} stores, ${cachedLabels.length} labels`
   )
-  const stores = new Map(cachedStores.map((s) => [s.storeAddress, s]))
-  const labels = new Map(cachedLabels.map((l) => [l.label, l]))
+  const stores = new Map(cachedStores.map((store) => [store.storeAddress, store]))
+  const labels = new Map(cachedLabels.map((entry) => [entry.label, entry]))
   const addresses = { ...cachedAddresses }
 
   let current: string[]
@@ -325,7 +328,7 @@ export async function syncAllAppsViaDotns(
       BACKEND.STORE_FACTORY,
       encodeGetLabelStores(0n, BigInt(STORE_FACTORY_PAGE_LIMIT))
     )
-    current = decodeAddressArray(raw).map((a) => a.toLowerCase())
+    current = decodeAddressArray(raw).map((addr) => addr.toLowerCase())
   } catch (err) {
     hiddenLog(`sFailed to fetch deployed stores: ${err}`, 'error')
     return materialize([...stores.values()], labels)
@@ -344,7 +347,7 @@ export async function syncAllAppsViaDotns(
   // Drop cached stores persisted with incomplete label metadata (legacy state
   // from before non-live labels were persisted) so they get re-scanned below.
   for (const [addr, store] of [...stores]) {
-    if (store.labels.some((l) => !labels.has(l))) {
+    if (store.labels.some((label) => !labels.has(label))) {
       stores.delete(addr)
       dirty = true
     }
@@ -359,8 +362,8 @@ export async function syncAllAppsViaDotns(
   // re-checked, so a label that went non-live since last sync gets detected here.
   const nowMs = Date.now()
   const staleLabels: string[] = []
-  for (const l of labels.values()) {
-    if (!l.fetchedAt || nowMs - l.fetchedAt > METADATA_TTL_MS) staleLabels.push(l.label)
+  for (const entry of labels.values()) {
+    if (!entry.fetchedAt || nowMs - entry.fetchedAt > METADATA_TTL_MS) staleLabels.push(entry.label)
   }
 
   if (toScan.length > 0 || staleLabels.length > 0) {
@@ -395,7 +398,7 @@ interface LegacyDiskState {
 }
 
 export function loadLegacyDiskState(): Promise<LegacyDiskState> {
-  return Promise.all([readAllStores(), readAllLabels(), readAllAddresses()]).then(
+  return Promise.all([readAllStores(), readLabels(), readAllAddresses()]).then(
     ([stores, labels, addresses]) => ({ stores, labels, addresses })
   )
 }
