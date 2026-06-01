@@ -6,14 +6,12 @@ on:
 
 jobs:
   publish:
+    # Only release the SDK when the release tag is prefixed `sdk-v*`, so
+    # unrelated tag schemes (e.g. app deploys) don't accidentally publish.
     if: startsWith(github.event.release.tag_name, 'sdk-v')
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      id-token: write
-    defaults:
-      run:
-        working-directory: packages/browse-sdk
     steps:
       - uses: actions/checkout@v4
 
@@ -24,29 +22,50 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
-        working-directory: .
         run: bun install --frozen-lockfile
 
       - name: Typecheck
+        working-directory: packages/browse-sdk
         run: bun run typecheck
 
       - name: Build
+        working-directory: packages/browse-sdk
         run: bun run build
 
       # Pre-releases (e.g. 0.1.0-rc.0) publish under the `rc` dist-tag so
-      # consumers who run `npm install @parity/browse-sdk` never pick one up by accident.
-      - name: Publish to npm
+      # consumers who run `npm install @parity/browse-sdk` (which resolves
+      # `@latest`) never pick one up by accident. Stable versions publish
+      # to `@latest`.
+      - name: Determine npm dist-tag
+        id: tag
+        working-directory: packages/browse-sdk
         run: |
           VERSION=$(node -p "require('./package.json').version")
           if [[ "$VERSION" == *-* ]]; then
-            echo "Publishing $VERSION as pre-release under @rc"
-            npm publish --tag rc
+            echo "npm_tag=rc" >> "$GITHUB_OUTPUT"
           else
-            echo "Publishing $VERSION as stable under @latest"
-            npm publish
+            echo "npm_tag=" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Pack @parity/browse-sdk
+        working-directory: packages/browse-sdk
+        run: npm pack
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: browse-sdk
+          path: packages/browse-sdk/*.tgz
+
+      # @parity/* packages publish via paritytech/npm_publish_automation,
+      # which holds the org-scoped npm credentials. We just hand it the
+      # packed tarball; it does the `npm publish` from there.
+      - name: Dispatch to npm_publish_automation
+        uses: octokit/request-action@v2.x
+        with:
+          route: POST /repos/paritytech/npm_publish_automation/actions/workflows/publish.yml/dispatches
+          ref: main
+          inputs: '${{ format(''{{ "repo": "{0}", "run_id": "{1}", "npm_tag": "{2}", "artifact_name": "browse-sdk" }}'', github.repository, github.run_id, steps.tag.outputs.npm_tag) }}'
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.NPM_PUBLISH_AUTOMATION_TOKEN }}
