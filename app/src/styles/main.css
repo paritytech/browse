@@ -1,44 +1,46 @@
-/* DM Serif Display — self-hosted, no external fetch */
-@font-face {
-  font-family: 'DM Serif Display';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('../fonts/dm-serif-display-latin-ext.woff2') format('woff2');
-  unicode-range:
-    U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329,
-    U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F,
-    U+A720-A7FF;
-}
-@font-face {
-  font-family: 'DM Serif Display';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('../fonts/dm-serif-display-latin.woff2') format('woff2');
-  unicode-range:
-    U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
-    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-}
-
+/* Legacy var aliases. They point at semantic design tokens from tokens.css.
+   Components are being migrated to consume semantic tokens directly. These
+   aliases keep unmigrated components working in the meantime. */
 :root {
-  --color-bg: #000000;
-  --color-surface: #0e0e0e;
-  --color-surface-deep: #080808;
-  --color-border: #252525;
-  --color-border-subtle: #1a1a1a;
-  --color-border-pill: #222222;
+  /* Legacy color aliases mapped to semantic tokens. */
+  --color-bg: var(--bg-surface-main);
+  --color-surface: var(--bg-surface-container);
+  --color-surface-deep: var(--bg-surface-nested);
+  --color-border: var(--stroke-primary);
+  --color-border-subtle: var(--stroke-primary);
+  --color-border-pill: var(--stroke-secondary);
 
-  --color-text: #d0d0d0;
-  --color-heading: #ffffff;
-  --color-secondary: #777777;
-  --color-tertiary: #555555;
-  --color-muted: #444444;
+  --color-text: var(--fg-primary);
+  --color-heading: var(--fg-primary);
+  --color-secondary: var(--fg-secondary);
+  --color-tertiary: var(--fg-tertiary);
+  --color-muted: var(--fg-disabled);
 
-  --color-accent: #ffffff;
-  --color-accent-glow: rgba(255, 255, 255, 0.18);
-  --color-accent-bg: rgba(255, 255, 255, 0.07);
+  --color-accent: var(--fg-primary);
+  --color-accent-glow: rgb(var(--fg-rgb) / 0.18);
+  --color-accent-bg: var(--bg-surface-nested);
 
+  --color-success: var(--fg-success);
+  --color-danger: var(--fg-error);
+
+  --cta-bg: var(--bg-action-primary);
+  --cta-bg-hover: var(--bg-action-primary-hover);
+  --cta-fg: var(--fg-on-action-primary);
+
+  --popover-bg: var(--bg-surface-container);
+  --sheet-bg: var(--bg-surface-container);
+  --toast-bg: var(--bg-surface-nested);
+  --toast-fg: var(--fg-primary);
+  --toast-stroke: var(--stroke-primary);
+
+  --radius-card: var(--radius-extra-medium);
+  --radius-input: var(--radius-small-increased);
+  --radius-pill: var(--radius-large);
+
+  --font-heading: var(--font-accent);
+  --font-body: var(--font-sans);
+
+  /* White-alpha ramp. Derived from --fg-rgb so it follows the theme below. */
   --fg-rgb: 255 255 255;
   --fg-0: rgb(var(--fg-rgb));
   --fg-1: rgb(var(--fg-rgb) / 0.95);
@@ -62,16 +64,6 @@
   --stroke-4: rgb(var(--fg-rgb) / 0.25);
   --stroke-5: rgb(var(--fg-rgb) / 0.35);
 
-  --cta-bg: rgb(var(--fg-rgb) / 0.9);
-  --cta-bg-hover: #ffffff;
-  --cta-fg: #0a0a0a;
-
-  --popover-bg: #1a1a1a;
-  --sheet-bg: rgba(20, 20, 20, 0.95);
-  --toast-bg: rgba(30, 30, 30, 0.95);
-  --toast-fg: rgba(255, 255, 255, 0.85);
-  --toast-stroke: rgba(255, 255, 255, 0.1);
-
   --halftone-dot: rgb(var(--fg-rgb) / 0.06);
   --halftone-glow: rgb(var(--fg-rgb) / 0.025);
   --card-shadow:
@@ -83,24 +75,6 @@
   --input-bg-focus: var(--surface-5);
   --input-stroke-focus: var(--stroke-3);
 
-  /* DOT brand accent — used sparingly: caret, active state, live dot */
-  --color-dot: #ff2670;
-  --color-dot-soft: rgba(255, 38, 112, 0.55);
-  --color-dot-faint: rgba(255, 38, 112, 0.14);
-
-  --color-live: #ff2670;
-
-  --color-success: #4ade80;
-  --color-danger: #ef4444;
-
-  --radius-card: 12px;
-  --radius-input: 10px;
-  --radius-pill: 20px;
-
-  --font-heading: 'DM Serif Display', Georgia, serif;
-  --font-body: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', ui-monospace, monospace;
-
   --shadow-accent-sm: 0 0 14px rgba(255, 255, 255, 0.12);
   --shadow-accent-md: 0 0 24px rgba(255, 255, 255, 0.15);
 
@@ -109,45 +83,8 @@
 }
 
 [data-theme='light'] {
-  --color-bg: #fafafa;
-  --color-surface: #ffffff;
-  --color-surface-deep: #f5f5f5;
-  --color-border: #e5e5e5;
-  --color-border-subtle: #ededed;
-  --color-border-pill: #d4d4d4;
-
-  --color-text: #404040;
-  --color-heading: #0a0a0a;
-  --color-secondary: #737373;
-  --color-tertiary: #a3a3a3;
-  --color-muted: #d4d4d4;
-
-  --color-accent: #171717;
-  --color-accent-glow: rgba(10, 10, 10, 0.06);
-  --color-accent-bg: rgba(10, 10, 10, 0.04);
-
   --fg-rgb: 10 10 10;
 
-  --fg-0: #0a0a0a;
-  --fg-1: #171717;
-  --fg-2: #262626;
-  --fg-3: #525252;
-  --fg-4: #737373;
-  --fg-5: #a3a3a3;
-  --fg-6: #b8b8b8;
-
-  --cta-bg: #171717;
-  --cta-bg-hover: #000000;
-  --cta-fg: #fafafa;
-
-  --popover-bg: #ffffff;
-  --sheet-bg: rgba(255, 255, 255, 0.96);
-  --toast-bg: #0d0d0d;
-  --toast-fg: rgba(250, 250, 250, 0.95);
-  --toast-stroke: rgba(255, 255, 255, 0.08);
-
-  --halftone-dot: rgba(10, 10, 10, 0.05);
-  --halftone-glow: rgba(10, 10, 10, 0.015);
   --card-shadow:
     0 0 0 1px rgba(10, 10, 10, 0.04), 0 1px 2px rgba(10, 10, 10, 0.04),
     0 12px 28px -10px rgba(10, 10, 10, 0.08);
@@ -156,10 +93,6 @@
   --shadow-accent-md: 0 6px 20px rgba(10, 10, 10, 0.08);
 
   --title-shadow: none;
-
-  --input-bg: #f1f1f1;
-  --input-bg-focus: #ebebeb;
-  --input-stroke-focus: #d4d4d4;
 }
 
 *,
@@ -307,10 +240,10 @@ input {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: var(--color-dot);
+  background: var(--bg-accent);
   margin: 0 1.1em 1px;
   vertical-align: middle;
-  box-shadow: 0 0 10px var(--color-dot-soft);
+  box-shadow: 0 0 10px rgb(77 141 255 / 0.55);
 }
 
 .card {
@@ -467,6 +400,10 @@ input {
   padding: 0.25rem 0 0.5rem;
 }
 
+.loading-dots--inline {
+  display: flex;
+}
+
 .loading-dots__dot {
   width: 7px;
   height: 7px;
@@ -508,6 +445,10 @@ input {
   border: 1px solid var(--toast-stroke);
   pointer-events: none;
   opacity: 0;
+  white-space: nowrap;
+  max-width: calc(100vw - 2rem);
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition:
     opacity 0.2s,
     transform 0.2s;
@@ -540,6 +481,10 @@ input {
 .corner-chip--manage {
   left: calc(1.5rem + 16px);
   right: auto;
+  font-family: var(--font-sans);
+  font-size: var(--type-title-sm-size);
+  font-weight: var(--type-title-sm-weight);
+  line-height: var(--type-title-sm-line);
 }
 
 .corner-chip:hover,
@@ -553,40 +498,12 @@ input {
   border-radius: 4px;
 }
 
-.corner-chip--copied,
-.corner-chip--copied:hover,
-.corner-chip--copied .corner-chip__label,
-.corner-chip--copied .corner-chip__addr {
-  color: var(--color-heading);
-}
-
 .corner-chip__label {
   color: var(--color-muted);
 }
 
 .corner-chip__addr {
   color: var(--color-heading);
-}
-
-/* Hide the address on the "you" chip at rest; reveal on hover/focus/copied. */
-.corner-chip:not(.corner-chip--manage) .corner-chip__addr {
-  max-width: 0;
-  opacity: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  margin-left: -6px;
-  transition:
-    max-width 360ms cubic-bezier(0.4, 0, 0.2, 1),
-    margin-left 360ms cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 360ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.corner-chip:not(.corner-chip--manage):hover .corner-chip__addr,
-.corner-chip:not(.corner-chip--manage):focus-visible .corner-chip__addr,
-.corner-chip--copied .corner-chip__addr {
-  max-width: 200px;
-  margin-left: 0;
-  opacity: 1;
 }
 
 .footer {
@@ -726,11 +643,11 @@ input {
 }
 
 .debug-entry--warn {
-  color: #e5a53d;
+  color: var(--fg-warning);
 }
 
 .debug-entry--error {
-  color: #ef4444;
+  color: var(--fg-error);
 }
 
 .debug-time {

@@ -6,7 +6,7 @@ const SEED_STORE_ADDRESS = '0x000000000000000000000000000000000e2e7e57'
 
 const SEED_LABEL_ENTRIES = [
   {
-    label: 'e2e-test-app-alpha',
+    label: 'calculator',
     name: 'Alpha App',
     description: 'First test app',
     contentHash: 'ipfs://QmE2eTestAlpha',
@@ -22,7 +22,7 @@ const SEED_LABEL_ENTRIES = [
     hasUserAttested: false
   },
   {
-    label: 'e2e-test-app-gamma',
+    label: 'stopwatch',
     name: 'Gamma App',
     description: 'Third test app',
     contentHash: 'ipfs://QmE2eTestGamma',

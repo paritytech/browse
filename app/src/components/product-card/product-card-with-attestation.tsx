@@ -8,6 +8,7 @@ interface ProductCardWithAttestationProps {
   app: AppEntry
   index: number
   bookmarked: boolean
+  isSignedIn: boolean
   showMenu?: boolean
   onClick: (label: string) => void
   onBookmark: (label: string) => void
@@ -18,6 +19,7 @@ export function ProductCardWithAttestation({
   app,
   index,
   bookmarked,
+  isSignedIn,
   showMenu,
   onClick,
   onBookmark,
@@ -28,6 +30,10 @@ export function ProductCardWithAttestation({
   const { showToast } = useToast()
 
   const handleAttestation = useEvent(() => {
+    if (!isSignedIn) {
+      showToast('Sign in to recommend')
+      return
+    }
     if (app.hasUserAttested) {
       revokeApp.mutate(app.label, {
         onSuccess: () => showToast('Unrecommended!'),

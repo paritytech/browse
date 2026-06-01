@@ -30,7 +30,7 @@ import {
   nodeToSubject
 } from '../../lib/abi'
 import { reviveCall } from '../../lib/client'
-import { BACKEND } from '../../lib/config'
+import { NETWORK } from '../../lib/config'
 import { hiddenLog } from '../../lib/debug'
 import { multicall } from '../../lib/multicall'
 
@@ -69,7 +69,7 @@ export function labelhashOf(label: string): `0x${string}` {
  * array when no Publisher is configured for the active network.
  */
 export async function readPublishedLabelhashes(): Promise<`0x${string}`[]> {
-  if (BACKEND.PUBLISHER === ZERO_ADDRESS) {
+  if (NETWORK.PUBLISHER === ZERO_ADDRESS) {
     hiddenLog('Publisher not deployed on this network; returning empty set', 'error')
     return []
   }
@@ -90,7 +90,7 @@ async function readPublishedLabelhashesOnce(): Promise<`0x${string}`[]> {
   const all: `0x${string}`[] = []
   for (;;) {
     const raw = await reviveCall(
-      BACKEND.PUBLISHER,
+      NETWORK.PUBLISHER,
       encodeGetPublished(offset, PUBLISHER_PAGE_LIMIT)
     )
     const page = decodeBytes32Array(raw)
@@ -124,10 +124,10 @@ export async function resolveLabels(
   if (toResolve.length === 0) return result
 
   hiddenLog(
-    `Resolving ${toResolve.length} new labelhashes: multicall(${BACKEND.MULTICALL3}, [labelOf×${toResolve.length}])`
+    `Resolving ${toResolve.length} new labelhashes: multicall(${NETWORK.MULTICALL3}, [labelOf×${toResolve.length}])`
   )
   const calls: MulticallTarget[] = toResolve.map((lh) => ({
-    target: BACKEND.REGISTRAR,
+    target: NETWORK.REGISTRAR,
     callData: encodeLabelOf(labelhashToTokenId(lh))
   }))
   const results = await multicall(calls)
@@ -151,11 +151,11 @@ export async function hydrateLabelChunk(
   userH160: `0x${string}` | null
 ): Promise<LabelEntry[]> {
   const chCalls: MulticallTarget[] = chunk.map((label) => ({
-    target: BACKEND.CONTENT_RESOLVER,
+    target: NETWORK.CONTENT_RESOLVER,
     callData: encodeContenthash(namehash(`${label}.dot`))
   }))
   hiddenLog(
-    `Fetching content hashes: multicall(${BACKEND.MULTICALL3}, [contenthash×${chunk.length}])`
+    `Fetching content hashes: multicall(${NETWORK.MULTICALL3}, [contenthash×${chunk.length}])`
   )
   const chResults = await multicall(chCalls)
 
@@ -176,22 +176,22 @@ export async function hydrateLabelChunk(
       const workerNode = namehash(`worker.${chunk[chunkIndex]}.dot`)
       const subject = nodeToSubject(node)
       metaCalls.push(
-        { target: BACKEND.CONTENT_RESOLVER, callData: encodeText(node, 'manifest') },
-        { target: BACKEND.REGISTRY, callData: encodeNodeOwner(workerNode) },
+        { target: NETWORK.CONTENT_RESOLVER, callData: encodeText(node, 'manifest') },
+        { target: NETWORK.REGISTRY, callData: encodeNodeOwner(workerNode) },
         {
-          target: BACKEND.ATTESTATION_INDEX_RESOLVER,
-          callData: encodeCountByRecipientAndSchema(subject, BACKEND.SCHEMA_ID)
+          target: NETWORK.ATTESTATION_INDEX_RESOLVER,
+          callData: encodeCountByRecipientAndSchema(subject, NETWORK.SCHEMA_ID)
         }
       )
       if (userH160) {
         metaCalls.push({
-          target: BACKEND.ATTESTATION_INDEX_RESOLVER,
-          callData: encodeIsActiveAny(subject, BACKEND.SCHEMA_ID, [userH160])
+          target: NETWORK.ATTESTATION_INDEX_RESOLVER,
+          callData: encodeIsActiveAny(subject, NETWORK.SCHEMA_ID, [userH160])
         })
       }
     }
     hiddenLog(
-      `Fetching metadata for ${liveIndexes.length} live labels: multicall(${BACKEND.MULTICALL3}, [${metaCalls.length} calls])`
+      `Fetching metadata for ${liveIndexes.length} live labels: multicall(${NETWORK.MULTICALL3}, [${metaCalls.length} calls])`
     )
     metaResults = await multicall(metaCalls)
   }
@@ -253,9 +253,9 @@ export async function readContentByName(label: string): Promise<{
   const node = namehash(`${label}.dot`)
   const workerNode = namehash(`worker.${label}.dot`)
   const calls: MulticallTarget[] = [
-    { target: BACKEND.CONTENT_RESOLVER, callData: encodeContenthash(node) },
-    { target: BACKEND.CONTENT_RESOLVER, callData: encodeText(node, 'manifest') },
-    { target: BACKEND.REGISTRY, callData: encodeNodeOwner(workerNode) }
+    { target: NETWORK.CONTENT_RESOLVER, callData: encodeContenthash(node) },
+    { target: NETWORK.CONTENT_RESOLVER, callData: encodeText(node, 'manifest') },
+    { target: NETWORK.REGISTRY, callData: encodeNodeOwner(workerNode) }
   ]
   const results = await multicall(calls)
   const contentHash = tryDecode(results[0], (data) => decodeIpfsContenthash(decodeBytes(data)))

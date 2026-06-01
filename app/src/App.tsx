@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { createAccountsProvider, createThemeProvider } from '@novasamatech/product-sdk'
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowUp, Bookmark, Check, Copy } from 'lucide-preact'
+import { ArrowUp, Bookmark, Package } from 'lucide-preact'
 
 import { CategoryTabs } from './components/category-tabs'
 import { ContactsManager } from './components/contacts-manager'
@@ -14,7 +14,6 @@ import { Toast } from './components/toast'
 import { ToastContext } from './components/toast/context'
 import { createBookmark, deleteBookmark, readBookmarks } from './db/bookmarks'
 import { upsertLabel } from './db/labels'
-import { attestationService } from './lib/attestation-service'
 import { setupDebugConsole } from './lib/debug'
 import { navigateToDomain } from './lib/navigate'
 import { useEvent } from './lib/use-event'
@@ -39,8 +38,6 @@ export function App() {
     null
   )
   const [signed, setSigned] = useState(false)
-  const [signerAddress, setSignerAddress] = useState<string | null>(null)
-  const [signerAddressCopied, setSignerAddressCopied] = useState(false)
   const [contacts, setContacts] = useState<ContactEntry[]>([])
   const [showContactsManager, setShowContactsManager] = useState(false)
   const deferredQuery = useDeferredValue(query)
@@ -59,7 +56,7 @@ export function App() {
     for (const app of allApps) byLabel.set(app.label, app)
     const addLabel = (label: string) => {
       if (byLabel.has(label)) return
-      // Pull metadata from the labels DB when available — covers labels
+      // Pull metadata from the labels DB when available. Covers labels
       // outside the Publisher set (bookmarked search results, followed-only).
       const cached = labelDb?.get(label)
       byLabel.set(label, {
@@ -79,9 +76,21 @@ export function App() {
     return [...byLabel.values()]
   }, [allApps, followingApps, bookmarkedApps, labelDb])
 
+  // Labels that came from the Publisher set, used to scope the All tab to
+  // published apps only (bookmarked/followed entries belong to their own tabs).
+  const publishedLabels = useMemo(() => new Set(allApps.map((app) => app.label)), [allApps])
+
   const filtered = useMemo(
-    () => filterApps(appsForFiltering, deferredQuery, currentMode, bookmarkedApps, followingApps),
-    [appsForFiltering, deferredQuery, currentMode, bookmarkedApps, followingApps]
+    () =>
+      filterApps(
+        appsForFiltering,
+        deferredQuery,
+        currentMode,
+        bookmarkedApps,
+        followingApps,
+        publishedLabels
+      ),
+    [appsForFiltering, deferredQuery, currentMode, bookmarkedApps, followingApps, publishedLabels]
   )
   // While the user is typing, search ignores tabs.
   const searchMatches = useMemo<AppEntry[] | null>(() => {
@@ -94,7 +103,8 @@ export function App() {
         deferredQuery,
         mode,
         bookmarkedApps,
-        followingApps
+        followingApps,
+        publishedLabels
       )
       for (const app of modeMatches) {
         if (seen.has(app.label)) continue
@@ -103,7 +113,7 @@ export function App() {
       }
     }
     return matches
-  }, [deferredQuery, appsForFiltering, bookmarkedApps, followingApps])
+  }, [deferredQuery, appsForFiltering, bookmarkedApps, followingApps, publishedLabels])
 
   const tryLabel = query
     .trim()
@@ -114,7 +124,17 @@ export function App() {
     .toLowerCase()
     .replace(/\.dot$/, '')
   const shouldResolve = debouncedQuery === query && resolverLabel.length >= 3
-  const { data: resolvedApp } = useResolveLabel(resolverLabel, shouldResolve)
+  const { data: resolvedApp, isFetching: resolverFetching } = useResolveLabel(
+    resolverLabel,
+    shouldResolve
+  )
+  // True while a search is in flight: typing hasn't settled (debounce or
+  // useDeferredValue), or the on-chain resolver is fetching.
+  const isSearching =
+    query.length > 0 &&
+    (deferredQuery !== query ||
+      debouncedQuery !== query ||
+      (resolverLabel.length >= 3 && resolverFetching))
 
   // Persist resolvedApp into the labels DB so a later bookmark/follow can
   // render with full metadata even after reload.
@@ -193,24 +213,13 @@ export function App() {
     setToastIsError(isError)
     setToastMessage(message)
   })
-  const handleAddContact = useEvent((address: string) => {
-    addContact(address)
-    setContacts((prev) => [...prev, { address }])
+  const handleAddContact = useEvent((address: string, username?: string) => {
+    addContact(address, username)
+    setContacts((prev) => [...prev, { address, username }])
   })
   const handleRemoveContact = useEvent((address: string) => {
     removeContact(address)
     setContacts((prev) => prev.filter((contact) => contact.address !== address))
-  })
-
-  const handleCopySignerAddress = useEvent(async () => {
-    if (!signerAddress) return
-    try {
-      await navigator.clipboard.writeText(signerAddress)
-      setSignerAddressCopied(true)
-      setTimeout(() => setSignerAddressCopied(false), 1500)
-    } catch {
-      showToast('Copy failed', true)
-    }
   })
 
   const handleShare = useEvent(async (app: AppEntry) => {
@@ -218,6 +227,16 @@ export function App() {
     const hasDescription = app.description && app.description !== 'No description'
     const header = [app.name, hasDescription ? app.description : null].filter(Boolean).join(', ')
     const text = header ? `${header}\n${domain}` : domain
+
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: app.name ?? undefined, text })
+        return
+      } catch (err) {
+        if ((err as Error).name === 'AbortError') return
+      }
+    }
+
     try {
       await navigator.clipboard.writeText(text)
       showToast('Copied to clipboard')
@@ -235,30 +254,15 @@ export function App() {
     return () => sub.unsubscribe()
   }, [])
 
-  // Resolve the local product-account SS58 for the debug panel
   useEffect(() => {
-    if (!signed) {
-      setSignerAddress(null)
+    const override = new URLSearchParams(window.location.search).get('theme')
+    if (override) {
+      document.documentElement.dataset.theme = override
       return
     }
-    let cancelled = false
-    attestationService
-      .getSigner()
-      .then(({ origin }) => {
-        if (!cancelled) setSignerAddress(origin)
-      })
-      .catch(() => {
-        if (!cancelled) setSignerAddress(null)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [signed])
-
-  useEffect(() => {
     const provider = createThemeProvider()
     const sub = provider.subscribeTheme((theme) => {
-      document.documentElement.dataset.theme = theme
+      document.documentElement.dataset.theme = theme === 'light' ? 'berlinDay' : 'berlinNight'
     })
     return () => sub.unsubscribe()
   }, [])
@@ -312,6 +316,7 @@ export function App() {
       app={app}
       index={i}
       bookmarked={bookmarkedApps.has(app.label)}
+      isSignedIn={signed}
       showMenu
       onClick={navigateToDomain}
       onBookmark={handleBookmark}
@@ -327,6 +332,7 @@ export function App() {
     filtered.length === 0 &&
     !query &&
     !followingLoading
+  const emptyAll = currentMode === 'all' && filtered.length === 0 && !query && !allFetching
 
   return (
     <ToastContext.Provider value={{ showToast }}>
@@ -349,7 +355,7 @@ export function App() {
               {!searchMatches && (
                 <CategoryTabs
                   active={[currentMode]}
-                  signed={signed}
+                  isSignedIn={signed}
                   onSwitch={(mode) => {
                     setCurrentMode(mode)
                     setShowContactsManager(false)
@@ -358,7 +364,14 @@ export function App() {
               )}
 
               <div class='app-list' id='app-list'>
-                {isLoading && filtered.length === 0 && !query ? null : emptyBookmarks ? (
+                {isLoading && filtered.length === 0 && !query ? null : emptyAll ? (
+                  <div class='empty-state'>
+                    <div class='empty-state__icon'>
+                      <Package size={32} />
+                    </div>
+                    <p class='empty-state__text'>No products published yet</p>
+                  </div>
+                ) : emptyBookmarks ? (
                   <div class='empty-state'>
                     <div class='empty-state__icon'>
                       <Bookmark size={32} />
@@ -382,9 +395,6 @@ export function App() {
                       None of the people you follow have recommended{' '}
                       <ArrowUp size={14} class='empty-state__inline-icon' /> any products yet
                     </p>
-                    <button class='empty-state__btn' onClick={() => setShowContactsManager(true)}>
-                      Manage following
-                    </button>
                   </div>
                 ) : searchMatches && (searchMatches.length > 0 || resolvedApp) ? (
                   [
@@ -394,16 +404,27 @@ export function App() {
                       : [])
                   ].map(renderCard)
                 ) : searchMatches ? (
-                  <div class='empty-state'>
-                    <div class='empty-state__icon'>{SEARCH_ICON}</div>
-                    <p class='empty-state__text'>No products matching "{query}"</p>
-                    <button
-                      class='empty-state__btn-ghost'
-                      onClick={() => navigateToDomain(tryLabel)}
-                    >
-                      Try {tryLabel}.dot anyway
-                    </button>
-                  </div>
+                  isSearching ? (
+                    <div class='empty-state'>
+                      <p class='empty-state__text'>Searching for "{query}"…</p>
+                      <div class='loading-dots loading-dots--inline'>
+                        <span class='loading-dots__dot' />
+                        <span class='loading-dots__dot' />
+                        <span class='loading-dots__dot' />
+                      </div>
+                    </div>
+                  ) : (
+                    <div class='empty-state'>
+                      <div class='empty-state__icon'>{SEARCH_ICON}</div>
+                      <p class='empty-state__text'>No products matching "{query}"</p>
+                      <button
+                        class='empty-state__btn-ghost'
+                        onClick={() => navigateToDomain(tryLabel)}
+                      >
+                        Try {tryLabel}.dot anyway
+                      </button>
+                    </div>
+                  )
                 ) : (
                   filtered.map(renderCard)
                 )}
@@ -424,30 +445,10 @@ export function App() {
                   type='button'
                   class='corner-chip corner-chip--manage'
                   onClick={() => setShowContactsManager(true)}
-                  aria-label={`Manage following — ${contacts.length} address${contacts.length === 1 ? '' : 'es'}`}
+                  aria-label={`Manage following, ${contacts.length} address${contacts.length === 1 ? '' : 'es'}`}
                 >
                   <span class='corner-chip__label'>Following</span>
                   <span class='corner-chip__addr'>{contacts.length}</span>
-                </button>
-              )}
-
-              {currentMode === 'following' && signerAddress && (
-                <button
-                  type='button'
-                  class={`corner-chip${signerAddressCopied ? ' corner-chip--copied' : ''}`}
-                  title={signerAddress}
-                  aria-label={`Copy your address, ${signerAddress}`}
-                  onClick={handleCopySignerAddress}
-                >
-                  {signerAddressCopied ? (
-                    <Check size={12} aria-hidden='true' />
-                  ) : (
-                    <Copy size={12} aria-hidden='true' />
-                  )}
-                  <span class='corner-chip__label'>you</span>
-                  <span class='corner-chip__addr'>
-                    {`${signerAddress.slice(0, 6)}…${signerAddress.slice(-4)}`}
-                  </span>
                 </button>
               )}
             </div>

@@ -44,7 +44,7 @@ Even in standalone mode the wrapper keeps the async signature so callers do not 
 
 ## How writes happen
 
-Sync-driven caches (`browse:labels`, `browse:stores`, `browse:addresses`) use whole-set writes: the caller holds the full in-memory map and writes it directly via `writeAllStores`, `writeAllLabels`, or `writeAllAddresses`. No read-merge-write — saves a host bridge round-trip per call.
+Sync-driven caches (`browse:labels`, `browse:stores`, `browse:addresses`) use whole-set writes: the caller holds the full in-memory map and writes it directly via `writeAllStores`, `writeAllLabels`, or `writeAllAddresses`. No read-merge-write. That saves a host bridge round-trip per call.
 
 User-driven mutations (`addBookmark`, `addContact`, `setCachedFollowed`, `setCachedPcf`) rewrite the whole array on each call. The caches are small enough that the full rewrite is cheap.
 
@@ -54,7 +54,7 @@ User-driven mutations (`addBookmark`, `addContact`, `setCachedFollowed`, `setCac
 
 ## TTL behavior
 
-Only `browse:labels` enforces a TTL — 24 hours, checked at sync start in [`syncAllApps`](../app/src/state/apps/queries.ts). Labels older than the TTL or missing `fetchedAt` (legacy entries) feed back into `flushLabelBatch` for re-fetching.
+Only `browse:labels` enforces a TTL of 24 hours, checked at sync start in [`syncAllApps`](../app/src/state/apps/queries.ts). Labels older than the TTL or missing `fetchedAt` (legacy entries) feed back into `flushLabelBatch` for re-fetching.
 
 `browse:followed` and `browse:pcf` record a timestamp but the query layer does not honor it today.
 

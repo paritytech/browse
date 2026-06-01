@@ -113,7 +113,7 @@ test.describe('App Start', () => {
     })
 
     test('As a signed user, when the All tab loads, I see products sorted by recommendation count', async () => {
-      test.setTimeout(45_000)
+      test.setTimeout(30_000)
 
       // When
       await frame.locator('.category-tab', { hasText: 'All' }).click()
@@ -121,7 +121,7 @@ test.describe('App Start', () => {
       // Then
       await expect(frame.locator('.product-card')).toHaveCount(0)
       await expect(frame.locator('.loading-dots')).toBeVisible()
-      await frame.waitForSelector('.product-card', { timeout: 50_000 })
+      await frame.waitForSelector('.product-card', { timeout: 30_000 })
       await expect(frame.locator('.product-card').first()).toBeVisible()
       const cards = frame.locator('.product-card')
       const cardCount = await cards.count()
@@ -151,7 +151,7 @@ test.describe('App Start', () => {
     })
 
     test('As a signed user, when cached label metadata is older than the TTL, it refreshes (fresh entries are left alone)', async () => {
-      test.setTimeout(45_000)
+      test.setTimeout(30_000)
       const page = await context.newPage()
       const KEY = 'test-host:browse:labels'
 
@@ -159,7 +159,7 @@ test.describe('App Start', () => {
       await navigateToTestHost(page, host.url)
       const frameInit = await getProductFrame(page, '.category-tab')
       await frameInit.locator('.category-tab', { hasText: 'All' }).click()
-      await frameInit.waitForSelector('.product-card', { timeout: 50_000 })
+      await frameInit.waitForSelector('.product-card', { timeout: 30_000 })
       const labelsAfterSync = await page.evaluate(
         (key) =>
           JSON.parse(localStorage.getItem(key) ?? '[]') as Array<{
@@ -222,7 +222,7 @@ test.describe('App Start', () => {
     })
 
     test('As a signed user, when I reload, cached apps show instantly while sync runs in the background', async () => {
-      test.setTimeout(45_000)
+      test.setTimeout(30_000)
       const page = await context.newPage()
       await navigateToTestHost(page, host.url)
       let frame: Frame = await getProductFrame(page, '.category-tab')
@@ -238,7 +238,7 @@ test.describe('App Start', () => {
       // Then
       await expect(frame.locator('.product-card').first()).toBeVisible()
       await expect(frame.locator('.loading-dots')).toBeVisible()
-      await expect(frame.locator('.product-card').nth(3)).toBeVisible({ timeout: 90_000 })
+      await expect(frame.locator('.product-card').nth(3)).toBeVisible({ timeout: 30_000 })
 
       // Then
       const labelCount = await page.evaluate(() => {

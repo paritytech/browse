@@ -1,0 +1,52 @@
+name: Release SDK
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  publish:
+    if: startsWith(github.event.release.tag_name, 'sdk-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: packages/browse-sdk
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        working-directory: .
+        run: bun install --frozen-lockfile
+
+      - name: Typecheck
+        run: bun run typecheck
+
+      - name: Build
+        run: bun run build
+
+      # Pre-releases (e.g. 0.1.0-rc.0) publish under the `rc` dist-tag so
+      # consumers who run `npm install @parity/browse-sdk` never pick one up by accident.
+      - name: Publish to npm
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if [[ "$VERSION" == *-* ]]; then
+            echo "Publishing $VERSION as pre-release under @rc"
+            npm publish --tag rc
+          else
+            echo "Publishing $VERSION as stable under @latest"
+            npm publish
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -20,6 +20,11 @@ const input: Record<string, string> =
 
 export default defineConfig({
   plugins: [preact(), nodePolyfills()],
+  resolve: {
+    alias: {
+      '@parity/browse-sdk': resolve(__dirname, '../packages/browse-sdk/src/index.ts')
+    }
+  },
   build: {
     target: 'es2022',
     rollupOptions: { input }

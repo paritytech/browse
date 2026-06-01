@@ -1,7 +1,9 @@
-import { useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 
 import { AccountId } from 'polkadot-api'
 
+import { resolveUsername, searchUsernames, type UsernameEntry } from '../../lib/usernames'
+import { type ContactEntry } from '../../state/contacts/api'
 import './styles.css'
 
 function isValidSS58(addr: string): boolean {
@@ -13,14 +15,10 @@ function isValidSS58(addr: string): boolean {
   }
 }
 
-interface ContactEntry {
-  address: string
-}
-
 interface ContactsManagerProps {
   contacts: ContactEntry[]
   visible: boolean
-  onAdd: (address: string) => void
+  onAdd: (address: string, username?: string) => void
   onRemove: (address: string) => void
   onDismiss: () => void
 }
@@ -38,22 +36,59 @@ export function ContactsManager({
 }: ContactsManagerProps) {
   const [input, setInput] = useState('')
   const [error, setError] = useState('')
+  const [matches, setMatches] = useState<UsernameEntry[]>([])
+  const [showDropdown, setShowDropdown] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  function handleAdd() {
-    const trimmed = input.trim()
-    if (!trimmed) return
+  const trimmed = input.trim()
 
-    if (!isValidSS58(trimmed)) {
-      setError('Invalid address')
+  useEffect(() => {
+    if (!trimmed) {
+      setMatches([])
       return
     }
-    if (contacts.some((contact) => contact.address === trimmed)) {
+    let cancelled = false
+    const id = setTimeout(async () => {
+      const results = await searchUsernames(trimmed)
+      if (cancelled) return
+      const taken = new Set(contacts.map((contact) => contact.address))
+      setMatches(results.filter((entry) => !taken.has(entry.account)))
+    }, 300)
+    return () => {
+      cancelled = true
+      clearTimeout(id)
+    }
+  }, [trimmed, contacts])
+
+  function addEntry(address: string, username?: string) {
+    if (contacts.some((contact) => contact.address === address)) {
       setError('Already added')
       return
     }
-    onAdd(trimmed)
+    onAdd(address, username)
     setInput('')
     setError('')
+    setShowDropdown(false)
+  }
+
+  async function handleAdd() {
+    if (!trimmed) return
+
+    const match = matches.find((entry) => entry.username.toLowerCase() === trimmed.toLowerCase())
+    if (match) {
+      addEntry(match.account, match.username)
+      return
+    }
+    if (isValidSS58(trimmed)) {
+      addEntry(trimmed)
+      return
+    }
+    const resolved = await resolveUsername(trimmed)
+    if (resolved) {
+      addEntry(resolved, trimmed)
+      return
+    }
+    setError('Username not found')
   }
 
   return (
@@ -67,25 +102,31 @@ export function ContactsManager({
 
       <div class='contacts-manager__input-row'>
         <input
+          ref={inputRef}
           class={`contacts-manager__input${
-            input.trim()
-              ? isValidSS58(input.trim())
-                ? ' contacts-manager__input--valid'
-                : ' contacts-manager__input--invalid'
-              : ''
+            trimmed && isValidSS58(trimmed) ? ' contacts-manager__input--valid' : ''
           }`}
           type='text'
-          placeholder='5FLSig…S59Y'
+          placeholder='Type username'
           value={input}
           onInput={(e) => {
-            setInput((e.target as HTMLInputElement).value)
+            const value = (e.target as HTMLInputElement).value
+            setInput(value)
             setError('')
+            setShowDropdown(value.trim().length > 0)
           }}
           onKeyDown={(e) => {
             if (e.key === 'Enter') {
               e.preventDefault()
               handleAdd()
             }
+            if (e.key === 'Escape') setShowDropdown(false)
+          }}
+          onFocus={() => {
+            if (trimmed.length > 0) setShowDropdown(true)
+          }}
+          onBlur={() => {
+            setTimeout(() => setShowDropdown(false), 200)
           }}
         />
         <button class='contacts-manager__add-btn' onClick={handleAdd}>
@@ -93,13 +134,33 @@ export function ContactsManager({
         </button>
       </div>
 
+      {showDropdown && matches.length > 0 && (
+        <div class='contacts-manager__dropdown'>
+          {matches.map((entry) => (
+            <button
+              key={entry.account}
+              class='contacts-manager__match'
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => addEntry(entry.account, entry.username)}
+            >
+              <span class='contacts-manager__match-name'>@{entry.username}</span>
+              <span class='contacts-manager__match-addr'>{truncateAddress(entry.account)}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {error && <p class='contacts-manager__error'>{error}</p>}
 
       <div class='contacts-manager__list'>
         {contacts.map((contact) => (
           <div key={contact.address} class='contacts-manager__item'>
             <div class='contacts-manager__item-info'>
-              <span class='contacts-manager__addr'>{truncateAddress(contact.address)}</span>
+              {contact.username ? (
+                <span class='contacts-manager__username'>@{contact.username}</span>
+              ) : (
+                <span class='contacts-manager__addr'>{truncateAddress(contact.address)}</span>
+              )}
             </div>
             <button class='contacts-manager__remove' onClick={() => onRemove(contact.address)}>
               ✕
@@ -110,5 +171,3 @@ export function ContactsManager({
     </div>
   )
 }
-
-export type { ContactEntry }

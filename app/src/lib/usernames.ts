@@ -1,7 +1,3 @@
-/**
- * Dead code kept for future use.
- */
-
 const API_URL = 'https://identity-backend-next.parity-testnet.parity.io/api/v1'
 
 export interface UsernameEntry {

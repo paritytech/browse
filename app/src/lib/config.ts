@@ -1,69 +1,27 @@
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
+import {
+  isKnownGenesis,
+  type NetworkGenesis,
+  PASEO_ASSET_HUB_NEXT_V2_GENESIS,
+  selectNetwork
+} from '@parity/browse-sdk'
 
-const ASSETHUB_GENESIS_TO_BACKEND_CONFIG = {
-  // Paseo Asset Hub V1
-  '0xd6eec26135305a8ad257a20d003357284c8aa03d0bdb2b357ab0a22371e11ef2': {
-    MULTICALL3: '0x0C206218c5949c00e51825364a7C3A17d9909ef6',
-    STORE_FACTORY: '0x9C38DFec452391696a8f0D3daFE71F7Eb29e08f8',
-    CONTENT_RESOLVER: '0x108376A5B6DDc6BE3201C94Fd169BE444f220076',
-    REGISTRY: '0xE6c0fB6D5492666144A8a4a015E25a98ACa604cA',
-    REGISTRAR: '0xeD3BC8Abae983b0A22ff6881a9Aa1B83E5Ed3146',
-    PUBLISHER: ZERO_ADDRESS,
-    SCHEMA_REGISTRY: '0xb50a0be72877a06b90e093a02db6aa659644ddf3',
-    ATTESTATION_SERVICE: '0xff35f0da2de747f800baef2a01b03f51af7d111d',
-    ATTESTATION_INDEX_RESOLVER: '0xff35f0da2de747f800baef2a01b03f51af7d111d',
-    IPFS_GATEWAY: 'https://paseo-ipfs.polkadot.io',
-    SCHEMA_ID: 1n,
-    rpcs: [
-      'wss://sys.ibp.network/asset-hub-paseo',
-      'wss://asset-hub-paseo.dotters.network',
-      'wss://asset-hub-paseo-rpc.dwellir.com'
-    ]
-  },
-  // Paseo Asset Hub Next V2
-  '0x173cea9df45656cf612c8b8ece56e04e9a693c69cfaac47d3628dae735067af8': {
-    MULTICALL3: '0xc8dec79d850a8c53594169c024f615aa72a127a9',
-    STORE_FACTORY: '0x0DE5De70d61cc6b44B45d6595afDe8dB9b55bc31',
-    CONTENT_RESOLVER: '0x2c9FF5D9136DBE5814C7B4FDbeDC15273a776663',
-    REGISTRY: '0x8877344A885682523B4613779C95688ed7037BfD',
-    REGISTRAR: '0x885b8085bA92A31c4ef52076f77379E647ECC399',
-    PUBLISHER: '0x1307fc02d308f879a16b1ae3a49b4927aed53649',
-    SCHEMA_REGISTRY: '0xbe92a66b697dc9bd4a35b1b8e3aead484d2010a7',
-    ATTESTATION_SERVICE: '0x24af868f14605460f6385aae166986cee9800514',
-    ATTESTATION_INDEX_RESOLVER: '0x5d701a1aca551b0e1cd6a00172554e5ff2348104',
-    IPFS_GATEWAY: 'https://paseo-bulletin-next-ipfs.polkadot.io',
-    SCHEMA_ID: 1n,
-    rpcs: ['wss://paseo-asset-hub-next-rpc.polkadot.io']
-  },
-  // Previewnet Asset Hub
-  '0x7765f98d559faf44baff547e8876a47c64cd1161f239d7df5a9e26194617f775': {
-    MULTICALL3: '0x0C206218c5949c00e51825364a7C3A17d9909ef6',
-    STORE_FACTORY: '0x9C38DFec452391696a8f0D3daFE71F7Eb29e08f8',
-    CONTENT_RESOLVER: '0x108376A5B6DDc6BE3201C94Fd169BE444f220076',
-    REGISTRY: '0xE6c0fB6D5492666144A8a4a015E25a98ACa604cA',
-    REGISTRAR: '0x6c40817cdb96Ab57A4d9E9fa21D0eEa8307BDDE8',
-    PUBLISHER: ZERO_ADDRESS,
-    SCHEMA_REGISTRY: ZERO_ADDRESS,
-    ATTESTATION_SERVICE: ZERO_ADDRESS,
-    ATTESTATION_INDEX_RESOLVER: ZERO_ADDRESS,
-    IPFS_GATEWAY: 'https://previewnet.substrate.dev/ipfs',
-    SCHEMA_ID: 1n,
-    rpcs: ['wss://previewnet-asset-hub-rpc.polkadot.io']
-  }
-} as const
-
-const PASEO_ASSET_HUB_NEXT_V2 = '0x173cea9df45656cf612c8b8ece56e04e9a693c69cfaac47d3628dae735067af8'
+declare const process: { env?: { VITE_ACTIVE_GENESIS?: string } } | undefined
 
 const VITE_ACTIVE_GENESIS =
   (typeof import.meta !== 'undefined'
     ? (import.meta as { env?: { VITE_ACTIVE_GENESIS?: string } }).env?.VITE_ACTIVE_GENESIS
-    : undefined) ?? PASEO_ASSET_HUB_NEXT_V2
+    : undefined) ??
+  (typeof process !== 'undefined' ? process.env?.VITE_ACTIVE_GENESIS : undefined) ??
+  PASEO_ASSET_HUB_NEXT_V2_GENESIS
 
-export const ASSET_HUB_PASEO_GENESIS =
-  VITE_ACTIVE_GENESIS as keyof typeof ASSETHUB_GENESIS_TO_BACKEND_CONFIG
+if (!isKnownGenesis(VITE_ACTIVE_GENESIS)) {
+  throw new Error(`Unknown VITE_ACTIVE_GENESIS: ${VITE_ACTIVE_GENESIS}`)
+}
 
-export const BACKEND = ASSETHUB_GENESIS_TO_BACKEND_CONFIG[ASSET_HUB_PASEO_GENESIS]
-export const SCHEMA_LIKE_ID = BACKEND.SCHEMA_ID
+export const ASSET_HUB_PASEO_GENESIS: NetworkGenesis = VITE_ACTIVE_GENESIS
+
+export const NETWORK = selectNetwork(ASSET_HUB_PASEO_GENESIS)
+export const SCHEMA_LIKE_ID = NETWORK.SCHEMA_ID
 
 export const DRY_RUN_WEIGHT_LIMIT = {
   ref_time: 18_446_744_073_709_551_615n,

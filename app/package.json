@@ -6,6 +6,8 @@
   "scripts": {
     "postinstall": "papi generate",
     "dev": "vite",
+    "dev:paseo": "VITE_ACTIVE_GENESIS=0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f vite",
+    "dev:previewnet": "VITE_ACTIVE_GENESIS=0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb vite",
     "build:spa": "VITE_BUILD_TARGET=spa vite build --outDir dist/spa --emptyOutDir",
     "build:widget": "VITE_BUILD_TARGET=widget vite build --outDir dist/widget --emptyOutDir && mv dist/widget/widget.html dist/widget/index.html",
     "preview": "vite preview",
@@ -16,12 +18,16 @@
     "typecheck": "tsc --noEmit",
     "papi:attestation-service": "npx papi sol add src/lib/abis/AttestationService.json attestation_service",
     "papi:schema-registry": "npx papi sol add src/lib/abis/SchemaRegistry.json schema_registry",
-    "test:e2e": "playwright test --config tests/playwright.config.ts"
+    "test:e2e": "VITE_ACTIVE_GENESIS=0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb playwright test --config tests/playwright.config.ts"
   },
   "dependencies": {
     "@ensdomains/content-hash": "^3.0.0",
+    "@fontsource-variable/inter": "^5.2.8",
+    "@fontsource-variable/manrope": "^5.2.8",
+    "@fontsource-variable/martian-mono": "^5.2.7",
     "@noble/hashes": "^2.0.1",
     "@novasamatech/product-sdk": "0.7.9-4",
+    "@parity/browse-sdk": "*",
     "@polkadot-api/descriptors": "file:.papi/descriptors",
     "@polkadot-api/sdk-ink": "^0.7.0",
     "@polkadot-api/signers-common": "^0.2.2",

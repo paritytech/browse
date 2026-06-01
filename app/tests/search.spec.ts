@@ -40,10 +40,10 @@ test.describe('Search', () => {
     await frame.waitForSelector('.product-card', { timeout: 10_000 })
 
     // When
-    await frame.locator('.search-bar__input').fill('alpha')
+    await frame.locator('.search-bar__input').fill('calc')
 
     // Then
-    const matched = frame.locator('.product-card[data-label="e2e-test-app-alpha"]')
+    const matched = frame.locator('.product-card[data-label="calculator"]')
     await expect(matched).toBeVisible()
     await expect(frame.locator('.product-card')).toHaveCount(1)
 
@@ -61,12 +61,12 @@ test.describe('Search', () => {
     await frame.waitForTimeout(300)
 
     // When
-    await frame.locator('.search-bar__input').fill('alpha')
+    await frame.locator('.search-bar__input').fill('calc')
     await frame.waitForTimeout(DEBOUNCE_MS + 200)
 
     // Then
     await expect(frame.locator('.category-tab--active')).toHaveCount(0)
-    await expect(frame.locator('.product-card[data-label="e2e-test-app-alpha"]')).toBeVisible()
+    await expect(frame.locator('.product-card[data-label="calculator"]')).toBeVisible()
 
     await page.close()
   })

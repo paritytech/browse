@@ -20,12 +20,12 @@ const SIGNED_CATEGORIES: CategoryTab[] = [
 
 interface CategoryTabsProps {
   active: FilterMode[]
-  signed?: boolean
+  isSignedIn: boolean
   onSwitch: (mode: FilterMode) => void
 }
 
-export function CategoryTabs({ active, signed, onSwitch }: CategoryTabsProps) {
-  const categories = signed ? SIGNED_CATEGORIES : BASE_CATEGORIES
+export function CategoryTabs({ active, isSignedIn, onSwitch }: CategoryTabsProps) {
+  const categories = isSignedIn ? SIGNED_CATEGORIES : BASE_CATEGORIES
   const activeSet = new Set(active)
 
   return (

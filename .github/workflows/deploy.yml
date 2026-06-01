@@ -63,12 +63,12 @@ jobs:
         target:
           - env: paseo-next-v2
             display-name: Paseo Next V2
-            genesis: '0x173cea9df45656cf612c8b8ece56e04e9a693c69cfaac47d3628dae735067af8'
+            genesis: '0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f'
             reuse-artifact: true
             required: true
           - env: preview
             display-name: Preview
-            genesis: '0x7765f98d559faf44baff547e8876a47c64cd1161f239d7df5a9e26194617f775'
+            genesis: '0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb'
             reuse-artifact: false
             required: false
     outputs:

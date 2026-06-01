@@ -1,17 +1,24 @@
 import { createAccountsProvider, hostApi } from '@novasamatech/product-sdk'
 import { contracts } from '@polkadot-api/descriptors'
 import { type AsyncTransaction, createInkSdk } from '@polkadot-api/sdk-ink'
-import {
-  AccountId,
-  Binary,
-  type PolkadotClient,
-  type PolkadotSigner,
-  type SS58String
-} from 'polkadot-api'
-import { getPolkadotSigner } from 'polkadot-api/signer'
+import { AccountId, type PolkadotClient, type PolkadotSigner, type SS58String } from 'polkadot-api'
 
 import { ensureApi, ensureClient, type PaseoHubApi } from './client'
-import { BACKEND, DUMMY_ORIGIN } from './config'
+import { DUMMY_ORIGIN, NETWORK } from './config'
+
+const SELF_DOTNS = (() => {
+  const fallback = 'browse.dot'
+  if (typeof window === 'undefined') return fallback
+  const hostname = window.location.hostname.toLowerCase()
+  if (hostname.endsWith('.app.localhost') || hostname.endsWith('.app.dot')) return fallback
+  if (hostname === 'localhost' || hostname.endsWith('.localhost') || hostname === '127.0.0.1') {
+    return window.location.host.toLowerCase()
+  }
+  if (hostname.endsWith('.dot')) return hostname
+  const segments = hostname.split('.')
+  if (segments.length >= 3) return `${segments.slice(0, -2).join('.')}.dot`
+  return fallback
+})()
 
 export type ApiProvider = () => Promise<PaseoHubApi>
 export type ClientProvider = () => Promise<PolkadotClient>
@@ -32,38 +39,15 @@ async function hostSigner(): Promise<{
   publicKey: Uint8Array
 }> {
   const accountsProvider = createAccountsProvider()
-  const accountsResult = await accountsProvider.getLegacyAccounts()
-  if (accountsResult.isErr()) {
-    throw new Error(accountsResult.error.name ?? 'Failed to get accounts')
+  const accountResult = await accountsProvider.getProductAccount(SELF_DOTNS, 0)
+  if (accountResult.isErr()) {
+    throw new Error(accountResult.error.name ?? `getProductAccount failed for ${SELF_DOTNS}`)
   }
-  const accounts = accountsResult.value
-  if (accounts.length === 0) throw new Error('No accounts available')
-
-  const account = accounts[0]
+  const account = accountResult.value
   const publicKey = account.publicKey
-  const origin = AccountId().dec(publicKey)
-
-  const signBytes = async (data: Uint8Array): Promise<Uint8Array> => {
-    const result = await hostApi.signRawWithLegacyAccount({
-      tag: 'v1',
-      value: { signer: origin, payload: { tag: 'Bytes', value: data } }
-    })
-    return result.match(
-      (res) => {
-        const sig = res.value.signature
-        return typeof sig === 'string' ? Binary.fromHex(sig as `0x${string}`) : sig
-      },
-      (err) => {
-        const errValue = err.value as { name?: string; reason?: string } | undefined
-        const msg = [errValue?.name, errValue?.reason].filter(Boolean).join(': ')
-        throw new Error(msg || 'signRawWithLegacyAccount failed')
-      }
-    )
-  }
-
   return {
-    signer: getPolkadotSigner(publicKey, 'Sr25519', signBytes),
-    origin,
+    signer: accountsProvider.getProductAccountSigner(account, 'createTransaction'),
+    origin: AccountId().dec(publicKey),
     publicKey
   }
 }
@@ -114,7 +98,7 @@ export class AttestationService {
       const sdk = await this.getSdk()
       this.contractInstance = sdk.getContract(
         contracts.attestation_service,
-        BACKEND.ATTESTATION_SERVICE
+        NETWORK.ATTESTATION_SERVICE
       )
     }
     return this.contractInstance
@@ -125,7 +109,7 @@ export class AttestationService {
       const sdk = await this.getSdk()
       this.resolverInstance = sdk.getContract(
         contracts.attestation_service,
-        BACKEND.ATTESTATION_INDEX_RESOLVER
+        NETWORK.ATTESTATION_INDEX_RESOLVER
       )
     }
     return this.resolverInstance

@@ -1,6 +1,6 @@
 import { memo, useState } from 'preact/compat'
 
-import { ArrowUp, Bookmark, MessageCircle, Share2 } from 'lucide-preact'
+import { ArrowUp, Bookmark, ExternalLink, MessageCircle, Share2 } from 'lucide-preact'
 
 import { iconUrl } from '../../state/apps/manifest'
 import { type AppEntry, displayName } from '../../state/apps/types'
@@ -37,7 +37,8 @@ export const ProductCard = memo(function ProductCard({
   const name = displayName(app)
   const displayCount = app.attestationCount ?? 0
   const [iconFailed, setIconFailed] = useState(false)
-  const showIcon = app.iconCid && !iconFailed
+  const [iconLoaded, setIconLoaded] = useState(false)
+  const willLoadIcon = !!app.iconCid && !iconFailed
   const showActions = showMenu && onBookmark && onShare
 
   return (
@@ -55,13 +56,17 @@ export const ProductCard = memo(function ProductCard({
       }}
     >
       <div class='product-card__thumb'>
-        {showIcon ? (
-          <img
-            class='product-card__thumb-img'
-            src={iconUrl(app.iconCid as string)}
-            alt=''
-            onError={() => setIconFailed(true)}
-          />
+        {willLoadIcon ? (
+          <>
+            {!iconLoaded && <div class='product-card__thumb-pulse' />}
+            <img
+              class={`product-card__thumb-img${iconLoaded ? ' product-card__thumb-img--loaded' : ''}`}
+              src={iconUrl(app.iconCid as string)}
+              alt=''
+              onLoad={() => setIconLoaded(true)}
+              onError={() => setIconFailed(true)}
+            />
+          </>
         ) : (
           <Identicon seed={app.label} size={42} />
         )}
@@ -93,6 +98,7 @@ export const ProductCard = memo(function ProductCard({
             }}
           >
             <span>Open</span>
+            <ExternalLink size={14} />
           </button>
           {app.hasChat && (
             <button

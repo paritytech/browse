@@ -2,7 +2,7 @@
  * Root product manifest.
  */
 
-import { BACKEND } from '../../lib/config'
+import { NETWORK } from '../../lib/config'
 
 export type IconFormat = 'jpeg' | 'png'
 
@@ -38,5 +38,5 @@ export function parseRootManifest(raw: string): RootManifest | null {
 }
 
 export function iconUrl(cid: string): string {
-  return `${BACKEND.IPFS_GATEWAY}/ipfs/${cid}`
+  return `${NETWORK.IPFS_GATEWAY}/ipfs/${cid}`
 }

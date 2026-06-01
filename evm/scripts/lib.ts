@@ -68,12 +68,12 @@ export function connect(): {
 } {
   const genesisHash = requireEnv(
     "GENESIS_HASH",
-    "Pick from contracts/scripts/network.ts."
+    "Pick from evm/scripts/network.ts."
   );
   const config = GenesisHashToNetworkConfig[genesisHash];
   if (!config) {
     console.error(
-      `No network config for GENESIS_HASH=${genesisHash}. See contracts/scripts/network.ts for known networks.`
+      `No network config for GENESIS_HASH=${genesisHash}. See evm/scripts/network.ts for known networks.`
     );
     process.exit(1);
   }

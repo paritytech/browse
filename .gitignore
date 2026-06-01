@@ -9,7 +9,7 @@ cache_hh/
 out/
 artifacts/
 typechain-types/
-contracts/lib/
+evm/lib/
 **/build-info/
 **/journal.jsonl
 
@@ -33,6 +33,7 @@ app/chain-specs/
 # Testing
 test-results/
 playwright-report/
+app/tests/results/
 
 # Claude Code
 .claude/settings.local.json

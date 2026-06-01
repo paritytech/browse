@@ -1,21 +1,14 @@
+import { type BrowseSdk, createBrowseSdk } from '@parity/browse-sdk'
 import { paseoHub } from '@polkadot-api/descriptors'
-import type { SS58String } from 'polkadot-api'
-import { Binary, createClient, type PolkadotClient, type TypedApi } from 'polkadot-api'
+import type { PolkadotClient, TypedApi } from 'polkadot-api'
 
-import {
-  ASSET_HUB_PASEO_GENESIS,
-  DRY_RUN_STORAGE_LIMIT,
-  DRY_RUN_WEIGHT_LIMIT,
-  DUMMY_ORIGIN
-} from './config'
+import { ASSET_HUB_PASEO_GENESIS, NETWORK } from './config'
 import { hiddenLog } from './debug'
 
 export type PaseoHubApi = TypedApi<typeof paseoHub>
 
-let clientInstance: PolkadotClient | null = null
-let apiInstance: PaseoHubApi | null = null
-
-let ensurePromise: Promise<PaseoHubApi> | null = null
+let sdkInstance: BrowseSdk | null = null
+let ensurePromise: Promise<BrowseSdk> | null = null
 
 export type ChainStatusCallback = (msg: string) => void
 let onChainStatus: ChainStatusCallback | null = null
@@ -24,15 +17,15 @@ export function setChainStatusCallback(cb: ChainStatusCallback): void {
   onChainStatus = cb
 }
 
-async function doEnsureApi(): Promise<PaseoHubApi> {
+async function doEnsureSdk(): Promise<BrowseSdk> {
   const t0 = performance.now()
-  const sdk = await import('@novasamatech/product-sdk')
-  const provider = sdk.createPapiProvider(ASSET_HUB_PASEO_GENESIS)
-  clientInstance = createClient(provider)
+  const productSdk = await import('@novasamatech/product-sdk')
+  const provider = productSdk.createPapiProvider(ASSET_HUB_PASEO_GENESIS)
+  const sdk = createBrowseSdk(NETWORK, provider)
 
   onChainStatus?.('Connecting to chain...')
   const block = await Promise.race([
-    clientInstance.getFinalizedBlock(),
+    sdk.getClient().getFinalizedBlock(),
     new Promise<never>((_, reject) =>
       setTimeout(() => reject(new Error('Chain sync timed out after 120s')), 120_000)
     )
@@ -41,14 +34,14 @@ async function doEnsureApi(): Promise<PaseoHubApi> {
     `Connected to Dotns at block #${block.number} (${(performance.now() - t0).toFixed(0)}ms)`
   )
 
-  apiInstance = clientInstance.getTypedApi(paseoHub)
-  return apiInstance
+  sdkInstance = sdk
+  return sdk
 }
 
-export async function ensureApi(): Promise<PaseoHubApi> {
-  if (apiInstance) return apiInstance
+export async function ensureSdk(): Promise<BrowseSdk> {
+  if (sdkInstance) return sdkInstance
   if (!ensurePromise) {
-    ensurePromise = doEnsureApi().catch((err) => {
+    ensurePromise = doEnsureSdk().catch((err) => {
       ensurePromise = null
       throw err
     })
@@ -57,8 +50,11 @@ export async function ensureApi(): Promise<PaseoHubApi> {
 }
 
 export async function ensureClient(): Promise<PolkadotClient> {
-  await ensureApi()
-  return clientInstance!
+  return (await ensureSdk()).getClient()
+}
+
+export async function ensureApi(): Promise<PaseoHubApi> {
+  return (await ensureClient()).getTypedApi(paseoHub)
 }
 
 // Host rate limiter is 20 req/s with a 100-slot queue; each ReviveApi.call
@@ -77,6 +73,8 @@ function rpcGate(): Promise<void> {
   return rpcGateChain
 }
 
+const DUMMY_ORIGIN_DEFAULT = '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY'
+
 export async function lookupOriginalAccount(h160: string): Promise<string | null> {
   const api = await ensureApi()
   await rpcGate()
@@ -92,24 +90,11 @@ export async function lookupOriginalAccount(h160: string): Promise<string | null
 export async function reviveCall(
   contractAddress: string,
   encodedData: `0x${string}`,
-  origin: string = DUMMY_ORIGIN,
-  providedApi?: PaseoHubApi
+  origin: string = DUMMY_ORIGIN_DEFAULT,
+  _providedApi?: PaseoHubApi
 ): Promise<`0x${string}`> {
-  const api = providedApi ?? (await ensureApi())
+  void _providedApi
+  const sdk = await ensureSdk()
   await rpcGate()
-
-  const dryRun = await api.apis.ReviveApi.call(
-    origin as SS58String,
-    contractAddress as `0x${string}`,
-    0n,
-    DRY_RUN_WEIGHT_LIMIT,
-    DRY_RUN_STORAGE_LIMIT,
-    Binary.fromHex(encodedData),
-    { at: 'best' }
-  )
-
-  if (!dryRun.result.success) throw new Error('Revive call failed')
-  const { flags, data } = dryRun.result.value
-  if ((flags & 1) === 1) throw new Error('Contract execution reverted')
-  return Binary.toHex(data) as `0x${string}`
+  return sdk.reviveCall(contractAddress as `0x${string}`, encodedData, origin)
 }

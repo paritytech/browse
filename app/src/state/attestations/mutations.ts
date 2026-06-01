@@ -2,13 +2,14 @@ import { ss58ToEthereum } from '@polkadot-api/sdk-ink'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AccountId, type SS58String } from 'polkadot-api'
 
-import { updateAttestationCount } from '../../db/labels'
+import { type LabelEntry, updateAttestationCount } from '../../db/labels'
 import { encodeAttestationLabel, namehash, nodeToSubject } from '../../lib/abi'
 import { attestationService } from '../../lib/attestation-service'
-import { BACKEND } from '../../lib/config'
+import { NETWORK } from '../../lib/config'
 import { type AppEntry } from '../apps/types'
 
 const ALL_KEY = ['apps', 'all'] as const
+const LABELS_KEY = ['labels', 'db'] as const
 
 function updateApp(
   apps: AppEntry[] | undefined,
@@ -43,12 +44,14 @@ function attestationKey(label: string) {
 type MutationCtx = {
   all: AppEntry[] | undefined
   attestation: AttestationQueryData | undefined
+  labels: Map<string, LabelEntry> | undefined
 }
 
 function snapshot(queryClient: ReturnType<typeof useQueryClient>, label: string): MutationCtx {
   return {
     all: queryClient.getQueryData<AppEntry[]>(ALL_KEY),
-    attestation: queryClient.getQueryData<AttestationQueryData>(attestationKey(label))
+    attestation: queryClient.getQueryData<AttestationQueryData>(attestationKey(label)),
+    labels: queryClient.getQueryData<Map<string, LabelEntry>>(LABELS_KEY)
   }
 }
 
@@ -60,6 +63,28 @@ function rollback(
   if (ctx.all !== undefined) queryClient.setQueryData(ALL_KEY, ctx.all)
   if (ctx.attestation !== undefined)
     queryClient.setQueryData(attestationKey(label), ctx.attestation)
+  if (ctx.labels !== undefined) queryClient.setQueryData(LABELS_KEY, ctx.labels)
+}
+
+/** Optimistically patch the labels-DB query cache for one label. */
+function patchLabels(
+  queryClient: ReturnType<typeof useQueryClient>,
+  label: string,
+  delta: 1 | -1,
+  hasUserAttested: boolean
+): void {
+  queryClient.setQueryData<Map<string, LabelEntry>>(LABELS_KEY, (prev) => {
+    if (!prev) return prev
+    const existing = prev.get(label)
+    if (!existing) return prev
+    const next = new Map(prev)
+    next.set(label, {
+      ...existing,
+      attestationCount: Math.max(0, (existing.attestationCount ?? 0) + delta),
+      hasUserAttested
+    })
+    return next
+  })
 }
 
 export function describeError(err: unknown): string {
@@ -76,7 +101,7 @@ export function describeError(err: unknown): string {
 export async function attestLabel(label: string, onPermitted?: () => void) {
   const recipient = nodeToSubject(namehash(`${label}.dot`))
   const data = encodeAttestationLabel(label)
-  return attestationService.attest(BACKEND.SCHEMA_ID, recipient, 0n, true, 0n, data, onPermitted)
+  return attestationService.attest(NETWORK.SCHEMA_ID, recipient, 0n, true, 0n, data, onPermitted)
 }
 
 async function getAttesterH160(): Promise<string> {
@@ -89,7 +114,7 @@ export async function revokeLabel(label: string, onPermitted?: () => void) {
   const recipient = nodeToSubject(namehash(`${label}.dot`))
   const ids = await attestationService.listByRecipientAndSchema(
     recipient,
-    BACKEND.SCHEMA_ID,
+    NETWORK.SCHEMA_ID,
     0n,
     100n
   )
@@ -100,14 +125,14 @@ export async function revokeLabel(label: string, onPermitted?: () => void) {
   const match = ids.find((_, i) => attestations[i].attester.toLowerCase() === attesterH160)
   if (match === undefined) throw new Error('No attestation to revoke')
 
-  return attestationService.revoke(BACKEND.SCHEMA_ID, match, onPermitted)
+  return attestationService.revoke(NETWORK.SCHEMA_ID, match, onPermitted)
 }
 
 export async function getAttestationId(label: string): Promise<bigint | null> {
   const recipient = nodeToSubject(namehash(`${label}.dot`))
   const ids = await attestationService.listByRecipientAndSchema(
     recipient,
-    BACKEND.SCHEMA_ID,
+    NETWORK.SCHEMA_ID,
     0n,
     100n
   )
@@ -122,16 +147,18 @@ export async function getAttestationId(label: string): Promise<bigint | null> {
 export function useAttestProduct() {
   const queryClient = useQueryClient()
   return useMutation<unknown, Error, string, MutationCtx>({
-    mutationFn: (label) =>
-      attestLabel(label, () => {
-        queryClient.setQueryData<AppEntry[]>(ALL_KEY, (prev) => updateApp(prev, label, attestPatch))
-        queryClient.setQueryData<AttestationQueryData>(attestationKey(label), (prev) =>
-          prev
-            ? { attestationCount: prev.attestationCount + 1, hasUserAttested: true }
-            : { attestationCount: 1, hasUserAttested: true }
-        )
-      }),
-    onMutate: (label) => snapshot(queryClient, label),
+    mutationFn: (label) => attestLabel(label),
+    onMutate: (label) => {
+      const ctx = snapshot(queryClient, label)
+      queryClient.setQueryData<AppEntry[]>(ALL_KEY, (prev) => updateApp(prev, label, attestPatch))
+      queryClient.setQueryData<AttestationQueryData>(attestationKey(label), (prev) =>
+        prev
+          ? { attestationCount: prev.attestationCount + 1, hasUserAttested: true }
+          : { attestationCount: 1, hasUserAttested: true }
+      )
+      patchLabels(queryClient, label, 1, true)
+      return ctx
+    },
     onError: (_err, label, ctx) => {
       if (ctx) rollback(queryClient, label, ctx)
     },
@@ -144,16 +171,18 @@ export function useAttestProduct() {
 export function useRevokeApp() {
   const queryClient = useQueryClient()
   return useMutation<unknown, Error, string, MutationCtx>({
-    mutationFn: (label) =>
-      revokeLabel(label, () => {
-        queryClient.setQueryData<AppEntry[]>(ALL_KEY, (prev) => updateApp(prev, label, revokePatch))
-        queryClient.setQueryData<AttestationQueryData>(attestationKey(label), (prev) =>
-          prev
-            ? { attestationCount: Math.max(0, prev.attestationCount - 1), hasUserAttested: false }
-            : { attestationCount: 0, hasUserAttested: false }
-        )
-      }),
-    onMutate: (label) => snapshot(queryClient, label),
+    mutationFn: (label) => revokeLabel(label),
+    onMutate: (label) => {
+      const ctx = snapshot(queryClient, label)
+      queryClient.setQueryData<AppEntry[]>(ALL_KEY, (prev) => updateApp(prev, label, revokePatch))
+      queryClient.setQueryData<AttestationQueryData>(attestationKey(label), (prev) =>
+        prev
+          ? { attestationCount: Math.max(0, prev.attestationCount - 1), hasUserAttested: false }
+          : { attestationCount: 0, hasUserAttested: false }
+      )
+      patchLabels(queryClient, label, -1, false)
+      return ctx
+    },
     onError: (_err, label, ctx) => {
       if (ctx) rollback(queryClient, label, ctx)
     },

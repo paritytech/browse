@@ -9,7 +9,6 @@ interface SearchBarProps {
 }
 
 export function SearchBar({ value, onInput, placeholder = 'Search', onCancel }: SearchBarProps) {
-  const inputRef = useRef<HTMLInputElement>(null)
   const placeholderRef = useRef<HTMLSpanElement>(null)
   const rootRef = useRef<HTMLDivElement>(null)
   const [focused, setFocused] = useState(false)
@@ -47,7 +46,6 @@ export function SearchBar({ value, onInput, placeholder = 'Search', onCancel }: 
           {placeholder}
         </span>
         <input
-          ref={inputRef}
           class='search-bar__input'
           type='text'
           autocomplete='off'
@@ -57,26 +55,6 @@ export function SearchBar({ value, onInput, placeholder = 'Search', onCancel }: 
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
         />
-        {hasValue && (
-          <button
-            class='search-bar__clear'
-            onMouseDown={(e) => e.preventDefault()}
-            onClick={() => {
-              onInput('')
-              inputRef.current?.focus()
-            }}
-            aria-label='Clear search'
-          >
-            <svg width='14' height='14' viewBox='0 0 14 14' fill='none'>
-              <path
-                d='M4 4l6 6M10 4l-6 6'
-                stroke='currentColor'
-                stroke-width='1.5'
-                stroke-linecap='round'
-              />
-            </svg>
-          </button>
-        )}
       </div>
       {onCancel && (
         <button

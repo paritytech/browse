@@ -5,7 +5,7 @@ import { AccountId, type SS58String } from 'polkadot-api'
 import { getCachedFollowed, setCachedFollowed } from './cache'
 import { decodeAttestationLabel, namehash, nodeToSubject } from '../../lib/abi'
 import { attestationService } from '../../lib/attestation-service'
-import { BACKEND } from '../../lib/config'
+import { NETWORK } from '../../lib/config'
 import { type AppEntry } from '../apps/types'
 
 const PAGE_SIZE = 100n
@@ -47,7 +47,7 @@ async function getFollowedApps(apps: AppEntry[], contacts: string[]): Promise<Se
     const batch = allIds.slice(i, i + PAGE_SIZE_NUM)
     const records = await attestationService.getAttestationByIds(batch)
     for (const record of records) {
-      if (record.schema !== BACKEND.SCHEMA_ID) continue
+      if (record.schema !== NETWORK.SCHEMA_ID) continue
       if (record.revocationTime !== 0n) continue
       if (record.expirationTime !== 0n && record.expirationTime <= now) continue
       const label =
@@ -83,8 +83,8 @@ export function useGetAppAttestation(label: string) {
       const ss58 = AccountId().dec(publicKey)
       const userH160 = ss58ToEthereum(ss58 as SS58String) as `0x${string}`
       const [count, hasUserAttested] = await Promise.all([
-        attestationService.countByRecipientAndSchema(recipient, BACKEND.SCHEMA_ID),
-        attestationService.isActiveAny(recipient, BACKEND.SCHEMA_ID, [userH160])
+        attestationService.countByRecipientAndSchema(recipient, NETWORK.SCHEMA_ID),
+        attestationService.isActiveAny(recipient, NETWORK.SCHEMA_ID, [userH160])
       ])
       return { attestationCount: Number(count), hasUserAttested }
     },

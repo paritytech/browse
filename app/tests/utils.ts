@@ -9,20 +9,45 @@ type ChainConfig = import('@parity/host-api-test-sdk').ChainConfig
 const PASEO_ASSET_HUB_NEXT_V2: ChainConfig = {
   id: 'paseo-asset-hub-next-v2',
   name: 'Paseo Asset Hub Next V2',
-  genesisHash: '0x173cea9df45656cf612c8b8ece56e04e9a693c69cfaac47d3628dae735067af8',
+  genesisHash: '0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f',
   rpcUrl: 'wss://paseo-asset-hub-next-rpc.polkadot.io',
   tokenSymbol: 'PAS',
   tokenDecimals: 10
 }
 
+// Previewnet gets reset periodically so the test-sdk's hardcoded genesis
+// drifts. Keep the canonical value in lock-step with the browse-sdk config.
+const PREVIEWNET_ASSET_HUB: ChainConfig = {
+  id: 'previewnet-asset-hub',
+  name: 'Previewnet Asset Hub',
+  genesisHash: '0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb',
+  rpcUrl: 'wss://previewnet.substrate.dev/asset-hub',
+  tokenSymbol: 'UNIT',
+  tokenDecimals: 12
+}
+
+function activeNetwork(): ChainConfig {
+  const genesis = process.env.VITE_ACTIVE_GENESIS
+  if (genesis === PASEO_ASSET_HUB_NEXT_V2.genesisHash) return PASEO_ASSET_HUB_NEXT_V2
+  return PREVIEWNET_ASSET_HUB
+}
+
 export { APP_URL, PORT }
+
+function productAccountMap(accounts: Account[]): Record<string, Account> | undefined {
+  const primary = accounts[0]
+  if (!primary) return undefined
+  return { [`localhost:${PORT}/0`]: primary }
+}
 
 export async function startSignedHost(...accounts: Account[]) {
   const { createTestHostServer } = await import('@parity/host-api-test-sdk')
+  const resolved = accounts.length > 0 ? accounts : (['alice'] as Account[])
   return createTestHostServer({
     productUrl: APP_URL,
-    accounts: accounts.length > 0 ? accounts : ['alice'],
-    chain: PASEO_ASSET_HUB_NEXT_V2
+    accounts: resolved,
+    chain: activeNetwork(),
+    productAccounts: productAccountMap(resolved)
   })
 }
 
@@ -31,7 +56,7 @@ export async function startUnsignedHost() {
   return createTestHostServer({
     productUrl: APP_URL,
     accounts: [],
-    chain: PASEO_ASSET_HUB_NEXT_V2
+    chain: activeNetwork()
   })
 }
 

@@ -23,7 +23,7 @@
 }
 
 .widget-card:focus-visible {
-  outline: 2px solid var(--color-dot, #ff2670);
+  outline: 2px solid var(--bg-accent, #4d8dff);
   outline-offset: 2px;
 }
 
@@ -75,20 +75,16 @@
 .widget-card__brand {
   width: 14px;
   height: 14px;
-  border-radius: 3px;
+  border-radius: var(--radius-tiny);
   background: var(--bg-illustration-dark, #080808);
   flex-shrink: 0;
 }
 
 .widget-card__name {
-  font-family:
-    'Inter',
-    system-ui,
-    -apple-system,
-    sans-serif;
-  font-size: 13px;
+  font-family: var(--font-sans);
+  font-size: var(--type-title-sm-size);
   font-weight: 500;
-  color: #1a1a1a;
+  color: var(--zinc-900);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

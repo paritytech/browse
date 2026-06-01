@@ -15,7 +15,10 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "jsx": "react-jsx",
-    "jsxImportSource": "preact"
+    "jsxImportSource": "preact",
+    "paths": {
+      "@parity/browse-sdk": ["../packages/browse-sdk/src/index.ts"]
+    }
   },
-  "include": ["src"]
+  "include": ["src", "tests"]
 }

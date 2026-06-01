@@ -19,13 +19,13 @@ export const GenesisHashToNetworkConfig: Record<string, NetworkConfig> = {
     dotnsRegistrar: "0xeD3BC8Abae983b0A22ff6881a9Aa1B83E5Ed3146",
   },
   // Paseo Asset Hub Next V2
-  "0x173cea9df45656cf612c8b8ece56e04e9a693c69cfaac47d3628dae735067af8": {
+  "0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f": {
     rpcEndpoints: ["wss://paseo-asset-hub-next-rpc.polkadot.io"],
-    dotnsRegistrar: "0x885b8085bA92A31c4ef52076f77379E647ECC399",
+    dotnsRegistrar: "0xf7Ad3F44F316C73E4a2b46b1ed48d376bCc9E639",
   },
   // Previewnet Asset Hub
-  "0x7765f98d559faf44baff547e8876a47c64cd1161f239d7df5a9e26194617f775": {
-    rpcEndpoints: ["wss://previewnet-asset-hub-rpc.polkadot.io"],
-    dotnsRegistrar: "0x6c40817cdb96Ab57A4d9E9fa21D0eEa8307BDDE8",
+  "0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb": {
+    rpcEndpoints: ["wss://previewnet.substrate.dev/asset-hub"],
+    dotnsRegistrar: "0x061273AeF34e8ab9Ca08E199d7440E2639Fc2088",
   },
 };

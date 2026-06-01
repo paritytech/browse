@@ -17,11 +17,7 @@
   border: none;
   background: transparent;
   color: rgb(var(--fg-rgb) / 0.48);
-  font-family:
-    'Inter',
-    system-ui,
-    -apple-system,
-    sans-serif;
+  font-family: var(--font-sans);
   font-weight: 400;
   font-size: 16px;
   line-height: 20px;

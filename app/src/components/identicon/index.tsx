@@ -3,7 +3,7 @@ interface IdenticonProps {
   size?: number
 }
 
-// djb2 — fast, deterministic, 32-bit.
+// djb2 hash. Fast, deterministic, 32-bit.
 function hashSeed(seed: string): number {
   let h = 5381
   for (let i = 0; i < seed.length; i++) {
@@ -13,14 +13,32 @@ function hashSeed(seed: string): number {
   return h >>> 0
 }
 
+const JEWELS = [
+  'amethyst',
+  'opal',
+  'turquoise',
+  'onyx',
+  'pearl',
+  'emerald',
+  'topaz',
+  'ruby',
+  'sapphire',
+  'garnet'
+] as const
+
 /**
- * Generative identicon for product thumbs: a 5×5 horizontally-mirrored grid
- * of white squares seeded by the app label. 15 bits of the hash fill the
- * left three columns; columns 4 and 5 mirror columns 1 and 2.
+ * Generative identicon for product thumbs.
+ *
+ * A 5×5 horizontally-mirrored grid seeded by the app label: 15 bits of the
+ * hash fill the left three columns; columns 4 and 5 mirror columns 1 and 2.
+ * Cell colour is one of 10 design-system jewel tones (`--avatar-bg-*`), also
+ * seeded by the hash.
  */
 export function Identicon({ seed, size = 64 }: IdenticonProps) {
   const hash = hashSeed(seed)
   const cellSize = size / 5
+  const jewel = JEWELS[hash % JEWELS.length]
+  const fill = `var(--avatar-bg-${jewel})`
 
   const cells: boolean[][] = []
   for (let r = 0; r < 5; r++) {
@@ -53,7 +71,7 @@ export function Identicon({ seed, size = 64 }: IdenticonProps) {
                 y={r * cellSize}
                 width={cellSize}
                 height={cellSize}
-                fill='#ffffff'
+                fill={fill}
               />
             ) : null
           )

@@ -35,7 +35,7 @@ import {
 } from '../../lib/abi'
 import { attestationService } from '../../lib/attestation-service'
 import { lookupOriginalAccount, reviveCall } from '../../lib/client'
-import { BACKEND } from '../../lib/config'
+import { NETWORK } from '../../lib/config'
 import { hiddenLog } from '../../lib/debug'
 import { multicall } from '../../lib/multicall'
 
@@ -109,11 +109,11 @@ async function flushLabelBatch(
     const chunk = batch.slice(i, i + FLUSH_CHUNK_SIZE)
 
     const chCalls: MulticallTarget[] = chunk.map((label) => ({
-      target: BACKEND.CONTENT_RESOLVER,
+      target: NETWORK.CONTENT_RESOLVER,
       callData: encodeContenthash(namehash(`${label}.dot`))
     }))
     hiddenLog(
-      `Fetching content hashes: multicall(${BACKEND.MULTICALL3}, [contenthash×${chunk.length}])`
+      `Fetching content hashes: multicall(${NETWORK.MULTICALL3}, [contenthash×${chunk.length}])`
     )
     const chResults = await multicall(chCalls)
 
@@ -133,22 +133,22 @@ async function flushLabelBatch(
         const node = namehash(`${chunk[j]}.dot`)
         const subject = nodeToSubject(node)
         metaCalls.push(
-          { target: BACKEND.CONTENT_RESOLVER, callData: encodeText(node, 'name') },
-          { target: BACKEND.CONTENT_RESOLVER, callData: encodeText(node, 'description') },
+          { target: NETWORK.CONTENT_RESOLVER, callData: encodeText(node, 'name') },
+          { target: NETWORK.CONTENT_RESOLVER, callData: encodeText(node, 'description') },
           {
-            target: BACKEND.ATTESTATION_INDEX_RESOLVER,
-            callData: encodeCountByRecipientAndSchema(subject, BACKEND.SCHEMA_ID)
+            target: NETWORK.ATTESTATION_INDEX_RESOLVER,
+            callData: encodeCountByRecipientAndSchema(subject, NETWORK.SCHEMA_ID)
           }
         )
         if (userH160) {
           metaCalls.push({
-            target: BACKEND.ATTESTATION_INDEX_RESOLVER,
-            callData: encodeIsActiveAny(subject, BACKEND.SCHEMA_ID, [userH160])
+            target: NETWORK.ATTESTATION_INDEX_RESOLVER,
+            callData: encodeIsActiveAny(subject, NETWORK.SCHEMA_ID, [userH160])
           })
         }
       }
       hiddenLog(
-        `Fetching metadata for ${liveIndexes.length} live labels: multicall(${BACKEND.MULTICALL3}, [${metaCalls.length} calls])`
+        `Fetching metadata for ${liveIndexes.length} live labels: multicall(${NETWORK.MULTICALL3}, [${metaCalls.length} calls])`
       )
       metaResults = await multicall(metaCalls)
     }
@@ -209,7 +209,7 @@ async function scanStores(
     callData: encodeOwner()
   }))
   const ownersT0 = performance.now()
-  hiddenLog(`Fetching owners: multicall(${BACKEND.MULTICALL3}, [owner×${storeAddresses.length}])`)
+  hiddenLog(`Fetching owners: multicall(${NETWORK.MULTICALL3}, [owner×${storeAddresses.length}])`)
   const ownerResults = await multicall(ownerCalls)
   hiddenLog(
     `Received ${ownerResults.length} owners (${(performance.now() - ownersT0).toFixed(0)}ms)`
@@ -325,7 +325,7 @@ export async function syncAllAppsViaDotns(
   let current: string[]
   try {
     const raw = await reviveCall(
-      BACKEND.STORE_FACTORY,
+      NETWORK.STORE_FACTORY,
       encodeGetLabelStores(0n, BigInt(STORE_FACTORY_PAGE_LIMIT))
     )
     current = decodeAddressArray(raw).map((addr) => addr.toLowerCase())

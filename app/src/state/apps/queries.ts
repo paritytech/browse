@@ -117,11 +117,16 @@ async function resolveLabel(name: string): Promise<AppEntry | null> {
     hasUserAttested: false
   }
 }
+const LABEL_RESOLVE_TIMEOUT_MS = 5_000 // 5s
 
 export function useResolveLabel(label: string, enabled: boolean) {
   return useQuery<AppEntry | null>({
     queryKey: ['resolveLabel', label],
-    queryFn: () => resolveLabel(label),
+    queryFn: () =>
+      Promise.race([
+        resolveLabel(label),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), LABEL_RESOLVE_TIMEOUT_MS))
+      ]),
     enabled: enabled && label.length > 0,
     staleTime: 60_000
   })

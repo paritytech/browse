@@ -33,9 +33,11 @@
 }
 
 .contacts-manager__title {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--color-heading);
+  font-family: var(--font-sans);
+  font-size: var(--type-title-md-size);
+  font-weight: var(--type-title-md-weight);
+  line-height: var(--type-title-md-line);
+  color: var(--fg-primary);
 }
 
 .contacts-manager__close {
@@ -63,9 +65,11 @@
   background: var(--input-bg);
   border: 1px solid var(--color-border);
   border-radius: 10px;
-  color: var(--color-heading);
-  font-size: 13px;
-  font-family: 'SF Mono', monospace;
+  color: var(--fg-primary);
+  font-family: var(--font-sans);
+  font-size: var(--type-body-md-size);
+  font-weight: var(--type-body-md-weight);
+  line-height: var(--type-body-md-line);
   outline: none;
 }
 
@@ -81,11 +85,6 @@
 .contacts-manager__input--valid,
 .contacts-manager__input--valid:focus {
   border-color: var(--color-success);
-}
-
-.contacts-manager__input--invalid,
-.contacts-manager__input--invalid:focus {
-  border-color: var(--color-danger);
 }
 
 .contacts-manager__add-btn {
@@ -111,7 +110,7 @@
   margin-bottom: 8px;
 }
 
-.contacts-manager__suggestion {
+.contacts-manager__match {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -125,17 +124,17 @@
   transition: background 100ms ease;
 }
 
-.contacts-manager__suggestion:hover {
+.contacts-manager__match:hover {
   background: var(--surface-3);
 }
 
-.contacts-manager__suggestion-name {
+.contacts-manager__match-name {
   font-size: 13px;
   font-weight: 500;
 }
 
-.contacts-manager__suggestion-addr {
-  font-family: 'SF Mono', monospace;
+.contacts-manager__match-addr {
+  font-family: var(--font-mono);
   font-size: 11px;
   color: var(--fg-5);
 }
@@ -155,7 +154,7 @@
 .contacts-manager__error {
   margin: 0 0 8px;
   font-size: 12px;
-  color: rgba(255, 100, 100, 0.8);
+  color: var(--fg-error);
 }
 
 .contacts-manager__list {
@@ -174,7 +173,7 @@
 }
 
 .contacts-manager__addr {
-  font-family: 'SF Mono', monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   color: var(--fg-3);
 }

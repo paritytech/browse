@@ -1,0 +1,34 @@
+{
+  "multicall3": {
+    "address": "0x0C206218c5949c00e51825364a7C3A17d9909ef6",
+    "deployer": "0xa2F70Cc9798171d3ef8fF7dAE91a76e8A1964438",
+    "network": "polkadot-hub-testnet",
+    "chainId": 420420417,
+    "rpcUrl": "https://eth-rpc-testnet.polkadot.io",
+    "explorer": "https://blockscout-passet-hub.parity-testnet.parity.io/address/0x0C206218c5949c00e51825364a7C3A17d9909ef6",
+    "deployedAt": "2026-03-12T01:05:30Z"
+  },
+  "publisher": {
+    "previewnet": {
+      "address": "0xa616254fd98724c7a3d295c98ca393a486096b68",
+      "version": "2.0.0",
+      "registrar": "0x061273AeF34e8ab9Ca08E199d7440E2639Fc2088",
+      "deployer": "5CXg3RzehqgDj5sYAbPLFip5RofPs3WsjFZPwfR45JSGxSGD",
+      "network": "previewnet-asset-hub",
+      "genesisHash": "0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb",
+      "substrateRpc": "wss://previewnet.substrate.dev/asset-hub",
+      "ethRpc": "https://previewnet.substrate.dev/eth-rpc",
+      "deployedAt": "2026-05-29T14:36:34Z"
+    },
+    "paseo-asset-hub-next-v2": {
+      "address": "0xa616254fd98724c7a3d295c98ca393a486096b68",
+      "version": "2.0.0",
+      "registrar": "0xf7Ad3F44F316C73E4a2b46b1ed48d376bCc9E639",
+      "deployer": "5CXg3RzehqgDj5sYAbPLFip5RofPs3WsjFZPwfR45JSGxSGD",
+      "network": "paseo-asset-hub-next-v2",
+      "genesisHash": "0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f",
+      "substrateRpc": "wss://paseo-asset-hub-next-rpc.polkadot.io",
+      "deployedAt": "2026-05-29T14:36:34Z"
+    }
+  }
+}

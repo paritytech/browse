@@ -4,6 +4,7 @@ const KEY = 'browse:contacts'
 
 export interface ContactEntry {
   address: string
+  username?: string
 }
 
 export async function getContacts(): Promise<ContactEntry[]> {
@@ -14,7 +15,9 @@ export async function getContacts(): Promise<ContactEntry[]> {
       .map((item: unknown): ContactEntry | null => {
         if (typeof item === 'string') return { address: item }
         if (item && typeof item === 'object' && 'address' in item) {
-          return { address: String((item as { address: unknown }).address) }
+          const record = item as { address: unknown; username?: unknown }
+          const username = typeof record.username === 'string' ? record.username : undefined
+          return { address: String(record.address), username }
         }
         return null
       })
@@ -24,10 +27,10 @@ export async function getContacts(): Promise<ContactEntry[]> {
   }
 }
 
-export async function addContact(address: string): Promise<void> {
+export async function addContact(address: string, username?: string): Promise<void> {
   const contacts = await getContacts()
   if (!contacts.some((contact) => contact.address === address)) {
-    contacts.push({ address })
+    contacts.push({ address, username })
     await localStorage.writeJSON(KEY, contacts)
   }
 }

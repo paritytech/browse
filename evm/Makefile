@@ -1,4 +1,4 @@
-# Required env vars (set in contracts/.env):
+# Required env vars (set in evm/.env):
 #   MNEMONIC       Deployer's BIP39 mnemonic (defaults to //Alice dev key if unset)
 #   GENESIS_HASH   Target network genesis hash (see scripts/network.ts)
 #

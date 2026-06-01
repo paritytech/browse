@@ -26,10 +26,11 @@ export function filterApps(
   query: string,
   mode: FilterMode = 'all',
   bookmarkedApps?: Set<string>,
-  followingApps?: Set<string>
+  followingApps?: Set<string>,
+  publishedApps?: Set<string>
 ): AppEntry[] {
   const filterByMode: Record<FilterMode, (app: AppEntry) => boolean> = {
-    all: () => true,
+    all: (app) => publishedApps?.has(app.label) ?? true,
     bookmarks: (app) => bookmarkedApps?.has(app.label) ?? false,
     following: (app) => followingApps?.has(app.label) ?? false
   }

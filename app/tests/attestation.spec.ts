@@ -22,16 +22,16 @@ test.describe('Attestation works', () => {
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(30_000)
     await fund('Charlie')
-    await createRevokedAttestation('ohnotes', 'Charlie').catch(() => {})
-    await createRevokedAttestation('e2e-test-app-alpha', 'Charlie').catch(() => {})
+    await createRevokedAttestation('host-playground', 'Charlie').catch(() => {})
+    await createRevokedAttestation('calculator', 'Charlie').catch(() => {})
     host = await startSignedHost('charlie')
     context = await browser.newContext({ ignoreHTTPSErrors: true })
   })
 
   test.afterAll(async () => {
     await page?.close()
-    await createRevokedAttestation('ohnotes', 'Charlie').catch(() => {})
-    await createRevokedAttestation('e2e-test-app-alpha', 'Charlie').catch(() => {})
+    await createRevokedAttestation('host-playground', 'Charlie').catch(() => {})
+    await createRevokedAttestation('calculator', 'Charlie').catch(() => {})
     await context?.close()
     await host?.close()
   })
@@ -44,7 +44,7 @@ test.describe('Attestation works', () => {
     await navigateToTestHost(page, host.url)
     frame = await getProductFrame(page, '.category-tab')
     await frame.locator('.category-tab', { hasText: 'All' }).click()
-    const card = frame.locator('.product-card[data-label="ohnotes"]')
+    const card = frame.locator('.product-card[data-label="host-playground"]')
     await expect(card).toBeVisible({ timeout: 15_000 })
     const upvote = card.locator('.product-card__upvote')
     const upvoteCount = upvote.locator('.product-card__upvote-count')
@@ -68,12 +68,12 @@ test.describe('Attestation works', () => {
     page = await context.newPage()
 
     // Given
-    const attestResult = await createAttestation('ohnotes', 'Charlie')
+    const attestResult = await createAttestation('host-playground', 'Charlie')
     expect(attestResult.attestationCountAfter).toBe(attestResult.attestationCountBefore + 1n)
     await navigateToTestHost(page, host.url)
     frame = await getProductFrame(page, '.category-tab')
     await frame.locator('.category-tab', { hasText: 'All' }).click()
-    const card = frame.locator('.product-card[data-label="ohnotes"]')
+    const card = frame.locator('.product-card[data-label="host-playground"]')
     await expect(card).toBeVisible({ timeout: 15_000 })
     const upvote = card.locator('.product-card__upvote')
     const upvoteCount = upvote.locator('.product-card__upvote-count')
@@ -106,8 +106,8 @@ test.describe('Contacts', () => {
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(60_000)
     await fund('Charlie')
-    await createRevokedAttestation('e2e-test-app-alpha', 'Charlie').catch(() => {})
-    await createAttestation('e2e-test-app-alpha', 'Charlie')
+    await createRevokedAttestation('calculator', 'Charlie').catch(() => {})
+    await createAttestation('calculator', 'Charlie')
     host = await startSignedHost('bob')
     context = await browser.newContext({ ignoreHTTPSErrors: true })
   })
@@ -191,9 +191,9 @@ test.describe('Following', () => {
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(60_000)
     await fund('Charlie')
-    await createRevokedAttestation('e2e-test-app-alpha', 'Charlie').catch(() => {})
-    await createRevokedAttestation('e2e-test-app-gamma', 'Charlie').catch(() => {})
-    await createAttestation('e2e-test-app-alpha', 'Charlie')
+    await createRevokedAttestation('calculator', 'Charlie').catch(() => {})
+    await createRevokedAttestation('stopwatch', 'Charlie').catch(() => {})
+    await createAttestation('calculator', 'Charlie')
 
     host = await startSignedHost('bob')
     context = await browser.newContext({ ignoreHTTPSErrors: true })
@@ -233,7 +233,7 @@ test.describe('Following', () => {
     test.setTimeout(30_000)
 
     // Given
-    await createAttestation('e2e-test-app-gamma', 'Charlie')
+    await createAttestation('stopwatch', 'Charlie')
 
     // When
     const page = await context.newPage()
@@ -250,7 +250,7 @@ test.describe('Following', () => {
     await page.close()
 
     // Cleanup
-    await createRevokedAttestation('e2e-test-app-gamma', 'Charlie').catch(() => {})
+    await createRevokedAttestation('stopwatch', 'Charlie').catch(() => {})
   })
 })
 

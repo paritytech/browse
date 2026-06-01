@@ -6,7 +6,7 @@ import { getPolkadotSigner } from 'polkadot-api/signer'
 import { getWsProvider } from 'polkadot-api/ws'
 import { WebSocket } from 'ws'
 
-import { BACKEND } from '../../src/lib/config'
+import { NETWORK } from '../../src/lib/config'
 
 export function createDevSigner(name: string) {
   const miniSecret = mnemonicToMiniSecret(DEV_PHRASE, '')
@@ -21,7 +21,7 @@ export function createDevSigner(name: string) {
   }
 }
 
-const RPC_ENDPOINTS = [...BACKEND.rpcs]
+const RPC_ENDPOINTS = [...NETWORK.rpcs]
 
 // 10 PAS on Paseo Asset Hub (10 decimals) — enough to cover the contract's
 // storage deposit across several attestations.

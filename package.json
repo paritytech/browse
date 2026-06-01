@@ -1,9 +1,11 @@
 {
   "name": "browse",
   "private": true,
-  "workspaces": ["app"],
+  "workspaces": ["app", "packages/*"],
   "scripts": {
     "dev": "bun run --cwd app dev",
+    "dev:paseo": "bun run --cwd app dev:paseo",
+    "dev:previewnet": "bun run --cwd app dev:previewnet",
     "build": "./scripts/build.sh",
     "deploy": ". ./.env && cd app && ../scripts/deploy.sh"
   },
@@ -11,6 +13,6 @@
     "@novasamatech/product-sdk": "0.7.9-4"
   },
   "devDependencies": {
-    "@parity/host-api-test-sdk": "^0.8.2"
+    "@parity/host-api-test-sdk": "^0.9.0"
   }
 }
