@@ -436,6 +436,14 @@ input {
   transform: translateX(-50%) translateY(0);
 }
 
+.toast--error {
+  /* Keep the design-system error red, but ease it back so the toast reads
+     softer than a full-intensity alert. */
+  background: color-mix(in srgb, var(--bg-status-error) 82%, transparent);
+  color: var(--fg-static-white);
+  border-color: color-mix(in srgb, var(--bg-status-error) 82%, transparent);
+}
+
 .corner-chip {
   position: absolute;
   right: calc(1.5rem + 16px);

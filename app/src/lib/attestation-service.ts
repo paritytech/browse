@@ -1,4 +1,4 @@
-import { createAccountsProvider, hostApi } from '@novasamatech/product-sdk'
+import { createAccountsProvider, hostApi } from '@novasamatech/host-api-wrapper'
 import { contracts } from '@polkadot-api/descriptors'
 import { type AsyncTransaction, createInkSdk } from '@polkadot-api/sdk-ink'
 import { AccountId, type PolkadotClient, type PolkadotSigner, type SS58String } from 'polkadot-api'

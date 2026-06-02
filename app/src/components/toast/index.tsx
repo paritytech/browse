@@ -16,7 +16,9 @@ export function Toast({ message, isError, action, onDismiss }: ToastProps) {
   }, [message, isError, onDismiss])
 
   return (
-    <div class={`toast${message ? ' toast--visible' : ''}${action ? ' toast--interactive' : ''}`}>
+    <div
+      class={`toast${message ? ' toast--visible' : ''}${action ? ' toast--interactive' : ''}${isError ? ' toast--error' : ''}`}
+    >
       <span>{message}</span>
       {action && (
         <button class='toast__action' onClick={action.onClick}>

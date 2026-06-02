@@ -1,7 +1,7 @@
 import { useDeferredValue } from 'preact/compat'
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
-import { createAccountsProvider } from '@novasamatech/product-sdk'
+import { createAccountsProvider } from '@novasamatech/host-api-wrapper'
 import { useQueryClient } from '@tanstack/react-query'
 import { ArrowUp, Bookmark, Package } from 'lucide-preact'
 
@@ -46,7 +46,11 @@ export function App() {
 
   const rootRef = useRef<HTMLDivElement>(null)
 
-  const { data: allApps = [], isFetching: allFetching } = useGetAllApps(queryClient)
+  const {
+    data: allApps = [],
+    isFetching: allFetching,
+    isError: allError
+  } = useGetAllApps(queryClient)
   const { data: labelDb } = useLabelsStorage()
   const contactAddresses = useMemo(() => contacts.map((contact) => contact.address), [contacts])
 
@@ -260,6 +264,11 @@ export function App() {
 
   useEffect(() => subscribeHostTheme(), [])
 
+  // Surface a network failure as a toast.
+  useEffect(() => {
+    if (allError) showToast('Network Not Supported', true)
+  }, [allError, showToast])
+
   // Load bookmarks and contacts on mount
   useEffect(() => {
     readBookmarks().then((bookmark) => {
@@ -303,6 +312,7 @@ export function App() {
       : currentMode === 'following'
         ? followingLoading
         : allFetching
+
   const renderCard = (app: AppEntry, i: number) => (
     <ProductCardWithAttestation
       key={app.label}

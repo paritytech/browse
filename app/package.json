@@ -28,7 +28,7 @@
     "@fontsource-variable/manrope": "^5.2.8",
     "@fontsource-variable/martian-mono": "^5.2.7",
     "@noble/hashes": "^2.0.1",
-    "@novasamatech/product-sdk": "0.7.9-4",
+    "@novasamatech/host-api-wrapper": "0.8.3",
     "@parity/browse-sdk": "*",
     "@polkadot-api/descriptors": "file:.papi/descriptors",
     "@polkadot-api/sdk-ink": "^0.7.0",

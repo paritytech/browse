@@ -5,7 +5,7 @@
     "": {
       "name": "browse",
       "dependencies": {
-        "@novasamatech/product-sdk": "0.7.9-4",
+        "@novasamatech/host-api-wrapper": "0.8.3",
       },
       "devDependencies": {
         "@parity/host-api-test-sdk": "^0.9.0",
@@ -20,7 +20,7 @@
         "@fontsource-variable/manrope": "^5.2.8",
         "@fontsource-variable/martian-mono": "^5.2.7",
         "@noble/hashes": "^2.0.1",
-        "@novasamatech/product-sdk": "0.7.9-4",
+        "@novasamatech/host-api-wrapper": "0.8.3",
         "@parity/browse-sdk": "*",
         "@polkadot-api/descriptors": "file:.papi/descriptors",
         "@polkadot-api/sdk-ink": "^0.7.0",
@@ -241,7 +241,7 @@
 
     "@novasamatech/host-api": ["@novasamatech/host-api@0.8.1", "", { "dependencies": { "@novasamatech/scale": "0.8.1", "nanoevents": "9.1.0", "nanoid": "5.1.11", "neverthrow": "^8.2.0", "scale-ts": "1.6.1" } }, "sha512-/erMZG/9NS94VuND0EDlkypxRcQZK5G3tI/uSz5WohCsGcR/Vv9b2aCsGBm93s0z3G0p07EJOIAQlm2dH5GkCw=="],
 
-    "@novasamatech/product-sdk": ["@novasamatech/product-sdk@0.7.9-4", "", { "dependencies": { "@novasamatech/host-api": "0.7.9-4", "@polkadot-api/json-rpc-provider-proxy": "^0.4.0", "@polkadot-api/substrate-bindings": "^0.20.2", "@polkadot/extension-inject": "^0.63.1", "neverthrow": "^8.2.0", "polkadot-api": ">=2" } }, "sha512-BPwRNEV+9dXWzILfMWKQdaM7RKm1uZlIFVrxlM6bj3LsGBxekPj/qYB+HeRT8cWseiw2c8zzS7Q4OvKb8ZAUqQ=="],
+    "@novasamatech/host-api-wrapper": ["@novasamatech/host-api-wrapper@0.8.3", "", { "dependencies": { "@novasamatech/host-api": "0.8.3", "@polkadot-api/json-rpc-provider-proxy": "^0.4.0", "@polkadot-api/substrate-bindings": "^0.20.3", "@polkadot/extension-inject": "^0.63.1", "neverthrow": "^8.2.0", "polkadot-api": ">=2" } }, "sha512-qWC+iDe7au+xZ3vN/wOJKe/phatFSmSLvj0gZAiaSOLmrfRjI0eSP+4SwdqK3FecuR+rxn8R4HQsASEKJIHiTA=="],
 
     "@novasamatech/scale": ["@novasamatech/scale@0.8.1", "", { "dependencies": { "@polkadot-api/utils": "^0.4.0", "scale-ts": "1.6.1" } }, "sha512-reQE/+Rr3+54otFn0QOSdJosMk/wZLlUM+e2QV/wXYDAvht+JzZfXE2vPRtELdAo6hgziDdC1HFO7yR8uRP8JQ=="],
 
@@ -1233,9 +1233,7 @@
 
     "@noble/curves/@noble/hashes": ["@noble/hashes@1.8.0", "", {}, "sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A=="],
 
-    "@novasamatech/product-sdk/@novasamatech/host-api": ["@novasamatech/host-api@0.7.9-4", "", { "dependencies": { "@novasamatech/scale": "0.7.9-4", "nanoevents": "9.1.0", "nanoid": "5.1.9", "neverthrow": "^8.2.0", "scale-ts": "1.6.1" } }, "sha512-bwDUWWGKgb4BUuVFjUOqNXLXfXjzO4+cwlZD7TXvVLSmd9DQnELjig4i5//hD8/a+jdgrnXa9loO2hfc/i05Jw=="],
-
-    "@novasamatech/product-sdk/@polkadot-api/substrate-bindings": ["@polkadot-api/substrate-bindings@0.20.2", "", { "dependencies": { "@noble/hashes": "^2.2.0", "@polkadot-api/utils": "0.4.0", "@scure/base": "^2.2.0", "scale-ts": "^1.6.1" } }, "sha512-js5UTREoI+FlrPRXMhtKimVWmOqwfNFBnhyshsdloSZHNx/Hulg2RQZNvrVTscyZTf8LyxlGJaH5dsitOUoFKw=="],
+    "@novasamatech/host-api-wrapper/@novasamatech/host-api": ["@novasamatech/host-api@0.8.3", "", { "dependencies": { "@novasamatech/scale": "0.8.3", "nanoevents": "9.1.0", "nanoid": "5.1.11", "neverthrow": "^8.2.0", "scale-ts": "1.6.1" } }, "sha512-21JGubwH1uuj7tlZMwCRYvZnnONrwx5+qr+zAvXR3PfbyRB/mlQNu6+AEjeDZSkbaRq+oCzfd/se29k9XKw5ow=="],
 
     "@polkadot-api/cli/@types/node": ["@types/node@25.9.1", "", { "dependencies": { "undici-types": ">=7.24.0 <7.24.7" } }, "sha512-xfrlY7UD5rMJk3ZVJP8BNzS28J36YJg+xp+LPXV1TdWxr8uMH5A860QNxYDGQe/ylDSgjxE52Q9VnO7p75tJxg=="],
 
@@ -1351,11 +1349,7 @@
 
     "write-package/type-fest": ["type-fest@4.41.0", "", {}, "sha512-TeTSQ6H5YHvpqVwBRcnLDCBnDOHWYu7IvGbHT6N8AOymcr9PJGjc1GTtiWZTYg0NCgYwvnYWEkVChQAr9bjfwA=="],
 
-    "@novasamatech/product-sdk/@novasamatech/host-api/@novasamatech/scale": ["@novasamatech/scale@0.7.9-4", "", { "dependencies": { "@polkadot-api/utils": "^0.4.0", "scale-ts": "1.6.1" } }, "sha512-wBBapBLskrRaKVMmRmzhn8SJl8gEifqxWdKL0eOmTFR/6GPl4EY5MjYO+5WLARFvLdFqQ4PBegx3TjZBBFNeYA=="],
-
-    "@novasamatech/product-sdk/@novasamatech/host-api/nanoid": ["nanoid@5.1.9", "", { "bin": { "nanoid": "bin/nanoid.js" } }, "sha512-ZUvP7KeBLe3OZ1ypw6dI/TzYJuvHP77IM4Ry73waSQTLn8/g8rpdjfyVAh7t1/+FjBtG4lCP42MEbDxOsRpBMw=="],
-
-    "@novasamatech/product-sdk/@polkadot-api/substrate-bindings/@scure/base": ["@scure/base@2.2.0", "", {}, "sha512-b8XEupJibegiXV+tDUseI8oLQc8ei3d/4Jkb2RpbHh3MfE054ov3uIz2dhFkB3FI8iwYkEh0gGCApkrYggkPNg=="],
+    "@novasamatech/host-api-wrapper/@novasamatech/host-api/@novasamatech/scale": ["@novasamatech/scale@0.8.3", "", { "dependencies": { "@polkadot-api/utils": "^0.4.0", "scale-ts": "1.6.1" } }, "sha512-g7DNcc4LBh+6yS9pe6KZWjV8w8T0fYrt24WvelgM1BLGeirw7ayGi11jt63OdWomZn7bpGuDMZnJS+lBa96d6g=="],
 
     "@polkadot-api/cli/@types/node/undici-types": ["undici-types@7.24.6", "", {}, "sha512-WRNW+sJgj5OBN4/0JpHFqtqzhpbnV0GuB+OozA9gCL7a993SmU+1JBZCzLNxYsbMfIeDL+lTsphD5jN5N+n0zg=="],
 

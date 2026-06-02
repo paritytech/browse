@@ -1,61 +1,46 @@
+import { createPapiProvider, hostApi } from '@novasamatech/host-api-wrapper'
 import { type BrowseSdk, createBrowseSdk } from '@parity/browse-sdk'
 import { paseoHub } from '@polkadot-api/descriptors'
 import type { PolkadotClient, TypedApi } from 'polkadot-api'
 
 import { ASSET_HUB_PASEO_GENESIS, NETWORK } from './config'
-import { hiddenLog } from './debug'
 
 export type PaseoHubApi = TypedApi<typeof paseoHub>
 
-let sdkInstance: BrowseSdk | null = null
-let ensurePromise: Promise<BrowseSdk> | null = null
-
-export type ChainStatusCallback = (msg: string) => void
-let onChainStatus: ChainStatusCallback | null = null
-
-export function setChainStatusCallback(cb: ChainStatusCallback): void {
-  onChainStatus = cb
-}
-
-async function doEnsureSdk(): Promise<BrowseSdk> {
-  const t0 = performance.now()
-  const productSdk = await import('@novasamatech/product-sdk')
-  const provider = productSdk.createPapiProvider(ASSET_HUB_PASEO_GENESIS)
-  const sdk = createBrowseSdk(NETWORK, provider)
-
-  onChainStatus?.('Connecting to chain...')
-  const block = await Promise.race([
-    sdk.getClient().getFinalizedBlock(),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error('Chain sync timed out after 120s')), 120_000)
-    )
-  ])
-  hiddenLog(
-    `Connected to Dotns at block #${block.number} (${(performance.now() - t0).toFixed(0)}ms)`
+async function networkSupported(): Promise<boolean> {
+  const payload = {
+    tag: 'v1',
+    value: { tag: 'Chain', value: ASSET_HUB_PASEO_GENESIS }
+  } as Parameters<typeof hostApi.featureSupported>[0]
+  return hostApi.featureSupported(payload).match(
+    (ok) => ok.value !== false,
+    () => false
   )
-
-  sdkInstance = sdk
-  return sdk
 }
 
-export async function ensureSdk(): Promise<BrowseSdk> {
-  if (sdkInstance) return sdkInstance
-  if (!ensurePromise) {
-    ensurePromise = doEnsureSdk().catch((err) => {
-      ensurePromise = null
+// Async singleton
+let sdkPromise: Promise<BrowseSdk> | null = null
+
+export function ensureBrowseSdk(): Promise<BrowseSdk> {
+  if (!sdkPromise) {
+    sdkPromise = (async () => {
+      if (!(await networkSupported())) {
+        throw new Error(`Host does not support network ${ASSET_HUB_PASEO_GENESIS}`)
+      }
+      return createBrowseSdk(NETWORK, createPapiProvider(ASSET_HUB_PASEO_GENESIS))
+    })().catch((err) => {
+      sdkPromise = null
       throw err
     })
   }
-  return ensurePromise
+  return sdkPromise
 }
 
-export async function ensureClient(): Promise<PolkadotClient> {
-  return (await ensureSdk()).getClient()
-}
+export const ensureClient = async (): Promise<PolkadotClient> =>
+  (await ensureBrowseSdk()).getClient()
 
-export async function ensureApi(): Promise<PaseoHubApi> {
-  return (await ensureClient()).getTypedApi(paseoHub)
-}
+export const ensureApi = async (): Promise<PaseoHubApi> =>
+  (await ensureBrowseSdk()).getClient().getTypedApi(paseoHub)
 
 // Host rate limiter is 20 req/s with a 100-slot queue; each ReviveApi.call
 // fans out to ~3 papi ops (pin + call + unpin), and other host apps share the
@@ -94,7 +79,7 @@ export async function reviveCall(
   _providedApi?: PaseoHubApi
 ): Promise<`0x${string}`> {
   void _providedApi
-  const sdk = await ensureSdk()
+  const sdk = await ensureBrowseSdk()
   await rpcGate()
   return sdk.reviveCall(contractAddress as `0x${string}`, encodedData, origin)
 }

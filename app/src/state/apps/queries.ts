@@ -9,6 +9,7 @@ import { readContentByName } from './remote'
 import { materialize, syncAllApps } from './sync'
 import type { AppEntry } from './types'
 import { type LabelEntry, readLabels } from '../../db/labels'
+import { ensureBrowseSdk } from '../../lib/client'
 
 const ALL_APPS_KEY = ['apps', 'all'] as const
 const LABELS_KEY = ['labels', 'db'] as const
@@ -56,6 +57,8 @@ export function getAllAppsOptions(queryClient: QueryClient) {
   return queryOptions<AppEntry[]>({
     queryKey: ALL_APPS_KEY,
     queryFn: async () => {
+      // Probe network reachability up front
+      await ensureBrowseSdk()
       const cachedLabels = await readLabels()
       const finalApps = await syncAllApps(cachedLabels, (progressApps) => {
         queryClient.setQueryData<AppEntry[]>(ALL_APPS_KEY, (prev) => merge(prev, progressApps))
@@ -64,7 +67,8 @@ export function getAllAppsOptions(queryClient: QueryClient) {
       await queryClient.invalidateQueries({ queryKey: LABELS_KEY })
       return merge(queryClient.getQueryData<AppEntry[]>(ALL_APPS_KEY), finalApps)
     },
-    staleTime: 5 * 60_000
+    staleTime: 5 * 60_000,
+    retry: false
   })
 }
 
@@ -76,7 +80,7 @@ export async function prefetchAllApps(queryClient: QueryClient) {
   const cached = await loadInitialApps()
   if (cached.length > 0) {
     // updatedAt: 0 marks the cached data as stale so useQuery will trigger a
-    // background refetch (the actual chain sync) when a subscriber mounts.
+    // background refetch (the actual network sync) when a subscriber mounts.
     queryClient.setQueryData<AppEntry[]>(ALL_APPS_KEY, cached, { updatedAt: 0 })
   }
 }

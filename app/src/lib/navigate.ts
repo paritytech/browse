@@ -1,4 +1,4 @@
-import { hostApi } from '@novasamatech/product-sdk'
+import { hostApi } from '@novasamatech/host-api-wrapper'
 
 export function navigateToDomain(label: string) {
   if (hostApi?.navigateTo) {

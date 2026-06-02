@@ -1,4 +1,4 @@
-import { hostLocalStorage } from '@novasamatech/product-sdk'
+import { hostLocalStorage } from '@novasamatech/host-api-wrapper'
 
 export function isHosted(): boolean {
   const isIframe = window !== window.top

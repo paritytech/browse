@@ -1,3 +1,8 @@
+import {
+  NETWORKS,
+  PASEO_ASSET_HUB_NEXT_V2_GENESIS,
+  PREVIEWNET_ASSET_HUB_GENESIS
+} from '@parity/browse-sdk'
 import type { Frame, Page } from '@playwright/test'
 
 const PORT = process.env.PORT ?? '5173'
@@ -9,19 +14,17 @@ type ChainConfig = import('@parity/host-api-test-sdk').ChainConfig
 const PASEO_ASSET_HUB_NEXT_V2: ChainConfig = {
   id: 'paseo-asset-hub-next-v2',
   name: 'Paseo Asset Hub Next V2',
-  genesisHash: '0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f',
-  rpcUrl: 'wss://paseo-asset-hub-next-rpc.polkadot.io',
+  genesisHash: PASEO_ASSET_HUB_NEXT_V2_GENESIS,
+  rpcUrl: NETWORKS[PASEO_ASSET_HUB_NEXT_V2_GENESIS].rpcs[0],
   tokenSymbol: 'PAS',
   tokenDecimals: 10
 }
 
-// Previewnet gets reset periodically so the test-sdk's hardcoded genesis
-// drifts. Keep the canonical value in lock-step with the browse-sdk config.
 const PREVIEWNET_ASSET_HUB: ChainConfig = {
   id: 'previewnet-asset-hub',
   name: 'Previewnet Asset Hub',
-  genesisHash: '0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb',
-  rpcUrl: 'wss://previewnet.substrate.dev/asset-hub',
+  genesisHash: PREVIEWNET_ASSET_HUB_GENESIS,
+  rpcUrl: NETWORKS[PREVIEWNET_ASSET_HUB_GENESIS].rpcs[0],
   tokenSymbol: 'UNIT',
   tokenDecimals: 12
 }

@@ -1,19 +1,15 @@
-import { createThemeProvider } from '@novasamatech/product-sdk'
+import { createThemeProvider, type ThemeMode } from '@novasamatech/host-api-wrapper'
 
 const KNOWN_THEMES = new Set(['berlinNight', 'berlinDay', 'lisbon', 'malta', 'tokyo'])
 
 /**
  * Map the host's theme payload to one of our `data-theme` attribute values.
  */
-export function resolveHostTheme(theme: unknown): string {
-  const t = theme as {
-    name?: { tag: 'Custom'; value: string } | { tag: 'Default' }
-    variant: 'Light' | 'Dark'
+export function resolveHostTheme(theme: ThemeMode): string {
+  if (theme.name.tag === 'Custom' && KNOWN_THEMES.has(theme.name.value)) {
+    return theme.name.value
   }
-  if (t.name?.tag === 'Custom' && KNOWN_THEMES.has(t.name.value)) {
-    return t.name.value
-  }
-  return t.variant === 'Light' ? 'berlinDay' : 'berlinNight'
+  return theme.variant === 'Light' ? 'berlinDay' : 'berlinNight'
 }
 
 /**
