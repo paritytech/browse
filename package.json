@@ -6,6 +6,8 @@
     "dev": "bun run --cwd app dev",
     "dev:paseo": "bun run --cwd app dev:paseo",
     "dev:previewnet": "bun run --cwd app dev:previewnet",
+    "dev:widget:paseo": "bun run --cwd app dev:widget:paseo",
+    "dev:widget:previewnet": "bun run --cwd app dev:widget:previewnet",
     "build": "./scripts/build.sh",
     "deploy": ". ./.env && cd app && ../scripts/deploy.sh"
   },
@@ -14,5 +16,8 @@
   },
   "devDependencies": {
     "@parity/host-api-test-sdk": "^0.9.0"
+  },
+  "overrides": {
+    "polkadot-api": "2.1.4"
   }
 }

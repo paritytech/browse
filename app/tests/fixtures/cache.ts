@@ -98,6 +98,10 @@ export async function createCachedApps(
 /**
  * Seed the host localStorage from a captured cache snapshot.
  *
+ * The snapshot is curated to the keys the live app actually reads (just
+ * `browse:labels` today — `browse:stores`/`addresses`/`pcf` belong to the
+ * unwired dotns path), so it's seeded verbatim.
+ *
  * Pass `staleLabels: true` to rewrite every label's `fetchedAt` to >24h old
  * so the TTL refresh fires on the next sync. Registers an init script — call
  * before navigation.
@@ -118,9 +122,7 @@ export async function seedCacheFromSnapshot(
 
   await page.addInitScript((data) => {
     for (const [k, v] of Object.entries(data)) {
-      const json = JSON.stringify(v)
-      localStorage.setItem(`test-host:${k}`, json)
-      localStorage.setItem(k, json)
+      localStorage.setItem(`test-host:${k}`, JSON.stringify(v))
     }
   }, snapshot)
 }

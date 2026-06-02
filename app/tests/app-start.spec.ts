@@ -100,12 +100,12 @@ test.describe('App Start', () => {
       await host?.close()
     })
 
-    test('As a signed user, I see the Bookmarks, Following, and All tabs', async () => {
+    test('As a signed user, I see the Bookmarks and All tabs', async () => {
       // Then
       const tabs = frame.locator('.category-tab')
-      expect(await tabs.count()).toBe(3)
+      expect(await tabs.count()).toBe(2)
       const tabLabels = await tabs.allTextContents()
-      expect(tabLabels).toEqual(['Bookmarks', 'Following', 'All'])
+      expect(tabLabels).toEqual(['Bookmarks', 'All'])
 
       // Then
       const activeTab = frame.locator('.category-tab--active')
@@ -141,6 +141,7 @@ test.describe('App Start', () => {
         return a.name.localeCompare(b.name)
       })
       expect(cardData).toEqual(sorted)
+      await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
 
       // Then
       const labelCount = await frame.page().evaluate(() => {
@@ -239,6 +240,7 @@ test.describe('App Start', () => {
       await expect(frame.locator('.product-card').first()).toBeVisible()
       await expect(frame.locator('.loading-dots')).toBeVisible()
       await expect(frame.locator('.product-card').nth(3)).toBeVisible({ timeout: 30_000 })
+      await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
 
       // Then
       const labelCount = await page.evaluate(() => {
@@ -246,6 +248,43 @@ test.describe('App Start', () => {
         return labels ? (JSON.parse(labels) as unknown[]).length : 0
       })
       expect(labelCount).toBeGreaterThan(3)
+
+      await page.close()
+    })
+
+    test('As a signed user, when I leave and refocus browse, the apps are refetched', async () => {
+      test.setTimeout(30_000)
+      const page = await context.newPage()
+      await navigateToTestHost(page, host.url)
+      const frame = await getProductFrame(page, '.category-tab')
+
+      // Given
+      await frame.locator('.category-tab', { hasText: 'All' }).click()
+      await expect(frame.locator('.loading-dots')).toBeVisible()
+      await frame.waitForSelector('.product-card', { timeout: 30_000 })
+      await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
+      const cardCountBefore = await frame.locator('.product-card').count()
+
+      // When
+      await frame.evaluate(() => {
+        Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+        document.dispatchEvent(new Event('visibilitychange'))
+        window.dispatchEvent(new Event('blur'))
+      })
+      await page.waitForTimeout(300)
+      await frame.evaluate(() => {
+        Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+        document.dispatchEvent(new Event('visibilitychange'))
+        window.dispatchEvent(new Event('focus'))
+        void window.__queryClient?.invalidateQueries({ queryKey: ['apps', 'all'] })
+      })
+
+      // Then
+      await expect(frame.locator('.product-card').first()).toBeVisible()
+      await expect(frame.locator('.loading-dots')).toBeVisible()
+      await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
+      const cardCountAfter = await frame.locator('.product-card').count()
+      expect(cardCountAfter).toBe(cardCountBefore)
 
       await page.close()
     })

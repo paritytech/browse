@@ -1,7 +1,7 @@
 import { useDeferredValue } from 'preact/compat'
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
-import { createAccountsProvider, createThemeProvider } from '@novasamatech/product-sdk'
+import { createAccountsProvider } from '@novasamatech/product-sdk'
 import { useQueryClient } from '@tanstack/react-query'
 import { ArrowUp, Bookmark, Package } from 'lucide-preact'
 
@@ -15,7 +15,9 @@ import { ToastContext } from './components/toast/context'
 import { createBookmark, deleteBookmark, readBookmarks } from './db/bookmarks'
 import { upsertLabel } from './db/labels'
 import { setupDebugConsole } from './lib/debug'
+import { SELF_LABEL } from './lib/identity'
 import { navigateToDomain } from './lib/navigate'
+import { subscribeHostTheme } from './lib/theme'
 import { useEvent } from './lib/use-event'
 import { LABELS_KEY, useGetAllApps, useLabelsStorage, useResolveLabel } from './state/apps/queries'
 import { type AppEntry, filterApps, type FilterMode, isFilterMode } from './state/apps/types'
@@ -80,18 +82,20 @@ export function App() {
   // published apps only (bookmarked/followed entries belong to their own tabs).
   const publishedLabels = useMemo(() => new Set(allApps.map((app) => app.label)), [allApps])
 
-  const filtered = useMemo(
-    () =>
-      filterApps(
-        appsForFiltering,
-        deferredQuery,
-        currentMode,
-        bookmarkedApps,
-        followingApps,
-        publishedLabels
-      ),
-    [appsForFiltering, deferredQuery, currentMode, bookmarkedApps, followingApps, publishedLabels]
-  )
+  const filtered = useMemo(() => {
+    const result = filterApps(
+      appsForFiltering,
+      deferredQuery,
+      currentMode,
+      bookmarkedApps,
+      followingApps,
+      publishedLabels
+    )
+    if (currentMode === 'all' && !deferredQuery.trim()) {
+      return result.filter((app) => app.label !== SELF_LABEL)
+    }
+    return result
+  }, [appsForFiltering, deferredQuery, currentMode, bookmarkedApps, followingApps, publishedLabels])
   // While the user is typing, search ignores tabs.
   const searchMatches = useMemo<AppEntry[] | null>(() => {
     if (!deferredQuery.trim()) return null
@@ -254,18 +258,7 @@ export function App() {
     return () => sub.unsubscribe()
   }, [])
 
-  useEffect(() => {
-    const override = new URLSearchParams(window.location.search).get('theme')
-    if (override) {
-      document.documentElement.dataset.theme = override
-      return
-    }
-    const provider = createThemeProvider()
-    const sub = provider.subscribeTheme((theme) => {
-      document.documentElement.dataset.theme = theme === 'light' ? 'berlinDay' : 'berlinNight'
-    })
-    return () => sub.unsubscribe()
-  }, [])
+  useEffect(() => subscribeHostTheme(), [])
 
   // Load bookmarks and contacts on mount
   useEffect(() => {

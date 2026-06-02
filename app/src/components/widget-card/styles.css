@@ -1,8 +1,8 @@
 .widget-card {
   display: flex;
   flex-direction: column;
-  background: #ffffff;
-  border: 1px solid var(--stroke-primary, #ececec);
+  background: var(--bg-surface-container);
+  border: 1px solid var(--stroke-primary);
   border-radius: 16px;
   overflow: hidden;
   cursor: pointer;
@@ -14,8 +14,8 @@
 }
 
 .widget-card:hover {
-  border-color: #d8d8d8;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  border-color: var(--stroke-secondary, var(--stroke-primary));
+  box-shadow: 0 4px 16px rgb(var(--fg-rgb) / 0.06);
 }
 
 .widget-card:active {
@@ -23,7 +23,7 @@
 }
 
 .widget-card:focus-visible {
-  outline: 2px solid var(--bg-accent, #4d8dff);
+  outline: 2px solid var(--fg-primary);
   outline-offset: 2px;
 }
 
@@ -43,7 +43,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-surface-nested, #f1f1f1);
+  background: var(--bg-surface-nested);
 }
 
 .widget-card__icon {
@@ -53,14 +53,21 @@
   align-items: center;
   justify-content: center;
   border-radius: 12px;
-  background: var(--bg-illustration-dark, #080808);
+  background: var(--fg-primary);
+  overflow: hidden;
+}
+
+.widget-card__icon-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .widget-card__letter {
   font-family: var(--font-heading);
   font-size: 1.6rem;
   font-weight: 400;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--fg-primary-inverted);
   text-transform: uppercase;
   line-height: 1;
 }
@@ -76,7 +83,7 @@
   width: 14px;
   height: 14px;
   border-radius: var(--radius-tiny);
-  background: var(--bg-illustration-dark, #080808);
+  background: var(--fg-primary);
   flex-shrink: 0;
 }
 
@@ -84,7 +91,7 @@
   font-family: var(--font-sans);
   font-size: var(--type-title-sm-size);
   font-weight: 500;
-  color: var(--zinc-900);
+  color: var(--color-heading);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

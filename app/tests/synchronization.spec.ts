@@ -7,7 +7,7 @@ import { seedCacheFromSnapshot } from './fixtures/cache'
 import { getProductFrame, navigateToTestHost, startSignedHost } from './utils'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const SNAPSHOT_PATH = resolve(__dirname, 'snapshots', 'local-storage-20260508.json')
+const SNAPSHOT_PATH = resolve(__dirname, 'snapshots', 'local-storage-20260601.json')
 const SAMPLE_WINDOW_MS = 60_000
 const BRIDGE_TRAFFIC_BUDGET_MB = 5
 
@@ -24,16 +24,17 @@ test.describe('Synchronization', () => {
     // Given
     await seedCacheFromSnapshot(page, SNAPSHOT_PATH, true)
     await page.addInitScript(() => {
-      const origSet = window.localStorage.setItem.bind(window.localStorage)
-      const origGet = window.localStorage.getItem.bind(window.localStorage)
+      const proto = window.Storage.prototype
+      const origSet = proto.setItem
+      const origGet = proto.getItem
       const counter = { bytes: 0 }
-      window.localStorage.setItem = (k: string, v: string) => {
-        if (k.includes('browse:')) counter.bytes += k.length + v.length
-        return origSet(k, v)
+      proto.setItem = function (k: string, v: string) {
+        if (k.startsWith('test-host:')) counter.bytes += k.length + v.length
+        return origSet.call(this, k, v)
       }
-      window.localStorage.getItem = (k: string) => {
-        const v = origGet(k)
-        if (k.includes('browse:') && v) counter.bytes += k.length + v.length
+      proto.getItem = function (k: string) {
+        const v = origGet.call(this, k)
+        if (k.startsWith('test-host:') && v) counter.bytes += k.length + v.length
         return v
       }
       ;(window as unknown as { __bridgeBytes: typeof counter }).__bridgeBytes = counter

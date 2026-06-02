@@ -5,20 +5,7 @@ import { AccountId, type PolkadotClient, type PolkadotSigner, type SS58String } 
 
 import { ensureApi, ensureClient, type PaseoHubApi } from './client'
 import { DUMMY_ORIGIN, NETWORK } from './config'
-
-const SELF_DOTNS = (() => {
-  const fallback = 'browse.dot'
-  if (typeof window === 'undefined') return fallback
-  const hostname = window.location.hostname.toLowerCase()
-  if (hostname.endsWith('.app.localhost') || hostname.endsWith('.app.dot')) return fallback
-  if (hostname === 'localhost' || hostname.endsWith('.localhost') || hostname === '127.0.0.1') {
-    return window.location.host.toLowerCase()
-  }
-  if (hostname.endsWith('.dot')) return hostname
-  const segments = hostname.split('.')
-  if (segments.length >= 3) return `${segments.slice(0, -2).join('.')}.dot`
-  return fallback
-})()
+import { SELF_DOTNS } from './identity'
 
 export type ApiProvider = () => Promise<PaseoHubApi>
 export type ClientProvider = () => Promise<PolkadotClient>

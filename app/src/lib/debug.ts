@@ -1,4 +1,5 @@
-// Debug console — triple-click anywhere to flip the card.
+// Debug console
+const DEBUG_ENABLED = (import.meta as { env?: { VITE_DEBUG?: string } }).env?.VITE_DEBUG === 'true'
 
 const MAX_ENTRIES = 200
 interface LogEntry {
@@ -17,6 +18,7 @@ let logEl: HTMLElement | null = null
 let countEl: HTMLElement | null = null
 
 export function hiddenLog(msg: string, level: 'info' | 'warn' | 'error' = 'info') {
+  if (!DEBUG_ENABLED) return
   const time = performance.now() - t0
 
   // Collapse consecutive identical messages by bumping a counter on the last entry.
@@ -94,6 +96,7 @@ function renderAll() {
 }
 
 export function setupDebugConsole() {
+  if (!DEBUG_ENABLED) return
   const flipEl = document.getElementById('card-flip')
   logEl = document.getElementById('debug-log')
   countEl = document.getElementById('debug-count')

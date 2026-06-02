@@ -24,7 +24,7 @@ import { encodeAbiParameters, parseAbiParameters, toHex } from "viem";
 
 import { connect, ensureMapped, waitBestBlock } from "./lib.ts";
 
-const PUBLISHER = "0x1307fc02d308f879a16b1ae3a49b4927aed53649";
+const PUBLISHER = "0xa616254fd98724c7a3d295c98ca393a486096b68";
 const PERSONHOOD = "0x000000000000000000000000000000000a010000";
 const PERSONHOOD_CONTEXT = stringToBytes32("dotns");
 
@@ -114,7 +114,7 @@ async function queryPopStatus(
 const ERROR_SELECTORS: Record<string, string> = {
   [selector("EmptyLabel()")]: "EmptyLabel()",
   [selector("NoPersonhood()")]: "NoPersonhood()",
-  [selector("CooldownActive(uint64)")]: "CooldownActive(uint64)",
+  [selector("RateLimitExceeded(uint64)")]: "RateLimitExceeded(uint64)",
   [selector("NotOwner(address,uint256)")]: "NotOwner(address,uint256)",
 };
 

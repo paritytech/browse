@@ -14,7 +14,6 @@ const BASE_CATEGORIES: CategoryTab[] = [
 
 const SIGNED_CATEGORIES: CategoryTab[] = [
   { id: 'bookmarks', label: 'Bookmarks', enabled: true },
-  { id: 'following', label: 'Following', enabled: true },
   { id: 'all', label: 'All', enabled: true }
 ]
 

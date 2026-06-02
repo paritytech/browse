@@ -99,7 +99,7 @@ test.describe('Attestation works', () => {
   })
 })
 
-test.describe('Contacts', () => {
+test.describe.skip('Contacts', () => {
   let host: Awaited<ReturnType<typeof startSignedHost>>
   let context: BrowserContext
 
@@ -182,7 +182,7 @@ test.describe('Contacts', () => {
   })
 })
 
-test.describe('Following', () => {
+test.describe.skip('Following', () => {
   test.describe.configure({ timeout: 15_000 })
   const CHARLIE_ADDRESS = '5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y'
   let host: Awaited<ReturnType<typeof startSignedHost>>

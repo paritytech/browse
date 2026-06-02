@@ -1,57 +1,75 @@
 import { render } from 'preact'
 
-import { useMemo, useState } from 'preact/hooks'
+import { useEffect, useMemo, useState } from 'preact/hooks'
+
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
+
+import '@fontsource-variable/inter'
+import '@fontsource-variable/manrope'
+import '@fontsource-variable/martian-mono'
 
 import { SearchBar } from './components/search-bar'
 import { WidgetCard } from './components/widget-card'
 import { navigateToDomain } from './lib/navigate'
+import { applyInitialTheme, subscribeHostTheme } from './lib/theme'
+import { prefetchAllApps, useGetAllApps } from './state/apps/queries'
+import { filterApps } from './state/apps/types'
+import './styles/tokens.css'
 import './styles/main.css'
 import './styles/widget.css'
 
-const FEATURED_LABELS = [
-  'host-playground',
-  'truapi-playground',
-  'test-dapp-01',
-  'host-api-example',
-  'faucet',
-  'coinflipgame03'
-]
-
 function Widget() {
+  const queryClient = useQueryClient()
   const [query, setQuery] = useState('')
 
-  const normalizedQuery = query
+  const { data: allApps = [], isFetching } = useGetAllApps(queryClient)
+
+  // Same source and ordering as the SPA's All tab.
+  const filtered = useMemo(() => filterApps(allApps, query, 'all'), [allApps, query])
+
+  const tryLabel = query
     .trim()
     .toLowerCase()
     .replace(/\.dot$/, '')
 
-  const filtered = useMemo(() => {
-    if (!normalizedQuery) return FEATURED_LABELS
-    return FEATURED_LABELS.filter((label) => label.includes(normalizedQuery))
-  }, [normalizedQuery])
+  useEffect(() => subscribeHostTheme(), [])
 
   return (
     <div class='widget'>
       <div class='widget__search'>
-        <SearchBar value={query} onInput={setQuery} placeholder='Search or enter website name' />
+        <SearchBar value={query} onInput={setQuery} onCancel={() => setQuery('')} />
       </div>
 
       {filtered.length > 0 ? (
         <div class='widget__grid'>
-          {filtered.map((label, i) => (
-            <WidgetCard key={label} label={label} index={i} onClick={navigateToDomain} />
+          {filtered.map((app, i) => (
+            <WidgetCard key={app.label} app={app} index={i} onClick={navigateToDomain} />
           ))}
+        </div>
+      ) : isFetching && !query ? null : query ? (
+        <div class='widget__empty'>
+          <p class='widget__empty-text'>No products matching "{query}"</p>
+          <button class='widget__empty-btn' onClick={() => navigateToDomain(tryLabel)}>
+            Try {tryLabel}.dot anyway
+          </button>
         </div>
       ) : (
         <div class='widget__empty'>
-          <p class='widget__empty-text'>No products matching "{query}"</p>
-          <button class='widget__empty-btn' onClick={() => navigateToDomain(normalizedQuery)}>
-            Try {normalizedQuery}.dot anyway
-          </button>
+          <p class='widget__empty-text'>No products published yet</p>
         </div>
       )}
     </div>
   )
 }
 
-render(<Widget />, document.getElementById('app')!)
+const queryClient = new QueryClient()
+
+applyInitialTheme()
+prefetchAllApps(queryClient)
+
+render(
+  <QueryClientProvider client={queryClient}>
+    <Widget />
+  </QueryClientProvider>,
+  document.getElementById('app')!
+)

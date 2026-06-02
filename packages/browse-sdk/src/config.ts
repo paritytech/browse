@@ -65,7 +65,7 @@ export const NETWORKS = {
     SCHEMA_REGISTRY: '0xbe92a66b697dc9bd4a35b1b8e3aead484d2010a7',
     ATTESTATION_SERVICE: '0x24af868f14605460f6385aae166986cee9800514',
     ATTESTATION_INDEX_RESOLVER: '0x5d701a1aca551b0e1cd6a00172554e5ff2348104',
-    IPFS_GATEWAY: 'https://previewnet.substrate.dev/ipfs',
+    IPFS_GATEWAY: 'https://previewnet.substrate.dev',
     SCHEMA_ID: 1n,
     rpcs: ['wss://previewnet.substrate.dev/asset-hub']
   }
