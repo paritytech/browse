@@ -249,7 +249,7 @@ export function App() {
       await navigator.clipboard.writeText(text)
       showToast('Copied to clipboard')
     } catch {
-      showToast('Could not copy to clipboard', true)
+      showToast('Could not copy to clipboard')
     }
   })
 
@@ -266,7 +266,7 @@ export function App() {
 
   // Surface a network failure as a toast.
   useEffect(() => {
-    if (allError) showToast('Network Not Supported', true)
+    if (allError) showToast('Network not supported', true)
   }, [allError, showToast])
 
   // Load bookmarks and contacts on mount

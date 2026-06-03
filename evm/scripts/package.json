@@ -4,9 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "deploy-publisher": "tsx deploy-publisher.ts",
-    "deploy-multicall3": "tsx deploy-multicall3.ts",
-    "publish-app": "tsx publish-app.ts"
+    "build": "cd .. && forge build",
+    "deploy-publisher": "npm run build && tsx --env-file-if-exists=../.env deploy-publisher.ts",
+    "deploy-resolver": "npm run build && tsx --env-file-if-exists=../.env deploy-resolver.ts",
+    "register-schema": "tsx --env-file-if-exists=../.env register-schema.ts",
+    "publish-app": "tsx --env-file-if-exists=../.env publish-app.ts"
   },
   "dependencies": {
     "@polkadot-labs/hdkd": "^0.0.25",

@@ -5,6 +5,7 @@ import type { QueryClient } from '@tanstack/react-query'
 interface ImportMetaEnv {
   readonly VITE_ACTIVE_GENESIS?: string
   readonly VITE_DEBUG?: string
+  readonly VITE_IDENTITY_API_URL?: string
 }
 
 interface ImportMeta {

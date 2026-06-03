@@ -40,7 +40,7 @@ function hexToBytes(hex: string): Uint8Array {
 async function reviveCall(
   api: any,
   dest: `0x${string}`,
-  callData: `0x${string}`,
+  callData: `0x${string}`
 ): Promise<{ flags: number; data: `0x${string}` }> {
   const result = await api.apis.ReviveApi.call(
     DUMMY_ORIGIN,
@@ -49,7 +49,7 @@ async function reviveCall(
     UNLIMITED_WEIGHT,
     18_446_744_073_709_551_615n,
     Binary.fromHex(callData),
-    { at: "best" },
+    { at: "best" }
   );
   if (!result.result.success) {
     throw new Error(`Revive.call dispatch failed: ${JSON.stringify(result)}`);
@@ -89,7 +89,7 @@ async function main() {
     const { flags: ownerFlags, data: ownerOut } = await reviveCall(
       api,
       registrar,
-      (ownerSel + ownerArgs.slice(2)) as `0x${string}`,
+      (ownerSel + ownerArgs.slice(2)) as `0x${string}`
     );
     if ((ownerFlags & 1) === 1) {
       console.log(`Owner:     (registrar reverted — token not minted)`);
@@ -105,7 +105,7 @@ async function main() {
     const { flags: pubFlags, data: pubOut } = await reviveCall(
       api,
       PUBLISHER,
-      (pubSel + pubArgs.slice(2)) as `0x${string}`,
+      (pubSel + pubArgs.slice(2)) as `0x${string}`
     );
     if ((pubFlags & 1) === 1) {
       console.log(`Published: (publisher reverted: ${pubOut})`);

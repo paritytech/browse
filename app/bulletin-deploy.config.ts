@@ -8,12 +8,12 @@ export default defineConfig({
   executables: [
     {
       kind: "app",
-      path: "./app/dist/spa",
+      path: "./dist/spa",
       appVersion: [0, 1, 0],
     },
     {
       kind: "widget",
-      path: "./app/dist/widget",
+      path: "./dist/widget",
       appVersion: [0, 1, 0],
       dimensions: { height: [400], width: 360 },
     },

@@ -1,30 +1,34 @@
-# browse.dot
+<div align="center">
 
-A directory of .dot apps on Polkadot.
+# Home for privacy apps
 
-## Compatibility
+<!-- markdownlint-disable-next-line MD013 -->
+![CI](https://github.com/paritytech/browse/actions/workflows/build.yml/badge.svg)
 
-| Tool | Version |
-|------|---------|
-| Bun | ~1.3.10 |
-| Node.js | ~22.13.1 |
+<br>
 
-## Getting started
+> Find apps on privacy platforms. Save what you love. Recommend the best.
 
-```sh
-bun install
-```
+</div>
 
-## Development
+This repository hosts the source for its 3 components.
 
-```sh
-bun dev
-```
+| 📦 Component | 📄 Description |
+|-------------|-----------------|
+| **[Client artifacts](app/)** | Includes 2 modalities: a single-page application (SPA) and an embeddable widget. |
+| **[Smart contracts](evm/)** | Deploy a publishing registry and its supporting contracts. |
+| **[`browse-sdk`](packages/browse-sdk/)** | A Node.js package that lets third-party components easily access browse functionality. |
 
-## Deploy
+## Licence
 
-```sh
-cp .env.example .env
-# Fill in
-make deploy
-```
+The application in this repository is licensed under **GPL-3.0**. See [LICENSE](LICENSE).
+
+`@parity/browse-sdk` is licensed under **Apache-2.0** so downstream consumers
+can adopt it freely. See its [package manifest](packages/browse-sdk/package.json).
+
+## Security
+
+This is reference and proof-of-concept code. It has not been independently audited. Read
+[SECURITY.md](SECURITY.md) before any production use.
+
+## Happy browsing!

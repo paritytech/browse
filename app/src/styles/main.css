@@ -122,6 +122,7 @@
 
 html {
   font-size: 16px;
+  background-color: var(--bg-surface-main);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;

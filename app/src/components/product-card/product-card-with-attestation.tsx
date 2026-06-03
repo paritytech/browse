@@ -37,12 +37,12 @@ export function ProductCardWithAttestation({
     if (app.hasUserAttested) {
       revokeApp.mutate(app.label, {
         onSuccess: () => showToast('Unrecommended!'),
-        onError: (err) => showToast(describeError(err), true)
+        onError: (err) => showToast(describeError(err))
       })
     } else {
       attestProduct.mutate(app.label, {
         onSuccess: () => showToast('Recommended!'),
-        onError: (err) => showToast(describeError(err), true)
+        onError: (err) => showToast(describeError(err))
       })
     }
   })

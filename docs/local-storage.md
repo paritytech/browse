@@ -61,8 +61,3 @@ Only `browse:labels` enforces a TTL of 24 hours, checked at sync start in [`sync
 ## Bridge traffic budget
 
 The regression test at [tests/synchronization.spec.ts](../app/tests/synchronization.spec.ts) caps bridge traffic during a stale-cache resync at 5 MB per minute. Against the test fixture chain (127 stores, 4,890 labels) the 60-second sample sits at ~4.4 MB, comfortably under budget.
-
-## Related
-
-- [Attestation Protocol](attestation-protocol.md)
-- [Research notes](research.md)

@@ -4,18 +4,8 @@
   "workspaces": ["app", "packages/*"],
   "scripts": {
     "dev": "bun run --cwd app dev",
-    "dev:paseo": "bun run --cwd app dev:paseo",
-    "dev:previewnet": "bun run --cwd app dev:previewnet",
-    "dev:widget:paseo": "bun run --cwd app dev:widget:paseo",
-    "dev:widget:previewnet": "bun run --cwd app dev:widget:previewnet",
-    "build": "./scripts/build.sh",
-    "deploy": ". ./.env && cd app && ../scripts/deploy.sh"
-  },
-  "dependencies": {
-    "@novasamatech/host-api-wrapper": "0.8.3"
-  },
-  "devDependencies": {
-    "@parity/host-api-test-sdk": "^0.9.0"
+    "build": "bun run --cwd app build",
+    "deploy": "make -C app deploy"
   },
   "overrides": {
     "polkadot-api": "2.1.4"

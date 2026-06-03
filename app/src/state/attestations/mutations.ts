@@ -87,12 +87,17 @@ function patchLabels(
   })
 }
 
+/** Translate a raw chain/mutation error into a user-facing toast message. */
 export function describeError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err)
   if (msg.includes('NotEnoughFunds') || msg.includes('"type": "Payment"')) {
     return 'Not enough funds'
   }
-  if (msg.includes('Chain sync timed out')) {
+  if (
+    msg.includes('Chain sync timed out') ||
+    msg.includes('No active follow') ||
+    msg.includes('RpcError')
+  ) {
     return 'Network unavailable'
   }
   return 'Failed'
@@ -101,7 +106,20 @@ export function describeError(err: unknown): string {
 export async function attestLabel(label: string, onPermitted?: () => void) {
   const recipient = nodeToSubject(namehash(`${label}.dot`))
   const data = encodeAttestationLabel(label)
-  return attestationService.attest(NETWORK.SCHEMA_ID, recipient, 0n, true, 0n, data, onPermitted)
+  try {
+    return await attestationService.attest(
+      NETWORK.SCHEMA_ID,
+      recipient,
+      0n,
+      true,
+      0n,
+      data,
+      onPermitted
+    )
+  } catch (err) {
+    console.error('[attestLabel] failed for', label, err)
+    throw err
+  }
 }
 
 async function getAttesterH160(): Promise<string> {
@@ -111,21 +129,28 @@ async function getAttesterH160(): Promise<string> {
 }
 
 export async function revokeLabel(label: string, onPermitted?: () => void) {
-  const recipient = nodeToSubject(namehash(`${label}.dot`))
-  const ids = await attestationService.listByRecipientAndSchema(
-    recipient,
-    NETWORK.SCHEMA_ID,
-    0n,
-    100n
-  )
-  if (ids.length === 0) throw new Error('No attestation to revoke')
+  try {
+    const recipient = nodeToSubject(namehash(`${label}.dot`))
+    const ids = await attestationService.listByRecipientAndSchema(
+      recipient,
+      NETWORK.SCHEMA_ID,
+      0n,
+      100n
+    )
+    if (ids.length === 0) throw new Error('No attestation to revoke')
 
-  const attesterH160 = await getAttesterH160()
-  const attestations = await Promise.all(ids.map((id) => attestationService.getAttestationById(id)))
-  const match = ids.find((_, i) => attestations[i].attester.toLowerCase() === attesterH160)
-  if (match === undefined) throw new Error('No attestation to revoke')
+    const attesterH160 = await getAttesterH160()
+    const attestations = await Promise.all(
+      ids.map((id) => attestationService.getAttestationById(id))
+    )
+    const match = ids.find((_, i) => attestations[i].attester.toLowerCase() === attesterH160)
+    if (match === undefined) throw new Error('No attestation to revoke')
 
-  return attestationService.revoke(NETWORK.SCHEMA_ID, match, onPermitted)
+    return await attestationService.revoke(NETWORK.SCHEMA_ID, match, onPermitted)
+  } catch (err) {
+    console.error('[revokeLabel] failed for', label, err)
+    throw err
+  }
 }
 
 export async function getAttestationId(label: string): Promise<bigint | null> {
