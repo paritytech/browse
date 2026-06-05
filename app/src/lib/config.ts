@@ -5,20 +5,19 @@ import {
   selectNetwork
 } from '@parity/browse-sdk'
 
-declare const process: { env?: { VITE_ACTIVE_GENESIS?: string } } | undefined
+declare const process: { env?: Record<string, string | undefined> }
 
-const VITE_ACTIVE_GENESIS =
-  (typeof import.meta !== 'undefined'
-    ? (import.meta as { env?: { VITE_ACTIVE_GENESIS?: string } }).env?.VITE_ACTIVE_GENESIS
-    : undefined) ??
-  (typeof process !== 'undefined' ? process.env?.VITE_ACTIVE_GENESIS : undefined) ??
+// The browser bundle reads import.meta.env. Playwright fixtures read process.env.
+const NETWORK_GENESIS_HASH =
+  import.meta.env?.NETWORK_GENESIS_HASH ??
+  process.env?.NETWORK_GENESIS_HASH ??
   PASEO_ASSET_HUB_NEXT_V2_GENESIS
 
-if (!isKnownGenesis(VITE_ACTIVE_GENESIS)) {
-  throw new Error(`Unknown VITE_ACTIVE_GENESIS: ${VITE_ACTIVE_GENESIS}`)
+if (!isKnownGenesis(NETWORK_GENESIS_HASH)) {
+  throw new Error(`Unknown NETWORK_GENESIS_HASH: ${NETWORK_GENESIS_HASH}`)
 }
 
-export const ASSET_HUB_PASEO_GENESIS: NetworkGenesis = VITE_ACTIVE_GENESIS
+export const ASSET_HUB_PASEO_GENESIS: NetworkGenesis = NETWORK_GENESIS_HASH
 
 export const NETWORK = selectNetwork(ASSET_HUB_PASEO_GENESIS)
 export const SCHEMA_LIKE_ID = NETWORK.SCHEMA_ID

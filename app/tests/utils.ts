@@ -1,9 +1,11 @@
 import {
-  NETWORKS,
+  KNOWN_NETWORKS,
   PASEO_ASSET_HUB_NEXT_V2_GENESIS,
   PREVIEWNET_ASSET_HUB_GENESIS
 } from '@parity/browse-sdk'
 import type { Frame, Page } from '@playwright/test'
+
+import { SELF_DOTNS } from '../src/lib/identity'
 
 const PORT = process.env.PORT ?? '5173'
 const APP_URL = `http://localhost:${PORT}`
@@ -15,7 +17,7 @@ const PASEO_ASSET_HUB_NEXT_V2: ChainConfig = {
   id: 'paseo-asset-hub-next-v2',
   name: 'Paseo Asset Hub Next V2',
   genesisHash: PASEO_ASSET_HUB_NEXT_V2_GENESIS,
-  rpcUrl: NETWORKS[PASEO_ASSET_HUB_NEXT_V2_GENESIS].rpcs[0],
+  rpcUrl: KNOWN_NETWORKS[PASEO_ASSET_HUB_NEXT_V2_GENESIS].rpcs[0],
   tokenSymbol: 'PAS',
   tokenDecimals: 10
 }
@@ -24,13 +26,13 @@ const PREVIEWNET_ASSET_HUB: ChainConfig = {
   id: 'previewnet-asset-hub',
   name: 'Previewnet Asset Hub',
   genesisHash: PREVIEWNET_ASSET_HUB_GENESIS,
-  rpcUrl: NETWORKS[PREVIEWNET_ASSET_HUB_GENESIS].rpcs[0],
+  rpcUrl: KNOWN_NETWORKS[PREVIEWNET_ASSET_HUB_GENESIS].rpcs[0],
   tokenSymbol: 'UNIT',
   tokenDecimals: 12
 }
 
 function activeNetwork(): ChainConfig {
-  const genesis = process.env.VITE_ACTIVE_GENESIS
+  const genesis = process.env.NETWORK_GENESIS_HASH
   if (genesis === PASEO_ASSET_HUB_NEXT_V2.genesisHash) return PASEO_ASSET_HUB_NEXT_V2
   return PREVIEWNET_ASSET_HUB
 }
@@ -40,7 +42,9 @@ export { APP_URL, PORT }
 function productAccountMap(accounts: Account[]): Record<string, Account> | undefined {
   const primary = accounts[0]
   if (!primary) return undefined
-  return { [`localhost:${PORT}/0`]: primary }
+  // The product (browse) requests its account via getProductAccount(SELF_DOTNS, 0),
+  // so the override key must match that dotnsId.
+  return { [`${SELF_DOTNS}/0`]: primary }
 }
 
 export async function startSignedHost(...accounts: Account[]) {

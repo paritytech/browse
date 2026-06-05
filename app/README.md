@@ -47,10 +47,10 @@ make build
 ```
 
 Publish both modalities to the bulletin chain and list browse.dot in the Publisher registry. They
-ship together via the manifest. Pass `MNEMONIC` inline so it is never written to disk.
+ship together via the manifest. `MNEMONIC` is read from the repository root `.env`.
 
 ```sh
-MNEMONIC="your twelve word mnemonic phrase here" make deploy
+make deploy
 ```
 
 ## Happy browsing!

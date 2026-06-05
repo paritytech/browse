@@ -3,9 +3,10 @@
 import type { QueryClient } from '@tanstack/react-query'
 
 interface ImportMetaEnv {
-  readonly VITE_ACTIVE_GENESIS?: string
-  readonly VITE_DEBUG?: string
-  readonly VITE_IDENTITY_API_URL?: string
+  readonly NETWORK_GENESIS_HASH?: string
+  readonly APP_DOTNS_DOMAIN?: string
+  readonly APP_DEBUG?: string
+  readonly APP_IDENTITY_API_URL?: string
 }
 
 interface ImportMeta {

@@ -18,6 +18,7 @@
       "Bash(git push:*)",
       "Bash(git pull:*)",
       "Bash(git fetch:*)",
+      "Bash(gh:*)",
       "Bash(gh pr:*)",
       "Bash(gh issue:*)",
       "Bash(ls:*)",
@@ -30,9 +31,21 @@
       "Bash(mkdir:*)",
       "Bash(touch:*)",
       "Bash(node:*)",
-      "Bash(npx:*)"
+      "Bash(npx:*)",
+      "Bash(bun run typecheck)",
+      "Bash(bun run lint)",
+      "Bash(bun run format:check)",
+      "Bash(gh run watch:*)",
+      "Bash(yarn typecheck)",
+      "Bash(bun pm view:*)",
+      "Bash(npm view:*)",
+      "mcp__sentry__search_events",
+      "mcp__claude_ai_Mermaid_Chart__validate_and_render_mermaid_diagram"
     ],
     "deny": []
+  },
+  "env": {
+    "PATH": "/opt/homebrew/bin:/Users/tiago/.bun/bin:/Users/tiago/.nvm/versions/node/v22.13.1/bin:/Users/tiago/.pyenv/versions/3.11.8/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin"
   },
   "hooks": {
     "SessionStart": [

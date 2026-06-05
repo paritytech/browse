@@ -1,34 +1,11 @@
 import { Binary } from "polkadot-api";
 import { decodeEventLog, encodeFunctionData, parseAbi } from "viem";
 
-import {
-  connect,
-  ensureMapped,
-  getSigner,
-  requireEnv,
-  waitBestBlock,
-} from "./lib.ts";
+import { connect, ensureMapped, getSigner, waitBestBlock } from "./lib.ts";
 
-// SchemaRegistry contract address. Required.
-// See README.md for the current deployment.
-const SCHEMA_REGISTRY = requireEnv(
-  "SCHEMA_REGISTRY",
-  "See README.md for the current SchemaRegistry deployment."
-) as `0x${string}`;
-
-// Schema description.
-// Examples: "bool like", "uint8 rating", "uint8 rating, string review"
-const SCHEMA = requireEnv(
-  "SCHEMA",
-  'Example: SCHEMA="bool like" make register-schema'
-);
+const SCHEMA = "bool like";
 const REVOCABLE = process.env.REVOCABLE !== "false";
 const UNIQUE = process.env.UNIQUE === "true";
-
-// Resolver address. Optional, defaults to address(0) (no resolver).
-// Deploy a resolver first via `make deploy-resolver` and pass its address here.
-const RESOLVER = (process.env.RESOLVER ??
-  "0x0000000000000000000000000000000000000000") as `0x${string}`;
 
 const ABI = parseAbi([
   "function register(string schema, bool revocable, bool unique, address resolver) returns (uint256)",
@@ -37,14 +14,19 @@ const ABI = parseAbi([
 
 async function main() {
   const { signer, address } = getSigner();
+  const { client, api, config } = connect();
+
+  const SCHEMA_REGISTRY = (process.env.SCHEMA_REGISTRY ??
+    config.SCHEMA_REGISTRY) as `0x${string}`;
+  const RESOLVER = (process.env.RESOLVER ??
+    config.ATTESTATION_INDEX_RESOLVER) as `0x${string}`;
+
   console.log(`Caller: ${address}`);
   console.log(`SchemaRegistry: ${SCHEMA_REGISTRY}`);
   console.log(`Schema: "${SCHEMA}"`);
   console.log(`Revocable: ${REVOCABLE}`);
   console.log(`Unique: ${UNIQUE}`);
   console.log(`Resolver: ${RESOLVER}`);
-
-  const { client, api } = connect();
 
   try {
     await ensureMapped(api, signer);
@@ -68,14 +50,14 @@ async function main() {
 
     // Find the Registered event in the emitted events.
     const reviveEvents = (event.events ?? []).filter(
-      (e: any) => e.type === "Revive" && e.value?.type === "ContractEmitted"
+      (e: any) => e.type === "Revive" && e.value?.type === "ContractEmitted",
     );
 
     for (const evt of reviveEvents) {
       try {
         const logData = evt.value.value;
         const topics = (logData.topics ?? []).map((t: any) =>
-          typeof t === "string" ? t : t.asHex()
+          typeof t === "string" ? t : t.asHex(),
         );
         const data =
           typeof logData.data === "string"
@@ -96,7 +78,7 @@ async function main() {
     }
 
     console.log(
-      "\n⚠️  Transaction included but Registered event was not decoded."
+      "\n⚠️  Transaction included but Registered event was not decoded.",
     );
     console.log("   Check the block explorer for the schema ID.");
   } finally {

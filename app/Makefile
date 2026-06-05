@@ -6,8 +6,9 @@ build:
 
 deploy:
 	@set -euo pipefail; \
+	if [ -z "$${MNEMONIC:-}" ] && [ -f ../.env ]; then set -a; . ../.env; set +a; fi; \
 	if [ -z "$${MNEMONIC:-}" ]; then \
-		echo "Error: MNEMONIC is required. Pass it inline: MNEMONIC=\"...\" make deploy" >&2; \
+		echo "Error: MNEMONIC is required. Set it in the root .env." >&2; \
 		exit 1; \
 	fi; \
 	if [ ! -d dist/spa ] || [ ! -d dist/widget ]; then \

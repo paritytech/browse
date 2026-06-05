@@ -9,7 +9,11 @@
     "resolveJsonModule": true,
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "types": ["node"]
+    "types": ["node"],
+    "paths": {
+      "@parity/browse-sdk": ["../../packages/browse-sdk/src/index.ts"],
+      "@parity/browse-sdk/config": ["../../packages/browse-sdk/src/config.ts"]
+    }
   },
   "include": ["*.ts"]
 }

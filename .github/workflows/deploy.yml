@@ -109,7 +109,7 @@ jobs:
         if: matrix.target.reuse-artifact != true
         working-directory: app
         env:
-          VITE_ACTIVE_GENESIS: ${{ matrix.target.genesis }}
+          NETWORK_GENESIS_HASH: ${{ matrix.target.genesis }}
         run: |
           bun install --frozen-lockfile
           bun run build:spa

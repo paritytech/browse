@@ -58,19 +58,16 @@
   left: 12px;
   top: 50%;
   transform: translate(calc(50cqi - 12px - 12px - var(--placeholder-half-width, 30px)), -50%);
-  color: var(--fg-6);
+  color: var(--fg-secondary);
   pointer-events: none;
   z-index: 1;
   will-change: transform;
-  transition:
-    transform 280ms cubic-bezier(0.25, 0.1, 0.25, 1),
-    color 200ms ease;
+  transition: transform 280ms cubic-bezier(0.25, 0.1, 0.25, 1);
 }
 
 .search-bar--focus .search-bar__icon,
 .search-bar--has-value .search-bar__icon {
   transform: translate(0, -50%);
-  color: var(--fg-5);
 }
 
 .search-bar__placeholder {
@@ -78,10 +75,11 @@
   left: 50%;
   top: 50%;
   transform: translate(calc(-50% + 12px), -50%);
-  color: var(--fg-6);
+  color: var(--fg-disabled);
   font-family: var(--font-sans);
-  font-size: 14px;
-  font-weight: 400;
+  font-size: var(--type-body-md-size);
+  font-weight: var(--type-body-md-weight);
+  line-height: var(--type-body-md-line);
   white-space: nowrap;
   pointer-events: none;
   z-index: 1;
@@ -103,23 +101,24 @@
 .search-bar__input {
   width: 100%;
   height: 100%;
-  padding: 0 36px 0 36px;
-  background: var(--input-bg);
-  border: 1px solid transparent;
-  border-radius: 32px;
-  color: var(--color-heading);
+  padding: 0 36px;
+  background: var(--bg-surface-container);
+  border: 1px solid rgb(var(--fg-rgb) / 0.12);
+  border-radius: 18px;
+  color: var(--fg-primary);
+  caret-color: var(--fg-primary);
   font-family: var(--font-sans);
-  font-weight: 400;
-  font-size: 14px;
-  line-height: 20px;
+  font-weight: var(--type-body-md-weight);
+  font-size: var(--type-body-md-size);
+  line-height: var(--type-body-md-line);
   letter-spacing: 0;
   outline: none;
-  transition:
-    background 240ms ease,
-    border-color 240ms ease;
 }
 
-.search-bar__input:focus {
-  background: var(--input-bg-focus);
-  border-color: var(--input-stroke-focus);
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .search-bar__input {
+    background: color-mix(in srgb, var(--bg-surface-container) 70%, transparent);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+  }
 }

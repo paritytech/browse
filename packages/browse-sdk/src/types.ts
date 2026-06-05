@@ -23,8 +23,12 @@ export interface AppListing {
 }
 
 export interface NetworkAddresses {
+  /** https://github.com/paritytech/browse/blob/main/evm/src/Publisher.sol */
   PUBLISHER: `0x${string}`
+  /** https://github.com/paritytech/dotns/blob/master/contracts/registrars/DotnsRegistrar.sol */
   REGISTRAR: `0x${string}`
+  /** https://github.com/paritytech/dotns/blob/master/contracts/resolvers/DotnsContentResolver.sol */
   CONTENT_RESOLVER: `0x${string}`
+  /** https://github.com/paritytech/dotns/blob/master/contracts/utils/Multicall3.sol */
   MULTICALL3: `0x${string}`
 }

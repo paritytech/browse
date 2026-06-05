@@ -19,10 +19,9 @@ Three kinds of data live there: cloud caches (apps, stores, address mappings), u
 | `browse:labels`      | `LabelEntry[]`                     | [db/labels.ts](../app/src/db/labels.ts)                                        | `fetchedAt`, 24h           |
 | `browse:stores`      | `StoreEntry[]`                     | [db/stores.ts](../app/src/db/stores.ts)                                        | none                       |
 | `browse:addresses`   | `Record<h160, ss58>`               | [db/addresses.ts](../app/src/db/addresses.ts)                                  | none                       |
-| `browse:bookmarks`   | `string[]`                         | [state/bookmarks/api.ts](../app/src/state/bookmarks/api.ts)                    | none                       |
+| `browse:bookmarks`   | `string[]`                         | [db/bookmarks.ts](../app/src/db/bookmarks.ts)                                   | none                       |
 | `browse:contacts`    | `ContactEntry[]`                   | [state/contacts/api.ts](../app/src/state/contacts/api.ts)                      | none                       |
 | `browse:followed`    | `{ apps: AppEntry[], timestamp }`  | [state/attestations/cache.ts](../app/src/state/attestations/cache.ts)          | timestamp, not enforced    |
-| `browse:pcf`         | `{ apps: AppEntry[], timestamp }`  | [lib/cache.ts](../app/src/lib/cache.ts)                                        | timestamp, not enforced    |
 
 All keys use the `browse:` prefix.
 
@@ -56,7 +55,6 @@ User-driven mutations (`addBookmark`, `addContact`, `setCachedFollowed`, `setCac
 
 Only `browse:labels` enforces a TTL of 24 hours, checked at sync start in [`syncAllApps`](../app/src/state/apps/queries.ts). Labels older than the TTL or missing `fetchedAt` (legacy entries) feed back into `flushLabelBatch` for re-fetching.
 
-`browse:followed` and `browse:pcf` record a timestamp but the query layer does not honor it today.
 
 ## Bridge traffic budget
 

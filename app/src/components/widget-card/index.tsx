@@ -45,7 +45,6 @@ export function WidgetCard({ app, index, onClick }: WidgetCardProps) {
         </div>
       </div>
       <div class='widget-card__footer'>
-        <span class='widget-card__brand' />
         <span class='widget-card__name'>{displayName(app)}</span>
       </div>
     </div>

@@ -1,0 +1,36 @@
+# Config file for lychee link checker: <https://github.com/lycheeverse/lychee>
+# Run locally with `lychee -c .config/lychee.toml './**/*.md'`
+
+cache = true
+max_cache_age = "10d"
+max_redirects = 10
+max_retries = 3
+
+# User agent to send with each request.
+user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:123.0) Gecko/20100101 Firefox/123.0"
+
+# Exclude localhost et.al.
+exclude_all_private = true
+
+# Treat these codes as success:
+accept = [
+	# Ok
+	"200",
+	# Rate limited - GitHub likes to throw this.
+	"429",
+]
+
+exclude = [
+	"github\\.com/paritytech/dotns",
+	"github\\.com/paritytech/attestation-protocol",
+	"github\\.com/paritytech/triangle-js-sdks",
+]
+
+# Vendored or tooling-generated markdown we don't own.
+exclude_path = [
+	"./node_modules",
+	"./evm/node_modules",
+	"./evm/lib",
+	"./.claude",
+	"./.agents",
+]

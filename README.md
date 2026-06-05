@@ -19,6 +19,36 @@ This repository hosts the source for its 3 components.
 | **[Smart contracts](evm/)** | Deploy a publishing registry and its supporting contracts. |
 | **[`browse-sdk`](packages/browse-sdk/)** | A Node.js package that lets third-party components easily access browse functionality. |
 
+## Deploy
+
+Set variables in `.env` (copy it from [.env.example](.env.example)), then run
+
+Using npm
+
+```sh
+npm run deploy
+```
+
+Using yarn
+
+```sh
+yarn deploy
+```
+
+Using pnpm
+
+```sh
+pnpm run deploy
+```
+
+Using bun
+
+```sh
+bun run deploy
+```
+
+See [docs/one-deployment.md](docs/one-deployment.md) for more details.
+
 ## Licence
 
 The application in this repository is licensed under **GPL-3.0**. See [LICENSE](LICENSE).

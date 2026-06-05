@@ -2,7 +2,7 @@
 
 install :
 	forge install
-	cd scripts && npm install
+	npm install
 
 build :
 	forge build

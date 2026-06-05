@@ -11,6 +11,7 @@ import '@fontsource-variable/martian-mono'
 
 import { SearchBar } from './components/search-bar'
 import { WidgetCard } from './components/widget-card'
+import { SELF_LABEL } from './lib/identity'
 import { navigateToDomain } from './lib/navigate'
 import { applyInitialTheme, subscribeHostTheme } from './lib/theme'
 import { prefetchAllApps, useGetAllApps, useResolveLabel } from './state/apps/queries'
@@ -27,11 +28,13 @@ function Widget() {
 
   const { data: allApps = [], isFetching } = useGetAllApps(queryClient)
 
-  // Same source and ordering as the SPA's All tab.
-  const filtered = useMemo(
-    () => filterApps(allApps, deferredQuery, 'all'),
-    [allApps, deferredQuery]
-  )
+  const filtered = useMemo(() => {
+    const result = filterApps(allApps, deferredQuery, 'all')
+    if (!deferredQuery.trim()) {
+      return result.filter((app) => app.label !== SELF_LABEL)
+    }
+    return result
+  }, [allApps, deferredQuery])
 
   const tryLabel = query
     .trim()

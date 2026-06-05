@@ -1,13 +1,21 @@
 {
-  "name": "browse",
+  "name": "root",
   "private": true,
-  "workspaces": ["app", "packages/*"],
+  "workspaces": [
+    "app",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "bun run --cwd app dev",
-    "build": "bun run --cwd app build",
-    "deploy": "make -C app deploy"
+    "deploy": "bun scripts/deploy.ts"
   },
   "overrides": {
     "polkadot-api": "2.1.4"
+  },
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "ora": "^9.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1"
   }
 }

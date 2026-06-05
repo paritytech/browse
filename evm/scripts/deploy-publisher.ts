@@ -14,7 +14,7 @@ async function main() {
   console.log(`Deployer: ${address}`);
 
   const { client, api, config } = connect();
-  const registrar = config.dotnsRegistrar;
+  const registrar = config.REGISTRAR;
   console.log(`Registrar: ${registrar}`);
 
   try {

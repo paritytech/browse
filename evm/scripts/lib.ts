@@ -10,7 +10,11 @@ import { Binary, createClient } from "polkadot-api";
 import { getPolkadotSigner } from "polkadot-api/signer";
 import { getWsProvider } from "polkadot-api/ws-provider/node";
 
-import { GenesisHashToNetworkConfig, type NetworkConfig } from "./network.ts";
+import {
+  isKnownGenesis,
+  selectNetwork,
+  type NetworkConfig,
+} from "@parity/browse-sdk/config";
 
 export function requireEnv(name: string, hint?: string): string {
   const value = process.env[name];
@@ -67,17 +71,17 @@ export function connect(): {
   config: NetworkConfig;
 } {
   const genesisHash = requireEnv(
-    "GENESIS_HASH",
-    "Pick from evm/scripts/network.ts."
+    "NETWORK_GENESIS_HASH",
+    "Pick from packages/browse-sdk/src/config.ts."
   );
-  const config = GenesisHashToNetworkConfig[genesisHash];
-  if (!config) {
+  if (!isKnownGenesis(genesisHash)) {
     console.error(
-      `No network config for GENESIS_HASH=${genesisHash}. See evm/scripts/network.ts for known networks.`
+      `No network config for NETWORK_GENESIS_HASH=${genesisHash}. See packages/browse-sdk/src/config.ts for known networks.`
     );
     process.exit(1);
   }
-  const client = createClient(getWsProvider(config.rpcEndpoints));
+  const config = selectNetwork(genesisHash);
+  const client = createClient(getWsProvider(config.rpcs));
   return { client, api: client.getUnsafeApi(), config };
 }
 

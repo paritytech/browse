@@ -4,23 +4,19 @@ import { fileURLToPath } from "node:url";
 
 import { encodeAbiParameters, parseAbiParameters } from "viem";
 
-import { connect, deploy, ensureMapped, getSigner, requireEnv } from "./lib.ts";
+import { connect, deploy, ensureMapped, getSigner } from "./lib.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.resolve(__dirname, "../out");
 
-// Bound AttestationService address. Required.
-const ATTESTATION_SERVICE = requireEnv(
-  "ATTESTATION_SERVICE",
-  "Example: ATTESTATION_SERVICE=0x24af... make deploy-resolver"
-) as `0x${string}`;
-
 async function main() {
   const { signer, address } = getSigner();
   console.log(`Deployer: ${address}`);
-  console.log(`AttestationService: ${ATTESTATION_SERVICE}`);
 
-  const { client, api } = connect();
+  const { client, api, config } = connect();
+  const ATTESTATION_SERVICE = (process.env.ATTESTATION_SERVICE ??
+    config.ATTESTATION_SERVICE) as `0x${string}`;
+  console.log(`AttestationService: ${ATTESTATION_SERVICE}`);
 
   try {
     await ensureMapped(api, signer);

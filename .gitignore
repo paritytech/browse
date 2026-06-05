@@ -37,3 +37,9 @@ app/tests/results/
 
 # Claude Code
 .claude/settings.local.json
+
+# Local task worktrees
+.claude/worktrees/
+
+# Lychee link-check cache
+.lycheecache

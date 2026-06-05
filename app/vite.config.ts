@@ -4,7 +4,7 @@ import { defineConfig } from 'vite'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
 import preact from '@preact/preset-vite'
 
-const target = process.env.VITE_BUILD_TARGET
+const target = process.env.APP_BUILD_TARGET
 
 const entries = {
   main: resolve(__dirname, 'index.html'),
@@ -19,6 +19,10 @@ const input: Record<string, string> =
       : entries
 
 export default defineConfig({
+  // Load env from the repo root .env, shared with evm and deploy.
+  envDir: resolve(__dirname, '..'),
+  // Expose APP_* and NETWORK_* env to the client bundle.
+  envPrefix: ['APP_', 'NETWORK_'],
   plugins: [preact(), nodePolyfills()],
   resolve: {
     alias: {

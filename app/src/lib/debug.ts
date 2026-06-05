@@ -1,5 +1,5 @@
 // Debug console
-const DEBUG_ENABLED = (import.meta as { env?: { VITE_DEBUG?: string } }).env?.VITE_DEBUG === 'true'
+const DEBUG_ENABLED = (import.meta as { env?: { APP_DEBUG?: string } }).env?.APP_DEBUG === 'true'
 
 const MAX_ENTRIES = 200
 interface LogEntry {

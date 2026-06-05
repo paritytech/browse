@@ -64,6 +64,10 @@ export class AttestationService {
   private contractInstance: any = null
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private resolverInstance: any = null
+  // Cache the host's SmartContractAllowance grant for the session. Once the
+  // host has agreed to sponsor SCA-tagged calls we skip the funds check on
+  // subsequent submits so the user isn't prompted again.
+  private allowanceGranted = false
 
   constructor(
     private api: ApiProvider = ensureApi,
@@ -310,7 +314,7 @@ export class AttestationService {
     }
     const totalNeeded = storageDeposit + estimatedFees
 
-    if (free < totalNeeded) {
+    if (free < totalNeeded && !this.allowanceGranted) {
       if (!this.truapi) {
         throw new Error(
           `NotEnoughFunds: need ${totalNeeded} (fees ${estimatedFees} + storage ${storageDeposit}), have ${free}.`
@@ -330,6 +334,7 @@ export class AttestationService {
           `NotEnoughFunds: need ${totalNeeded} (fees ${estimatedFees} + storage ${storageDeposit}), have ${free} and the host declined PGAS coverage.`
         )
       }
+      this.allowanceGranted = true
     }
 
     onPermitted?.()

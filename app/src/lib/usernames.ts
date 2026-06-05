@@ -1,6 +1,9 @@
+declare const process: { env?: Record<string, string | undefined> }
+
 // Identity backend for username search/resolution.
 const API_URL =
-  import.meta.env.VITE_IDENTITY_API_URL ??
+  import.meta.env?.APP_IDENTITY_API_URL ??
+  process.env?.APP_IDENTITY_API_URL ??
   'https://identity-backend-next.parity-testnet.parity.io/api/v1'
 
 export interface UsernameEntry {

@@ -75,16 +75,8 @@
 .widget-card__footer {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: center;
   padding: 10px 12px;
-}
-
-.widget-card__brand {
-  width: 14px;
-  height: 14px;
-  border-radius: var(--radius-tiny);
-  background: var(--fg-primary);
-  flex-shrink: 0;
 }
 
 .widget-card__name {
@@ -95,4 +87,5 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-align: center;
 }
