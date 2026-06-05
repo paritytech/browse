@@ -58,7 +58,7 @@ can adopt it freely. See its [package manifest](packages/browse-sdk/package.json
 
 ## Security
 
-This is reference and proof-of-concept code. It has not been independently audited. Read
-[SECURITY.md](SECURITY.md) before any production use.
+This is reference and proof-of-concept code. It has not been independently audited. Please follow
+the [Parity security policy](https://github.com/paritytech/.github/blob/main/SECURITY.md) for reporting vulnerabilities.
 
 ## Happy browsing!
