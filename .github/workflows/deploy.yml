@@ -64,15 +64,13 @@ jobs:
           - env: paseo-next-v2
             display-name: Paseo Next V2
             genesis: '0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f'
-            channel: latest
             reuse-artifact: true
             required: true
           - env: preview
             display-name: Preview
             genesis: '0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb'
-            channel: dev
             reuse-artifact: false
-            required: false
+            required: true
     outputs:
       cid: ${{ steps.final.outputs.cid }}
       domain: ${{ steps.final.outputs.domain }}
@@ -86,13 +84,19 @@ jobs:
 
       - name: Compute domain
         id: domain
+        env:
+          DOMAIN: ${{ secrets.APP_DOTNS_DOMAIN }}
         run: |
           if [ "${{ github.ref }}" == "refs/heads/main" ]; then
-            echo "value=browse-beta00.dot" >> "$GITHUB_OUTPUT"
+            if [ "${{ matrix.target.env }}" == "paseo-next-v2" ]; then
+              echo "value=${DOMAIN}-beta00.dot" >> "$GITHUB_OUTPUT"
+            else
+              echo "value=${DOMAIN}.dot" >> "$GITHUB_OUTPUT"
+            fi
           else
             REF="${{ github.event.pull_request.head.ref || github.ref_name }}"
             SANITIZED=$(echo "$REF" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//' | cut -c1-48)
-            echo "value=browse-${SANITIZED}00.dot" >> "$GITHUB_OUTPUT"
+            echo "value=${DOMAIN}-${SANITIZED}00.dot" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Download build artifact
@@ -184,17 +188,17 @@ jobs:
           echo "domain=${DOMAIN}" >> "$GITHUB_OUTPUT"
           
       - name: Persist CID for release
-        if: github.ref == 'refs/heads/main' && steps.final.outputs.cid != ''
+        if: matrix.target.env == 'preview' && github.ref == 'refs/heads/main' && steps.final.outputs.cid != ''
         run: |
           mkdir -p .release-cid
           echo "${{ steps.final.outputs.cid }}" > .release-cid/cid
 
       - name: Cache CID by commit
-        if: github.ref == 'refs/heads/main' && steps.final.outputs.cid != ''
+        if: matrix.target.env == 'preview' && github.ref == 'refs/heads/main' && steps.final.outputs.cid != ''
         uses: actions/cache/save@v4
         with:
           path: .release-cid
-          key: release-cid-${{ matrix.target.channel }}-${{ github.sha }}
+          key: release-cid-${{ github.sha }}
 
       - name: Deployment summary
         env:

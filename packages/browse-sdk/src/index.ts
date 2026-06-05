@@ -19,8 +19,8 @@ export {
   isKnownGenesis,
   KNOWN_NETWORKS,
   PASEO_ASSET_HUB_NEXT_V2_GENESIS,
-  PASEO_ASSET_HUB_V1_GENESIS,
   PREVIEWNET_ASSET_HUB_GENESIS,
+  publisherReadAddresses,
   selectNetwork,
   SUMMIT_ASSET_HUB_GENESIS
 } from './config.js'
@@ -34,6 +34,7 @@ export type {
   IconFormat,
   Modality,
   NetworkAddresses,
+  Deployment,
   RootManifest
 } from './types.js'
 

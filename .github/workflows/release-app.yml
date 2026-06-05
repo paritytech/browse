@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Calendar version YYYY.MM.DD. Add a -dev suffix to target development release.'
+        description: 'Calendar version YYYY.MM.DD.'
         type: string
         required: true
 
@@ -19,9 +19,10 @@ jobs:
     runs-on: ubuntu-latest
     env:
       APP_DOTNS_DOMAIN: ${{ secrets.APP_DOTNS_DOMAIN }}
+      DOTNS_CLI_RELEASE_ENVIRONMENT: ${{ secrets.DOTNS_CLI_RELEASE_ENVIRONMENT }}
       DOTNS_MNEMONIC: ${{ secrets.MNEMONIC }}
     steps:
-      - name: Resolve version and channel
+      - name: Resolve version
         id: ver
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
@@ -31,27 +32,18 @@ jobs:
             TAG="${GITHUB_REF_NAME}"
             VERSION="${TAG#app-v}"
           fi
-          if [[ ! "$VERSION" =~ ^[0-9]{4}\.[0-9]{2}\.[0-9]{2}(\.[0-9]+)?(-.+)?$ ]]; then
+          if [[ ! "$VERSION" =~ ^[0-9]{4}\.[0-9]{2}\.[0-9]{2}(\.[0-9]+)?$ ]]; then
             echo "::error::Version '$VERSION' must be a calendar version (YYYY.MM.DD)"
             exit 1
           fi
-          if [[ "$VERSION" == *-* ]]; then
-            CHANNEL=dev
-            PRERELEASE=true
-          else
-            CHANNEL=latest
-            PRERELEASE=false
-          fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "channel=$CHANNEL" >> "$GITHUB_OUTPUT"
-          echo "prerelease=$PRERELEASE" >> "$GITHUB_OUTPUT"
 
       - name: Restore deployed CID
         uses: actions/cache/restore@v4
         with:
           path: .release-cid
-          key: release-cid-${{ steps.ver.outputs.channel }}-${{ github.sha }}
+          key: release-cid-${{ github.sha }}
           fail-on-cache-miss: true
 
       - name: Read CID
@@ -66,16 +58,13 @@ jobs:
         run: npm install -g @parity/dotns-cli
 
       - name: Point domain at the released CID
-        env:
-          DOTNS_ENV: ${{ steps.ver.outputs.channel == 'dev' && secrets.DOTNS_CLI_DEVELOPMENT_ENV || secrets.DOTNS_CLI_STAGING_ENV }}
-        run: dotns content set "$APP_DOTNS_DOMAIN" "${{ steps.cid.outputs.cid }}"
+        run: dotns content set "$APP_DOTNS_DOMAIN" "${{ steps.cid.outputs.cid }}" --env "$DOTNS_CLI_RELEASE_ENVIRONMENT"
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.ver.outputs.tag }}
           name: App v${{ steps.ver.outputs.version }}
-          prerelease: ${{ steps.ver.outputs.prerelease }}
           generate_release_notes: true
           append_body: true
           body: |
@@ -84,7 +73,6 @@ jobs:
             | | |
             |---|---|
             | Version | `${{ steps.ver.outputs.version }}` |
-            | Channel | `${{ steps.ver.outputs.channel }}` |
             | CID | `${{ steps.cid.outputs.cid }}` |
             | Domain | `${{ env.APP_DOTNS_DOMAIN }}.dot` |
             | Browser | https://${{ env.APP_DOTNS_DOMAIN }}.dot.li |

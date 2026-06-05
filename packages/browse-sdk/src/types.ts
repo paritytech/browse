@@ -28,18 +28,25 @@ export interface RootManifest {
 export interface AppListing {
   label: string
   /**
-   * IPFS CID for the queried modality. When the listing comes from a modality
-   * filter (`listAppsByModality`) this is the contenthash of
-   * `<modality>.<label>.dot`. Otherwise it's the bare `<label>.dot`
-   * contenthash (the "app" modality by convention).
+   * IPFS CID for the queried modality.
    */
   contentHash: string
   manifest: RootManifest
 }
 
+/** A deployed registry, identified by its version. */
+export interface Deployment {
+  version: string
+  address: `0x${string}`
+}
+
 export interface NetworkAddresses {
-  /** https://github.com/paritytech/browse/blob/main/evm/src/Publisher.sol */
-  PUBLISHER: `0x${string}`
+  /**
+   * Deployed Publisher registries for this network, current first.
+   *
+   * https://github.com/paritytech/browse/blob/main/evm/src/Publisher.sol
+   */
+  PUBLISHER: readonly Deployment[]
   /** https://github.com/paritytech/dotns/blob/master/contracts/registrars/DotnsRegistrar.sol */
   REGISTRAR: `0x${string}`
   /** https://github.com/paritytech/dotns/blob/master/contracts/resolvers/DotnsContentResolver.sol */

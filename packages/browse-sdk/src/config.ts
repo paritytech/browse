@@ -30,9 +30,6 @@ export interface NetworkConfig extends NetworkAddresses {
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
-export const PASEO_ASSET_HUB_V1_GENESIS =
-  "0xd6eec26135305a8ad257a20d003357284c8aa03d0bdb2b357ab0a22371e11ef2" as const;
-
 export const PASEO_ASSET_HUB_NEXT_V2_GENESIS =
   "0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f" as const;
 
@@ -43,31 +40,22 @@ export const SUMMIT_ASSET_HUB_GENESIS =
   "0xf388dc6d6cdf6fb77eac3c4a91f31bc0c8642b142f1a757512ab7849f9f70660" as const;
 
 export const KNOWN_NETWORKS = {
-  [PASEO_ASSET_HUB_V1_GENESIS]: {
-    MULTICALL3: "0x0C206218c5949c00e51825364a7C3A17d9909ef6",
-    STORE_FACTORY: "0x9C38DFec452391696a8f0D3daFE71F7Eb29e08f8",
-    CONTENT_RESOLVER: "0x108376A5B6DDc6BE3201C94Fd169BE444f220076",
-    REGISTRY: "0xE6c0fB6D5492666144A8a4a015E25a98ACa604cA",
-    REGISTRAR: "0xeD3BC8Abae983b0A22ff6881a9Aa1B83E5Ed3146",
-    PUBLISHER: ZERO_ADDRESS,
-    SCHEMA_REGISTRY: "0xb50a0be72877a06b90e093a02db6aa659644ddf3",
-    ATTESTATION_SERVICE: "0xff35f0da2de747f800baef2a01b03f51af7d111d",
-    ATTESTATION_INDEX_RESOLVER: "0xff35f0da2de747f800baef2a01b03f51af7d111d",
-    IPFS_GATEWAY: "https://paseo-ipfs.polkadot.io",
-    SCHEMA_ID: 1n,
-    rpcs: [
-      "wss://sys.ibp.network/asset-hub-paseo",
-      "wss://asset-hub-paseo.dotters.network",
-      "wss://asset-hub-paseo-rpc.dwellir.com",
-    ],
-  },
   [PASEO_ASSET_HUB_NEXT_V2_GENESIS]: {
     MULTICALL3: "0xFc430CcCdb9335C1907fc72e93eb1f48e847319C",
     STORE_FACTORY: "0x692047C1477a017F287488E1c85F96Ca28C23fD8",
     CONTENT_RESOLVER: "0x8A26480b0B5Df3d4D9b95adc24a5Ecb33A5b8F64",
     REGISTRY: "0xa1b2b939E82b2ecE55Bd8a0E283818BfC1CA6CDc",
     REGISTRAR: "0xf7Ad3F44F316C73E4a2b46b1ed48d376bCc9E639",
-    PUBLISHER: "0x0d30645f1d2c7dfa11926190e456a45db440581f",
+    PUBLISHER: [
+      {
+        version: "2.1.0",
+        address: "0x0d30645f1d2c7dfa11926190e456a45db440581f",
+      },
+      {
+        version: "2.0.0",
+        address: "0xa616254fd98724c7a3d295c98ca393a486096b68",
+      },
+    ],
     SCHEMA_REGISTRY: "0xbe92a66b697dc9bd4a35b1b8e3aead484d2010a7",
     ATTESTATION_SERVICE: "0x24af868f14605460f6385aae166986cee9800514",
     ATTESTATION_INDEX_RESOLVER: "0x5d701a1aca551b0e1cd6a00172554e5ff2348104",
@@ -81,7 +69,16 @@ export const KNOWN_NETWORKS = {
     CONTENT_RESOLVER: "0xBD003d5Dd04E68aC60d529a46AEfBdEf8941868C",
     REGISTRY: "0x5622CA75C75726Da13ae46C69127C07c87538633",
     REGISTRAR: "0x061273AeF34e8ab9Ca08E199d7440E2639Fc2088",
-    PUBLISHER: "0xcea6551761b9ea035b1f2be5cddd9dd85148437d",
+    PUBLISHER: [
+      {
+        version: "2.1.0",
+        address: "0xcea6551761b9ea035b1f2be5cddd9dd85148437d",
+      },
+      {
+        version: "2.0.0",
+        address: "0xa616254fd98724c7a3d295c98ca393a486096b68",
+      },
+    ],
     SCHEMA_REGISTRY: "0xbe92a66b697dc9bd4a35b1b8e3aead484d2010a7",
     ATTESTATION_SERVICE: "0x24af868f14605460f6385aae166986cee9800514",
     ATTESTATION_INDEX_RESOLVER: "0x5d701a1aca551b0e1cd6a00172554e5ff2348104",
@@ -95,7 +92,7 @@ export const KNOWN_NETWORKS = {
     CONTENT_RESOLVER: ZERO_ADDRESS,
     REGISTRY: ZERO_ADDRESS,
     REGISTRAR: ZERO_ADDRESS,
-    PUBLISHER: ZERO_ADDRESS,
+    PUBLISHER: [],
     SCHEMA_REGISTRY: ZERO_ADDRESS,
     ATTESTATION_SERVICE: ZERO_ADDRESS,
     ATTESTATION_INDEX_RESOLVER: ZERO_ADDRESS,
@@ -113,4 +110,16 @@ export function isKnownGenesis(genesis: string): genesis is NetworkGenesis {
 
 export function selectNetwork(genesis: NetworkGenesis): NetworkConfig {
   return KNOWN_NETWORKS[genesis];
+}
+
+/**
+ * Every Publisher address to read listings from, current first.
+ *
+ * Reads union across all deployments so a redeploy doesn't strand the listings
+ * published to an older registry. Empty on networks without a Publisher.
+ */
+export function publisherReadAddresses(
+  network: NetworkConfig,
+): `0x${string}`[] {
+  return network.PUBLISHER.map((deployment) => deployment.address);
 }

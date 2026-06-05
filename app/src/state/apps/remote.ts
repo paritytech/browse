@@ -6,6 +6,7 @@
  */
 
 import { keccak_256 } from '@noble/hashes/sha3.js'
+import { publisherReadAddresses } from '@parity/browse-sdk'
 
 import { parseRootManifest } from './manifest'
 import type { LabelEntry } from '../../db/labels'
@@ -35,7 +36,6 @@ import { hiddenLog } from '../../lib/debug'
 import { multicall } from '../../lib/multicall'
 
 const PUBLISHER_PAGE_LIMIT = 1000n
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
 export const HYDRATE_CHUNK_SIZE = 30
 
@@ -69,13 +69,14 @@ export function labelhashOf(label: string): `0x${string}` {
  * array when no Publisher is configured for the active network.
  */
 export async function readPublishedLabelhashes(): Promise<`0x${string}`[]> {
-  if (NETWORK.PUBLISHER === ZERO_ADDRESS) {
+  const publishers = publisherReadAddresses(NETWORK)
+  if (publishers.length === 0) {
     hiddenLog('Publisher not deployed on this network; returning empty set', 'error')
     return []
   }
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      return await readPublishedLabelhashesOnce()
+      return await readPublishedLabelhashesOnce(publishers)
     } catch (err) {
       if (attempt === 1) throw err
       hiddenLog(`getPublished failed (attempt ${attempt + 1}/2): ${err}`, 'error')
@@ -85,18 +86,22 @@ export async function readPublishedLabelhashes(): Promise<`0x${string}`[]> {
   return []
 }
 
-async function readPublishedLabelhashesOnce(): Promise<`0x${string}`[]> {
-  let offset = 0n
+async function readPublishedLabelhashesOnce(publishers: `0x${string}`[]): Promise<`0x${string}`[]> {
+  const seen = new Set<string>()
   const all: `0x${string}`[] = []
-  for (;;) {
-    const raw = await reviveCall(
-      NETWORK.PUBLISHER,
-      encodeGetPublished(offset, PUBLISHER_PAGE_LIMIT)
-    )
-    const page = decodeBytes32Array(raw)
-    all.push(...page)
-    if (page.length < Number(PUBLISHER_PAGE_LIMIT)) break
-    offset += PUBLISHER_PAGE_LIMIT
+  for (const publisher of publishers) {
+    let offset = 0n
+    for (;;) {
+      const raw = await reviveCall(publisher, encodeGetPublished(offset, PUBLISHER_PAGE_LIMIT))
+      const page = decodeBytes32Array(raw)
+      for (const labelhash of page) {
+        if (seen.has(labelhash)) continue
+        seen.add(labelhash)
+        all.push(labelhash)
+      }
+      if (page.length < Number(PUBLISHER_PAGE_LIMIT)) break
+      offset += PUBLISHER_PAGE_LIMIT
+    }
   }
   return all
 }
