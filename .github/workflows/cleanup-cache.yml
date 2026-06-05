@@ -1,0 +1,27 @@
+name: Cleanup Cache
+
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  actions: write
+
+jobs:
+  cleanup:
+    name: Cleanup Cache
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cleanup branch caches
+        run: |
+          gh actions-cache list --branch "$BRANCH" --limit 100 | \
+            cut -f1 | \
+            while read -r key; do
+              [ -z "$key" ] && continue
+              gh actions-cache delete "$key" --branch "$BRANCH" --confirm || true
+            done
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: refs/pull/${{ github.event.pull_request.number }}/merge

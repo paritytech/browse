@@ -1,0 +1,17 @@
+{
+  "version": 0,
+  "descriptorPath": ".papi/descriptors",
+  "entries": {
+    "paseoHub": {
+      "wsUrl": "wss://paseo-asset-hub-next-rpc.polkadot.io",
+      "metadata": ".papi/metadata/paseoHub.scale",
+      "genesis": "0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f",
+      "codeHash": "0x8514444667bd821f6e2c1e4aadd73bda104d4db7643ede26044a25efa8056f14"
+    }
+  },
+  "sol": {
+    "attestation_registry": ".papi/contracts/attestation_registry.json",
+    "attestation_service": ".papi/contracts/attestation_service.json",
+    "schema_registry": ".papi/contracts/schema_registry.json"
+  }
+}

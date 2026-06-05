@@ -1,0 +1,45 @@
+node_modules/
+dist/
+.vite/
+*.log
+
+# Hardhat / Foundry
+cache/
+cache_hh/
+out/
+artifacts/
+typechain-types/
+evm/lib/
+**/build-info/
+**/journal.jsonl
+
+# Build artifacts
+.playwright-mcp/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# OS
+.DS_Store
+
+# Build output
+app/bundle/
+app/browse.prod
+app/chain-specs/
+*.car
+
+# Testing
+test-results/
+playwright-report/
+app/tests/results/
+
+# Claude Code
+.claude/settings.local.json
+
+# Local task worktrees
+.claude/worktrees/
+
+# Lychee link-check cache
+.lycheecache

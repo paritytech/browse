@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "types": ["node"],
+    "paths": {
+      "@parity/browse-sdk": ["../../packages/browse-sdk/src/index.ts"],
+      "@parity/browse-sdk/config": ["../../packages/browse-sdk/src/config.ts"]
+    }
+  },
+  "include": ["*.ts"]
+}

@@ -1,0 +1,56 @@
+{
+  "name": "@parity/browse-sdk",
+  "version": "0.1.0-rc.0",
+  "description": "Client SDK for the browse.dot publishing registry: read published apps, widgets, and workers via any papi-compatible JsonRpcProvider.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/paritytech/browse.git",
+    "directory": "packages/browse-sdk"
+  },
+  "homepage": "https://github.com/paritytech/browse/tree/main/packages/browse-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/paritytech/browse/issues"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "#/source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@ensdomains/content-hash": "^3.0.0",
+    "@noble/hashes": "^2.0.1",
+    "@polkadot-api/json-rpc-provider": "^0.2.0",
+    "polkadot-api": "^2.1.4",
+    "viem": "^2.50.4"
+  },
+  "devDependencies": {
+    "@polkadot-api/ws-provider": "^0.9.0",
+    "typescript": "^5.4.0",
+    "vitest": "^4.1.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

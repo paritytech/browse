@@ -1,0 +1,48 @@
+{
+  "browse:labels": [
+    {
+      "label": "browse",
+      "name": "Browse",
+      "description": "Home for your products.",
+      "iconCid": "bafkreiezkbolh33xljbpif6d3de7icjifkdtbh45lrk6x2vsh2v36hqs7i",
+      "hasChat": false,
+      "contentHash": "bafybeihzeej2nqre7e6d4cwlj7jjlcwfu4llsyo3ku27r6n3i2k7qys6ua",
+      "attestationCount": 0,
+      "hasUserAttested": false,
+      "fetchedAt": 1780336063752
+    },
+    {
+      "label": "host-playground",
+      "name": "Host Playground",
+      "description": "Reference playground exercising the @novasamatech/host-api-wrapper surface against a paired Polkadot host.",
+      "iconCid": "bafkreihctt2zzv35ep2rne25yxxqzpxxj5i4h7yozmjrpvopykp3bmmvu4",
+      "hasChat": true,
+      "contentHash": "bafybeihsq4g4mpzwjlb3lri6ppsc6jlfcvhgn3h2aewfwubnhwhvdtapfa",
+      "attestationCount": 0,
+      "hasUserAttested": false,
+      "fetchedAt": 1780336063752
+    },
+    {
+      "label": "calculator",
+      "name": "Calculator",
+      "description": "Yes. A calculator. Cool right?",
+      "iconCid": "bafkreicz3s3uxmp6xp5fh2k2hattr4wqs5vvvvgnmf6gwqk52oqjqq5gv4",
+      "hasChat": false,
+      "contentHash": "bafybeigcqlhpqzsrutzh7pbjxkljr24z23untf6if4kz3iuljy3cjs7x6q",
+      "attestationCount": 1,
+      "hasUserAttested": false,
+      "fetchedAt": 1780336063752
+    },
+    {
+      "label": "stopwatch",
+      "name": "Stopwatch",
+      "description": "Really? Yes. Someone had to.",
+      "iconCid": "bafkreid6dpbdpfximqcnpgcuh4wlqujeg6c775mabe6woix4ahf7zi5r5a",
+      "hasChat": false,
+      "contentHash": "bafybeih3bzthy6dd2jpixdsvjb7smxnbxk7pmm3hcxget53acweoy2wi24",
+      "attestationCount": 1,
+      "hasUserAttested": false,
+      "fetchedAt": 1780336063752
+    }
+  ]
+}

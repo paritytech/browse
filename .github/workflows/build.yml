@@ -1,0 +1,46 @@
+name: Build
+
+on:
+  workflow_call:
+  push:
+    branches: [main]
+    paths: ['app/**']
+  pull_request:
+    branches: [main]
+    paths: ['app/**']
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Cache build output
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: app/dist/spa
+          key: build-${{ hashFiles('app/src/**', 'app/package.json', 'app/vite.config.ts', 'app/tsconfig.json', 'bun.lock', 'app/.papi/**') }}
+
+      - name: Install dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: bun run build:spa
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: app/dist/spa/
+          retention-days: 7

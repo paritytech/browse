@@ -1,0 +1,86 @@
+name: Release App
+
+on:
+  push:
+    tags: ['app-v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Calendar version YYYY.MM.DD.'
+        type: string
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Promote and publish Release
+    runs-on: ubuntu-latest
+    env:
+      APP_DOTNS_DOMAIN: ${{ secrets.APP_DOTNS_DOMAIN }}
+      DOTNS_CLI_RELEASE_ENVIRONMENT: ${{ secrets.DOTNS_CLI_RELEASE_ENVIRONMENT }}
+      DOTNS_MNEMONIC: ${{ secrets.MNEMONIC }}
+    steps:
+      - name: Verify required secrets
+        run: |
+          if [ -z "$APP_DOTNS_DOMAIN" ]; then echo "::error::Required secret APP_DOTNS_DOMAIN is not set"; exit 1; fi
+          if [ -z "$DOTNS_CLI_RELEASE_ENVIRONMENT" ]; then echo "::error::Required secret DOTNS_CLI_RELEASE_ENVIRONMENT is not set"; exit 1; fi
+          if [ -z "$DOTNS_MNEMONIC" ]; then echo "::error::Required secret MNEMONIC is not set"; exit 1; fi
+
+      - name: Resolve version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+            TAG="app-v${VERSION}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+            VERSION="${TAG#app-v}"
+          fi
+          if [[ ! "$VERSION" =~ ^[0-9]{4}\.[0-9]{2}\.[0-9]{2}(\.[0-9]+)?$ ]]; then
+            echo "::error::Version '$VERSION' must be a calendar version (YYYY.MM.DD)"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Restore deployed CID
+        uses: actions/cache/restore@v4
+        with:
+          path: .release-cid
+          key: release-cid-${{ github.sha }}
+          fail-on-cache-miss: true
+
+      - name: Read CID
+        id: cid
+        run: echo "cid=$(cat .release-cid/cid)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dotns CLI
+        run: npm install -g @parity/dotns-cli
+
+      - name: Point domain at the released CID
+        run: dotns content set "$APP_DOTNS_DOMAIN" "${{ steps.cid.outputs.cid }}" --env "$DOTNS_CLI_RELEASE_ENVIRONMENT"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.ver.outputs.tag }}
+          name: App v${{ steps.ver.outputs.version }}
+          generate_release_notes: true
+          append_body: true
+          body: |
+            ### Deployment
+
+            | | |
+            |---|---|
+            | Version | `${{ steps.ver.outputs.version }}` |
+            | CID | `${{ steps.cid.outputs.cid }}` |
+            | Domain | `${{ env.APP_DOTNS_DOMAIN }}.dot` |
+            | Browser | https://${{ env.APP_DOTNS_DOMAIN }}.dot.li |
+
+            To roll back, re-run `dotns content set` with a prior release CID.

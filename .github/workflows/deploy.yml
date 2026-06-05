@@ -1,0 +1,263 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+    paths: ['app/**']
+  pull_request:
+    branches: [main]
+    paths: ['app/**']
+  workflow_dispatch:
+    inputs:
+      skip-cache:
+        description: 'Skip deployment cache and force redeploy'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  statuses: write
+  id-token: write
+  pull-requests: write
+
+concurrency:
+  group: deploy-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Check for Changes
+    runs-on: ubuntu-latest
+    outputs:
+      source-hash: ${{ steps.source-hash.outputs.hash }}
+      cache-hit: ${{ steps.cache-check.outputs.cache-hit }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute source hash
+        id: source-hash
+        run: echo "hash=$(git ls-files app/src/ app/package.json app/vite.config.ts app/tsconfig.json app/index.html bun.lock | xargs sha256sum | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Check deployment cache
+        id: cache-check
+        uses: actions/cache@v4
+        with:
+          path: .deployment-marker
+          key: deploy-browse-${{ steps.source-hash.outputs.hash }}
+          lookup-only: true
+
+  build:
+    name: Build
+    needs: check
+    if: needs.check.outputs.cache-hit != 'true' || inputs.skip-cache
+    uses: ./.github/workflows/build.yml
+
+  deploy:
+    name: Deploy ${{ matrix.target.display-name }}
+    needs: [check, build]
+    if: needs.check.outputs.cache-hit != 'true' || inputs.skip-cache
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - env: paseo-next-v2
+            display-name: Paseo Next V2
+            genesis: '0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f'
+            reuse-artifact: true
+            required: true
+          - env: preview
+            display-name: Preview
+            genesis: '0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb'
+            reuse-artifact: false
+            required: true
+    outputs:
+      cid: ${{ steps.final.outputs.cid }}
+      domain: ${{ steps.final.outputs.domain }}
+    steps:
+      - uses: actions/checkout@v4
+        if: matrix.target.reuse-artifact != true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Compute domain
+        id: domain
+        env:
+          DOMAIN: ${{ secrets.APP_DOTNS_DOMAIN }}
+        run: |
+          if [ -z "$DOMAIN" ]; then
+            echo "::error::Required secret APP_DOTNS_DOMAIN is not set"
+            exit 1
+          fi
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            if [ "${{ matrix.target.env }}" == "paseo-next-v2" ]; then
+              echo "value=${DOMAIN}-beta00.dot" >> "$GITHUB_OUTPUT"
+            else
+              echo "value=${DOMAIN}.dot" >> "$GITHUB_OUTPUT"
+            fi
+          else
+            REF="${{ github.event.pull_request.head.ref || github.ref_name }}"
+            SANITIZED=$(echo "$REF" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//' | cut -c1-48)
+            echo "value=${DOMAIN}-${SANITIZED}00.dot" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Download build artifact
+        if: matrix.target.reuse-artifact == true
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: build
+
+      - uses: oven-sh/setup-bun@v2
+        if: matrix.target.reuse-artifact != true
+        with:
+          bun-version: latest
+
+      - name: Build for ${{ matrix.target.env }}
+        if: matrix.target.reuse-artifact != true
+        working-directory: app
+        env:
+          NETWORK_GENESIS_HASH: ${{ matrix.target.genesis }}
+        run: |
+          bun install --frozen-lockfile
+          bun run build:spa
+          cp -r dist/spa ../build
+
+      - name: Compute build hash
+        id: hash
+        run: echo "hash=$(find build -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+
+      - name: Check deploy cache
+        id: cache
+        if: inputs.skip-cache != true
+        uses: actions/cache@v4
+        with:
+          path: .deploy-cache
+          key: deploy-${{ matrix.target.env }}-${{ steps.hash.outputs.hash }}
+
+      - name: Load cached CID
+        id: cached-deploy
+        if: steps.cache.outputs.cache-hit == 'true'
+        run: |
+          echo "cid=$(cat .deploy-cache/cid)" >> "$GITHUB_OUTPUT"
+          echo "::notice::Found cached CID: $(cat .deploy-cache/cid)"
+
+      - name: Verify required secrets
+        if: steps.cache.outputs.cache-hit != 'true'
+        env:
+          MNEMONIC: ${{ secrets.MNEMONIC }}
+        run: |
+          if [ -z "$MNEMONIC" ]; then
+            echo "::error::Required secret MNEMONIC is not set"
+            exit 1
+          fi
+
+      - name: Setup IPFS Kubo
+        if: steps.cache.outputs.cache-hit != 'true'
+        uses: ipfs/download-ipfs-distribution-action@v1
+        with:
+          name: kubo
+          version: v0.33.0
+
+      - name: Initialize IPFS
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: ipfs init
+
+      - name: Install bulletin-deploy
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: npm install -g bulletin-deploy
+
+      - name: Deploy
+        id: deploy
+        if: steps.cache.outputs.cache-hit != 'true'
+        continue-on-error: ${{ matrix.target.required != true }}
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 15
+          max_attempts: 3
+          retry_wait_seconds: 30
+          command: |
+            export MNEMONIC='${{ secrets.MNEMONIC }}'
+            export NODE_OPTIONS='--max-old-space-size=8192'
+            bulletin-deploy 'build' '${{ steps.domain.outputs.value }}' --env '${{ matrix.target.env }}'
+
+      - name: Save deployment to cache
+        if: steps.cache.outputs.cache-hit != 'true' && steps.deploy.outcome == 'success'
+        run: |
+          mkdir -p .deploy-cache
+          echo "${{ steps.deploy.outputs.cid }}" > .deploy-cache/cid
+
+      - name: Set outputs
+        id: final
+        run: |
+          DOMAIN="${{ steps.domain.outputs.value }}"
+          DOMAIN="${DOMAIN%.dot}"
+          if [ "${{ steps.cache.outputs.cache-hit }}" == "true" ]; then
+            echo "cid=${{ steps.cached-deploy.outputs.cid }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "cid=${{ steps.deploy.outputs.cid }}" >> "$GITHUB_OUTPUT"
+          fi
+          echo "domain=${DOMAIN}" >> "$GITHUB_OUTPUT"
+          
+      - name: Persist CID for release
+        if: matrix.target.env == 'preview' && github.ref == 'refs/heads/main' && steps.final.outputs.cid != ''
+        run: |
+          mkdir -p .release-cid
+          echo "${{ steps.final.outputs.cid }}" > .release-cid/cid
+
+      - name: Cache CID by commit
+        if: matrix.target.env == 'preview' && github.ref == 'refs/heads/main' && steps.final.outputs.cid != ''
+        uses: actions/cache/save@v4
+        with:
+          path: .release-cid
+          key: release-cid-${{ github.sha }}
+
+      - name: Deployment summary
+        env:
+          TARGET_ENV: ${{ matrix.target.env }}
+        run: |
+          DOMAIN="${{ steps.final.outputs.domain }}"
+          CID="${{ steps.final.outputs.cid }}"
+          if [ -z "$DOMAIN" ]; then
+            echo "### Deployment completed but domain output is missing" >> $GITHUB_STEP_SUMMARY
+            echo "CID \`${CID}\`" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### ${DOMAIN}.dot (${TARGET_ENV})" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Browser &nbsp; https://${DOMAIN}.dot.li" >> $GITHUB_STEP_SUMMARY
+            echo "Desktop &nbsp; \`${DOMAIN}.dot\`" >> $GITHUB_STEP_SUMMARY
+            echo "CID &nbsp; \`${CID}\`" >> $GITHUB_STEP_SUMMARY
+          fi
+
+      - name: Comment on PR
+        if: github.event.pull_request && steps.final.outputs.domain != '' && matrix.target.env == 'paseo-next-v2'
+        uses: actions/github-script@v7
+        env:
+          DOMAIN: ${{ steps.final.outputs.domain }}
+        with:
+          script: |
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}`;
+            const domain = process.env.DOMAIN;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: `**${domain}.dot** · [logs](${runUrl})\n\nhttps://${domain}.paseo.li`
+            });
+
+  post-deploy:
+    name: Mark as Deployed
+    needs: [check, deploy]
+    if: needs.deploy.result == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create deployment marker
+        run: echo "deployed" > .deployment-marker
+
+      - name: Cache deployment marker
+        uses: actions/cache/save@v4
+        with:
+          path: .deployment-marker
+          key: deploy-browse-${{ needs.check.outputs.source-hash }}
