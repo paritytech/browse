@@ -1,3 +1,18 @@
+// Copyright (C) Parity Technologies (UK) Ltd.
+// SPDX-License-Identifier: Apache-2.0
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// 	http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import type { JsonRpcProvider } from '@polkadot-api/json-rpc-provider'
 import { AccountId, Binary, createClient, type PolkadotClient, type SS58String } from 'polkadot-api'
 
@@ -41,7 +56,6 @@ const DRY_RUN_GAS_LIMIT = {
 const DRY_RUN_STORAGE_LIMIT = 18_446_744_073_709_551_615n
 const MULTICALL_CHUNK_SIZE = 30
 const PUBLISHER_PAGE_LIMIT = 1000n
-const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 
 /** Minimum duck-typed shape of `client.getUnsafeApi().apis.ReviveApi`.
  *  `getUnsafeApi` resolves the call at runtime against on-chain metadata, so
@@ -128,23 +142,26 @@ export class BrowseSdk {
   }
 
   /**
-   * Paginated read of `Publisher.getPublished` returning every published
-   * labelhash. Returns `[]` immediately on networks without a Publisher
-   * (`PUBLISHER === ZERO_ADDRESS`).
+   * Paginated read of `Publisher.getPublished` across every deployed Publisher
+   * for the network, unioned and de-duplicated by labelhash (current registry
+   * first). Returns `[]` on networks without a Publisher.
    */
   async listPublishedLabelhashes(): Promise<`0x${string}`[]> {
-    if (this.network.PUBLISHER === ZERO_ADDRESS) return []
+    const seen = new Set<string>()
     const all: `0x${string}`[] = []
-    let offset = 0n
-    for (;;) {
-      const ret = await this.reviveCall(
-        this.network.PUBLISHER,
-        encodeGetPublished(offset, PUBLISHER_PAGE_LIMIT)
-      )
-      const page = decodeBytes32Array(ret)
-      all.push(...page)
-      if (page.length < Number(PUBLISHER_PAGE_LIMIT)) break
-      offset += PUBLISHER_PAGE_LIMIT
+    for (const { address } of this.network.PUBLISHER) {
+      let offset = 0n
+      for (;;) {
+        const ret = await this.reviveCall(address, encodeGetPublished(offset, PUBLISHER_PAGE_LIMIT))
+        const page = decodeBytes32Array(ret)
+        for (const labelhash of page) {
+          if (seen.has(labelhash)) continue
+          seen.add(labelhash)
+          all.push(labelhash)
+        }
+        if (page.length < Number(PUBLISHER_PAGE_LIMIT)) break
+        offset += PUBLISHER_PAGE_LIMIT
+      }
     }
     return all
   }

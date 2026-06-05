@@ -28,7 +28,9 @@ if (!(MODALITIES as readonly string[]).includes(modality)) {
 const network = selectNetwork(genesis)
 console.log(`network:   ${arg === 'previewnet' ? 'previewnet' : 'paseo-next-v2'}`)
 console.log(`rpc:       ${network.rpcs[0]}`)
-console.log(`publisher: ${network.PUBLISHER}`)
+console.log(
+  `publisher: ${network.PUBLISHER.map((p) => `${p.version}@${p.address}`).join(', ') || '(none)'}`
+)
 console.log(`modality:  ${modality}\n`)
 
 const sdk = createBrowseSdk(network, getWsProvider(network.rpcs[0]))

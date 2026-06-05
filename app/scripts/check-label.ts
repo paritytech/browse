@@ -116,16 +116,17 @@ try {
   console.log(`  reverted: ${(err as Error).message}`)
 }
 
-console.log(`\nPublisher.publishedCount: (${network.PUBLISHER})`)
-if (network.PUBLISHER === '0x0000000000000000000000000000000000000000') {
+console.log(`\nPublisher.publishedCount:`)
+if (network.PUBLISHER.length === 0) {
   console.log(`  (PUBLISHER not configured for this network)`)
 } else {
-  try {
-    const countHex = await sdk.reviveCall(network.PUBLISHER, encodePublishedCount())
-    console.log(`  raw: ${countHex}`)
-    console.log(`  count: ${BigInt(countHex)}`)
-  } catch (err) {
-    console.log(`  reverted (Publisher not deployed at this address?): ${(err as Error).message}`)
+  for (const { version, address } of network.PUBLISHER) {
+    try {
+      const countHex = await sdk.reviveCall(address, encodePublishedCount())
+      console.log(`  ${version} (${address}): ${BigInt(countHex)}`)
+    } catch (err) {
+      console.log(`  ${version} (${address}): reverted (${(err as Error).message})`)
+    }
   }
 }
 

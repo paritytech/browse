@@ -1,65 +1,60 @@
 <div align="center">
 
-# Home for privacy apps
+# Browse TypeScript SDK
 
 <!-- markdownlint-disable-next-line MD013 -->
 ![CI](https://github.com/paritytech/browse/actions/workflows/build.yml/badge.svg)
 
 <br>
 
-> Find apps on privacy platforms. Save what you love. Recommend the best.
+> The SDK for finding apps on Polkadot.
 
 </div>
 
-# @parity/browse-sdk
-
-Client SDK for the [browse.dot](https://github.com/paritytech/browse) publishing registry. Walks the on-chain Publisher set, resolves labels via dotNS, and surfaces published apps, widgets, and workers over any papi-compatible `JsonRpcProvider`.
-
-Part of the [browse](https://github.com/paritytech/browse) monorepo, published independently under Apache-2.0.
+`@parity/browse-sdk` is a SDK that makes it easy for third-party developers to list Polkadot apps into their own products. Search, list, and surface published apps directly from with no indexer or backend of your own.
 
 ## Install
 
-```sh
-npm install @parity/browse-sdk
-# peer-style helper for the example below
-npm install @polkadot-api/ws-provider
+Using npm
+
+```bash
+$ npm install @parity/browse-sdk
 ```
 
-## Usage
+Using yarn
 
-```ts
-import {
-  createBrowseSdk,
-  PASEO_ASSET_HUB_NEXT_V2_GENESIS,
-  selectNetwork
-} from '@parity/browse-sdk'
-import { getWsProvider } from '@polkadot-api/ws-provider'
-
-const network = selectNetwork(PASEO_ASSET_HUB_NEXT_V2_GENESIS)
-const sdk = createBrowseSdk(network, getWsProvider(network.rpcs[0]))
-
-const widgets = await sdk.listAppsByModality('widget')
-
-sdk.destroy()
+```bash
+$ yarn add @parity/browse-sdk
 ```
 
-Inside the browse app the provider comes from the host bridge:
+Using pnpm
 
-```ts
-import { createPapiProvider } from '@novasamatech/product-sdk'
-
-const provider = createPapiProvider(PASEO_ASSET_HUB_NEXT_V2_GENESIS)
-const sdk = createBrowseSdk(network, provider)
+```bash
+$ pnpm add @parity/browse-sdk
 ```
 
-A runnable version of the snippet lives at [`examples/list-widgets.ts`](./examples/list-widgets.ts). Run it with `bun examples/list-widgets.ts` from this directory.
+Using bun
 
-### Networks
+```bash
+$ bun add @parity/browse-sdk
+```
+## Compatibility
 
-Pass a custom `NetworkConfig` to `createBrowseSdk` to target any other deployment.
+| Tool | Version |
+|------|---------|
+| Bun | ~1.3.10 |
+| Node.js | ~22.13.1 |
+
+## Documentation
+
+See [`examples`](./examples).
+
+## Getting Help
+
+Open an issue on [GitHub](https://github.com/paritytech/browse/issues).
 
 ## License
 
 Apache-2.0
 
-## Happy browsing!
+## Happy Browsing! 🕵️🕵️‍♀️
