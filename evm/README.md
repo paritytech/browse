@@ -33,10 +33,10 @@ deployment records live in [deployments.json](deployments.json).
 
 Genesis `0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f`.
 
-Version 2.0.0:
+Version 2.1.0:
 
 * **Publisher**:
-  * Contract: `0xa616254fd98724c7a3d295c98ca393a486096b68`
+  * Contract: `0x0d30645f1d2c7dfa11926190e456a45db440581f`
   * Deployment and ABI: [Publisher.sol](src/Publisher.sol)
 * **RecipientAndAttesterIndexResolver**:
   * Contract: `0x5d701a1aca551b0e1cd6a00172554e5ff2348104`
@@ -46,10 +46,10 @@ Version 2.0.0:
 
 Genesis `0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb`.
 
-Version 2.0.0:
+Version 2.1.0:
 
 * **Publisher**:
-  * Contract: `0xa616254fd98724c7a3d295c98ca393a486096b68`
+  * Contract: `0xcea6551761b9ea035b1f2be5cddd9dd85148437d`
   * Deployment and ABI: [Publisher.sol](src/Publisher.sol)
 * **RecipientAndAttesterIndexResolver**:
   * Contract: `0x5d701a1aca551b0e1cd6a00172554e5ff2348104`

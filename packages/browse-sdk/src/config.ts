@@ -1,3 +1,18 @@
+// Copyright (C) Parity Technologies (UK) Ltd.
+// SPDX-License-Identifier: Apache-2.0
+
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// 	http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 import type { NetworkAddresses } from "./types.js";
 
 export interface NetworkConfig extends NetworkAddresses {
@@ -52,7 +67,7 @@ export const KNOWN_NETWORKS = {
     CONTENT_RESOLVER: "0x8A26480b0B5Df3d4D9b95adc24a5Ecb33A5b8F64",
     REGISTRY: "0xa1b2b939E82b2ecE55Bd8a0E283818BfC1CA6CDc",
     REGISTRAR: "0xf7Ad3F44F316C73E4a2b46b1ed48d376bCc9E639",
-    PUBLISHER: "0xa616254fd98724c7a3d295c98ca393a486096b68",
+    PUBLISHER: "0x0d30645f1d2c7dfa11926190e456a45db440581f",
     SCHEMA_REGISTRY: "0xbe92a66b697dc9bd4a35b1b8e3aead484d2010a7",
     ATTESTATION_SERVICE: "0x24af868f14605460f6385aae166986cee9800514",
     ATTESTATION_INDEX_RESOLVER: "0x5d701a1aca551b0e1cd6a00172554e5ff2348104",
@@ -66,7 +81,7 @@ export const KNOWN_NETWORKS = {
     CONTENT_RESOLVER: "0xBD003d5Dd04E68aC60d529a46AEfBdEf8941868C",
     REGISTRY: "0x5622CA75C75726Da13ae46C69127C07c87538633",
     REGISTRAR: "0x061273AeF34e8ab9Ca08E199d7440E2639Fc2088",
-    PUBLISHER: "0xa616254fd98724c7a3d295c98ca393a486096b68",
+    PUBLISHER: "0xcea6551761b9ea035b1f2be5cddd9dd85148437d",
     SCHEMA_REGISTRY: "0xbe92a66b697dc9bd4a35b1b8e3aead484d2010a7",
     ATTESTATION_SERVICE: "0x24af868f14605460f6385aae166986cee9800514",
     ATTESTATION_INDEX_RESOLVER: "0x5d701a1aca551b0e1cd6a00172554e5ff2348104",

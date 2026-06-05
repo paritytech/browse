@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.24;
 
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
+
 import {IDotnsRegistrar} from "./interfaces/IDotnsRegistrar.sol";
 import {IPersonhood} from "./interfaces/IPersonhood.sol";
 import {IPublisher} from "./interfaces/IPublisher.sol";
@@ -8,7 +11,7 @@ import {Semver} from "./Semver.sol";
 
 /// @title Publisher
 /// @notice The browse publishing registry.
-contract Publisher is IPublisher, Semver(2, 0, 0) {
+contract Publisher is IPublisher, Ownable2Step, Semver(2, 1, 0) {
     // The Proof-of-Personhood precompile.
     address internal constant PERSONHOOD =
         0x000000000000000000000000000000000a010000;
@@ -27,7 +30,7 @@ contract Publisher is IPublisher, Semver(2, 0, 0) {
     uint64 internal constant RATE_WINDOW = 1 days;
 
     // Maximum publishes per RATE_WINDOW for Lite-tier (status == 1) callers.
-    uint64 internal constant LITE_DAILY_LIMIT = 3;
+    uint64 internal constant LITE_DAILY_LIMIT = 1;
 
     // Maximum publishes per RATE_WINDOW for Full-tier (status >= 2) callers.
     uint64 internal constant FULL_DAILY_LIMIT = 5;
@@ -61,7 +64,7 @@ contract Publisher is IPublisher, Semver(2, 0, 0) {
     mapping(address publisher => PublishWindow) private _windows;
 
     /// @param registrar_ The address of the deployed DotNS registrar.
-    constructor(IDotnsRegistrar registrar_) {
+    constructor(IDotnsRegistrar registrar_) Ownable(msg.sender) {
         registrar = registrar_;
     }
 
@@ -69,15 +72,21 @@ contract Publisher is IPublisher, Semver(2, 0, 0) {
     function publish(string calldata label) external {
         (bytes32 labelhash, bytes32 labelNode) = _requireOwnedLabel(label);
 
-        uint8 status = IPersonhood(PERSONHOOD)
-            .personhoodStatus(msg.sender, PERSONHOOD_CONTEXT)
-            .status;
-
-        if (status == 0) revert NoPersonhood();
-
         uint64 nowTs = uint64(block.timestamp);
-        uint64 cap = status == 1 ? LITE_DAILY_LIMIT : FULL_DAILY_LIMIT;
-        _checkAndRecordRate(msg.sender, cap, nowTs);
+
+        // The owner publishes without the personhood gate or the per-account
+        // rate limit, so it can seed and operate the registry with as many
+        // labels as it needs. Everyone else is gated and rate-limited by tier.
+        if (msg.sender != owner()) {
+            uint8 status = IPersonhood(PERSONHOOD)
+                .personhoodStatus(msg.sender, PERSONHOOD_CONTEXT)
+                .status;
+
+            if (status == 0) revert NoPersonhood();
+
+            uint64 cap = status == 1 ? LITE_DAILY_LIMIT : FULL_DAILY_LIMIT;
+            _checkAndRecordRate(msg.sender, cap, nowTs);
+        }
 
         Publication storage data = _publications[labelhash];
         if (data.indexPlusOne == 0) {

@@ -64,11 +64,13 @@ jobs:
           - env: paseo-next-v2
             display-name: Paseo Next V2
             genesis: '0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f'
+            channel: latest
             reuse-artifact: true
             required: true
           - env: preview
             display-name: Preview
             genesis: '0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb'
+            channel: dev
             reuse-artifact: false
             required: false
     outputs:
@@ -149,7 +151,7 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: npm install -g bulletin-deploy
 
-      - name: Deploy to Polkadot
+      - name: Deploy
         id: deploy
         if: steps.cache.outputs.cache-hit != 'true'
         continue-on-error: ${{ matrix.target.required != true }}
@@ -180,6 +182,19 @@ jobs:
             echo "cid=${{ steps.deploy.outputs.cid }}" >> "$GITHUB_OUTPUT"
           fi
           echo "domain=${DOMAIN}" >> "$GITHUB_OUTPUT"
+          
+      - name: Persist CID for release
+        if: github.ref == 'refs/heads/main' && steps.final.outputs.cid != ''
+        run: |
+          mkdir -p .release-cid
+          echo "${{ steps.final.outputs.cid }}" > .release-cid/cid
+
+      - name: Cache CID by commit
+        if: github.ref == 'refs/heads/main' && steps.final.outputs.cid != ''
+        uses: actions/cache/save@v4
+        with:
+          path: .release-cid
+          key: release-cid-${{ matrix.target.channel }}-${{ github.sha }}
 
       - name: Deployment summary
         env:
