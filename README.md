@@ -15,7 +15,7 @@ This repository hosts the source for its 3 components.
 
 | 📦 Component | 📄 Description |
 |-------------|-----------------|
-| **[Client artifacts](app/)** | Includes 2 modalities: a single-page application (SPA) and an embeddable widget. |
+| **[Client artifacts](app/)** | Includes 2 prototype modalities: a single-page application (SPA) and an embeddable widget. |
 | **[Smart contracts](evm/)** | Deploy a publishing registry and its supporting contracts. |
 | **[`browse-sdk`](packages/browse-sdk/)** | A Node.js package that lets third-party components easily access browse functionality. |
 
