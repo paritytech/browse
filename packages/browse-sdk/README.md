@@ -11,6 +11,9 @@
 
 </div>
 
+> [!WARNING]
+> The following is a prototype, reference implementation, and proof-of-concept. This open source code is provided for research, experimentation, and developer education only. This code has not been audited, is actively experimental, and may contain bugs, vulnerabilities, or incomplete features. Use at your own risk.
+
 `@parity/browse-sdk` is a SDK that makes it easy for third-party developers to list Polkadot apps into their own products. Search, list, and surface published apps directly from with no indexer or backend of your own.
 
 ## Install
