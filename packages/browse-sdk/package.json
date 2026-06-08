@@ -1,7 +1,7 @@
 {
   "name": "@parity/browse-sdk",
   "version": "0.1.0-rc.0",
-  "description": "Client SDK for the browse.dot publishing registry: read published apps, widgets, and workers via any papi-compatible JsonRpcProvider.",
+  "description": "Client SDK for the publishing registry. Read published apps, widgets, and workers via any papi-compatible JsonRpcProvider.",
   "license": "Apache-2.0",
   "type": "module",
   "sideEffects": false,

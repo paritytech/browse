@@ -1,0 +1,25 @@
+.widget-card__icon--explore {
+  background: transparent;
+  color: var(--color-secondary);
+}
+
+.widget-card--explore:hover .widget-card__icon--explore {
+  color: var(--color-heading);
+}
+
+.widget-card--explore .widget-card__footer {
+  gap: 4px;
+}
+
+.widget-card__explore-arrow {
+  flex-shrink: 0;
+  color: var(--color-secondary);
+  transition:
+    color 150ms ease,
+    transform 150ms ease;
+}
+
+.widget-card--explore:hover .widget-card__explore-arrow {
+  color: var(--color-heading);
+  transform: translate(1px, -1px);
+}

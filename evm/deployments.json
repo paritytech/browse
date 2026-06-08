@@ -21,5 +21,29 @@
       "substrateRpc": "wss://paseo-asset-hub-next-rpc.polkadot.io",
       "deployedAt": "2026-06-05T13:45:21Z"
     }
+  },
+  "trustedAttesterIndexResolver": {
+    "previewnet": {
+      "address": "0xdc713ebf1028544a00225c8741eb698253c49302",
+      "attestationService": "0x24af868f14605460f6385aae166986cee9800514",
+      "trustedAttester": "0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20",
+      "schema": "bool compliant",
+      "schemaId": 2,
+      "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
+      "network": "previewnet-asset-hub",
+      "genesisHash": "0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb",
+      "deployedAt": "2026-06-08T14:35:14Z"
+    },
+    "paseo-asset-hub-next-v2": {
+      "address": "0x5abfc89934ee846d12629dfb5b22eecc59bbaed3",
+      "attestationService": "0x24af868f14605460f6385aae166986cee9800514",
+      "trustedAttester": "0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20",
+      "schema": "bool compliant",
+      "schemaId": 2,
+      "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
+      "network": "paseo-asset-hub-next-v2",
+      "genesisHash": "0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f",
+      "deployedAt": "2026-06-08T14:35:14Z"
+    }
   }
 }

@@ -36,4 +36,4 @@ function AnimationPlayer({
 }
 ```
 
-This pattern fits well for any JSON or data module that's only needed on a specific tab/mode — in `browse.dot` for example, debug-only data modules (see `setupDebugConsole`) could be fetched this way.
+This pattern fits well for any JSON or data module that's only needed on a specific tab/mode — for example, debug-only data modules (see `setupDebugConsole`) could be fetched this way.

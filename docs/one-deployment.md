@@ -39,8 +39,8 @@ flowchart TD
     d6 -->|No| r6[Fund account]:::fix
     d6 --> d7{Funded on<br/>Bulletin?}:::dec
     d7 -->|No| r7[Fund account]:::fix
-    d7 --> d8{Owns<br/>browse.dot?}:::dec
-    d8 -->|No| r8[Register browse.dot]:::fix
+    d7 --> d8{Owns<br/>your domain?}:::dec
+    d8 -->|No| r8[Register your domain]:::fix
 
     d8 -.-> hSvc
     hSvc[Browse Services]:::hdr
@@ -96,5 +96,5 @@ Order matters. Each step depends on the one before.
 7. Register the schema in SchemaRegistry. Write the `SCHEMA_ID` to the manifest.
 8. Regenerate the SDK config from the manifest.
 9. Build the app for the network with `NETWORK_GENESIS_HASH=<genesis> bun run build`.
-10. Publish to the Bulletin chain with `bulletin-deploy --publish --env <matching>`. This uploads app and widget to `browse.dot` and lists it in the Publisher registry.
+10. Publish to the Bulletin chain with `bulletin-deploy --publish --env <matching>`. This uploads app and widget to your domain and lists it in the Publisher registry.
 11. Seed the directory with `publish-app` for each starter label.
