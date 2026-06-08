@@ -13,13 +13,16 @@
 
 # Overview
 
-The backend layer behind browse.dot. A publishing registry where anyone can publish a product, and any client can read the published set back.
+The backend layer behind Browse. A publishing registry where anyone can publish a product, and any client can read the published set back.
 
 Labels are published through [Publisher.sol](src/Publisher.sol), which records each published label
 and gates who can publish with proof-of-personhood and per-account rate limits. Attestations on
-products are indexed by [RecipientAndAttesterIndexResolver.sol](src/RecipientAndAttesterIndexResolver.sol),
-a resolver bound to an attestation service that groups attestation IDs by recipient, schema, and
-attester so the app can query them efficiently.
+products are indexed by resolvers bound to an attestation service.
+[RecipientAndAttesterIndexResolver.sol](src/RecipientAndAttesterIndexResolver.sol) groups attestation
+IDs by recipient, schema, and attester so the app can query them efficiently.
+[TrustedAttesterIndexResolver.sol](src/TrustedAttesterIndexResolver.sol) handles certification schemas
+that may only be granted by one trusted attester. It admits that attester alone and indexes the
+certified recipients by schema.
 
 ## Deployments
 
@@ -41,6 +44,10 @@ Version 2.1.0:
 * **RecipientAndAttesterIndexResolver**:
   * Contract: `0x5d701a1aca551b0e1cd6a00172554e5ff2348104`
   * Deployment and ABI: [RecipientAndAttesterIndexResolver.sol](src/RecipientAndAttesterIndexResolver.sol)
+* **TrustedAttesterIndexResolver**:
+  * Contract: `0x5abfc89934ee846d12629dfb5b22eecc59bbaed3`
+  * Trusted attester: `0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20`
+  * Deployment and ABI: [TrustedAttesterIndexResolver.sol](src/TrustedAttesterIndexResolver.sol)
 
 #### Previewnet Asset Hub
 
@@ -54,6 +61,10 @@ Version 2.1.0:
 * **RecipientAndAttesterIndexResolver**:
   * Contract: `0x5d701a1aca551b0e1cd6a00172554e5ff2348104`
   * Deployment and ABI: [RecipientAndAttesterIndexResolver.sol](src/RecipientAndAttesterIndexResolver.sol)
+* **TrustedAttesterIndexResolver**:
+  * Contract: `0xdc713ebf1028544a00225c8741eb698253c49302`
+  * Trusted attester: `0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20`
+  * Deployment and ABI: [TrustedAttesterIndexResolver.sol](src/TrustedAttesterIndexResolver.sol)
 
 ## Testing
 
@@ -74,10 +85,14 @@ make install
 ```
 
 
+For a full deployment use the repo-root `npm run deploy`, which stages these in order
+and skips whatever is already in the SDK config. The individual steps are:
+
 ```sh
-npm run deploy:publisher   # deploy the publishing registry
-npm run deploy:resolver    # deploy the attestation index resolver
-npm run register:schema    # register browse's attestation schema
+npm run deploy:publisher          # deploy the publishing registry
+npm run deploy:resolver           # deploy the attestation index resolver
+npm run deploy:trusted-resolver   # deploy the trusted-attester (certification) resolver
+npm run register:schema           # register a schema (SCHEMA required, RESOLVER overridable)
 ```
 
 ## Happy browsing!

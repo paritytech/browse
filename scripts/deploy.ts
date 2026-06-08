@@ -18,6 +18,10 @@ const NETWORK_GENESIS_HASH =
   process.env.NETWORK_GENESIS_HASH ??
   "0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f";
 
+// The EVM address allowed to issue certifications, required only when deploying the
+// trusted-attester resolver. The deployed resolver records it on-chain (trustedAttester()).
+const TRUSTED_ATTESTER = process.env.TRUSTED_ATTESTER ?? ZERO;
+
 /** Run a stage under a spinner. On failure, print captured output and exit. */
 function stage(label: string, fn: (spinner: Ora) => void): void {
   const spinner = ora(label).start();
@@ -107,6 +111,23 @@ function main(): void {
     );
   }
 
+  if (net.TRUSTED_ATTESTER_RESOLVER === ZERO) {
+    stage("Deploy TrustedAttesterIndexResolver.sol", () => {
+      if (TRUSTED_ATTESTER === ZERO) {
+        throw new Error("set TRUSTED_ATTESTER to the certifier address");
+      }
+      sh("cd evm && npm run deploy:trusted-resolver", {
+        NETWORK_GENESIS_HASH,
+        TRUSTED_ATTESTER,
+      });
+    });
+  } else {
+    skip(
+      "Deploy TrustedAttesterIndexResolver.sol",
+      `already at ${net.TRUSTED_ATTESTER_RESOLVER}`,
+    );
+  }
+
   if (net.SCHEMA_ID > 0n) {
     skip(
       "Register attestation schema",
@@ -114,7 +135,26 @@ function main(): void {
     );
   } else {
     stage("Register attestation schema", () =>
-      sh("cd evm && npm run register:schema", { NETWORK_GENESIS_HASH }),
+      sh("cd evm && npm run register:schema", {
+        NETWORK_GENESIS_HASH,
+        SCHEMA: "bool like",
+      }),
+    );
+  }
+
+  if (net.CERT_SCHEMA_ID > 0n) {
+    skip(
+      "Register certification schema",
+      `already registered at id ${net.CERT_SCHEMA_ID}`,
+    );
+  } else {
+    stage("Register certification schema", () =>
+      sh("cd evm && npm run register:schema", {
+        NETWORK_GENESIS_HASH,
+        SCHEMA: "bool compliant",
+        UNIQUE: "true",
+        RESOLVER: net.TRUSTED_ATTESTER_RESOLVER,
+      }),
     );
   }
 

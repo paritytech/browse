@@ -5,6 +5,7 @@
   "scripts": {
     "deploy:publisher": "forge build && tsx --tsconfig scripts/tsconfig.json --env-file-if-exists=../.env scripts/deploy-publisher.ts",
     "deploy:resolver": "forge build && tsx --tsconfig scripts/tsconfig.json --env-file-if-exists=../.env scripts/deploy-resolver.ts",
+    "deploy:trusted-resolver": "forge build && tsx --tsconfig scripts/tsconfig.json --env-file-if-exists=../.env scripts/deploy-trusted-resolver.ts",
     "register:schema": "tsx --tsconfig scripts/tsconfig.json --env-file-if-exists=../.env scripts/register-schema.ts"
   },
   "dependencies": {

@@ -23,8 +23,10 @@ export interface NetworkConfig extends NetworkAddresses {
   SCHEMA_REGISTRY: `0x${string}`;
   ATTESTATION_SERVICE: `0x${string}`;
   ATTESTATION_INDEX_RESOLVER: `0x${string}`;
+  TRUSTED_ATTESTER_RESOLVER: `0x${string}`;
   IPFS_GATEWAY: string;
   SCHEMA_ID: bigint;
+  CERT_SCHEMA_ID: bigint;
   rpcs: readonly string[];
 }
 
@@ -59,8 +61,10 @@ export const KNOWN_NETWORKS = {
     SCHEMA_REGISTRY: "0xbe92a66b697dc9bd4a35b1b8e3aead484d2010a7",
     ATTESTATION_SERVICE: "0x24af868f14605460f6385aae166986cee9800514",
     ATTESTATION_INDEX_RESOLVER: "0x5d701a1aca551b0e1cd6a00172554e5ff2348104",
+    TRUSTED_ATTESTER_RESOLVER: "0x5abfc89934ee846d12629dfb5b22eecc59bbaed3",
     IPFS_GATEWAY: "https://paseo-bulletin-next-ipfs.polkadot.io",
     SCHEMA_ID: 1n,
+    CERT_SCHEMA_ID: 2n,
     rpcs: ["wss://paseo-asset-hub-next-rpc.polkadot.io"],
   },
   [PREVIEWNET_ASSET_HUB_GENESIS]: {
@@ -82,8 +86,10 @@ export const KNOWN_NETWORKS = {
     SCHEMA_REGISTRY: "0xbe92a66b697dc9bd4a35b1b8e3aead484d2010a7",
     ATTESTATION_SERVICE: "0x24af868f14605460f6385aae166986cee9800514",
     ATTESTATION_INDEX_RESOLVER: "0x5d701a1aca551b0e1cd6a00172554e5ff2348104",
+    TRUSTED_ATTESTER_RESOLVER: "0xdc713ebf1028544a00225c8741eb698253c49302",
     IPFS_GATEWAY: "https://previewnet.substrate.dev",
     SCHEMA_ID: 1n,
+    CERT_SCHEMA_ID: 2n,
     rpcs: ["wss://previewnet.substrate.dev/asset-hub"],
   },
   [SUMMIT_ASSET_HUB_GENESIS]: {
@@ -96,8 +102,10 @@ export const KNOWN_NETWORKS = {
     SCHEMA_REGISTRY: ZERO_ADDRESS,
     ATTESTATION_SERVICE: ZERO_ADDRESS,
     ATTESTATION_INDEX_RESOLVER: ZERO_ADDRESS,
+    TRUSTED_ATTESTER_RESOLVER: ZERO_ADDRESS,
     IPFS_GATEWAY: "https://summit-bulletin-rpc.polkadot.io",
     SCHEMA_ID: 1n,
+    CERT_SCHEMA_ID: 0n,
     rpcs: ["wss://summit-asset-hub-rpc.polkadot.io"],
   },
 } as const satisfies Record<string, NetworkConfig>;

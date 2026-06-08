@@ -1,9 +1,15 @@
 import { Binary } from "polkadot-api";
 import { decodeEventLog, encodeFunctionData, parseAbi } from "viem";
 
-import { connect, ensureMapped, getSigner, waitBestBlock } from "./lib.ts";
+import {
+  connect,
+  ensureMapped,
+  getSigner,
+  requireEnv,
+  waitBestBlock,
+} from "./lib.ts";
 
-const SCHEMA = "bool like";
+const SCHEMA = requireEnv("SCHEMA", 'The schema spec, e.g. SCHEMA="bool like".');
 const REVOCABLE = process.env.REVOCABLE !== "false";
 const UNIQUE = process.env.UNIQUE === "true";
 
