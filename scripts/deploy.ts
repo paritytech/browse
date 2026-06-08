@@ -18,9 +18,9 @@ const NETWORK_GENESIS_HASH =
   process.env.NETWORK_GENESIS_HASH ??
   "0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f";
 
-// The EVM address allowed to issue certifications, required only when deploying the
-// trusted-attester resolver. The deployed resolver records it on-chain (trustedAttester()).
-const TRUSTED_ATTESTER = process.env.TRUSTED_ATTESTER ?? ZERO;
+// The SS58 address allowed to issue certifications. Optional: when unset, deploy-trusted-resolver
+// defaults to the deployer account and derives the EVM address the resolver gates on.
+const TRUSTED_ATTESTER_SS58_ADDRESS = process.env.TRUSTED_ATTESTER_SS58_ADDRESS ?? "";
 
 /** Run a stage under a spinner. On failure, print captured output and exit. */
 function stage(label: string, fn: (spinner: Ora) => void): void {
@@ -112,15 +112,12 @@ function main(): void {
   }
 
   if (net.TRUSTED_ATTESTER_RESOLVER === ZERO) {
-    stage("Deploy TrustedAttesterIndexResolver.sol", () => {
-      if (TRUSTED_ATTESTER === ZERO) {
-        throw new Error("set TRUSTED_ATTESTER to the certifier address");
-      }
+    stage("Deploy TrustedAttesterIndexResolver.sol", () =>
       sh("cd evm && npm run deploy:trusted-resolver", {
         NETWORK_GENESIS_HASH,
-        TRUSTED_ATTESTER,
-      });
-    });
+        TRUSTED_ATTESTER_SS58_ADDRESS,
+      }),
+    );
   } else {
     skip(
       "Deploy TrustedAttesterIndexResolver.sol",
@@ -142,10 +139,10 @@ function main(): void {
     );
   }
 
-  if (net.CERT_SCHEMA_ID > 0n) {
+  if (net.COMPLIANCE_SCHEMA_ID > 0n) {
     skip(
       "Register certification schema",
-      `already registered at id ${net.CERT_SCHEMA_ID}`,
+      `already registered at id ${net.COMPLIANCE_SCHEMA_ID}`,
     );
   } else {
     stage("Register certification schema", () =>

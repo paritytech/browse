@@ -26,7 +26,7 @@ export interface NetworkConfig extends NetworkAddresses {
   TRUSTED_ATTESTER_RESOLVER: `0x${string}`;
   IPFS_GATEWAY: string;
   SCHEMA_ID: bigint;
-  CERT_SCHEMA_ID: bigint;
+  COMPLIANCE_SCHEMA_ID: bigint;
   rpcs: readonly string[];
 }
 
@@ -64,7 +64,7 @@ export const KNOWN_NETWORKS = {
     TRUSTED_ATTESTER_RESOLVER: "0x5abfc89934ee846d12629dfb5b22eecc59bbaed3",
     IPFS_GATEWAY: "https://paseo-bulletin-next-ipfs.polkadot.io",
     SCHEMA_ID: 1n,
-    CERT_SCHEMA_ID: 2n,
+    COMPLIANCE_SCHEMA_ID: 2n,
     rpcs: ["wss://paseo-asset-hub-next-rpc.polkadot.io"],
   },
   [PREVIEWNET_ASSET_HUB_GENESIS]: {
@@ -89,7 +89,7 @@ export const KNOWN_NETWORKS = {
     TRUSTED_ATTESTER_RESOLVER: "0xdc713ebf1028544a00225c8741eb698253c49302",
     IPFS_GATEWAY: "https://previewnet.substrate.dev",
     SCHEMA_ID: 1n,
-    CERT_SCHEMA_ID: 2n,
+    COMPLIANCE_SCHEMA_ID: 2n,
     rpcs: ["wss://previewnet.substrate.dev/asset-hub"],
   },
   [SUMMIT_ASSET_HUB_GENESIS]: {
@@ -105,7 +105,7 @@ export const KNOWN_NETWORKS = {
     TRUSTED_ATTESTER_RESOLVER: ZERO_ADDRESS,
     IPFS_GATEWAY: "https://summit-bulletin-rpc.polkadot.io",
     SCHEMA_ID: 1n,
-    CERT_SCHEMA_ID: 0n,
+    COMPLIANCE_SCHEMA_ID: 0n,
     rpcs: ["wss://summit-asset-hub-rpc.polkadot.io"],
   },
 } as const satisfies Record<string, NetworkConfig>;
