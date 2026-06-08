@@ -49,7 +49,7 @@ Build both modalities, the Single-page Application (SPA) and the widget.
 make build
 ```
 
-Publish both modalities to the bulletin chain and list browse.dot in the Publisher registry. They
+Publish both modalities to the bulletin chain and list your domain in the Publisher registry. They
 ship together via the manifest. `MNEMONIC` is read from the repository root `.env`.
 
 ```sh
