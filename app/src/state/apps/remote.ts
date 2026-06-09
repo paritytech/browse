@@ -21,6 +21,7 @@ import {
   encodeContenthash,
   encodeCountByRecipientAndSchema,
   encodeGetPublished,
+  encodeIsActive,
   encodeIsActiveAny,
   encodeLabelOf,
   encodeNodeOwner,
@@ -172,7 +173,9 @@ export async function hydrateLabelChunk(
     if (contentHashes[chunkIndex]) liveIndexes.push(chunkIndex)
   }
 
-  const callsPerLive = userH160 ? 4 : 3
+  // Per live label: manifest, worker owner, like count, compliance attestation,
+  // and (when signed in) the per-user "have I liked this?" probe.
+  const callsPerLive = userH160 ? 5 : 4
   let metaResults: Awaited<ReturnType<typeof multicall>> = []
   if (liveIndexes.length > 0) {
     const metaCalls: MulticallTarget[] = []
@@ -186,6 +189,10 @@ export async function hydrateLabelChunk(
         {
           target: NETWORK.ATTESTATION_INDEX_RESOLVER,
           callData: encodeCountByRecipientAndSchema(subject, NETWORK.SCHEMA_ID)
+        },
+        {
+          target: NETWORK.TRUSTED_ATTESTER_RESOLVER,
+          callData: encodeIsActive(subject, NETWORK.COMPLIANCE_SCHEMA_ID)
         }
       )
       if (userH160) {
@@ -211,6 +218,7 @@ export async function hydrateLabelChunk(
     let iconCid: string | null = null
     let hasChat = false
     let attestationCount: number | null = null
+    let isCompliant = false
     let hasUserAttested = false
     if (cid) {
       const base = metaIdx * callsPerLive
@@ -224,7 +232,8 @@ export async function hydrateLabelChunk(
       const workerOwner = tryDecode(metaResults[base + 1], decodeAddress)
       hasChat = workerOwner !== null && workerOwner !== '0x0000000000000000000000000000000000000000'
       attestationCount = tryDecode(metaResults[base + 2], decodeUint64)
-      hasUserAttested = userH160 ? (tryDecode(metaResults[base + 3], decodeBool) ?? false) : false
+      isCompliant = tryDecode(metaResults[base + 3], decodeBool) ?? false
+      hasUserAttested = userH160 ? (tryDecode(metaResults[base + 4], decodeBool) ?? false) : false
       metaIdx++
     }
     out.push({
@@ -235,6 +244,7 @@ export async function hydrateLabelChunk(
       hasChat,
       contentHash: cid,
       attestationCount,
+      isCompliant,
       hasUserAttested,
       fetchedAt
     })

@@ -67,7 +67,8 @@ function labelToApp(l: LabelEntry): AppEntry {
     contentHash: l.contentHash,
     isLive: l.contentHash !== null,
     attestationCount: l.attestationCount,
-    hasUserAttested: l.hasUserAttested
+    hasUserAttested: l.hasUserAttested,
+    isCompliant: l.isCompliant ?? false
   }
 }
 

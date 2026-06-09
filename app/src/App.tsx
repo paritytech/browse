@@ -74,7 +74,8 @@ export function App() {
         contentHash: cached?.contentHash ?? null,
         isLive: cached?.contentHash != null,
         attestationCount: cached?.attestationCount ?? null,
-        hasUserAttested: cached?.hasUserAttested ?? false
+        hasUserAttested: cached?.hasUserAttested ?? false,
+        isCompliant: cached?.isCompliant ?? false
       })
     }
     for (const label of followingApps) addLabel(label)
@@ -157,6 +158,7 @@ export function App() {
       contentHash: resolvedApp.contentHash,
       attestationCount: resolvedApp.attestationCount,
       hasUserAttested: resolvedApp.hasUserAttested,
+      isCompliant: resolvedApp.isCompliant,
       fetchedAt: Date.now()
     }).then(() => queryClient.invalidateQueries({ queryKey: LABELS_KEY }))
   }, [resolvedApp, queryClient])
@@ -173,6 +175,7 @@ export function App() {
       contentHash: app.contentHash,
       attestationCount: app.attestationCount,
       hasUserAttested: app.hasUserAttested,
+      isCompliant: app.isCompliant,
       fetchedAt: Date.now()
     })
     await queryClient.invalidateQueries({ queryKey: LABELS_KEY })

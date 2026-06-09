@@ -8,6 +8,8 @@ export interface AppEntry {
   isLive: boolean
   attestationCount: number | null
   hasUserAttested: boolean
+  /** Holds an active compliance attestation from the trusted attester. */
+  isCompliant: boolean
 }
 
 export const FILTER_MODES = ['all', 'bookmarks', 'following'] as const

@@ -1,7 +1,6 @@
-import { useState } from 'preact/hooks'
-
-import { iconUrl } from '../../state/apps/manifest'
+import { useIconBlob } from '../../state/apps/icon'
 import { type AppEntry, displayName } from '../../state/apps/types'
+import { Identicon } from '../identicon'
 import './styles.css'
 
 interface WidgetCardProps {
@@ -11,10 +10,9 @@ interface WidgetCardProps {
 }
 
 export function WidgetCard({ app, index, onClick }: WidgetCardProps) {
-  const letter = app.label[0].toLowerCase()
   const delay = Math.min(index * 50, 300)
-  const [iconFailed, setIconFailed] = useState(false)
-  const showIcon = !!app.iconCid && !iconFailed
+  const { url: iconBlobUrl, failed: iconFailed, markFailed } = useIconBlob(app.iconCid)
+  const showIcon = !!iconBlobUrl && !iconFailed
 
   return (
     <div
@@ -31,18 +29,18 @@ export function WidgetCard({ app, index, onClick }: WidgetCardProps) {
       }}
     >
       <div class='widget-card__thumb'>
-        <div class='widget-card__icon'>
-          {showIcon ? (
+        {showIcon ? (
+          <div class='widget-card__icon'>
             <img
               class='widget-card__icon-img'
-              src={iconUrl(app.iconCid as string)}
+              src={iconBlobUrl as string}
               alt=''
-              onError={() => setIconFailed(true)}
+              onError={markFailed}
             />
-          ) : (
-            <span class='widget-card__letter'>{letter}</span>
-          )}
-        </div>
+          </div>
+        ) : (
+          <Identicon seed={app.label} size={64} />
+        )}
       </div>
       <div class='widget-card__footer'>
         <span class='widget-card__name'>{displayName(app)}</span>

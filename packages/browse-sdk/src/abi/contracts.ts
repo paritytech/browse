@@ -104,7 +104,8 @@ export function encodeOwner(): Hex {
 
 const ATTESTATION_ABI = parseAbi([
   'function countByRecipientAndSchema(address recipient, uint256 schemaId) view returns (uint64)',
-  'function isActiveAny(address recipient, uint256 schemaId, address[] attesters) view returns (bool)'
+  'function isActiveAny(address recipient, uint256 schemaId, address[] attesters) view returns (bool)',
+  'function isActive(address recipient, uint256 schemaId) view returns (bool)'
 ])
 
 export function encodeCountByRecipientAndSchema(recipient: Address, schemaId: bigint): Hex {
@@ -120,5 +121,16 @@ export function encodeIsActiveAny(recipient: Address, schemaId: bigint, attester
     abi: ATTESTATION_ABI,
     functionName: 'isActiveAny',
     args: [recipient, schemaId, attesters]
+  })
+}
+
+/**
+ * `TrustedAttesterIndexResolver.isActive(recipient, schemaId)`
+ */
+export function encodeIsActive(recipient: Address, schemaId: bigint): Hex {
+  return encodeFunctionData({
+    abi: ATTESTATION_ABI,
+    functionName: 'isActive',
+    args: [recipient, schemaId]
   })
 }
