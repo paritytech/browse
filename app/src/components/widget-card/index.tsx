@@ -39,7 +39,7 @@ export function WidgetCard({ app, index, onClick }: WidgetCardProps) {
             />
           </div>
         ) : (
-          <Identicon seed={app.label} size={64} />
+          <Identicon seed={app.label} size={56} />
         )}
       </div>
       <div class='widget-card__footer'>
