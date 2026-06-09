@@ -27,8 +27,8 @@ jobs:
         id: cache
         uses: actions/cache@v4
         with:
-          path: app/dist/spa
-          key: build-${{ hashFiles('app/src/**', 'app/package.json', 'app/vite.config.ts', 'app/tsconfig.json', 'bun.lock', 'app/.papi/**') }}
+          path: app/dist
+          key: build-${{ hashFiles('app/src/**', 'app/index.html', 'app/widget.html', 'app/package.json', 'app/vite.config.ts', 'app/tsconfig.json', 'bun.lock', 'app/.papi/**') }}
 
       - name: Install dependencies
         if: steps.cache.outputs.cache-hit != 'true'
@@ -36,11 +36,11 @@ jobs:
 
       - name: Build
         if: steps.cache.outputs.cache-hit != 'true'
-        run: bun run build:spa
+        run: bun run build
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: dist
-          path: app/dist/spa/
+          path: app/dist/
           retention-days: 7
