@@ -1,4 +1,4 @@
-import { memo, useState } from 'preact/compat'
+import { memo, useEffect, useRef, useState } from 'preact/compat'
 
 import { ArrowUp, ArrowUpRight, BadgeCheck, Bookmark, Share2 } from 'lucide-preact'
 
@@ -40,6 +40,26 @@ export const ProductCard = memo(function ProductCard({
   const haveIconBytes = willLoadIcon && !!iconBlobUrl
   const showActions = showMenu && onBookmark && onShare
 
+  const certRef = useRef<HTMLButtonElement>(null)
+  const [tipOpen, setTipOpen] = useState(false)
+
+  // The compliance tooltip stays open on click/tap.
+  useEffect(() => {
+    if (!tipOpen) return
+    const onPointerDown = (e: PointerEvent) => {
+      if (!certRef.current?.contains(e.target as Node)) setTipOpen(false)
+    }
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setTipOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [tipOpen])
+
   return (
     <div
       class={`product-card${instant ? ' product-card--instant' : ''}`}
@@ -77,12 +97,17 @@ export const ProductCard = memo(function ProductCard({
           <span class='product-card__name'>{name}</span>
           {app.isCompliant && (
             <button
+              ref={certRef}
               type='button'
-              class='product-card__title-icon product-card__certified'
+              class={`product-card__title-icon product-card__certified${tipOpen ? ' product-card__title-icon--open' : ''}`}
               data-tooltip='Certificate of User Interface Compliance'
               aria-label='Certificate of User Interface Compliance'
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation()
+                setTipOpen((open) => !open)
+              }}
             >
+              <span class='product-card__title-icon-hit' aria-hidden='true' />
               <BadgeCheck size={14} />
             </button>
           )}

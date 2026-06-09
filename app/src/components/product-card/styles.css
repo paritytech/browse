@@ -141,6 +141,13 @@
   cursor: help;
 }
 
+/* Expand the tap target to ~44px for touch without growing the visual mark or
+   the title row. */
+.product-card__title-icon-hit {
+  position: absolute;
+  inset: -15px;
+}
+
 /* Tooltip. */
 .product-card__title-icon::after {
   content: attr(data-tooltip);
@@ -149,7 +156,10 @@
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
-  white-space: nowrap;
+  width: max-content;
+  max-width: 220px;
+  white-space: normal;
+  text-align: center;
   padding: 4px 8px;
   border-radius: var(--radius-extra-small);
   background: var(--fg-primary);
@@ -182,8 +192,10 @@
 
 .product-card__title-icon:hover::after,
 .product-card__title-icon:hover::before,
-.product-card__title-icon:focus::after,
-.product-card__title-icon:focus::before {
+.product-card__title-icon:focus-visible::after,
+.product-card__title-icon:focus-visible::before,
+.product-card__title-icon--open::after,
+.product-card__title-icon--open::before {
   opacity: 1;
 }
 
