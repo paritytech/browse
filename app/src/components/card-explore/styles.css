@@ -1,6 +1,3 @@
-/* Centered like the product icons. Width and height are both bounded so the
- * illustration scales to fit (its viewBox keeps the aspect ratio) whatever shape
- * the cell takes per preset. */
 .widget-card--explore .widget-card__thumb svg {
   width: 84%;
   height: 84%;
