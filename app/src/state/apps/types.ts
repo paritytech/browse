@@ -3,7 +3,6 @@ export interface AppEntry {
   name: string | null
   description: string
   iconCid: string | null
-  hasChat: boolean
   contentHash: string | null
   isLive: boolean
   attestationCount: number | null

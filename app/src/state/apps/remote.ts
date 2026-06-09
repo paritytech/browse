@@ -11,7 +11,6 @@ import { publisherReadAddresses } from '@parity/browse-sdk'
 import { parseRootManifest } from './manifest'
 import type { LabelEntry } from '../../db/labels'
 import {
-  decodeAddress,
   decodeBool,
   decodeBytes,
   decodeBytes32Array,
@@ -24,7 +23,6 @@ import {
   encodeIsActive,
   encodeIsActiveAny,
   encodeLabelOf,
-  encodeNodeOwner,
   encodeText,
   labelhashToTokenId,
   type MulticallTarget,
@@ -173,19 +171,17 @@ export async function hydrateLabelChunk(
     if (contentHashes[chunkIndex]) liveIndexes.push(chunkIndex)
   }
 
-  // Per live label: manifest, worker owner, like count, compliance attestation,
-  // and (when signed in) the per-user "have I liked this?" probe.
-  const callsPerLive = userH160 ? 5 : 4
+  // Per live label: manifest, like count, compliance attestation, and (when
+  // signed in) the per-user "have I liked this?" probe.
+  const callsPerLive = userH160 ? 4 : 3
   let metaResults: Awaited<ReturnType<typeof multicall>> = []
   if (liveIndexes.length > 0) {
     const metaCalls: MulticallTarget[] = []
     for (const chunkIndex of liveIndexes) {
       const node = namehash(`${chunk[chunkIndex]}.dot`)
-      const workerNode = namehash(`worker.${chunk[chunkIndex]}.dot`)
       const subject = nodeToSubject(node)
       metaCalls.push(
         { target: NETWORK.CONTENT_RESOLVER, callData: encodeText(node, 'manifest') },
-        { target: NETWORK.REGISTRY, callData: encodeNodeOwner(workerNode) },
         {
           target: NETWORK.ATTESTATION_INDEX_RESOLVER,
           callData: encodeCountByRecipientAndSchema(subject, NETWORK.SCHEMA_ID)
@@ -216,7 +212,6 @@ export async function hydrateLabelChunk(
     let name: string | null = null
     let description = 'No description'
     let iconCid: string | null = null
-    let hasChat = false
     let attestationCount: number | null = null
     let isCompliant = false
     let hasUserAttested = false
@@ -229,11 +224,9 @@ export async function hydrateLabelChunk(
         description = manifest.description || 'No description'
         iconCid = manifest.icon.cid
       }
-      const workerOwner = tryDecode(metaResults[base + 1], decodeAddress)
-      hasChat = workerOwner !== null && workerOwner !== '0x0000000000000000000000000000000000000000'
-      attestationCount = tryDecode(metaResults[base + 2], decodeUint64)
-      isCompliant = tryDecode(metaResults[base + 3], decodeBool) ?? false
-      hasUserAttested = userH160 ? (tryDecode(metaResults[base + 4], decodeBool) ?? false) : false
+      attestationCount = tryDecode(metaResults[base + 1], decodeUint64)
+      isCompliant = tryDecode(metaResults[base + 2], decodeBool) ?? false
+      hasUserAttested = userH160 ? (tryDecode(metaResults[base + 3], decodeBool) ?? false) : false
       metaIdx++
     }
     out.push({
@@ -241,7 +234,6 @@ export async function hydrateLabelChunk(
       name,
       description,
       iconCid,
-      hasChat,
       contentHash: cid,
       attestationCount,
       isCompliant,
@@ -263,26 +255,21 @@ export async function readContentByName(label: string): Promise<{
   name: string | null
   description: string
   iconCid: string | null
-  hasChat: boolean
 } | null> {
   const node = namehash(`${label}.dot`)
-  const workerNode = namehash(`worker.${label}.dot`)
   const calls: MulticallTarget[] = [
     { target: NETWORK.CONTENT_RESOLVER, callData: encodeContenthash(node) },
-    { target: NETWORK.CONTENT_RESOLVER, callData: encodeText(node, 'manifest') },
-    { target: NETWORK.REGISTRY, callData: encodeNodeOwner(workerNode) }
+    { target: NETWORK.CONTENT_RESOLVER, callData: encodeText(node, 'manifest') }
   ]
   const results = await multicall(calls)
   const contentHash = tryDecode(results[0], (data) => decodeIpfsContenthash(decodeBytes(data)))
   if (!contentHash) return null
   const manifest = parseRootManifest(tryDecode(results[1], decodeString) ?? '')
-  const workerOwner = tryDecode(results[2], decodeAddress)
   return {
     contentHash,
     name: manifest?.displayName ?? null,
     description: manifest?.description || 'No description',
-    iconCid: manifest?.icon.cid ?? null,
-    hasChat: workerOwner !== null && workerOwner !== '0x0000000000000000000000000000000000000000'
+    iconCid: manifest?.icon.cid ?? null
   }
 }
 

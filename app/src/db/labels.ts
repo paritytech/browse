@@ -7,7 +7,6 @@ export interface LabelEntry {
   name: string | null
   description: string
   iconCid: string | null
-  hasChat: boolean
   contentHash: string | null
   attestationCount: number | null
   hasUserAttested: boolean

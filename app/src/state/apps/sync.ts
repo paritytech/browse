@@ -24,7 +24,6 @@ function labelToApp(l: LabelEntry): AppEntry {
     name: l.name,
     description: l.description,
     iconCid: l.iconCid ?? null,
-    hasChat: l.hasChat ?? false,
     contentHash: l.contentHash,
     isLive: l.contentHash !== null,
     attestationCount: l.attestationCount,
@@ -40,7 +39,7 @@ export function materialize(labels: Map<string, LabelEntry>): AppEntry[] {
   const apps: AppEntry[] = []
   for (const metadata of labels.values()) {
     if (!metadata.contentHash) continue
-    if (!metadata.published) continue
+    if (metadata.published === false) continue
     apps.push(labelToApp(metadata))
   }
   return apps
