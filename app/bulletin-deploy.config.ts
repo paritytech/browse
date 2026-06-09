@@ -22,7 +22,11 @@ export default defineConfig({
       kind: 'widget',
       path: './dist/widget',
       appVersion: [0, 1, 0],
-      dimensions: { height: [400], width: 360 }
+      // Per the RFC-001, dimensions are in grid steps, not pixels.
+      // This widget renders at heights 2, 4, and 8 rows (small, medium, large)
+      // and the Host picks one per layout. Width is 1, the single grid column
+      // the RFC treats as the default.
+      dimensions: { height: [2, 4, 8], width: 1 }
     }
   ]
 })

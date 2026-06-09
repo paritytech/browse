@@ -1,14 +1,14 @@
-.widget-card__icon--explore {
-  background: transparent;
-  color: var(--color-secondary);
+/* Centered like the product icons. Width and height are both bounded so the
+ * illustration scales to fit (its viewBox keeps the aspect ratio) whatever shape
+ * the cell takes per preset. */
+.widget-card--explore .widget-card__thumb svg {
+  width: 84%;
+  height: 84%;
 }
 
-.widget-card--explore:hover .widget-card__icon--explore {
-  color: var(--color-heading);
-}
-
+/* Label pinned far left, arrow far right. */
 .widget-card--explore .widget-card__footer {
-  gap: 4px;
+  justify-content: space-between;
 }
 
 .widget-card__explore-arrow {

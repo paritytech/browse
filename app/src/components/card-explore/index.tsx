@@ -1,6 +1,6 @@
 import { ArrowUpRight } from 'lucide-preact'
 
-import { EXPLORE_ICON } from '../icons'
+import { APP_STACK } from '../icons/app-stack'
 import '../widget-card/styles.css'
 import './styles.css'
 
@@ -28,11 +28,9 @@ export function CardExplore({ index, onClick }: CardExploreProps) {
         }
       }}
     >
-      <div class='widget-card__thumb'>
-        <div class='widget-card__icon widget-card__icon--explore'>{EXPLORE_ICON}</div>
-      </div>
+      <div class='widget-card__thumb'>{APP_STACK}</div>
       <div class='widget-card__footer'>
-        <span class='widget-card__name'>Explore all</span>
+        <span class='widget-card__name'>Browse More</span>
         <ArrowUpRight class='widget-card__explore-arrow' size={16} aria-hidden='true' />
       </div>
     </div>

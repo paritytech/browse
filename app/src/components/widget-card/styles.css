@@ -1,6 +1,8 @@
 .widget-card {
   display: flex;
   flex-direction: column;
+  height: 100%;
+  min-height: 0;
   background: var(--bg-surface-container);
   border: 1px solid var(--stroke-primary);
   border-radius: 16px;
@@ -39,7 +41,8 @@
 }
 
 .widget-card__thumb {
-  aspect-ratio: 204 / 152;
+  flex: 1;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -47,8 +50,8 @@
 }
 
 .widget-card__icon {
-  width: 56px;
-  height: 56px;
+  width: 64px;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -73,6 +76,7 @@
 }
 
 .widget-card__footer {
+  flex: none;
   display: flex;
   align-items: center;
   justify-content: center;
