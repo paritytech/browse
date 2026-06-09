@@ -70,7 +70,9 @@ export async function createCachedApps(
   const seeded = SEED_LABEL_ENTRIES.map((l) => ({
     ...l,
     ...(options.overrides?.[l.label] ?? {}),
-    fetchedAt
+    fetchedAt,
+    // Seeded apps stand in for the Publisher set, so they belong in the All tab.
+    published: true
   }))
   const orphans = (options.orphans ?? []).map((l) => ({ ...l, fetchedAt }))
   const allLabels = [...seeded, ...orphans]

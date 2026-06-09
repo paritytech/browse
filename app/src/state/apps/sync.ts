@@ -24,19 +24,22 @@ function labelToApp(l: LabelEntry): AppEntry {
     name: l.name,
     description: l.description,
     iconCid: l.iconCid ?? null,
-    hasChat: l.hasChat ?? false,
     contentHash: l.contentHash,
     isLive: l.contentHash !== null,
     attestationCount: l.attestationCount,
-    hasUserAttested: l.hasUserAttested
+    hasUserAttested: l.hasUserAttested,
+    isCompliant: l.isCompliant ?? false
   }
 }
 
-/** Collapse a label cache into the live {@link AppEntry} list (drops non-live). */
+/**
+ * Collapse a label cache into the live {@link AppEntry} list for the All tab.
+ */
 export function materialize(labels: Map<string, LabelEntry>): AppEntry[] {
   const apps: AppEntry[] = []
   for (const metadata of labels.values()) {
     if (!metadata.contentHash) continue
+    if (metadata.published === false) continue
     apps.push(labelToApp(metadata))
   }
   return apps
@@ -53,12 +56,17 @@ async function flushLabelBatch(
   labels: Map<string, LabelEntry>,
   batch: string[],
   userH160: `0x${string}` | null,
+  publishedNames: ReadonlySet<string>,
   onProgress?: (apps: AppEntry[]) => void
 ): Promise<void> {
   for (let i = 0; i < batch.length; i += HYDRATE_CHUNK_SIZE) {
     const chunk = batch.slice(i, i + HYDRATE_CHUNK_SIZE)
     const entries = await hydrateLabelChunk(chunk, userH160)
-    for (const entry of entries) labels.set(entry.label, entry)
+    // `published` is derived from the current Publisher set, not from hydration:
+    // bookmarked labels are refreshed too but stay out of the All list.
+    for (const entry of entries) {
+      labels.set(entry.label, { ...entry, published: publishedNames.has(entry.label) })
+    }
     onProgress?.(materialize(labels))
 
     // Persist after the first chunk so cards-on-screen are durably backed
@@ -78,7 +86,8 @@ async function flushLabelBatch(
  */
 export async function syncAllApps(
   cachedLabels: LabelEntry[],
-  onProgress?: (apps: AppEntry[]) => void
+  onProgress?: (apps: AppEntry[]) => void,
+  protectedLabels: ReadonlySet<string> = new Set()
 ): Promise<AppEntry[]> {
   const t0 = performance.now()
   hiddenLog(`Starting synchronization - cache holds ${cachedLabels.length} labels`)
@@ -96,9 +105,17 @@ export async function syncAllApps(
   const labelByHash = await resolveLabels(published, labels)
   const publishedNames = new Set<string>(labelByHash.values())
 
-  // Drop cached labels no longer in the published set.
+  // Drop cached labels no longer in the published set, except bookmarked/followed
+  // ones.
   for (const name of [...labels.keys()]) {
-    if (!publishedNames.has(name)) labels.delete(name)
+    if (!publishedNames.has(name) && !protectedLabels.has(name)) labels.delete(name)
+  }
+
+  // `published` is recomputed every sync from the current Publisher set. A kept
+  // bookmark that isn't published is marked false, so it shows in Bookmarks but
+  // never in the All list.
+  for (const [name, entry] of labels) {
+    entry.published = publishedNames.has(name)
   }
 
   // New labels we need metadata for.
@@ -107,9 +124,8 @@ export async function syncAllApps(
     if (!labels.has(name)) newLabels.push(name)
   }
 
-  // Stale (TTL-expired) cached labels need a metadata refresh too. The
-  // hydrate path re-checks contenthash, so a label whose content went away
-  // gets detected here.
+  // Stale (TTL-expired) cached labels need a metadata refresh. The hydrate path re-checks contenthash to detect content that
+  // went away.
   const nowMs = Date.now()
   const staleLabels: string[] = []
   for (const entry of labels.values()) {
@@ -127,7 +143,7 @@ export async function syncAllApps(
         `Hydrating ${newLabels.length} new label(s)${userH160 ? ' (including your attestations)' : ''}`
       )
     }
-    await flushLabelBatch(labels, toRefresh, userH160, onProgress)
+    await flushLabelBatch(labels, toRefresh, userH160, publishedNames, onProgress)
   }
 
   const apps = materialize(labels)

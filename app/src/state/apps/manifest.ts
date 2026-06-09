@@ -2,8 +2,6 @@
  * Root product manifest.
  */
 
-import { NETWORK } from '../../lib/config'
-
 export type IconFormat = 'jpeg' | 'png'
 
 export interface RootManifest {
@@ -35,8 +33,4 @@ export function parseRootManifest(raw: string): RootManifest | null {
     description: manifest.description,
     icon: { cid: icon.cid, format: icon.format as IconFormat }
   }
-}
-
-export function iconUrl(cid: string): string {
-  return `${NETWORK.IPFS_GATEWAY}/ipfs/${cid}`
 }

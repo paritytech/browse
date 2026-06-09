@@ -8,6 +8,7 @@ import type { BrowserContext, Frame } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 
 import { createCachedApps } from './fixtures/cache'
+import { seedIconPreimage } from './fixtures/seed-preimage'
 import { getProductFrame, navigateToTestHost, startSignedHost, startUnsignedHost } from './utils'
 
 test.describe('App Start', () => {
@@ -42,11 +43,20 @@ test.describe('App Start', () => {
     })
 
     test('As an unsigned user, when I open browse, the All tab loads apps immediately', async () => {
+      test.setTimeout(30_000)
       // Then
       const cards = frame.locator('.product-card')
       await expect(cards.first()).toBeVisible({ timeout: 10_000 })
       expect(await cards.count()).toBeGreaterThan(0)
       await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
+      // The test host has no IPFS backend, so seed calculator's icon bytes for its lookup.
+      await seedIconPreimage(frame.page(), 'calculator')
+      const calculatorIcon = frame.locator(
+        '.product-card[data-label="calculator"] .product-card__thumb-img'
+      )
+      await expect(calculatorIcon).toHaveClass(/product-card__thumb-img--loaded/, {
+        timeout: 20_000
+      })
 
       // When
       const reloaded = await context.newPage()
@@ -285,6 +295,82 @@ test.describe('App Start', () => {
       await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
       const cardCountAfter = await frame.locator('.product-card').count()
       expect(cardCountAfter).toBe(cardCountBefore)
+
+      await page.close()
+    })
+
+    test('As a user, when I bookmark a searched app, its name and icon survive a background synchronization after TTL', async () => {
+      test.setTimeout(120_000)
+      const page = await context.newPage()
+      const target = 'web3summit-admin'
+
+      // Given
+      await navigateToTestHost(page, host.url)
+      let frame = await getProductFrame(page, '.category-tab')
+      await frame.waitForSelector('.product-card', { timeout: 30_000 })
+      await frame.locator('.search-bar__input').fill(target)
+      const card = frame.locator(`.product-card[data-label="${target}"]`)
+      await expect(card).toBeVisible({ timeout: 20_000 })
+      await expect(card.locator('.product-card__name')).toHaveText('Web3 Summit Admin')
+      await card.locator('.product-card__bookmark').click()
+      await page.waitForTimeout(500)
+
+      // When
+      await page.evaluate(() => {
+        const key = 'test-host:browse:labels'
+        const arr = JSON.parse(localStorage.getItem(key) ?? '[]') as Array<{ fetchedAt?: number }>
+        for (const l of arr) l.fetchedAt = 1
+        localStorage.setItem(key, JSON.stringify(arr))
+      })
+      await page.reload({ waitUntil: 'commit' })
+      frame = await getProductFrame(page, '.category-tab')
+      await page.waitForFunction(
+        () => {
+          const raw = localStorage.getItem('test-host:browse:labels')
+          const arr = (raw ? JSON.parse(raw) : []) as Array<{ fetchedAt?: number }>
+          return arr.length > 0 && arr.some((l) => (l.fetchedAt ?? 0) > 1000)
+        },
+        undefined,
+        { timeout: 60_000 }
+      )
+
+      // Then
+      await frame.locator('.category-tab', { hasText: 'Bookmarks' }).click()
+      const bookmarked = frame.locator(`.product-card[data-label="${target}"]`)
+      await expect(bookmarked).toBeVisible()
+      await expect(bookmarked.locator('.product-card__name')).toHaveText('Web3 Summit Admin')
+
+      await page.close()
+    })
+
+    test('As a user, when I open a searched app then return and reload, I see the All list instantly', async () => {
+      test.setTimeout(90_000)
+      const page = await context.newPage()
+      const target = 'browse-trusted-attester-resolver00'
+      const listedLabels = async (fr: Frame) =>
+        (await fr.locator('.product-card').evaluateAll((els) =>
+          els.map((el) => el.getAttribute('data-label'))
+        )) as string[]
+
+      // Given
+      await navigateToTestHost(page, host.url)
+      let frame = await getProductFrame(page, '.category-tab')
+      await frame.waitForSelector('.product-card', { timeout: 30_000 })
+      await frame.locator('.search-bar__input').fill(target)
+      const card = frame.locator(`.product-card[data-label="${target}"]`)
+      await expect(card).toBeVisible({ timeout: 20_000 })
+
+      // When
+      await card.locator('.product-card__open').click()
+      await page.goto('about:blank')
+      await page.goBack({ waitUntil: 'commit' })
+      await getProductFrame(page, '.category-tab')
+      await page.reload({ waitUntil: 'commit' })
+      frame = await getProductFrame(page, '.category-tab')
+
+      // Then
+      await frame.waitForSelector('.product-card', { timeout: 30_000 })
+      expect(await listedLabels(frame)).not.toContain(target)
 
       await page.close()
     })

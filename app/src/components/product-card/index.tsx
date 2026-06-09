@@ -1,8 +1,8 @@
 import { memo, useState } from 'preact/compat'
 
-import { ArrowUp, Bookmark, ExternalLink, MessageCircle, Share2 } from 'lucide-preact'
+import { ArrowUp, ArrowUpRight, BadgeCheck, Bookmark, Share2 } from 'lucide-preact'
 
-import { iconUrl } from '../../state/apps/manifest'
+import { useIconBlob } from '../../state/apps/icon'
 import { type AppEntry, displayName } from '../../state/apps/types'
 import { Identicon } from '../identicon'
 import './styles.css'
@@ -17,7 +17,6 @@ interface ProductCardProps {
   onBookmark?: (label: string) => void
   onShare?: (app: AppEntry) => void
   onClickAttestation?: () => void
-  onChat?: (label: string) => void
 }
 
 export const ProductCard = memo(function ProductCard({
@@ -29,16 +28,16 @@ export const ProductCard = memo(function ProductCard({
   onClick,
   onBookmark,
   onShare,
-  onClickAttestation,
-  onChat
+  onClickAttestation
 }: ProductCardProps) {
   const instant = index < 0
   const delay = instant ? 0 : Math.min(index * 60, 400)
   const name = displayName(app)
   const displayCount = app.attestationCount ?? 0
-  const [iconFailed, setIconFailed] = useState(false)
+  const { url: iconBlobUrl, failed: iconFailed, markFailed } = useIconBlob(app.iconCid)
   const [iconLoaded, setIconLoaded] = useState(false)
   const willLoadIcon = !!app.iconCid && !iconFailed
+  const haveIconBytes = willLoadIcon && !!iconBlobUrl
   const showActions = showMenu && onBookmark && onShare
 
   return (
@@ -59,13 +58,15 @@ export const ProductCard = memo(function ProductCard({
         {willLoadIcon ? (
           <>
             {!iconLoaded && <div class='product-card__thumb-pulse' />}
-            <img
-              class={`product-card__thumb-img${iconLoaded ? ' product-card__thumb-img--loaded' : ''}`}
-              src={iconUrl(app.iconCid as string)}
-              alt=''
-              onLoad={() => setIconLoaded(true)}
-              onError={() => setIconFailed(true)}
-            />
+            {haveIconBytes && (
+              <img
+                class={`product-card__thumb-img${iconLoaded ? ' product-card__thumb-img--loaded' : ''}`}
+                src={iconBlobUrl as string}
+                alt=''
+                onLoad={() => setIconLoaded(true)}
+                onError={markFailed}
+              />
+            )}
           </>
         ) : (
           <Identicon seed={app.label} size={42} />
@@ -74,6 +75,17 @@ export const ProductCard = memo(function ProductCard({
       <div class='product-card__body'>
         <div class='product-card__title-row'>
           <span class='product-card__name'>{name}</span>
+          {app.isCompliant && (
+            <button
+              type='button'
+              class='product-card__title-icon product-card__certified'
+              data-tooltip='Certificate of User Interface Compliance'
+              aria-label='Certificate of User Interface Compliance'
+              onClick={(e) => e.stopPropagation()}
+            >
+              <BadgeCheck size={14} />
+            </button>
+          )}
           {showActions && (
             <button
               class={`product-card__bookmark${bookmarked ? ' product-card__bookmark--active' : ''}`}
@@ -98,22 +110,8 @@ export const ProductCard = memo(function ProductCard({
             }}
           >
             <span>Open</span>
-            <ExternalLink size={14} />
+            <ArrowUpRight size={14} />
           </button>
-          {app.hasChat && (
-            <button
-              class='product-card__chat'
-              onClick={(e) => {
-                e.stopPropagation()
-                onChat?.(app.label)
-              }}
-              disabled={!onChat}
-              aria-disabled={!onChat}
-              aria-label='Open chat'
-            >
-              <MessageCircle size={16} />
-            </button>
-          )}
           {showActions && (
             <div class='product-card__footer-end'>
               {onClickAttestation && (

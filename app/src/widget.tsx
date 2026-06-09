@@ -9,6 +9,8 @@ import '@fontsource-variable/manrope'
 import '@fontsource-variable/martian-mono'
 
 import { CardExplore } from './components/card-explore'
+import { SEARCH_ICON } from './components/icons'
+import { SearchBar } from './components/search-bar'
 import { WidgetCard } from './components/widget-card'
 import { SELF_LABEL } from './lib/identity'
 import { navigateToDomain } from './lib/navigate'
@@ -26,7 +28,7 @@ import './styles/widget.css'
 type WidgetSize = 'small' | 'medium' | 'large' | 'horizontal'
 
 // Product tiles shown per preset. One slot is always reserved on top of these for
-// the "Explore all" tile (the 2nd / 4th / 10th / 8th position respectively).
+// the "Browse More" tile (the 2nd / 4th / 10th / 8th position respectively).
 const APP_CAP: Record<WidgetSize, number> = {
   small: 1,
   medium: 3,
@@ -56,32 +58,62 @@ function useWidgetSize(): WidgetSize {
 function Widget() {
   const queryClient = useQueryClient()
   const size = useWidgetSize()
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [query, setQuery] = useState('')
 
   const { data: allApps = [], isFetching } = useGetAllApps(queryClient)
 
   useEffect(() => subscribeHostTheme(), [])
 
-  const apps = useMemo(
-    () => filterApps(allApps, '', 'all').filter((app) => app.label !== SELF_LABEL),
-    [allApps]
+  // Focus the field as soon as the search bar replaces the header.
+  useEffect(() => {
+    if (!searchOpen) return
+    document.querySelector<HTMLInputElement>('.widget__header .search-bar__input')?.focus()
+  }, [searchOpen])
+
+  const results = useMemo(
+    () => filterApps(allApps, query, 'all').filter((app) => app.label !== SELF_LABEL),
+    [allApps, query]
   )
 
-  const visible = apps.slice(0, APP_CAP[size])
+  const isSearching = query.trim().length > 0
+  const visible = results.slice(0, APP_CAP[size])
   const openSpa = () => navigateToDomain(SELF_LABEL)
+  const closeSearch = () => {
+    setQuery('')
+    setSearchOpen(false)
+  }
 
-  // Nothing to show until the first fetch settles. This avoids a lone "Explore
-  // all" tile flashing before the products arrive.
-  if (isFetching && apps.length === 0) {
+  // Nothing to show until the first fetch settles. This avoids a lone "Browse
+  // More" tile flashing before the products arrive.
+  if (isFetching && results.length === 0 && !query) {
     return <div class='widget' />
   }
 
   return (
     <div class='widget'>
+      <div class='widget__header' onKeyDown={(e) => e.key === 'Escape' && closeSearch()}>
+        {searchOpen ? (
+          <SearchBar value={query} onInput={setQuery} onCancel={closeSearch} />
+        ) : (
+          <>
+            <span class='widget__title'>Popular Apps</span>
+            <button
+              class='widget__search'
+              type='button'
+              aria-label='Search products'
+              onClick={() => setSearchOpen(true)}
+            >
+              {SEARCH_ICON}
+            </button>
+          </>
+        )}
+      </div>
       <div class={`widget__grid widget__grid--${size}`}>
         {visible.map((app, i) => (
           <WidgetCard key={app.label} app={app} index={i} onClick={navigateToDomain} />
         ))}
-        <CardExplore index={visible.length} onClick={openSpa} />
+        {isSearching ? null : <CardExplore index={visible.length} onClick={openSpa} />}
       </div>
     </div>
   )

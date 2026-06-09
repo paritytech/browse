@@ -3,11 +3,12 @@ export interface AppEntry {
   name: string | null
   description: string
   iconCid: string | null
-  hasChat: boolean
   contentHash: string | null
   isLive: boolean
   attestationCount: number | null
   hasUserAttested: boolean
+  /** Holds an active compliance attestation from the trusted attester. */
+  isCompliant: boolean
 }
 
 export const FILTER_MODES = ['all', 'bookmarks', 'following'] as const

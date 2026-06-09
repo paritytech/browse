@@ -6,24 +6,88 @@
   padding: 16px;
   height: 100%;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
+.widget__header {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.widget__header .search-bar-row {
+  flex: 1;
+  margin: 0;
+}
+
+.widget__header .search-bar-row__cancel {
+  max-width: 120px;
+  padding: 4px 6px;
+  margin-left: 8px;
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.widget__title {
+  font-family: var(--font-sans);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-heading);
+}
+
+.widget__search {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--color-secondary);
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+
+.widget__search:hover {
+  color: var(--color-heading);
+}
+
+.widget__search svg {
+  width: 20px;
+  height: 20px;
+}
+
+/*
+ * The grid fills whatever height the host gives the widget, and its rows and
+ * columns are fixed per preset so the capped set of tiles tiles the frame
+ * exactly.
+ */
 .widget__grid {
+  flex: 1;
+  min-height: 0;
   display: grid;
   gap: 12px;
 }
 
-/*
- * Each preset gets a fixed column count so the capped set of tiles lays out in a
- * predictable shape that fills the frame. The single-column presets (small,
- * medium, large) stack two across. The wider `horizontal` preset uses four.
- */
-.widget__grid--small,
-.widget__grid--medium,
+.widget__grid--small {
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: 1fr;
+}
+
+.widget__grid--medium {
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+}
+
 .widget__grid--large {
   grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(5, 1fr);
 }
 
 .widget__grid--horizontal {
   grid-template-columns: repeat(4, 1fr);
+  grid-template-rows: repeat(2, 1fr);
 }

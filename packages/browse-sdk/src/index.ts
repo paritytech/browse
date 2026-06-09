@@ -57,6 +57,7 @@ export {
   encodeGetLabels,
   encodeGetLabelStores,
   encodeGetPublished,
+  encodeIsActive,
   encodeIsActiveAny,
   encodeLabelOf,
   encodeNodeOwner,

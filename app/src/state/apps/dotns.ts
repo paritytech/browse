@@ -63,11 +63,11 @@ function labelToApp(l: LabelEntry): AppEntry {
     name: l.name,
     description: l.description,
     iconCid: l.iconCid ?? null,
-    hasChat: l.hasChat ?? false,
     contentHash: l.contentHash,
     isLive: l.contentHash !== null,
     attestationCount: l.attestationCount,
-    hasUserAttested: l.hasUserAttested
+    hasUserAttested: l.hasUserAttested,
+    isCompliant: l.isCompliant ?? false
   }
 }
 
@@ -174,7 +174,6 @@ async function flushLabelBatch(
         name,
         description,
         iconCid: null,
-        hasChat: false,
         contentHash: cid,
         attestationCount,
         hasUserAttested,

@@ -8,6 +8,7 @@ import { type QueryClient, queryOptions, useQuery } from '@tanstack/react-query'
 import { readContentByName } from './remote'
 import { materialize, syncAllApps } from './sync'
 import type { AppEntry } from './types'
+import { readBookmarks } from '../../db/bookmarks'
 import { type LabelEntry, readLabels } from '../../db/labels'
 import { ensureBrowseSdk } from '../../lib/client'
 
@@ -60,9 +61,16 @@ export function getAllAppsOptions(queryClient: QueryClient) {
       // Probe network reachability up front
       await ensureBrowseSdk()
       const cachedLabels = await readLabels()
-      const finalApps = await syncAllApps(cachedLabels, (progressApps) => {
-        queryClient.setQueryData<AppEntry[]>(ALL_APPS_KEY, (prev) => merge(prev, progressApps))
-      })
+      // Bookmarked labels are kept through the sync prune even when unpublished,
+      // so their cached name/icon survives for the Bookmarks tab.
+      const protectedLabels = new Set(await readBookmarks())
+      const finalApps = await syncAllApps(
+        cachedLabels,
+        (progressApps) => {
+          queryClient.setQueryData<AppEntry[]>(ALL_APPS_KEY, (prev) => merge(prev, progressApps))
+        },
+        protectedLabels
+      )
       // Sync has rewritten the labels DB.
       await queryClient.invalidateQueries({ queryKey: LABELS_KEY })
       return merge(queryClient.getQueryData<AppEntry[]>(ALL_APPS_KEY), finalApps)
@@ -98,11 +106,11 @@ async function resolveLabel(name: string): Promise<AppEntry | null> {
       name: cached.name,
       description: cached.description,
       iconCid: cached.iconCid,
-      hasChat: cached.hasChat,
       contentHash: cached.contentHash,
       isLive: true,
       attestationCount: cached.attestationCount,
-      hasUserAttested: cached.hasUserAttested
+      hasUserAttested: cached.hasUserAttested,
+      isCompliant: cached.isCompliant ?? false
     }
   }
 
@@ -114,11 +122,11 @@ async function resolveLabel(name: string): Promise<AppEntry | null> {
     name: content.name,
     description: content.description,
     iconCid: content.iconCid,
-    hasChat: content.hasChat,
     contentHash: content.contentHash,
     isLive: true,
     attestationCount: null,
-    hasUserAttested: false
+    hasUserAttested: false,
+    isCompliant: false
   }
 }
 const LABEL_RESOLVE_TIMEOUT_MS = 5_000 // 5s

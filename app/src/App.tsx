@@ -70,11 +70,11 @@ export function App() {
         name: cached?.name ?? null,
         description: cached?.description ?? 'No description',
         iconCid: cached?.iconCid ?? null,
-        hasChat: cached?.hasChat ?? false,
         contentHash: cached?.contentHash ?? null,
         isLive: cached?.contentHash != null,
         attestationCount: cached?.attestationCount ?? null,
-        hasUserAttested: cached?.hasUserAttested ?? false
+        hasUserAttested: cached?.hasUserAttested ?? false,
+        isCompliant: cached?.isCompliant ?? false
       })
     }
     for (const label of followingApps) addLabel(label)
@@ -153,10 +153,10 @@ export function App() {
       name: resolvedApp.name,
       description: resolvedApp.description,
       iconCid: resolvedApp.iconCid,
-      hasChat: resolvedApp.hasChat,
       contentHash: resolvedApp.contentHash,
       attestationCount: resolvedApp.attestationCount,
       hasUserAttested: resolvedApp.hasUserAttested,
+      isCompliant: resolvedApp.isCompliant,
       fetchedAt: Date.now()
     }).then(() => queryClient.invalidateQueries({ queryKey: LABELS_KEY }))
   }, [resolvedApp, queryClient])
@@ -169,10 +169,10 @@ export function App() {
       name: app.name,
       description: app.description,
       iconCid: app.iconCid,
-      hasChat: app.hasChat,
       contentHash: app.contentHash,
       attestationCount: app.attestationCount,
       hasUserAttested: app.hasUserAttested,
+      isCompliant: app.isCompliant,
       fetchedAt: Date.now()
     })
     await queryClient.invalidateQueries({ queryKey: LABELS_KEY })
