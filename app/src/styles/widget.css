@@ -2,6 +2,23 @@
  * Widget-only styles.
  */
 
+/*
+ * Pin the whole root chain to the host frame so the widget is exactly the
+ * viewport height. Without this, `.widget { height: 100% }` has no bounded
+ * ancestor (body is only `min-height: 100dvh`), so the grid lays out at content
+ * height. That makes short presets overflow and clip, and tall presets scroll.
+ * `overflow: hidden` guarantees no scrollbar in any preset.
+ */
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  overflow: hidden;
+}
+
 .widget {
   padding: 16px;
   height: 100%;
