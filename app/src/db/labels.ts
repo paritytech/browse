@@ -11,7 +11,9 @@ export interface LabelEntry {
   contentHash: string | null
   attestationCount: number | null
   hasUserAttested: boolean
+  isCompliant?: boolean
   fetchedAt?: number
+  published?: boolean
 }
 
 export async function readLabels(): Promise<LabelEntry[]> {
