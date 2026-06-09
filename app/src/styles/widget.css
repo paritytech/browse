@@ -81,15 +81,17 @@ body {
 }
 
 /*
- * The grid fills whatever height the host gives the widget. Columns are fixed per
- * preset; the row count is set inline from the actual tile count (widget.tsx) so
- * the grid only has as many `1fr` rows as it needs and never reserves empty ones.
+ * Columns are fixed per preset; the row count and per-row max height are set
+ * inline from the tile count (widget.tsx). `align-content: start` keeps any
+ * leftover height at the bottom rather than stretching the rows, so a tall
+ * preset with few apps shows normal-sized cards instead of inflated ones.
  */
 .widget__grid {
   flex: 1;
   min-height: 0;
   display: grid;
   gap: 12px;
+  align-content: start;
 }
 
 .widget__grid--small,
@@ -100,4 +102,14 @@ body {
 
 .widget__grid--horizontal {
   grid-template-columns: repeat(4, 1fr);
+}
+
+/* The smallest preset has no header, so tighten its padding and footer to give
+ * the tiles (and their icons) the most room. */
+.widget--small {
+  padding: 12px;
+}
+
+.widget--small .widget-card__footer {
+  padding: 6px 10px;
 }
