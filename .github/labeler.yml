@@ -1,0 +1,26 @@
+# GitHub Actions labeler configuration for the browse monorepo
+# https://github.com/actions/labeler
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file: '.github/**'
+
+app:
+  - changed-files:
+      - all-globs-to-any-file:
+          - 'app/**'
+          - '!app/package.json'
+
+evm:
+  - changed-files:
+      - any-glob-to-any-file: 'evm/**'
+
+browse-sdk:
+  - changed-files:
+      - all-globs-to-any-file:
+          - 'packages/browse-sdk/**'
+          - '!packages/browse-sdk/package.json'
+
+docs:
+  - changed-files:
+      - any-glob-to-any-file: 'docs/**'
