@@ -36,6 +36,15 @@ const APP_CAP: Record<WidgetSize, number> = {
   horizontal: 7
 }
 
+// Columns per preset. Rows are derived from the actual tile count (see below) so
+// the grid only ever has as many rows as it needs, with no trailing empty rows.
+const GRID_COLS: Record<WidgetSize, number> = {
+  small: 2,
+  medium: 2,
+  large: 2,
+  horizontal: 4
+}
+
 function classifyWidgetSize(width: number, height: number): WidgetSize {
   if (width >= 500) return 'horizontal'
   if (height < 320) return 'small'
@@ -75,9 +84,24 @@ function Widget() {
     () => filterApps(allApps, query, 'all').filter((app) => app.label !== SELF_LABEL),
     [allApps, query]
   )
+  // Count of the unfiltered set, used to size the grid.
+  const baseCount = useMemo(
+    () => filterApps(allApps, '', 'all').filter((app) => app.label !== SELF_LABEL).length,
+    [allApps]
+  )
 
   const isSearching = query.trim().length > 0
-  const visible = results.slice(0, APP_CAP[size])
+  const cap = APP_CAP[size]
+  const visible = results.slice(0, cap)
+  const showBrowseMore = !isSearching
+  // Row count comes from the default (unfiltered) layout so the grid keeps the
+  // same shape while the user filters (matches just leave empty cells, no resize),
+  // and it counts the real apps rather than the cap so there are no empty rows.
+  // Rows are capped (minmax below) so a tall preset with few apps doesn't stretch
+  // the cards — leftover height stays at the bottom.
+  const baseTiles = Math.min(baseCount, cap) + 1
+  const rows = Math.max(1, Math.ceil(baseTiles / GRID_COLS[size]))
+  const gridStyle = `grid-template-rows: repeat(${rows}, minmax(0, 180px))`
   const openSpa = () => navigateToDomain(SELF_LABEL)
   const closeSearch = () => {
     setQuery('')
@@ -91,29 +115,33 @@ function Widget() {
   }
 
   return (
-    <div class='widget'>
-      <div class='widget__header' onKeyDown={(e) => e.key === 'Escape' && closeSearch()}>
-        {searchOpen ? (
-          <SearchBar value={query} onInput={setQuery} onCancel={closeSearch} />
-        ) : (
-          <>
-            <span class='widget__title'>Popular Apps</span>
-            <button
-              class='widget__search'
-              type='button'
-              aria-label='Search products'
-              onClick={() => setSearchOpen(true)}
-            >
-              {SEARCH_ICON}
-            </button>
-          </>
-        )}
-      </div>
-      <div class={`widget__grid widget__grid--${size}`}>
+    <div class={`widget widget--${size}`}>
+      {/* The smallest preset has no room for chrome: drop the header (title and
+          search) entirely and give the whole frame to the tiles. */}
+      {size !== 'small' ? (
+        <div class='widget__header' onKeyDown={(e) => e.key === 'Escape' && closeSearch()}>
+          {searchOpen ? (
+            <SearchBar value={query} onInput={setQuery} onCancel={closeSearch} />
+          ) : (
+            <>
+              <span class='widget__title'>Popular Apps</span>
+              <button
+                class='widget__search'
+                type='button'
+                aria-label='Search products'
+                onClick={() => setSearchOpen(true)}
+              >
+                {SEARCH_ICON}
+              </button>
+            </>
+          )}
+        </div>
+      ) : null}
+      <div class={`widget__grid widget__grid--${size}`} style={gridStyle}>
         {visible.map((app, i) => (
           <WidgetCard key={app.label} app={app} index={i} onClick={navigateToDomain} />
         ))}
-        {isSearching ? null : <CardExplore index={visible.length} onClick={openSpa} />}
+        {showBrowseMore ? <CardExplore index={visible.length} onClick={openSpa} /> : null}
       </div>
     </div>
   )

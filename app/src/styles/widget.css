@@ -30,6 +30,9 @@ body {
 
 .widget__header {
   flex: none;
+  /* Fixed height matches the search bar so toggling search in/out doesn't change
+   * the header height (and therefore doesn't resize the grid below it). */
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -78,33 +81,35 @@ body {
 }
 
 /*
- * The grid fills whatever height the host gives the widget, and its rows and
- * columns are fixed per preset so the capped set of tiles tiles the frame
- * exactly.
+ * Columns are fixed per preset; the row count and per-row max height are set
+ * inline from the tile count (widget.tsx). `align-content: start` keeps any
+ * leftover height at the bottom rather than stretching the rows, so a tall
+ * preset with few apps shows normal-sized cards instead of inflated ones.
  */
 .widget__grid {
   flex: 1;
   min-height: 0;
   display: grid;
   gap: 12px;
+  align-content: start;
 }
 
-.widget__grid--small {
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: 1fr;
-}
-
-.widget__grid--medium {
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(2, 1fr);
-}
-
+.widget__grid--small,
+.widget__grid--medium,
 .widget__grid--large {
   grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(5, 1fr);
 }
 
 .widget__grid--horizontal {
   grid-template-columns: repeat(4, 1fr);
-  grid-template-rows: repeat(2, 1fr);
+}
+
+/* The smallest preset has no header, so tighten its padding and footer to give
+ * the tiles (and their icons) the most room. */
+.widget--small {
+  padding: 12px;
+}
+
+.widget--small .widget-card__footer {
+  padding: 6px 10px;
 }
