@@ -1,0 +1,6 @@
+# Code owners for the browse monorepo.
+# https://docs.github.com/articles/about-code-owners
+# Listed owners are auto-requested for review on PRs touching matching paths.
+
+# Default
+* @BigTava
