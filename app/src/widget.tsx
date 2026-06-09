@@ -36,6 +36,15 @@ const APP_CAP: Record<WidgetSize, number> = {
   horizontal: 7
 }
 
+// Columns per preset. Rows are derived from the actual tile count (see below) so
+// the grid only ever has as many rows as it needs, with no trailing empty rows.
+const GRID_COLS: Record<WidgetSize, number> = {
+  small: 2,
+  medium: 2,
+  large: 2,
+  horizontal: 4
+}
+
 function classifyWidgetSize(width: number, height: number): WidgetSize {
   if (width >= 500) return 'horizontal'
   if (height < 320) return 'small'
@@ -78,6 +87,13 @@ function Widget() {
 
   const isSearching = query.trim().length > 0
   const visible = results.slice(0, APP_CAP[size])
+  const showBrowseMore = !isSearching
+  // Rows fit the actual tile count (apps + the optional "Browse More"), so the
+  // grid never reserves empty rows. With 2/4 columns the tiles still fill the
+  // frame because each row is `1fr` of the available height.
+  const tileCount = visible.length + (showBrowseMore ? 1 : 0)
+  const rows = Math.max(1, Math.ceil(tileCount / GRID_COLS[size]))
+  const gridStyle = `grid-template-rows: repeat(${rows}, 1fr)`
   const openSpa = () => navigateToDomain(SELF_LABEL)
   const closeSearch = () => {
     setQuery('')
@@ -109,11 +125,11 @@ function Widget() {
           </>
         )}
       </div>
-      <div class={`widget__grid widget__grid--${size}`}>
+      <div class={`widget__grid widget__grid--${size}`} style={gridStyle}>
         {visible.map((app, i) => (
           <WidgetCard key={app.label} app={app} index={i} onClick={navigateToDomain} />
         ))}
-        {isSearching ? null : <CardExplore index={visible.length} onClick={openSpa} />}
+        {showBrowseMore ? <CardExplore index={visible.length} onClick={openSpa} /> : null}
       </div>
     </div>
   )

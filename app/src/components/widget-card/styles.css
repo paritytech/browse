@@ -49,9 +49,22 @@
   background: var(--bg-surface-nested);
 }
 
+/*
+ * Icon and identicon scale with the cell (70% of the thumb height) and cap at
+ * 56px. This keeps them at 56px in medium/large/horizontal but shrinks them in
+ * the short `small` preset so they never clip, and keeps both fallbacks the same
+ * size. `:not(--explore)` leaves the Browse More illustration's own sizing alone.
+ */
+.widget-card__icon,
+.widget-card:not(.widget-card--explore) .widget-card__thumb > svg {
+  width: auto;
+  height: 70%;
+  aspect-ratio: 1 / 1;
+  max-width: 56px;
+  max-height: 56px;
+}
+
 .widget-card__icon {
-  width: 56px;
-  height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;

@@ -30,6 +30,9 @@ body {
 
 .widget__header {
   flex: none;
+  /* Fixed height matches the search bar so toggling search in/out doesn't change
+   * the header height (and therefore doesn't resize the grid below it). */
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -78,9 +81,9 @@ body {
 }
 
 /*
- * The grid fills whatever height the host gives the widget, and its rows and
- * columns are fixed per preset so the capped set of tiles tiles the frame
- * exactly.
+ * The grid fills whatever height the host gives the widget. Columns are fixed per
+ * preset; the row count is set inline from the actual tile count (widget.tsx) so
+ * the grid only has as many `1fr` rows as it needs and never reserves empty ones.
  */
 .widget__grid {
   flex: 1;
@@ -89,22 +92,12 @@ body {
   gap: 12px;
 }
 
-.widget__grid--small {
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: 1fr;
-}
-
-.widget__grid--medium {
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(2, 1fr);
-}
-
+.widget__grid--small,
+.widget__grid--medium,
 .widget__grid--large {
   grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(5, 1fr);
 }
 
 .widget__grid--horizontal {
   grid-template-columns: repeat(4, 1fr);
-  grid-template-rows: repeat(2, 1fr);
 }
