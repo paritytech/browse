@@ -84,15 +84,21 @@ function Widget() {
     () => filterApps(allApps, query, 'all').filter((app) => app.label !== SELF_LABEL),
     [allApps, query]
   )
+  // Count of the unfiltered set, used to size the grid.
+  const baseCount = useMemo(
+    () => filterApps(allApps, '', 'all').filter((app) => app.label !== SELF_LABEL).length,
+    [allApps]
+  )
 
   const isSearching = query.trim().length > 0
-  const visible = results.slice(0, APP_CAP[size])
+  const cap = APP_CAP[size]
+  const visible = results.slice(0, cap)
   const showBrowseMore = !isSearching
-  // Rows fit the actual tile count (apps + the optional "Browse More"), so the
-  // grid never reserves empty rows. With 2/4 columns the tiles still fill the
-  // frame because each row is `1fr` of the available height.
-  const tileCount = visible.length + (showBrowseMore ? 1 : 0)
-  const rows = Math.max(1, Math.ceil(tileCount / GRID_COLS[size]))
+  // Row count comes from the default layout. The grid keeps
+  // the same number of rows while the user type It also fits the default view with no empty
+  // rows because it counts the real apps, not the cap.
+  const baseTiles = Math.min(baseCount, cap) + 1
+  const rows = Math.max(1, Math.ceil(baseTiles / GRID_COLS[size]))
   const gridStyle = `grid-template-rows: repeat(${rows}, 1fr)`
   const openSpa = () => navigateToDomain(SELF_LABEL)
   const closeSearch = () => {
@@ -109,19 +115,22 @@ function Widget() {
   return (
     <div class='widget'>
       <div class='widget__header' onKeyDown={(e) => e.key === 'Escape' && closeSearch()}>
-        {searchOpen ? (
+        {searchOpen && size !== 'small' ? (
           <SearchBar value={query} onInput={setQuery} onCancel={closeSearch} />
         ) : (
           <>
             <span class='widget__title'>Popular Apps</span>
-            <button
-              class='widget__search'
-              type='button'
-              aria-label='Search products'
-              onClick={() => setSearchOpen(true)}
-            >
-              {SEARCH_ICON}
-            </button>
+            {/* The smallest preset has no room for search — show the title only. */}
+            {size !== 'small' ? (
+              <button
+                class='widget__search'
+                type='button'
+                aria-label='Search products'
+                onClick={() => setSearchOpen(true)}
+              >
+                {SEARCH_ICON}
+              </button>
+            ) : null}
           </>
         )}
       </div>
