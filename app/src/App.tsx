@@ -19,6 +19,7 @@ import { setupDebugConsole } from './lib/debug'
 import { navigateToDomain } from './lib/navigate'
 import { subscribeHostTheme } from './lib/theme'
 import { useEvent } from './lib/use-event'
+import { useFlipReorder } from './lib/use-flip'
 import { LABELS_KEY, useGetAllApps, useLabelsStorage, useResolveLabel } from './state/apps/queries'
 import { type AppEntry, filterApps, type FilterMode, isFilterMode } from './state/apps/types'
 import { useGetAttestationsByContacts } from './state/attestations/queries'
@@ -45,6 +46,7 @@ export function App() {
   const deferredQuery = useDeferredValue(query)
 
   const rootRef = useRef<HTMLDivElement>(null)
+  const appListRef = useRef<HTMLDivElement>(null)
 
   const {
     data: allApps = [],
@@ -313,6 +315,44 @@ export function App() {
         ? followingLoading
         : allFetching
 
+  // Sticky display order.
+  const [orderNonce, setOrderNonce] = useState(0)
+  const commitOrder = useEvent(() => setOrderNonce((n) => n + 1))
+
+  const orderSourceRef = useRef<AppEntry[]>(filtered)
+  orderSourceRef.current = filtered
+
+  const membershipKey = useMemo(
+    () =>
+      `${currentMode}:${filtered
+        .map((app) => app.label)
+        .sort()
+        .join(',')}`,
+    [currentMode, filtered]
+  )
+
+  const orderedLabels = useMemo(
+    () => orderSourceRef.current.map((app) => app.label),
+    [membershipKey, orderNonce]
+  )
+
+  // Apply the sticky order to the live entries, so counts stay optimistic while
+  // positions hold until commit.
+  const orderedFiltered = useMemo(() => {
+    const byLabel = new Map(filtered.map((app) => [app.label, app]))
+    return orderedLabels
+      .map((label) => byLabel.get(label))
+      .filter((app): app is AppEntry => app != null)
+  }, [orderedLabels, filtered])
+
+  const flipKey = useMemo(() => {
+    if (searchMatches) {
+      return `s:${searchMatches.map((app) => app.label).join(',')}:${resolvedApp?.label ?? ''}`
+    }
+    return `f:${currentMode}:${orderedFiltered.map((app) => app.label).join(',')}`
+  }, [searchMatches, resolvedApp, currentMode, orderedFiltered])
+  useFlipReorder(appListRef, flipKey)
+
   const renderCard = (app: AppEntry, i: number) => (
     <ProductCardWithAttestation
       key={app.label}
@@ -324,6 +364,7 @@ export function App() {
       onClick={navigateToDomain}
       onBookmark={handleBookmark}
       onShare={handleShare}
+      onAttestationSettled={commitOrder}
     />
   )
 
@@ -366,7 +407,7 @@ export function App() {
                 />
               )}
 
-              <div class='app-list' id='app-list'>
+              <div class='app-list' id='app-list' ref={appListRef}>
                 {isLoading && filtered.length === 0 && !query ? null : emptyAll ? (
                   <div class='empty-state'>
                     <div class='empty-state__icon'>
@@ -429,7 +470,7 @@ export function App() {
                     </div>
                   )
                 ) : (
-                  filtered.map(renderCard)
+                  orderedFiltered.map(renderCard)
                 )}
               </div>
 

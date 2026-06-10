@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'preact/compat'
+import { memo, useState } from 'preact/compat'
 
 import { ArrowUp, ArrowUpRight, BadgeCheck, Bookmark, Share2 } from 'lucide-preact'
 
@@ -12,6 +12,7 @@ interface ProductCardProps {
   index: number
   bookmarked?: boolean
   recommended?: boolean
+  attestationPending?: boolean
   showMenu?: boolean
   onClick: (label: string) => void
   onBookmark?: (label: string) => void
@@ -24,6 +25,7 @@ export const ProductCard = memo(function ProductCard({
   index,
   bookmarked,
   recommended,
+  attestationPending,
   showMenu = true,
   onClick,
   onBookmark,
@@ -39,26 +41,6 @@ export const ProductCard = memo(function ProductCard({
   const willLoadIcon = !!app.iconCid && !iconFailed
   const haveIconBytes = willLoadIcon && !!iconBlobUrl
   const showActions = showMenu && onBookmark && onShare
-
-  const certRef = useRef<HTMLButtonElement>(null)
-  const [tipOpen, setTipOpen] = useState(false)
-
-  // The compliance tooltip stays open on click/tap.
-  useEffect(() => {
-    if (!tipOpen) return
-    const onPointerDown = (e: PointerEvent) => {
-      if (!certRef.current?.contains(e.target as Node)) setTipOpen(false)
-    }
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setTipOpen(false)
-    }
-    document.addEventListener('pointerdown', onPointerDown)
-    document.addEventListener('keydown', onKeyDown)
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown)
-      document.removeEventListener('keydown', onKeyDown)
-    }
-  }, [tipOpen])
 
   return (
     <div
@@ -96,20 +78,13 @@ export const ProductCard = memo(function ProductCard({
         <div class='product-card__title-row'>
           <span class='product-card__name'>{name}</span>
           {app.isCompliant && (
-            <button
-              ref={certRef}
-              type='button'
-              class={`product-card__title-icon product-card__certified${tipOpen ? ' product-card__title-icon--open' : ''}`}
-              data-tooltip='Certificate of User Interface Compliance'
+            <span
+              class='product-card__certified'
+              role='img'
               aria-label='Certificate of User Interface Compliance'
-              onClick={(e) => {
-                e.stopPropagation()
-                setTipOpen((open) => !open)
-              }}
             >
-              <span class='product-card__title-icon-hit' aria-hidden='true' />
               <BadgeCheck size={14} />
-            </button>
+            </span>
           )}
           {showActions && (
             <button
@@ -141,13 +116,15 @@ export const ProductCard = memo(function ProductCard({
             <div class='product-card__footer-end'>
               {onClickAttestation && (
                 <button
-                  class={`product-card__upvote${recommended ? ' product-card__upvote--active' : ''}`}
+                  class={`product-card__upvote${recommended ? ' product-card__upvote--active' : ''}${attestationPending ? ' product-card__upvote--pending' : ''}`}
                   onClick={(e) => {
                     e.stopPropagation()
                     onClickAttestation()
                   }}
+                  disabled={attestationPending}
                   aria-label={recommended ? 'Remove recommendation' : 'Recommend'}
                   aria-pressed={recommended}
+                  aria-busy={attestationPending}
                 >
                   <ArrowUp size={16} />
                   {displayCount > 0 && (
