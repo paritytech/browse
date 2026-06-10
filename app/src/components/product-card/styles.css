@@ -128,79 +128,11 @@
   text-overflow: ellipsis;
 }
 
-/* Shared inline title-row mark. */
-.product-card__title-icon {
-  position: relative;
+.product-card__certified {
   display: inline-flex;
   align-items: center;
   flex-shrink: 0;
   margin-left: var(--space-tiny);
-  padding: 0;
-  border: none;
-  background: transparent;
-  cursor: help;
-}
-
-/* Expand the tap target to ~44px for touch without growing the visual mark or
-   the title row. */
-.product-card__title-icon-hit {
-  position: absolute;
-  inset: -15px;
-}
-
-/* Tooltip. */
-.product-card__title-icon::after {
-  content: attr(data-tooltip);
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
-  width: max-content;
-  max-width: 220px;
-  white-space: normal;
-  text-align: center;
-  padding: 4px 8px;
-  border-radius: var(--radius-extra-small);
-  background: var(--fg-primary);
-  color: var(--fg-primary-inverted);
-  font-family: var(--font-sans);
-  font-size: 12px;
-  line-height: 1.4;
-  box-shadow: 0 4px 12px rgb(var(--fg-rgb) / 0.2);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 120ms ease;
-}
-
-.product-card__title-icon::before {
-  content: '';
-  position: absolute;
-  top: calc(100% + 1px);
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 10;
-  width: 0;
-  height: 0;
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-bottom: 5px solid var(--fg-primary);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 120ms ease;
-}
-
-.product-card__title-icon:hover::after,
-.product-card__title-icon:hover::before,
-.product-card__title-icon:focus-visible::after,
-.product-card__title-icon:focus-visible::before,
-.product-card__title-icon--open::after,
-.product-card__title-icon--open::before {
-  opacity: 1;
-}
-
-/* Compliance: filled brand-black badge with a contrasting check. */
-.product-card__certified {
   color: var(--fg-primary);
 }
 
