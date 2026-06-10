@@ -4,7 +4,7 @@ import { type AsyncTransaction, createInkSdk } from '@polkadot-api/sdk-ink'
 import { AccountId, type PolkadotClient, type PolkadotSigner, type SS58String } from 'polkadot-api'
 
 import { ensureApi, ensureClient, type PaseoHubApi } from './client'
-import { DUMMY_ORIGIN, NETWORK, SELF_DOTNS } from './config'
+import { DUMMY_ORIGIN, NETWORK, PGAS_FUNDING_TIMEOUT, SELF_DOTNS } from './config'
 
 export type ApiProvider = () => Promise<PaseoHubApi>
 export type ClientProvider = () => Promise<PolkadotClient>
@@ -303,14 +303,16 @@ export class AttestationService {
   private async waitForPgasFunded(pgasAssetId: number, origin: string): Promise<void> {
     const api = await this.api()
     const POLL_MS = 1500
-    const MAX_ATTEMPTS = 20
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const deadline = Date.now() + PGAS_FUNDING_TIMEOUT
+    let remaining = PGAS_FUNDING_TIMEOUT
+    while (remaining > 0) {
       const acct = await api.query.Assets.Account.getValue(pgasAssetId, origin as SS58String)
-      const balance = acct?.balance ?? 0n
-      if (balance > 0n) return
-      await new Promise((resolve) => setTimeout(resolve, POLL_MS))
+      if ((acct?.balance ?? 0n) > 0n) return
+      await new Promise((resolve) => setTimeout(resolve, Math.min(POLL_MS, remaining)))
+      remaining = deadline - Date.now()
     }
-    throw new Error('PGAS funding did not land after SmartContractAllowance (timed out)')
+    // Surfaces as "Not enough allowance" via describeError.
+    throw new Error('NotEnoughFunds: PGAS allowance did not fund in time')
   }
 
   private async submitTx(

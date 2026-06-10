@@ -50,3 +50,16 @@ function resolveSelfDotns(): string {
 }
 
 export const SELF_DOTNS = resolveSelfDotns()
+
+/**
+ * How long to wait for the host to fund the product account with PGAS after a
+ * SmartContractAllowance grant before giving up.
+ *
+ * Overridable via `APP_PGAS_FUNDING_TIMEOUT`.
+ *
+ * The e2e suite sets it low so the unfundable path
+ * fails fast instead of hanging on the full wait.
+ */
+export const PGAS_FUNDING_TIMEOUT = Number(
+  import.meta.env?.APP_PGAS_FUNDING_TIMEOUT ?? process.env?.APP_PGAS_FUNDING_TIMEOUT ?? 30_000
+)

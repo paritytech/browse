@@ -22,7 +22,7 @@
     "typecheck": "tsc --noEmit",
     "papi:attestation-service": "npx papi sol add src/lib/abis/AttestationService.json attestation_service",
     "papi:schema-registry": "npx papi sol add src/lib/abis/SchemaRegistry.json schema_registry",
-    "test:e2e": "NETWORK_GENESIS_HASH=0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb playwright test --config tests/playwright.config.ts"
+    "test:e2e": "APP_PGAS_FUNDING_TIMEOUT=1000 NETWORK_GENESIS_HASH=0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb playwright test --config tests/playwright.config.ts"
   },
   "dependencies": {
     "@ensdomains/content-hash": "^3.0.0",
