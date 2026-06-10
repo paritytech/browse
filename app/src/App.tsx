@@ -50,7 +50,6 @@ export function App() {
 
   const {
     data: allApps = [],
-    isLoading: allLoading,
     isFetching: allFetching,
     isError: allError
   } = useGetAllApps(queryClient)
@@ -314,7 +313,7 @@ export function App() {
       ? false
       : currentMode === 'following'
         ? followingLoading
-        : allLoading
+        : allFetching
 
   // Sticky display order.
   const [orderNonce, setOrderNonce] = useState(0)
