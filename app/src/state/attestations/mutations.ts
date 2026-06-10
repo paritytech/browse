@@ -91,7 +91,7 @@ function patchLabels(
 export function describeError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err)
   if (msg.includes('NotEnoughFunds') || msg.includes('"type": "Payment"')) {
-    return 'Not enough funds'
+    return 'Not enough allowance'
   }
   if (
     msg.includes('Chain sync timed out') ||

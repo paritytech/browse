@@ -1,6 +1,5 @@
 import { sr25519CreateDerive } from '@polkadot-labs/hdkd'
 import { DEV_PHRASE, mnemonicToMiniSecret, ss58Encode } from '@polkadot-labs/hdkd-helpers'
-import { MultiAddress, paseoHub } from '@polkadot-api/descriptors'
 import { createClient, type SS58String } from 'polkadot-api'
 import { getPolkadotSigner } from 'polkadot-api/signer'
 import { getWsProvider } from 'polkadot-api/ws'
@@ -23,109 +22,67 @@ export function createDevSigner(name: string) {
 
 const RPC_ENDPOINTS = [...NETWORK.rpcs]
 
-// 10 PAS on Paseo Asset Hub (10 decimals) — enough to cover the contract's
-// storage deposit across several attestations.
-export const DEFAULT_TRANSFER_AMOUNT = 100_000_000_000n
-
-// Threshold below which `fund` tops up the destination.
-const MIN_FREE_BALANCE = 10_000_000_000n // 1 PAS
-
-export interface TransferResult {
-  from: string
-  to: string
-  amount: bigint
-  txHash: string
-  block: string
-}
+const PGAS_FUNDER = 'Alice'
+export const DEFAULT_PGAS_AMOUNT = 5_000_000_000n
+const MIN_PGAS_BALANCE = 1_000_000_000n
 
 export interface FundResult {
   topUp: boolean
   toAddress: string
-  freeBalance: bigint
-  transfer?: TransferResult
-}
-
-export async function transfer(
-  fromAccount: string,
-  toAccount: string,
-  amount: bigint
-): Promise<TransferResult> {
-  const from = createDevSigner(fromAccount)
-  const to = createDevSigner(toAccount)
-  const client = createClient(getWsProvider(RPC_ENDPOINTS, { websocketClass: WebSocket as unknown as typeof globalThis.WebSocket }))
-  try {
-    const api = client.getTypedApi(paseoHub)
-    const tx = api.tx.Balances.transfer_keep_alive({
-      dest: MultiAddress.Id(to.address as SS58String),
-      value: amount
-    })
-
-    const result = await new Promise<{
-      txHash: string
-      block: string
-      ok: boolean
-      dispatchError?: unknown
-    }>((resolve, reject) => {
-      const sub = tx.signSubmitAndWatch(from.signer).subscribe({
-        next: (event) => {
-          if (event.type === 'txBestBlocksState' && event.found) {
-            sub.unsubscribe()
-            resolve({
-              txHash: event.txHash,
-              block: event.block.hash,
-              ok: event.ok,
-              dispatchError: event.ok ? undefined : event.dispatchError
-            })
-          }
-        },
-        error: reject
-      })
-    })
-
-    if (!result.ok) {
-      throw new Error(`transfer_keep_alive failed: ${JSON.stringify(result.dispatchError)}`)
-    }
-    return {
-      from: from.address,
-      to: to.address,
-      amount,
-      txHash: result.txHash,
-      block: result.block
-    }
-  } finally {
-    client.destroy()
-  }
+  pgasBalance: bigint
 }
 
 /**
- * Ensure `toAccount` has enough free balance for contract calls. Idempotent:
- * skips the transfer when the account is already above `MIN_FREE_BALANCE`.
+ * Ensure `toAccount` holds enough PGAS to pay for contract calls. Idempotent:
+ * skips the transfer when the account is already above `MIN_PGAS_BALANCE`.
  */
 export async function fund(
   toAccount = 'Charlie',
-  amount: bigint = DEFAULT_TRANSFER_AMOUNT
+  amount: bigint = DEFAULT_PGAS_AMOUNT
 ): Promise<FundResult> {
   const to = createDevSigner(toAccount)
-  const client = createClient(getWsProvider(RPC_ENDPOINTS, { websocketClass: WebSocket as unknown as typeof globalThis.WebSocket }))
-  let freeBalance: bigint
+  const client = createClient(
+    getWsProvider(RPC_ENDPOINTS, {
+      websocketClass: WebSocket as unknown as typeof globalThis.WebSocket
+    })
+  )
   try {
-    const api = client.getTypedApi(paseoHub)
-    const info = await api.query.System.Account.getValue(to.address as SS58String)
-    freeBalance = info.data.free
+    const api = client.getUnsafeApi()
+    const assetId = (await api.constants.Pgas.PgasAssetId()) as number
+    const readBalance = async (): Promise<bigint> => {
+      const acct = (await api.query.Assets.Account.getValue(assetId, to.address as SS58String)) as
+        | { balance?: bigint }
+        | undefined
+      return acct?.balance ?? 0n
+    }
+
+    const balance = await readBalance()
+    if (balance >= MIN_PGAS_BALANCE) {
+      return { topUp: false, toAddress: to.address, pgasBalance: balance }
+    }
+
+    const funder = createDevSigner(PGAS_FUNDER)
+    const tx = api.tx.Assets.transfer({
+      id: assetId,
+      target: { type: 'Id', value: to.address as SS58String },
+      amount
+    })
+    const result = await tx.signAndSubmit(funder.signer)
+    if (!result.ok) {
+      throw new Error(`PGAS transfer failed: ${JSON.stringify(result.dispatchError)}`)
+    }
+    return { topUp: true, toAddress: to.address, pgasBalance: await readBalance() }
   } finally {
-    client.destroy()
+    try {
+      client.destroy()
+    } catch {
+      // ignore teardown errors
+    }
   }
-
-  if (freeBalance >= MIN_FREE_BALANCE) {
-    return { topUp: false, toAddress: to.address, freeBalance }
-  }
-
-  const result = await transfer('Bob', toAccount, amount)
-  return { topUp: true, toAddress: to.address, freeBalance, transfer: result }
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const [, , toArg = 'Charlie', amountStr = String(DEFAULT_TRANSFER_AMOUNT)] = process.argv
+  const [, , toArg = 'Charlie', amountStr = String(DEFAULT_PGAS_AMOUNT)] = process.argv
   fund(toArg, BigInt(amountStr))
     .then((r) => {
       console.log('[fund] done', r)

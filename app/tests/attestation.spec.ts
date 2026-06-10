@@ -284,7 +284,7 @@ test.describe('Attestation fails', () => {
     await upvote.click()
 
     // Then
-    await expect(frame.locator('.toast--visible')).toContainText('Not enough funds', {
+    await expect(frame.locator('.toast--visible')).toContainText('Not enough allowance', {
       timeout: 15_000
     })
   })
