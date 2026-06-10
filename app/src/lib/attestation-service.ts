@@ -57,14 +57,10 @@ export type TxResult = { txHash: string; block: string }
 const GAS = { ref_time: 10_000_000_000n, proof_size: 1_000_000n }
 const STORAGE = 1_000_000_000_000n
 
-export class AttestationService {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private sdkInstance: any = null
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private contractInstance: any = null
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private resolverInstance: any = null
+// Memoise the ink SDK per chain client.
+const inkSdkByClient = new WeakMap<PolkadotClient, any>()
 
+export class AttestationService {
   constructor(
     private api: ApiProvider = ensureApi,
     private client: ClientProvider = ensureClient,
@@ -72,34 +68,29 @@ export class AttestationService {
     private truapi: boolean = true
   ) {}
 
+  // Resolve the ink SDK for the current chain client.
   private async getSdk() {
-    if (!this.sdkInstance) {
-      const client = await this.client()
-      this.sdkInstance = createInkSdk(client, { atBest: true })
+    const client = await this.client()
+    let sdk = inkSdkByClient.get(client)
+    if (!sdk) {
+      sdk = createInkSdk(client, { atBest: true })
+      inkSdkByClient.set(client, sdk)
     }
-    return this.sdkInstance
+    return sdk
   }
 
   private async getContract() {
-    if (!this.contractInstance) {
-      const sdk = await this.getSdk()
-      this.contractInstance = sdk.getContract(
-        contracts.attestation_service,
-        NETWORK.ATTESTATION_SERVICE
-      )
-    }
-    return this.contractInstance
+    return (await this.getSdk()).getContract(
+      contracts.attestation_service,
+      NETWORK.ATTESTATION_SERVICE
+    )
   }
 
   private async getResolver() {
-    if (!this.resolverInstance) {
-      const sdk = await this.getSdk()
-      this.resolverInstance = sdk.getContract(
-        contracts.attestation_service,
-        NETWORK.ATTESTATION_INDEX_RESOLVER
-      )
-    }
-    return this.resolverInstance
+    return (await this.getSdk()).getContract(
+      contracts.attestation_service,
+      NETWORK.ATTESTATION_INDEX_RESOLVER
+    )
   }
 
   async isActive(id: bigint): Promise<boolean> {

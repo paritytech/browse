@@ -44,7 +44,10 @@ function resolveSelfDotns(): string {
   if (typeof window === 'undefined') return fallback
   const hostname = window.location.hostname.toLowerCase()
   if (hostname === 'localhost' || hostname.endsWith('.localhost') || hostname === '127.0.0.1') {
-    return window.location.host.toLowerCase()
+    // On localhost the real product account is not
+    // provisionable, so present the beta staging identity whose account the
+    // host can issue.
+    return `${SELF_LABEL}-beta00.dot`
   }
   return fallback
 }
