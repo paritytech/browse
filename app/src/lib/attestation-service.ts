@@ -57,8 +57,13 @@ export type TxResult = { txHash: string; block: string }
 const GAS = { ref_time: 10_000_000_000n, proof_size: 1_000_000n }
 const STORAGE = 1_000_000_000_000n
 
-// Memoise the ink SDK per chain client.
+// Memoise the ink SDK and contracts per network client. A provider rebuild yields fresh instances instead of ones stranded on
+// the old, dead client.
+/* eslint-disable @typescript-eslint/no-explicit-any */
 const inkSdkByClient = new WeakMap<PolkadotClient, any>()
+const contractByClient = new WeakMap<PolkadotClient, any>()
+const resolverByClient = new WeakMap<PolkadotClient, any>()
+/* eslint-enable @typescript-eslint/no-explicit-any */
 
 export class AttestationService {
   constructor(
@@ -68,7 +73,6 @@ export class AttestationService {
     private truapi: boolean = true
   ) {}
 
-  // Resolve the ink SDK for the current chain client.
   private async getSdk() {
     const client = await this.client()
     let sdk = inkSdkByClient.get(client)
@@ -80,17 +84,29 @@ export class AttestationService {
   }
 
   private async getContract() {
-    return (await this.getSdk()).getContract(
-      contracts.attestation_service,
-      NETWORK.ATTESTATION_SERVICE
-    )
+    const client = await this.client()
+    let contract = contractByClient.get(client)
+    if (!contract) {
+      contract = (await this.getSdk()).getContract(
+        contracts.attestation_service,
+        NETWORK.ATTESTATION_SERVICE
+      )
+      contractByClient.set(client, contract)
+    }
+    return contract
   }
 
   private async getResolver() {
-    return (await this.getSdk()).getContract(
-      contracts.attestation_service,
-      NETWORK.ATTESTATION_INDEX_RESOLVER
-    )
+    const client = await this.client()
+    let resolver = resolverByClient.get(client)
+    if (!resolver) {
+      resolver = (await this.getSdk()).getContract(
+        contracts.attestation_service,
+        NETWORK.ATTESTATION_INDEX_RESOLVER
+      )
+      resolverByClient.set(client, resolver)
+    }
+    return resolver
   }
 
   async isActive(id: bigint): Promise<boolean> {
