@@ -104,6 +104,17 @@ body {
   grid-template-columns: repeat(4, 1fr);
 }
 
+.widget__status {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+}
+
 /* The smallest preset has no header, so tighten its padding and footer to give
  * the tiles (and their icons) the most room. */
 .widget--small {

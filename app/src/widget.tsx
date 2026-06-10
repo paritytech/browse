@@ -1,5 +1,6 @@
 import { render } from 'preact'
 
+import { useDeferredValue } from 'preact/compat'
 import { useEffect, useMemo, useState } from 'preact/hooks'
 
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
@@ -15,7 +16,7 @@ import { WidgetCard } from './components/widget-card'
 import { SELF_LABEL } from './lib/config'
 import { navigateToDomain } from './lib/navigate'
 import { applyInitialTheme, subscribeHostTheme } from './lib/theme'
-import { prefetchAllApps, useGetAllApps } from './state/apps/queries'
+import { prefetchAllApps, useGetAllApps, useResolveLabel } from './state/apps/queries'
 import { filterApps } from './state/apps/types'
 import './styles/tokens.css'
 import './styles/main.css'
@@ -69,6 +70,8 @@ function Widget() {
   const size = useWidgetSize()
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+  const deferredQuery = useDeferredValue(query)
 
   const { data: allApps = [], isFetching } = useGetAllApps(queryClient)
 
@@ -80,20 +83,48 @@ function Widget() {
     document.querySelector<HTMLInputElement>('.widget__header .search-bar__input')?.focus()
   }, [searchOpen])
 
-  const results = useMemo(
-    () => filterApps(allApps, query, 'all').filter((app) => app.label !== SELF_LABEL),
-    [allApps, query]
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedQuery(query), 500)
+    return () => clearTimeout(id)
+  }, [query])
+
+  const resolverLabel = debouncedQuery
+    .trim()
+    .toLowerCase()
+    .replace(/\.dot$/, '')
+  const shouldResolve = debouncedQuery === query && resolverLabel.length >= 3
+  const { data: resolvedApp, isFetching: resolverFetching } = useResolveLabel(
+    resolverLabel,
+    shouldResolve
   )
+
+  const results = useMemo(() => {
+    const matches = filterApps(allApps, query, 'all').filter((app) => app.label !== SELF_LABEL)
+    if (
+      resolvedApp &&
+      resolvedApp.label !== SELF_LABEL &&
+      !matches.some((app) => app.label === resolvedApp.label)
+    ) {
+      matches.push(resolvedApp)
+    }
+    return matches
+  }, [allApps, query, resolvedApp])
   // Count of the unfiltered set, used to size the grid.
   const baseCount = useMemo(
     () => filterApps(allApps, '', 'all').filter((app) => app.label !== SELF_LABEL).length,
     [allApps]
   )
 
-  const isSearching = query.trim().length > 0
+  const hasQuery = query.trim().length > 0
+
+  const isSearching =
+    query.length > 0 &&
+    (deferredQuery !== query ||
+      debouncedQuery !== query ||
+      (resolverLabel.length >= 3 && resolverFetching))
   const cap = APP_CAP[size]
   const visible = results.slice(0, cap)
-  const showBrowseMore = !isSearching
+  const showBrowseMore = !hasQuery
   // Row count comes from the default (unfiltered) layout so the grid keeps the
   // same shape while the user filters (matches just leave empty cells, no resize),
   // and it counts the real apps rather than the cap so there are no empty rows.
@@ -137,12 +168,32 @@ function Widget() {
           )}
         </div>
       ) : null}
-      <div class={`widget__grid widget__grid--${size}`} style={gridStyle}>
-        {visible.map((app, i) => (
-          <WidgetCard key={app.label} app={app} index={i} onClick={navigateToDomain} />
-        ))}
-        {showBrowseMore ? <CardExplore index={visible.length} onClick={openSpa} /> : null}
-      </div>
+      {hasQuery && visible.length === 0 ? (
+        <div class='widget__status'>
+          {isSearching ? (
+            <>
+              <p class='empty-state__text'>Searching for "{query}"…</p>
+              <div class='loading-dots loading-dots--inline'>
+                <span class='loading-dots__dot' />
+                <span class='loading-dots__dot' />
+                <span class='loading-dots__dot' />
+              </div>
+            </>
+          ) : (
+            <>
+              <div class='empty-state__icon'>{SEARCH_ICON}</div>
+              <p class='empty-state__text'>No products matching "{query}"</p>
+            </>
+          )}
+        </div>
+      ) : (
+        <div class={`widget__grid widget__grid--${size}`} style={gridStyle}>
+          {visible.map((app, i) => (
+            <WidgetCard key={app.label} app={app} index={i} onClick={navigateToDomain} />
+          ))}
+          {showBrowseMore ? <CardExplore index={visible.length} onClick={openSpa} /> : null}
+        </div>
+      )}
     </div>
   )
 }
