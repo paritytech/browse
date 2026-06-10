@@ -5,6 +5,8 @@ import {
 } from '@parity/browse-sdk'
 import type { Frame, Page } from '@playwright/test'
 
+import { LOCALHOST_SELF_DOTNS } from '../src/lib/config'
+
 const PORT = process.env.PORT ?? '5173'
 const APP_URL = `http://localhost:${PORT}`
 
@@ -40,7 +42,7 @@ export { APP_URL, PORT }
 function productAccountMap(accounts: Account[]): Record<string, Account> | undefined {
   const primary = accounts[0]
   if (!primary) return undefined
-  return { [`localhost:${PORT}/0`]: primary }
+  return { [`${LOCALHOST_SELF_DOTNS}/0`]: primary }
 }
 
 export async function startSignedHost(...accounts: Account[]) {

@@ -36,6 +36,13 @@ const APP_DOTNS_DOMAIN =
 export const SELF_LABEL = APP_DOTNS_DOMAIN.toLowerCase().replace(/\.dot$/, '')
 
 /**
+ * Product identity presented on localhost, where the
+ * real product account is not provisionable. The e2e host maps this same id to
+ * a funded account, so keep the two in sync.
+ */
+export const LOCALHOST_SELF_DOTNS = `${SELF_LABEL}-beta00.dot`
+
+/**
  * The identifier we present to the host when deriving the product account and
  * signing transactions.
  */
@@ -44,7 +51,7 @@ function resolveSelfDotns(): string {
   if (typeof window === 'undefined') return fallback
   const hostname = window.location.hostname.toLowerCase()
   if (hostname === 'localhost' || hostname.endsWith('.localhost') || hostname === '127.0.0.1') {
-    return window.location.host.toLowerCase()
+    return LOCALHOST_SELF_DOTNS
   }
   return fallback
 }

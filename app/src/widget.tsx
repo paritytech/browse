@@ -101,6 +101,7 @@ function Widget() {
   const results = useMemo(() => {
     const matches = filterApps(allApps, query, 'all').filter((app) => app.label !== SELF_LABEL)
     if (
+      query.trim().length > 0 &&
       resolvedApp &&
       resolvedApp.label !== SELF_LABEL &&
       !matches.some((app) => app.label === resolvedApp.label)
