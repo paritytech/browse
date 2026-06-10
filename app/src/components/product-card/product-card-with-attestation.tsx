@@ -13,6 +13,7 @@ interface ProductCardWithAttestationProps {
   onClick: (label: string) => void
   onBookmark: (label: string) => void
   onShare: (app: AppEntry) => void
+  onAttestationSettled?: () => void
 }
 
 export function ProductCardWithAttestation({
@@ -23,7 +24,8 @@ export function ProductCardWithAttestation({
   showMenu,
   onClick,
   onBookmark,
-  onShare
+  onShare,
+  onAttestationSettled
 }: ProductCardWithAttestationProps) {
   const attestProduct = useAttestProduct()
   const revokeApp = useRevokeApp()
@@ -36,12 +38,18 @@ export function ProductCardWithAttestation({
     }
     if (app.hasUserAttested) {
       revokeApp.mutate(app.label, {
-        onSuccess: () => showToast('Unrecommended!'),
+        onSuccess: () => {
+          showToast('Unrecommended!')
+          onAttestationSettled?.()
+        },
         onError: (err) => showToast(describeError(err))
       })
     } else {
       attestProduct.mutate(app.label, {
-        onSuccess: () => showToast('Recommended!'),
+        onSuccess: () => {
+          showToast('Recommended!')
+          onAttestationSettled?.()
+        },
         onError: (err) => showToast(describeError(err))
       })
     }
@@ -54,6 +62,7 @@ export function ProductCardWithAttestation({
       bookmarked={bookmarked}
       showMenu={showMenu}
       recommended={app.hasUserAttested}
+      attestationPending={attestProduct.isPending || revokeApp.isPending}
       onClick={onClick}
       onBookmark={onBookmark}
       onShare={onShare}

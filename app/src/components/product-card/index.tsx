@@ -12,6 +12,7 @@ interface ProductCardProps {
   index: number
   bookmarked?: boolean
   recommended?: boolean
+  attestationPending?: boolean
   showMenu?: boolean
   onClick: (label: string) => void
   onBookmark?: (label: string) => void
@@ -24,6 +25,7 @@ export const ProductCard = memo(function ProductCard({
   index,
   bookmarked,
   recommended,
+  attestationPending,
   showMenu = true,
   onClick,
   onBookmark,
@@ -141,13 +143,15 @@ export const ProductCard = memo(function ProductCard({
             <div class='product-card__footer-end'>
               {onClickAttestation && (
                 <button
-                  class={`product-card__upvote${recommended ? ' product-card__upvote--active' : ''}`}
+                  class={`product-card__upvote${recommended ? ' product-card__upvote--active' : ''}${attestationPending ? ' product-card__upvote--pending' : ''}`}
                   onClick={(e) => {
                     e.stopPropagation()
                     onClickAttestation()
                   }}
+                  disabled={attestationPending}
                   aria-label={recommended ? 'Remove recommendation' : 'Recommend'}
                   aria-pressed={recommended}
+                  aria-busy={attestationPending}
                 >
                   <ArrowUp size={16} />
                   {displayCount > 0 && (
