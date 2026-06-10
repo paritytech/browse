@@ -37,11 +37,23 @@ export function ensureBrowseSdk(): Promise<BrowseSdk> {
 }
 
 /**
- * Drop the cached SDK so the next {@link ensureBrowseSdk} rebuilds a fresh papi
- * provider with a new `chainHead_follow`. Needed after a silent socket swap.
+ * Drop the cached SDK and destroy the old client. Destroying propagates the
+ * disconnect through the host bridge so the host deletes its chain-connection
+ * entry. Otherwise it reuses a stale, post-background/foreground connection
+ * that never recovers.
  */
 export function resetBrowseSdk(): void {
+  const stale = sdkPromise
   sdkPromise = null
+  void stale
+    ?.then((sdk) => {
+      try {
+        sdk.destroy()
+      } catch {
+        // papi throws synchronously if a chainHead follow is still active
+      }
+    })
+    .catch(() => {})
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
