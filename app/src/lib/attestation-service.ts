@@ -4,8 +4,7 @@ import { type AsyncTransaction, createInkSdk } from '@polkadot-api/sdk-ink'
 import { AccountId, type PolkadotClient, type PolkadotSigner, type SS58String } from 'polkadot-api'
 
 import { ensureApi, ensureClient, type PaseoHubApi } from './client'
-import { DUMMY_ORIGIN, NETWORK } from './config'
-import { SELF_DOTNS } from './identity'
+import { DUMMY_ORIGIN, NETWORK, SELF_DOTNS } from './config'
 
 export type ApiProvider = () => Promise<PaseoHubApi>
 export type ClientProvider = () => Promise<PolkadotClient>
@@ -32,9 +31,10 @@ async function hostSigner(): Promise<{
   }
   const account = accountResult.value
   const publicKey = account.publicKey
+  const origin = AccountId().dec(publicKey)
   return {
     signer: accountsProvider.getProductAccountSigner(account, 'createTransaction'),
-    origin: AccountId().dec(publicKey),
+    origin,
     publicKey
   }
 }
@@ -64,10 +64,6 @@ export class AttestationService {
   private contractInstance: any = null
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private resolverInstance: any = null
-  // Cache the host's SmartContractAllowance grant for the session. Once the
-  // host has agreed to sponsor SCA-tagged calls we skip the funds check on
-  // subsequent submits so the user isn't prompted again.
-  private allowanceGranted = false
 
   constructor(
     private api: ApiProvider = ensureApi,
@@ -227,38 +223,22 @@ export class AttestationService {
   ): Promise<TxResult> {
     const { signer, origin } = await this.signer()
     const contract = await this.getContract()
-    const sdk = await this.getSdk()
-    const isMapped = await sdk.addressIsMapped(origin as SS58String)
 
     const attestArgs = {
       data: { request: { schema, data: { recipient, expirationTime, revocable, refId, data } } }
     }
 
-    if (isMapped) {
-      const dryRun = await contract.query('attest', {
-        origin: origin as SS58String,
-        ...attestArgs,
-        options: { gasLimit: GAS, storageDepositLimit: STORAGE }
-      })
-      if (!dryRun.success) {
-        throw new Error(`attest dry-run failed: ${JSON.stringify(dryRun.value, bigStr)}`)
-      }
-      const storageDeposit = (dryRun.value as { storageDeposit?: bigint }).storageDeposit ?? 0n
-      return this.submitTx(dryRun.value.send, signer, origin, storageDeposit, onPermitted)
-    }
+    await this.ensureAllowance(origin)
 
-    const api = await this.api()
-    const attestTx = contract.send('attest', {
+    const dryRun = await contract.query('attest', {
+      origin: origin as SS58String,
       ...attestArgs,
-      gasLimit: GAS,
-      storageDepositLimit: STORAGE
+      options: { gasLimit: GAS, storageDepositLimit: STORAGE }
     })
-    const attestCall = await attestTx.decodedCall
-    const mapCall = api.tx.Revive.map_account().decodedCall
-    const batchTx = api.tx.Utility.batch_all({ calls: [mapCall, attestCall] })
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return this.submitTx(() => batchTx as any, signer, origin, 0n, onPermitted)
+    if (!dryRun.success) {
+      throw new Error(`attest dry-run failed: ${JSON.stringify(dryRun.value, bigStr)}`)
+    }
+    return this.submitTx(dryRun.value.send, signer, onPermitted)
   }
 
   async getSigner() {
@@ -268,6 +248,8 @@ export class AttestationService {
   async revoke(schema: bigint, id: bigint, onPermitted?: () => void): Promise<TxResult> {
     const { signer, origin } = await this.signer()
     const contract = await this.getContract()
+
+    await this.ensureAllowance(origin)
 
     const dryRun = await contract.query('revoke', {
       origin: origin as SS58String,
@@ -279,16 +261,62 @@ export class AttestationService {
       throw new Error(`revoke dry-run failed: ${JSON.stringify(dryRun.value, bigStr)}`)
     }
 
-    const storageDeposit = (dryRun.value as { storageDeposit?: bigint }).storageDeposit ?? 0n
-    return this.submitTx(dryRun.value.send, signer, origin, storageDeposit, onPermitted)
+    return this.submitTx(dryRun.value.send, signer, onPermitted)
+  }
+
+  /**
+   * Provision the account PGAS allowance before a contract write.
+   */
+  private async ensureAllowance(origin: string): Promise<void> {
+    // Pgas.PgasAssetId is checksum-stale in the typed descriptor, so read it via
+    // the unsafe api; the typed api still serves the Assets.Account storage read.
+    const api = await this.api()
+    const unsafeApi = (await this.client()).getUnsafeApi()
+    const pgasAssetId = (await unsafeApi.constants.Pgas.PgasAssetId()) as number
+    const pgasAccount = await api.query.Assets.Account.getValue(pgasAssetId, origin as SS58String)
+    const pgasBalance = pgasAccount?.balance ?? 0n
+    if (pgasBalance > 0n) return
+
+    if (!this.truapi) {
+      throw new Error('NotEnoughFunds: account holds no PGAS and host coverage is unavailable.')
+    }
+    const allocated = await hostApi
+      .requestResourceAllocation({
+        tag: 'v1',
+        value: [{ tag: 'SmartContractAllowance', value: 0 }]
+      })
+      .match(
+        (res) => res.value.some((outcome) => outcome.tag === 'Allocated'),
+        () => false
+      )
+    if (!allocated) {
+      throw new Error('NotEnoughFunds: account holds no PGAS and the host declined PGAS coverage.')
+    }
+
+    // `Allocated` only means the host accepted the request.
+    await this.waitForPgasFunded(pgasAssetId, origin)
+  }
+
+  /**
+   * Poll until the account's PGAS balance is non-zero.
+   */
+  private async waitForPgasFunded(pgasAssetId: number, origin: string): Promise<void> {
+    const api = await this.api()
+    const POLL_MS = 1500
+    const MAX_ATTEMPTS = 20
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      const acct = await api.query.Assets.Account.getValue(pgasAssetId, origin as SS58String)
+      const balance = acct?.balance ?? 0n
+      if (balance > 0n) return
+      await new Promise((resolve) => setTimeout(resolve, POLL_MS))
+    }
+    throw new Error('PGAS funding did not land after SmartContractAllowance (timed out)')
   }
 
   private async submitTx(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     send: () => AsyncTransaction<any, any, any, any>,
     signer: PolkadotSigner,
-    origin: string,
-    storageDeposit: bigint,
     onPermitted?: () => void
   ): Promise<TxResult> {
     if (this.truapi) {
@@ -301,42 +329,7 @@ export class AttestationService {
       if (!permitted) throw new Error('Transaction submit permission denied')
     }
 
-    const api = await this.api()
-    const accountInfo = await api.query.System.Account.getValue(origin as SS58String)
-    const free = accountInfo.data.free
-
     const tx = send()
-    let estimatedFees = 0n
-    try {
-      estimatedFees = await tx.getEstimatedFees(origin as SS58String)
-    } catch {
-      // fall back to 0
-    }
-    const totalNeeded = storageDeposit + estimatedFees
-
-    if (free < totalNeeded && !this.allowanceGranted) {
-      if (!this.truapi) {
-        throw new Error(
-          `NotEnoughFunds: need ${totalNeeded} (fees ${estimatedFees} + storage ${storageDeposit}), have ${free}.`
-        )
-      }
-      const allocated = await hostApi
-        .requestResourceAllocation({
-          tag: 'v1',
-          value: [{ tag: 'SmartContractAllowance', value: 0 }]
-        })
-        .match(
-          (res) => res.value.some((outcome) => outcome.tag === 'Allocated'),
-          () => false
-        )
-      if (!allocated) {
-        throw new Error(
-          `NotEnoughFunds: need ${totalNeeded} (fees ${estimatedFees} + storage ${storageDeposit}), have ${free} and the host declined PGAS coverage.`
-        )
-      }
-      this.allowanceGranted = true
-    }
-
     onPermitted?.()
 
     return new Promise((resolve, reject) => {
@@ -349,7 +342,9 @@ export class AttestationService {
             resolve({ txHash: event.txHash ?? '', block: event.block?.hash ?? '' })
           }
         },
-        error: (err: Error) => reject(err)
+        error: (err: Error) => {
+          reject(err)
+        }
       })
     })
   }

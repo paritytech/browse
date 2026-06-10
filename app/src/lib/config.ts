@@ -29,3 +29,24 @@ export const DRY_RUN_WEIGHT_LIMIT = {
 export const DRY_RUN_STORAGE_LIMIT = 18_446_744_073_709_551_615n
 
 export const DUMMY_ORIGIN = '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY'
+
+const APP_DOTNS_DOMAIN =
+  import.meta.env?.APP_DOTNS_DOMAIN ?? process.env?.APP_DOTNS_DOMAIN ?? 'browse'
+
+export const SELF_LABEL = APP_DOTNS_DOMAIN.toLowerCase().replace(/\.dot$/, '')
+
+/**
+ * The identifier we present to the host when deriving the product account and
+ * signing transactions.
+ */
+function resolveSelfDotns(): string {
+  const fallback = `${SELF_LABEL}.dot`
+  if (typeof window === 'undefined') return fallback
+  const hostname = window.location.hostname.toLowerCase()
+  if (hostname === 'localhost' || hostname.endsWith('.localhost') || hostname === '127.0.0.1') {
+    return window.location.host.toLowerCase()
+  }
+  return fallback
+}
+
+export const SELF_DOTNS = resolveSelfDotns()
