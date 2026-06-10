@@ -317,7 +317,11 @@ export function App() {
 
   // Sticky display order.
   const [orderNonce, setOrderNonce] = useState(0)
-  const commitOrder = useEvent(() => setOrderNonce((n) => n + 1))
+  const heroLabelRef = useRef<string | null>(null)
+  const commitOrder = useEvent((label: string) => {
+    heroLabelRef.current = label
+    setOrderNonce((n) => n + 1)
+  })
 
   const orderSourceRef = useRef<AppEntry[]>(filtered)
   orderSourceRef.current = filtered
@@ -351,7 +355,7 @@ export function App() {
     }
     return `f:${currentMode}:${orderedFiltered.map((app) => app.label).join(',')}`
   }, [searchMatches, resolvedApp, currentMode, orderedFiltered])
-  useFlipReorder(appListRef, flipKey)
+  useFlipReorder(appListRef, flipKey, heroLabelRef)
 
   const renderCard = (app: AppEntry, i: number) => (
     <ProductCardWithAttestation
@@ -364,7 +368,7 @@ export function App() {
       onClick={navigateToDomain}
       onBookmark={handleBookmark}
       onShare={handleShare}
-      onAttestationSettled={commitOrder}
+      onAttestationSettled={() => commitOrder(app.label)}
     />
   )
 
