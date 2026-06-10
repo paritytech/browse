@@ -299,6 +299,55 @@ test.describe('App Start', () => {
       await page.close()
     })
 
+    test('As a user, when I close and reopen the app, it finishes loading instead of spinning forever', async () => {
+      test.setTimeout(60_000)
+      const page = await context.newPage()
+
+      // Emulate the native host: backgrounding tears down the chain WebSocket and
+      // silently orphans in-flight requests (no response, no error), and
+      // foregrounding brings a healthy socket back. We proxy the real chain WS and
+      // drop frames during the close/reopen window.
+      const gate = { drop: false }
+      await page.routeWebSocket(/substrate\.dev|polkadot\.io/, (ws) => {
+        const server = ws.connectToServer()
+        ws.onMessage((message) => {
+          if (!gate.drop) server.send(message)
+        })
+        server.onMessage((message) => {
+          if (!gate.drop) ws.send(message)
+        })
+      })
+
+      // Given
+      await navigateToTestHost(page, host.url)
+      const frame = await getProductFrame(page, '.category-tab')
+      await frame.locator('.category-tab', { hasText: 'All' }).click()
+      await frame.waitForSelector('.product-card', { timeout: 30_000 })
+      await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
+
+      // When
+      gate.drop = true
+      await frame.evaluate(() => {
+        Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+        document.dispatchEvent(new Event('visibilitychange'))
+        window.dispatchEvent(new Event('blur'))
+      })
+      await page.waitForTimeout(300)
+      await frame.evaluate(() => {
+        Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true })
+        document.dispatchEvent(new Event('visibilitychange'))
+        window.dispatchEvent(new Event('focus'))
+        void window.__queryClient?.invalidateQueries({ queryKey: ['apps', 'all'] })
+      })
+      await page.waitForTimeout(2_000)
+      gate.drop = false
+
+      // Then
+      await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 25_000 })
+
+      await page.close()
+    })
+
     test('As a user, when I bookmark a searched app, its name and icon survive a background synchronization after TTL', async () => {
       test.setTimeout(120_000)
       const page = await context.newPage()
