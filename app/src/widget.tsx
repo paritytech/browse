@@ -1,3 +1,6 @@
+/**
+ * Dashboard widget entry point.
+ */
 import { render } from 'preact'
 
 import { useDeferredValue } from 'preact/compat'
@@ -22,10 +25,9 @@ import './styles/tokens.css'
 import './styles/main.css'
 import './styles/widget.css'
 
-// The four dashboard presets the host can mount this widget at. The host doesn't
-// tell the widget which one it picked, so we infer it from our own viewport: only
-// the `horizontal` preset is two columns wide, and the single-column presets are
-// told apart by height (2 / 4 / 8 grid rows).
+// The four dashboard presets the host can mount this widget at. Only the
+// `horizontal` preset is two columns wide. The single-column presets are told
+// apart by height, which maps to 2, 4, and 8 grid rows.
 type WidgetSize = 'small' | 'medium' | 'large' | 'horizontal'
 
 // Product tiles shown per preset. One slot is always reserved on top of these for
@@ -53,21 +55,32 @@ function classifyWidgetSize(width: number, height: number): WidgetSize {
   return 'large'
 }
 
-function useWidgetSize(): WidgetSize {
-  const [size, setSize] = useState(() => classifyWidgetSize(window.innerWidth, window.innerHeight))
+function useViewport(): { width: number; height: number } {
+  const [vp, setVp] = useState(() => ({ width: window.innerWidth, height: window.innerHeight }))
 
   useEffect(() => {
-    const update = () => setSize(classifyWidgetSize(window.innerWidth, window.innerHeight))
+    const update = () => setVp({ width: window.innerWidth, height: window.innerHeight })
     window.addEventListener('resize', update)
     return () => window.removeEventListener('resize', update)
   }, [])
 
-  return size
+  return vp
 }
+
+// Outer padding of the widget frame per preset (see widget.css). The smallest
+// preset tightens it. The gap between grid cells is a constant 12px.
+const PADDING: Record<WidgetSize, number> = {
+  small: 12,
+  medium: 16,
+  large: 16,
+  horizontal: 16
+}
+const GRID_GAP = 12
 
 function Widget() {
   const queryClient = useQueryClient()
-  const size = useWidgetSize()
+  const { width, height } = useViewport()
+  const size = classifyWidgetSize(width, height)
   const [searchOpen, setSearchOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
@@ -98,18 +111,29 @@ function Widget() {
     shouldResolve
   )
 
+  // Browse is hidden from the default grid (it is this widget, surfaced as the
+  // "Browse More" tile). The one exception: an exact search for `browse` or
+  // `browse.dot` should still find it, so we keep it only on an exact match.
+  const isSelfSearch =
+    query
+      .trim()
+      .toLowerCase()
+      .replace(/\.dot$/, '') === SELF_LABEL
+
   const results = useMemo(() => {
-    const matches = filterApps(allApps, query, 'all').filter((app) => app.label !== SELF_LABEL)
+    const matches = filterApps(allApps, query, 'all').filter(
+      (app) => isSelfSearch || app.label !== SELF_LABEL
+    )
     if (
       query.trim().length > 0 &&
       resolvedApp &&
-      resolvedApp.label !== SELF_LABEL &&
+      (isSelfSearch || resolvedApp.label !== SELF_LABEL) &&
       !matches.some((app) => app.label === resolvedApp.label)
     ) {
       matches.push(resolvedApp)
     }
     return matches
-  }, [allApps, query, resolvedApp])
+  }, [allApps, query, resolvedApp, isSelfSearch])
   // Count of the unfiltered set, used to size the grid.
   const baseCount = useMemo(
     () => filterApps(allApps, '', 'all').filter((app) => app.label !== SELF_LABEL).length,
@@ -129,11 +153,17 @@ function Widget() {
   // Row count comes from the default (unfiltered) layout so the grid keeps the
   // same shape while the user filters (matches just leave empty cells, no resize),
   // and it counts the real apps rather than the cap so there are no empty rows.
-  // Rows are capped (minmax below) so a tall preset with few apps doesn't stretch
-  // the cards — leftover height stays at the bottom.
+  const cols = GRID_COLS[size]
   const baseTiles = Math.min(baseCount, cap) + 1
-  const rows = Math.max(1, Math.ceil(baseTiles / GRID_COLS[size]))
-  const gridStyle = `grid-template-rows: repeat(${rows}, minmax(0, 180px))`
+  const rows = Math.max(1, Math.ceil(baseTiles / cols))
+  // Cap each row at the column width so tiles are never taller than they are
+  // wide (at most square). A fixed px cap let sparse presets balloon up to it
+  // while a full grid stayed shorter, which read as "stretched". Sizing the cap
+  // to the column keeps tiles consistent across counts. They only shrink, and
+  // do so uniformly, when the grid is packed enough to need the height. Any
+  // leftover height stays at the bottom.
+  const colWidth = Math.max(0, (width - PADDING[size] * 2 - (cols - 1) * GRID_GAP) / cols)
+  const gridStyle = `grid-template-rows: repeat(${rows}, minmax(0, ${Math.round(colWidth)}px))`
   const openSpa = () => navigateToDomain(SELF_LABEL)
   const closeSearch = () => {
     setQuery('')

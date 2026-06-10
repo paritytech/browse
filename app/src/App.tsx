@@ -122,7 +122,15 @@ export function App() {
         matches.push(app)
       }
     }
-    return matches
+    // The app itself (SELF_LABEL, derived from APP_DOTNS_DOMAIN) only belongs in
+    // search on an exact name match — the label or `<label>.dot` — never as a
+    // partial/substring hit.
+    const normalizedQuery = deferredQuery
+      .trim()
+      .toLowerCase()
+      .replace(/\.dot$/, '')
+    const exactSelf = normalizedQuery === SELF_LABEL
+    return exactSelf ? matches : matches.filter((app) => app.label !== SELF_LABEL)
   }, [deferredQuery, appsForFiltering, bookmarkedApps, followingApps, publishedLabels])
 
   const tryLabel = query
@@ -159,7 +167,12 @@ export function App() {
       attestationCount: resolvedApp.attestationCount,
       hasUserAttested: resolvedApp.hasUserAttested,
       isCompliant: resolvedApp.isCompliant,
-      fetchedAt: Date.now()
+      fetchedAt: Date.now(),
+      // A resolved search result is NOT confirmed against the Publisher set, so
+      // mark it unpublished — otherwise materialize() would surface it in the
+      // All tab until the next sync prunes it. A sync flips this to true if it
+      // really is published.
+      published: false
     }).then(() => queryClient.invalidateQueries({ queryKey: LABELS_KEY }))
   }, [resolvedApp, queryClient])
 
