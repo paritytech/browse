@@ -205,13 +205,13 @@ jobs:
           echo "domain=${DOMAIN}" >> "$GITHUB_OUTPUT"
           
       - name: Persist CID for release
-        if: matrix.target.env == 'preview' && github.ref == 'refs/heads/main' && steps.final.outputs.cid != ''
+        if: matrix.target.env == 'paseo-next-v2' && github.ref == 'refs/heads/main' && steps.final.outputs.cid != ''
         run: |
           mkdir -p .release-cid
           echo "${{ steps.final.outputs.cid }}" > .release-cid/cid
 
       - name: Cache CID by commit
-        if: matrix.target.env == 'preview' && github.ref == 'refs/heads/main' && steps.final.outputs.cid != ''
+        if: matrix.target.env == 'paseo-next-v2' && github.ref == 'refs/heads/main' && steps.final.outputs.cid != ''
         uses: actions/cache/save@v4
         with:
           path: .release-cid
