@@ -411,9 +411,9 @@ input {
 
 .toast {
   position: fixed;
-  top: 2rem;
+  bottom: 2rem;
   left: 50%;
-  transform: translateX(-50%) translateY(-1rem);
+  transform: translateX(-50%) translateY(1rem);
   background: var(--toast-bg);
   color: var(--toast-fg);
   font-size: 0.82rem;
