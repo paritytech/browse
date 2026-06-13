@@ -1,3 +1,5 @@
+import { useState } from 'preact/hooks'
+
 import { ProductCard } from './index'
 import { useEvent } from '../../lib/use-event'
 import { type AppEntry } from '../../state/apps/types'
@@ -31,6 +33,8 @@ export function ProductCardWithAttestation({
   const revokeApp = useRevokeApp()
   const { showToast } = useToast()
 
+  const [recommendBurst, setRecommendBurst] = useState(0)
+
   const handleAttestation = useEvent(() => {
     if (!isSignedIn) {
       showToast('Sign in to recommend')
@@ -45,13 +49,17 @@ export function ProductCardWithAttestation({
         onError: (err) => showToast(describeError(err))
       })
     } else {
-      attestProduct.mutate(app.label, {
-        onSuccess: () => {
-          showToast('Recommended!')
-          onAttestationSettled?.()
-        },
-        onError: (err) => showToast(describeError(err))
-      })
+      attestProduct.mutate(
+        // The count goes up and the bubbling starts the moment the tx broadcasts.
+        { label: app.label, onBroadcast: () => setRecommendBurst((n) => n + 1) },
+        {
+          onSuccess: () => {
+            showToast('Recommended!')
+            onAttestationSettled?.()
+          },
+          onError: (err) => showToast(describeError(err))
+        }
+      )
     }
   })
 
@@ -63,6 +71,7 @@ export function ProductCardWithAttestation({
       showMenu={showMenu}
       recommended={app.hasUserAttested}
       attestationPending={attestProduct.isPending || revokeApp.isPending}
+      recommendBurst={recommendBurst}
       onClick={onClick}
       onBookmark={onBookmark}
       onShare={onShare}

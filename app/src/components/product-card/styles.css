@@ -9,7 +9,7 @@
   border-radius: var(--radius-large);
   cursor: pointer;
   transition: background 150ms ease;
-  animation: productCardIn 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: productCardIn 800ms cubic-bezier(0.33, 1, 0.68, 1) both;
   content-visibility: auto;
   contain-intrinsic-size: 0 128px;
 }
@@ -29,7 +29,7 @@
 @keyframes productCardIn {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(16px);
   }
   to {
     opacity: 1;
@@ -282,8 +282,8 @@
   animation-delay: 140ms;
 }
 
-/* In flight: the count and fill are already shown optimistically, so don't dim
-   them — just block re-toggling until the chain confirms (and the card reorders). */
+/* While the tx is in flight, block re-toggling. The count fills in once the tx
+   broadcasts; the reorder and toast land on confirmation. */
 .product-card__upvote--pending {
   cursor: progress;
 }
@@ -291,6 +291,59 @@
 .product-card__upvote-count {
   letter-spacing: 0;
   animation: upvote-count-in 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.product-card__upvote--bursting {
+  filter: url('#recommend-goo');
+  background: var(--fg-secondary);
+  border-color: var(--fg-secondary);
+  color: var(--fg-primary-inverted);
+}
+
+.product-card__bubbles-fx {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: calc(100% - 10px);
+  height: 64px;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.product-card__goo-defs {
+  position: absolute;
+}
+
+.product-card__bubble-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.product-card__bubble {
+  position: absolute;
+  bottom: 0;
+  display: block;
+  border-radius: 50%;
+  background: var(--fg-secondary);
+  transform: translate(-50%, 0) scale(0.5);
+  opacity: 0;
+  animation: bubbleRise var(--bubble-dur) ease-out var(--bubble-delay) forwards;
+}
+
+/* Rise from the button, peak, then drift up and fade. */
+@keyframes bubbleRise {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 0) scale(0.5);
+  }
+  25% {
+    opacity: 1;
+    transform: translate(-50%, calc(var(--bubble-rise) * 0.25)) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, var(--bubble-rise)) scale(0.45);
+  }
 }
 
 @keyframes upvote-pop {

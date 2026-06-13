@@ -49,19 +49,28 @@ export async function fund(
   try {
     const api = client.getUnsafeApi()
     const assetId = (await api.constants.Pgas.PgasAssetId()) as number
-    const readBalance = async (): Promise<bigint> => {
-      const acct = (await api.query.Assets.Account.getValue(assetId, to.address as SS58String)) as
+    const readBalance = async (addr: string): Promise<bigint> => {
+      const acct = (await api.query.Assets.Account.getValue(assetId, addr as SS58String)) as
         | { balance?: bigint }
         | undefined
       return acct?.balance ?? 0n
     }
 
-    const balance = await readBalance()
+    const funder = createDevSigner(PGAS_FUNDER)
+    const funderBalance = await readBalance(funder.address)
+    const balance = await readBalance(to.address)
+
     if (balance >= MIN_PGAS_BALANCE) {
       return { topUp: false, toAddress: to.address, pgasBalance: balance }
     }
 
-    const funder = createDevSigner(PGAS_FUNDER)
+    if (funderBalance < amount) {
+      console.error('[fund] funder is out of gas', {
+        funderPgas: funderBalance.toString(),
+        needed: amount.toString()
+      })
+    }
+
     const tx = api.tx.Assets.transfer({
       id: assetId,
       target: { type: 'Id', value: to.address as SS58String },
@@ -71,7 +80,7 @@ export async function fund(
     if (!result.ok) {
       throw new Error(`PGAS transfer failed: ${JSON.stringify(result.dispatchError)}`)
     }
-    return { topUp: true, toAddress: to.address, pgasBalance: await readBalance() }
+    return { topUp: true, toAddress: to.address, pgasBalance: await readBalance(to.address) }
   } finally {
     try {
       client.destroy()

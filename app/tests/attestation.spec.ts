@@ -37,7 +37,7 @@ test.describe('Attestation works', () => {
   })
 
   test('As a signed user, when I recommend an app, I see the count go up and a confirmation toast', async () => {
-    test.setTimeout(15_000)
+    test.setTimeout(25_000)
     page = await context.newPage()
 
     // Given
@@ -56,8 +56,8 @@ test.describe('Attestation works', () => {
     await upvote.click()
 
     // Then
-    await expect(upvote).toHaveClass(/product-card__upvote--active/)
-    await expect(upvoteCount).toHaveText(String(before + 1))
+    await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 15_000 })
+    await expect(upvoteCount).toHaveText(String(before + 1), { timeout: 15_000 })
     await expect(frame.locator('.toast--visible')).toContainText('Recommended!', {
       timeout: 15_000
     })

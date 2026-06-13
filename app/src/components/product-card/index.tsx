@@ -1,7 +1,8 @@
-import { memo, useState } from 'preact/compat'
+import { memo, useEffect, useRef, useState } from 'preact/compat'
 
 import { ArrowUp, ArrowUpRight, BadgeCheck, Bookmark, Share2 } from 'lucide-preact'
 
+import { BubbleBurst } from './bubble-burst'
 import { useIconBlob } from '../../state/apps/icon'
 import { type AppEntry, displayName } from '../../state/apps/types'
 import { Identicon } from '../identicon'
@@ -13,6 +14,7 @@ interface ProductCardProps {
   bookmarked?: boolean
   recommended?: boolean
   attestationPending?: boolean
+  recommendBurst?: number
   showMenu?: boolean
   onClick: (label: string) => void
   onBookmark?: (label: string) => void
@@ -26,6 +28,7 @@ export const ProductCard = memo(function ProductCard({
   bookmarked,
   recommended,
   attestationPending,
+  recommendBurst = 0,
   showMenu = true,
   onClick,
   onBookmark,
@@ -33,7 +36,7 @@ export const ProductCard = memo(function ProductCard({
   onClickAttestation
 }: ProductCardProps) {
   const instant = index < 0
-  const delay = instant ? 0 : Math.min(index * 60, 400)
+  const delay = instant ? 0 : Math.min(index * 100, 700)
   const name = displayName(app)
   const displayCount = app.attestationCount ?? 0
   const { url: iconBlobUrl, failed: iconFailed, markFailed } = useIconBlob(app.iconCid)
@@ -41,6 +44,18 @@ export const ProductCard = memo(function ProductCard({
   const willLoadIcon = !!app.iconCid && !iconFailed
   const haveIconBytes = willLoadIcon && !!iconBlobUrl
   const showActions = showMenu && onBookmark && onShare
+
+  // Fire the ember burst when a recommend confirms.
+  const [bursting, setBursting] = useState(false)
+  const lastBurst = useRef(recommendBurst)
+  useEffect(() => {
+    if (recommendBurst <= lastBurst.current) return
+    lastBurst.current = recommendBurst
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
+    setBursting(true)
+    const timer = setTimeout(() => setBursting(false), 1400)
+    return () => clearTimeout(timer)
+  }, [recommendBurst])
 
   return (
     <div
@@ -116,7 +131,7 @@ export const ProductCard = memo(function ProductCard({
             <div class='product-card__footer-end'>
               {onClickAttestation && (
                 <button
-                  class={`product-card__upvote${recommended ? ' product-card__upvote--active' : ''}${attestationPending ? ' product-card__upvote--pending' : ''}`}
+                  class={`product-card__upvote${recommended ? ' product-card__upvote--active' : ''}${attestationPending ? ' product-card__upvote--pending' : ''}${bursting ? ' product-card__upvote--bursting' : ''}`}
                   onClick={(e) => {
                     e.stopPropagation()
                     onClickAttestation()
@@ -132,6 +147,7 @@ export const ProductCard = memo(function ProductCard({
                       {displayCount > 999 ? '999+' : displayCount}
                     </span>
                   )}
+                  {bursting && <BubbleBurst />}
                 </button>
               )}
               <button
