@@ -212,22 +212,14 @@ export function App() {
         doRemove()
       }
       setToastIsError(false)
-      setToastAction({
-        label: 'Undo',
-        onClick: () => {
-          createBookmark(label)
-          setBookmarkedApps((prev) => new Set(prev).add(label))
-          setToastMessage(null)
-          setToastAction(null)
-        }
-      })
-      setToastMessage('Removed from bookmarks')
+      setToastAction(null)
+      setToastMessage('App unbookmarked.')
     } else {
       createBookmark(label)
       setBookmarkedApps((prev) => new Set(prev).add(label))
       setToastIsError(false)
       setToastAction(null)
-      setToastMessage('Bookmark added')
+      setToastMessage('App bookmarked.')
       const app = appsForFiltering.find((entry) => entry.label === label)
       if (app) void persistLabelFromApp(app)
     }

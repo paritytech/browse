@@ -226,7 +226,7 @@ export class AttestationService {
     revocable: boolean,
     refId: bigint,
     data: `0x${string}`,
-    onPermitted?: () => void
+    onBroadcast?: () => void
   ): Promise<TxResult> {
     const { signer, origin } = await this.signer()
     const contract = await this.getContract()
@@ -245,14 +245,14 @@ export class AttestationService {
     if (!dryRun.success) {
       throw new Error(`attest dry-run failed: ${JSON.stringify(dryRun.value, bigStr)}`)
     }
-    return this.submitTx(dryRun.value.send, signer, onPermitted)
+    return this.submitTx(dryRun.value.send, signer, onBroadcast)
   }
 
   async getSigner() {
     return this.signer()
   }
 
-  async revoke(schema: bigint, id: bigint, onPermitted?: () => void): Promise<TxResult> {
+  async revoke(schema: bigint, id: bigint, onBroadcast?: () => void): Promise<TxResult> {
     const { signer, origin } = await this.signer()
     const contract = await this.getContract()
 
@@ -268,7 +268,7 @@ export class AttestationService {
       throw new Error(`revoke dry-run failed: ${JSON.stringify(dryRun.value, bigStr)}`)
     }
 
-    return this.submitTx(dryRun.value.send, signer, onPermitted)
+    return this.submitTx(dryRun.value.send, signer, onBroadcast)
   }
 
   /**
@@ -326,7 +326,7 @@ export class AttestationService {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     send: () => AsyncTransaction<any, any, any, any>,
     signer: PolkadotSigner,
-    onPermitted?: () => void
+    onBroadcast?: () => void
   ): Promise<TxResult> {
     if (this.truapi) {
       const permitted = await hostApi
@@ -339,13 +339,14 @@ export class AttestationService {
     }
 
     const tx = send()
-    onPermitted?.()
 
     return new Promise((resolve, reject) => {
       tx.signSubmitAndWatch(signer).subscribe({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         next: (event: any) => {
-          if (event.type === 'finalized') {
+          if (event.type === 'broadcasted') {
+            onBroadcast?.()
+          } else if (event.type === 'finalized') {
             resolve({ txHash: event.txHash ?? '', block: event.block?.hash ?? '' })
           } else if (event.type === 'txBestBlocksState' && event.found) {
             resolve({ txHash: event.txHash ?? '', block: event.block?.hash ?? '' })

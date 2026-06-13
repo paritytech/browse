@@ -5,17 +5,32 @@ import { useLayoutEffect, useRef } from 'preact/hooks'
 const FLIP_ID = 'flip-reorder'
 const EASE_OUT = 'cubic-bezier(0.22, 1, 0.36, 1)'
 const EASE_IN_OUT = 'cubic-bezier(0.4, 0, 0.2, 1)'
+// A gentle overshoot, so the hero floats slightly past its slot and eases back.
+const EASE_SETTLE = 'cubic-bezier(0.34, 1.3, 0.64, 1)'
+
+// Reshuffle timing holds apparent velocity roughly constant rather than fixing a
+// cloc.
+export const SHUFFLE_MIN_MS = 380
+export const SHUFFLE_MAX_MS = 760
+const SHUFFLE_BASE_MS = 300
+const SHUFFLE_MS_PER_PX = 0.6
 
 const clamp = (lo: number, v: number, hi: number) => Math.max(lo, Math.min(v, hi))
+
+/** Glide duration for a card travelling `distancePx`, on the constant-velocity curve. */
+export function glideMs(distancePx: number): number {
+  return clamp(SHUFFLE_MIN_MS, SHUFFLE_BASE_MS + distancePx * SHUFFLE_MS_PER_PX, SHUFFLE_MAX_MS)
+}
 
 /**
  * Animates list items to their new positions when `orderKey` changes, so a
  * re-sort glides instead of snapping.
  *
- * The card named by `heroRef` is the one the user just acted on, and it leads
- * the motion. It lifts with a soft shadow and a slight scale as it travels, and
- * rides above the rest. The displaced cards ease out around it with a small
- * distance-based stagger, so the list yields rather than moving in lockstep.
+ * Each card glides at a constant apparent speed (see {@link glideMs}), so equal
+ * moves always take equal time and the motion reads the same on every trigger.
+ * The card named by `heroRef` is the one the user just acted on. It lifts with a
+ * soft shadow and a slight scale and rides above the rest while travelling at the
+ * same speed as the crowd.
  *
  * Items are matched across renders by their `data-label`. An item with no
  * previous position has just mounted, so it keeps its own entry animation.
@@ -63,7 +78,6 @@ export function useFlipReorder<T extends HTMLElement>(
 
     const nextRects = measure()
     const hero = heroRef?.current ?? null
-    let yielded = 0
 
     for (const el of cards) {
       const label = el.dataset.label
@@ -75,7 +89,7 @@ export function useFlipReorder<T extends HTMLElement>(
       const dy = prev.top - next.top
       if (dx === 0 && dy === 0) continue
 
-      const dist = Math.hypot(dx, dy)
+      const duration = glideMs(Math.hypot(dx, dy))
 
       if (label === hero) {
         // The protagonist floats up, lifts, and settles while riding above the rest.
@@ -88,14 +102,14 @@ export function useFlipReorder<T extends HTMLElement>(
               easing: EASE_IN_OUT
             },
             {
-              transform: `translate(${dx / 2}px, ${dy / 2}px) scale(1.045)`,
-              boxShadow: '0 12px 32px rgb(var(--fg-rgb) / 0.22)',
-              offset: 0.5,
-              easing: EASE_OUT
+              transform: `translate(${dx / 2}px, ${dy / 2}px) scale(1.06)`,
+              boxShadow: '0 16px 40px rgb(var(--fg-rgb) / 0.24)',
+              offset: 0.55,
+              easing: EASE_SETTLE
             },
             { transform: 'translate(0, 0) scale(1)', boxShadow: '0 0 0 rgb(var(--fg-rgb) / 0)' }
           ],
-          { duration: clamp(340, 340 + dist * 0.3, 520), fill: 'backwards', id: FLIP_ID }
+          { duration, fill: 'backwards', id: FLIP_ID }
         )
         const clearZ = () => {
           el.style.zIndex = ''
@@ -103,18 +117,11 @@ export function useFlipReorder<T extends HTMLElement>(
         anim.onfinish = clearZ
         anim.oncancel = clearZ
       } else {
-        // The crowd yields: a calm glide with a faint cascade.
+        // The crowd yields with one calm glide, all cards moving together.
         el.animate(
           [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'translate(0, 0)' }],
-          {
-            duration: clamp(240, 240 + dist * 0.4, 420),
-            delay: Math.min(yielded * 14, 70),
-            easing: EASE_OUT,
-            fill: 'backwards',
-            id: FLIP_ID
-          }
+          { duration, easing: EASE_OUT, fill: 'backwards', id: FLIP_ID }
         )
-        yielded += 1
       }
     }
 

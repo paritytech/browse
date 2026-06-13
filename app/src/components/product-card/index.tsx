@@ -1,7 +1,8 @@
-import { memo, useState } from 'preact/compat'
+import { memo, useEffect, useState } from 'preact/compat'
 
 import { ArrowUp, ArrowUpRight, BadgeCheck, Bookmark, Share2 } from 'lucide-preact'
 
+import { BubbleBurst } from './bubble-burst'
 import { useIconBlob } from '../../state/apps/icon'
 import { type AppEntry, displayName } from '../../state/apps/types'
 import { Identicon } from '../identicon'
@@ -13,6 +14,7 @@ interface ProductCardProps {
   bookmarked?: boolean
   recommended?: boolean
   attestationPending?: boolean
+  recommending?: boolean
   showMenu?: boolean
   onClick: (label: string) => void
   onBookmark?: (label: string) => void
@@ -26,6 +28,7 @@ export const ProductCard = memo(function ProductCard({
   bookmarked,
   recommended,
   attestationPending,
+  recommending = false,
   showMenu = true,
   onClick,
   onBookmark,
@@ -33,7 +36,7 @@ export const ProductCard = memo(function ProductCard({
   onClickAttestation
 }: ProductCardProps) {
   const instant = index < 0
-  const delay = instant ? 0 : Math.min(index * 60, 400)
+  const delay = instant ? 0 : Math.min(index * 100, 700)
   const name = displayName(app)
   const displayCount = app.attestationCount ?? 0
   const { url: iconBlobUrl, failed: iconFailed, markFailed } = useIconBlob(app.iconCid)
@@ -41,6 +44,28 @@ export const ProductCard = memo(function ProductCard({
   const willLoadIcon = !!app.iconCid && !iconFailed
   const haveIconBytes = willLoadIcon && !!iconBlobUrl
   const showActions = showMenu && onBookmark && onShare
+
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const bursting = recommending && !reduceMotion
+
+  // Keep the gooey layer mounted after the burst ends so it can recede slowly —
+  // the confirmation toast lands as `bursting` flips off.
+  const [gooVisible, setGooVisible] = useState(bursting)
+  const [gooFading, setGooFading] = useState(false)
+  useEffect(() => {
+    if (bursting) {
+      setGooVisible(true)
+      setGooFading(false)
+      return
+    }
+    if (!gooVisible) return
+    setGooFading(true)
+    const id = setTimeout(() => {
+      setGooVisible(false)
+      setGooFading(false)
+    }, 2800)
+    return () => clearTimeout(id)
+  }, [bursting, gooVisible])
 
   return (
     <div
@@ -116,7 +141,7 @@ export const ProductCard = memo(function ProductCard({
             <div class='product-card__footer-end'>
               {onClickAttestation && (
                 <button
-                  class={`product-card__upvote${recommended ? ' product-card__upvote--active' : ''}${attestationPending ? ' product-card__upvote--pending' : ''}`}
+                  class={`product-card__upvote${recommended ? ' product-card__upvote--active' : ''}${attestationPending ? ' product-card__upvote--pending' : ''}${gooVisible ? ' product-card__upvote--bursting' : ''}`}
                   onClick={(e) => {
                     e.stopPropagation()
                     onClickAttestation()
@@ -126,12 +151,15 @@ export const ProductCard = memo(function ProductCard({
                   aria-pressed={recommended}
                   aria-busy={attestationPending}
                 >
-                  <ArrowUp size={16} />
-                  {displayCount > 0 && (
-                    <span class='product-card__upvote-count'>
-                      {displayCount > 999 ? '999+' : displayCount}
-                    </span>
-                  )}
+                  {gooVisible && <BubbleBurst fading={gooFading} />}
+                  <span class='product-card__upvote-label'>
+                    <ArrowUp size={16} />
+                    {displayCount > 0 && (
+                      <span class='product-card__upvote-count'>
+                        {displayCount > 999 ? '999+' : displayCount}
+                      </span>
+                    )}
+                  </span>
                 </button>
               )}
               <button
