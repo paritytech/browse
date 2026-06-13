@@ -277,12 +277,18 @@
   animation: upvote-count-in 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-/* While bursting the button holds the active fill (opaque, so the goo layer
-   behind it at z-index: -1 stays hidden) and the count stays readable on top.
-   The fill is applied instantly. */
+/* While bursting the button holds the active fill, opaque so it covers the
+   goo's lip where the layer overlaps the button's top edge. The fill is applied
+   instantly (no transition) so the goo never shows through a fading background. */
 .product-card__upvote--bursting {
   background: var(--bg-selection-container-active);
   transition-duration: 0s;
+}
+
+/* Positioning context for the goo, which is a sibling of the button so the button's upvote-pop transform can't pull it in front. */
+.product-card__upvote-wrap {
+  position: relative;
+  display: inline-flex;
 }
 
 /* Keeps the icon and count painted above the gooey layer. */
@@ -293,7 +299,9 @@
   gap: var(--space-tiny);
 }
 
-/* Gooey bubble layer. The metaball filter is applied to the SVG <g>. */
+/* Gooey bubble layer. The metaball filter is applied to the SVG <g>. As a
+   sibling rendered before the button it paints behind it (no z-index needed),
+   and stays behind even while upvote-pop transforms the button. */
 .product-card__goo-svg {
   position: absolute;
   left: 0;
@@ -302,8 +310,8 @@
   height: 56px;
   overflow: visible;
   pointer-events: none;
-  z-index: -1;
   transform-origin: bottom;
+  /* Slow recede (height shrink) when the burst settles. */
   transition: transform 2800ms ease;
 }
 

@@ -49,23 +49,23 @@ export const ProductCard = memo(function ProductCard({
   const bursting = recommending && !reduceMotion
 
   // Keep the gooey layer mounted after the burst ends so it can recede slowly —
-  // the confirmation toast lands as `bursting` flips off.
-  const [gooVisible, setGooVisible] = useState(bursting)
-  const [gooFading, setGooFading] = useState(false)
+  // the confirmation toast lands as `bursting` flips off. `gooVisible` is
+  // DERIVED (not set in an effect) so it turns on in the SAME render as
+  // `bursting`/`--active`: a one-render lag would let --active start its 150ms
+  // background fade before --bursting's instant fill applied, leaving the button
+  // briefly translucent and flashing the goo through it.
+  const [lingering, setLingering] = useState(false)
   useEffect(() => {
     if (bursting) {
-      setGooVisible(true)
-      setGooFading(false)
+      setLingering(true)
       return
     }
-    if (!gooVisible) return
-    setGooFading(true)
-    const id = setTimeout(() => {
-      setGooVisible(false)
-      setGooFading(false)
-    }, 2800)
+    if (!lingering) return
+    const id = setTimeout(() => setLingering(false), 2800)
     return () => clearTimeout(id)
-  }, [bursting, gooVisible])
+  }, [bursting, lingering])
+  const gooVisible = bursting || lingering
+  const gooFading = !bursting && lingering
 
   return (
     <div
@@ -140,27 +140,32 @@ export const ProductCard = memo(function ProductCard({
           {showActions && (
             <div class='product-card__footer-end'>
               {onClickAttestation && (
-                <button
-                  class={`product-card__upvote${recommended ? ' product-card__upvote--active' : ''}${attestationPending ? ' product-card__upvote--pending' : ''}${gooVisible ? ' product-card__upvote--bursting' : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onClickAttestation()
-                  }}
-                  disabled={attestationPending}
-                  aria-label={recommended ? 'Remove recommendation' : 'Recommend'}
-                  aria-pressed={recommended}
-                  aria-busy={attestationPending}
-                >
+                <span class='product-card__upvote-wrap'>
+                  {/* The goo lives OUTSIDE the button: upvote-pop's transform makes
+                      the button a stacking context, which would pull a z-index'd
+                      child in front of its own fill. As a sibling it stays behind. */}
                   {gooVisible && <BubbleBurst fading={gooFading} />}
-                  <span class='product-card__upvote-label'>
-                    <ArrowUp size={16} />
-                    {displayCount > 0 && (
-                      <span class='product-card__upvote-count'>
-                        {displayCount > 999 ? '999+' : displayCount}
-                      </span>
-                    )}
-                  </span>
-                </button>
+                  <button
+                    class={`product-card__upvote${recommended ? ' product-card__upvote--active' : ''}${attestationPending ? ' product-card__upvote--pending' : ''}${gooVisible ? ' product-card__upvote--bursting' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onClickAttestation()
+                    }}
+                    disabled={attestationPending}
+                    aria-label={recommended ? 'Remove recommendation' : 'Recommend'}
+                    aria-pressed={recommended}
+                    aria-busy={attestationPending}
+                  >
+                    <span class='product-card__upvote-label'>
+                      <ArrowUp size={16} />
+                      {displayCount > 0 && (
+                        <span class='product-card__upvote-count'>
+                          {displayCount > 999 ? '999+' : displayCount}
+                        </span>
+                      )}
+                    </span>
+                  </button>
+                </span>
               )}
               <button
                 class='product-card__share'
