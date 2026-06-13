@@ -169,10 +169,6 @@ export async function getAttestationId(label: string): Promise<bigint | null> {
   return idx === -1 ? null : ids[idx]
 }
 
-// The count and filled state move as soon as the user signs and the tx is
-// broadcast (the `onPermitted` callback) — we do NOT wait for the chain to
-// finalize for the number to go up; only the confirmation toast waits for that.
-// The snapshot taken on click lets us roll the count back if the tx fails.
 export function useAttestProduct() {
   const queryClient = useQueryClient()
   return useMutation<unknown, Error, { label: string; onBroadcast?: () => void }, MutationCtx>({

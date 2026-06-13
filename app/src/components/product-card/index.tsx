@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState } from 'preact/compat'
+import { memo, useState } from 'preact/compat'
 
 import { ArrowUp, ArrowUpRight, BadgeCheck, Bookmark, Share2 } from 'lucide-preact'
 
@@ -14,7 +14,7 @@ interface ProductCardProps {
   bookmarked?: boolean
   recommended?: boolean
   attestationPending?: boolean
-  recommendBurst?: number
+  recommending?: boolean
   showMenu?: boolean
   onClick: (label: string) => void
   onBookmark?: (label: string) => void
@@ -28,7 +28,7 @@ export const ProductCard = memo(function ProductCard({
   bookmarked,
   recommended,
   attestationPending,
-  recommendBurst = 0,
+  recommending = false,
   showMenu = true,
   onClick,
   onBookmark,
@@ -45,17 +45,7 @@ export const ProductCard = memo(function ProductCard({
   const haveIconBytes = willLoadIcon && !!iconBlobUrl
   const showActions = showMenu && onBookmark && onShare
 
-  // Fire the ember burst when a recommend confirms.
-  const [bursting, setBursting] = useState(false)
-  const lastBurst = useRef(recommendBurst)
-  useEffect(() => {
-    if (recommendBurst <= lastBurst.current) return
-    lastBurst.current = recommendBurst
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    setBursting(true)
-    const timer = setTimeout(() => setBursting(false), 1400)
-    return () => clearTimeout(timer)
-  }, [recommendBurst])
+  const bursting = recommending && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
   return (
     <div

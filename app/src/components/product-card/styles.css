@@ -296,7 +296,7 @@
 .product-card__upvote--bursting {
   filter: url('#recommend-goo');
   background: var(--fg-secondary);
-  border-color: var(--fg-secondary);
+  border-color: transparent;
   color: var(--fg-primary-inverted);
 }
 
@@ -327,7 +327,7 @@
   background: var(--fg-secondary);
   transform: translate(-50%, 0) scale(0.5);
   opacity: 0;
-  animation: bubbleRise var(--bubble-dur) ease-out var(--bubble-delay) forwards;
+  animation: bubbleRise var(--bubble-dur) ease-out var(--bubble-delay) infinite;
 }
 
 /* Rise from the button, peak, then drift up and fade. */

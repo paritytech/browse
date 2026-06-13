@@ -33,7 +33,9 @@ export function ProductCardWithAttestation({
   const revokeApp = useRevokeApp()
   const { showToast } = useToast()
 
-  const [recommendBurst, setRecommendBurst] = useState(0)
+  // True from the moment the tx broadcasts until it confirms in a best block, so
+  // the bubbling spans the whole in-flight window and ends with the toast.
+  const [recommending, setRecommending] = useState(false)
 
   const handleAttestation = useEvent(() => {
     if (!isSignedIn) {
@@ -51,13 +53,17 @@ export function ProductCardWithAttestation({
     } else {
       attestProduct.mutate(
         // The count goes up and the bubbling starts the moment the tx broadcasts.
-        { label: app.label, onBroadcast: () => setRecommendBurst((n) => n + 1) },
+        { label: app.label, onBroadcast: () => setRecommending(true) },
         {
           onSuccess: () => {
+            setRecommending(false)
             showToast('Recommended!')
             onAttestationSettled?.()
           },
-          onError: (err) => showToast(describeError(err))
+          onError: (err) => {
+            setRecommending(false)
+            showToast(describeError(err))
+          }
         }
       )
     }
@@ -71,7 +77,7 @@ export function ProductCardWithAttestation({
       showMenu={showMenu}
       recommended={app.hasUserAttested}
       attestationPending={attestProduct.isPending || revokeApp.isPending}
-      recommendBurst={recommendBurst}
+      recommending={recommending}
       onClick={onClick}
       onBookmark={onBookmark}
       onShare={onShare}
