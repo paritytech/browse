@@ -131,13 +131,15 @@ export const ProductCard = memo(function ProductCard({
                   aria-pressed={recommended}
                   aria-busy={attestationPending}
                 >
-                  <ArrowUp size={16} />
-                  {displayCount > 0 && (
-                    <span class='product-card__upvote-count'>
-                      {displayCount > 999 ? '999+' : displayCount}
-                    </span>
-                  )}
                   {bursting && <BubbleBurst />}
+                  <span class='product-card__upvote-label'>
+                    <ArrowUp size={16} />
+                    {displayCount > 0 && (
+                      <span class='product-card__upvote-count'>
+                        {displayCount > 999 ? '999+' : displayCount}
+                      </span>
+                    )}
+                  </span>
                 </button>
               )}
               <button

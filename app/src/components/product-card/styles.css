@@ -278,55 +278,54 @@
 }
 
 .product-card__upvote--bursting {
-  filter: url('#recommend-goo');
   background: var(--fg-secondary);
   border-color: transparent;
   color: var(--fg-primary-inverted);
 }
 
-.product-card__bubbles-fx {
+/* Keeps the icon and count painted above the gooey layer. */
+.product-card__upvote-label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-tiny);
+}
+
+/* Gooey bubble layer. The metaball filter is applied to the SVG <g>. */
+.product-card__goo-svg {
   position: absolute;
   left: 0;
-  right: 0;
-  bottom: calc(100% - 10px);
-  height: 64px;
+  width: 100%;
+  bottom: calc(100% - 12px);
+  height: 56px;
+  overflow: visible;
   pointer-events: none;
-  z-index: 3;
 }
 
-.product-card__goo-defs {
-  position: absolute;
-}
-
-.product-card__bubble-layer {
-  position: absolute;
-  inset: 0;
+.product-card__goo-group {
+  fill: var(--fg-secondary);
 }
 
 .product-card__bubble {
-  position: absolute;
-  bottom: 0;
-  display: block;
-  border-radius: 50%;
-  background: var(--fg-secondary);
-  transform: translate(-50%, 0) scale(0.5);
   opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
   animation: bubbleRise var(--bubble-dur) ease-out var(--bubble-delay) infinite;
 }
 
-/* Rise from the button, peak, then drift up and fade. */
+/* Rise from the lip, peak, then drift up and fade. */
 @keyframes bubbleRise {
   0% {
     opacity: 0;
-    transform: translate(-50%, 0) scale(0.5);
+    transform: translateY(0) scale(0.5);
   }
   25% {
     opacity: 1;
-    transform: translate(-50%, calc(var(--bubble-rise) * 0.25)) scale(1);
+    transform: translateY(calc(var(--bubble-rise) * 0.25)) scale(1);
   }
   100% {
     opacity: 0;
-    transform: translate(-50%, var(--bubble-rise)) scale(0.45);
+    transform: translateY(var(--bubble-rise)) scale(0.45);
   }
 }
 
