@@ -1,4 +1,4 @@
-import { memo, useState } from 'preact/compat'
+import { memo, useEffect, useState } from 'preact/compat'
 
 import { ArrowUp, ArrowUpRight, BadgeCheck, Bookmark, Share2 } from 'lucide-preact'
 
@@ -45,7 +45,27 @@ export const ProductCard = memo(function ProductCard({
   const haveIconBytes = willLoadIcon && !!iconBlobUrl
   const showActions = showMenu && onBookmark && onShare
 
-  const bursting = recommending && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const bursting = recommending && !reduceMotion
+
+  // Keep the gooey layer mounted after the burst ends so it can recede slowly —
+  // the confirmation toast lands as `bursting` flips off.
+  const [gooVisible, setGooVisible] = useState(bursting)
+  const [gooFading, setGooFading] = useState(false)
+  useEffect(() => {
+    if (bursting) {
+      setGooVisible(true)
+      setGooFading(false)
+      return
+    }
+    if (!gooVisible) return
+    setGooFading(true)
+    const id = setTimeout(() => {
+      setGooVisible(false)
+      setGooFading(false)
+    }, 2800)
+    return () => clearTimeout(id)
+  }, [bursting, gooVisible])
 
   return (
     <div
@@ -121,7 +141,7 @@ export const ProductCard = memo(function ProductCard({
             <div class='product-card__footer-end'>
               {onClickAttestation && (
                 <button
-                  class={`product-card__upvote${recommended ? ' product-card__upvote--active' : ''}${attestationPending ? ' product-card__upvote--pending' : ''}${bursting ? ' product-card__upvote--bursting' : ''}`}
+                  class={`product-card__upvote${recommended ? ' product-card__upvote--active' : ''}${attestationPending ? ' product-card__upvote--pending' : ''}${gooVisible ? ' product-card__upvote--bursting' : ''}`}
                   onClick={(e) => {
                     e.stopPropagation()
                     onClickAttestation()
@@ -131,7 +151,7 @@ export const ProductCard = memo(function ProductCard({
                   aria-pressed={recommended}
                   aria-busy={attestationPending}
                 >
-                  {bursting && <BubbleBurst />}
+                  {gooVisible && <BubbleBurst fading={gooFading} />}
                   <span class='product-card__upvote-label'>
                     <ArrowUp size={16} />
                     {displayCount > 0 && (

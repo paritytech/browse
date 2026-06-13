@@ -277,10 +277,10 @@
   animation: upvote-count-in 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* While bursting the button holds the active fill (opaque, so the goo layer
+   behind it at z-index: -1 stays hidden) and the count stays readable on top. */
 .product-card__upvote--bursting {
-  background: var(--fg-secondary);
-  border-color: transparent;
-  color: var(--fg-primary-inverted);
+  background: var(--bg-selection-container-active);
 }
 
 /* Keeps the icon and count painted above the gooey layer. */
@@ -300,10 +300,17 @@
   height: 56px;
   overflow: visible;
   pointer-events: none;
+  z-index: -1;
+  transform-origin: bottom;
+  transition: transform 2800ms ease;
+}
+
+.product-card__goo-svg--out {
+  transform: scaleY(0);
 }
 
 .product-card__goo-group {
-  fill: var(--fg-secondary);
+  fill: var(--stroke-tertiary);
 }
 
 .product-card__bubble {

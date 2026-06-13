@@ -5,23 +5,26 @@
 // the bubbles degrade to plain circles; a filter on SVG content renders
 // everywhere.
 const BUBBLES = [
-  { cx: 12, r: 8, rise: -34, delay: 0, dur: 900 },
-  { cx: 28, r: 10, rise: -42, delay: 120, dur: 1000 },
-  { cx: 42, r: 7, rise: -30, delay: 60, dur: 860 },
-  { cx: 55, r: 11, rise: -46, delay: 180, dur: 1040 },
-  { cx: 68, r: 8, rise: -36, delay: 90, dur: 920 },
-  { cx: 82, r: 6.5, rise: -28, delay: 220, dur: 820 },
-  { cx: 35, r: 6, rise: -26, delay: 260, dur: 800 },
-  { cx: 60, r: 6, rise: -24, delay: 300, dur: 780 },
-  { cx: 20, r: 5.5, rise: -22, delay: 160, dur: 760 },
-  { cx: 75, r: 5.5, rise: -22, delay: 200, dur: 760 }
+  { cx: 14, r: 10, rise: -40, delay: 0, dur: 900 },
+  { cx: 30, r: 13, rise: -52, delay: 120, dur: 1000 },
+  { cx: 46, r: 9, rise: -36, delay: 60, dur: 860 },
+  { cx: 58, r: 14, rise: -58, delay: 180, dur: 1040 },
+  { cx: 70, r: 10, rise: -44, delay: 90, dur: 920 },
+  { cx: 84, r: 8, rise: -34, delay: 220, dur: 820 },
+  { cx: 38, r: 8, rise: -32, delay: 260, dur: 800 },
+  { cx: 64, r: 8, rise: -30, delay: 300, dur: 780 },
+  { cx: 22, r: 7, rise: -28, delay: 160, dur: 760 },
+  { cx: 78, r: 7, rise: -28, delay: 200, dur: 760 }
 ]
 
-export function BubbleBurst() {
+export function BubbleBurst({ fading = false }: { fading?: boolean }) {
   return (
-    <svg class='product-card__goo-svg' aria-hidden='true'>
+    <svg
+      class={`product-card__goo-svg${fading ? ' product-card__goo-svg--out' : ''}`}
+      aria-hidden='true'
+    >
       <defs>
-        <filter id='recommend-goo' x='-20%' y='-20%' width='140%' height='140%'>
+        <filter id='recommend-goo' x='-40%' y='-80%' width='180%' height='260%'>
           <feGaussianBlur in='SourceGraphic' stdDeviation='5' result='blur' />
           <feColorMatrix
             in='blur'
