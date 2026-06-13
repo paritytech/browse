@@ -278,9 +278,11 @@
 }
 
 /* While bursting the button holds the active fill (opaque, so the goo layer
-   behind it at z-index: -1 stays hidden) and the count stays readable on top. */
+   behind it at z-index: -1 stays hidden) and the count stays readable on top.
+   The fill is applied instantly. */
 .product-card__upvote--bursting {
   background: var(--bg-selection-container-active);
+  transition-duration: 0s;
 }
 
 /* Keeps the icon and count painted above the gooey layer. */
