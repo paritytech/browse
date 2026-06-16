@@ -445,7 +445,7 @@ export function App() {
                     <div class='empty-state__icon'>
                       <Package size={32} />
                     </div>
-                    <p class='empty-state__text'>No products published yet</p>
+                    <p class='empty-state__text'>No apps published yet</p>
                   </div>
                 ) : emptyBookmarks ? (
                   <div class='empty-state'>
