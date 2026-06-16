@@ -4,7 +4,13 @@ import { type AsyncTransaction, createInkSdk } from '@polkadot-api/sdk-ink'
 import { AccountId, type PolkadotClient, type PolkadotSigner, type SS58String } from 'polkadot-api'
 
 import { ensureApi, ensureClient, type PaseoHubApi } from './client'
-import { DUMMY_ORIGIN, NETWORK, PGAS_FUNDING_TIMEOUT, SELF_DOTNS } from './config'
+import {
+  DRY_RUN_WEIGHT_LIMIT,
+  DUMMY_ORIGIN,
+  NETWORK,
+  PGAS_FUNDING_TIMEOUT,
+  SELF_DOTNS
+} from './config'
 
 export type ApiProvider = () => Promise<PaseoHubApi>
 export type ClientProvider = () => Promise<PolkadotClient>
@@ -54,7 +60,7 @@ export type AttestationRecord = {
 
 export type TxResult = { txHash: string; block: string }
 
-const GAS = { ref_time: 10_000_000_000n, proof_size: 1_000_000n }
+const GAS = DRY_RUN_WEIGHT_LIMIT
 const STORAGE = 1_000_000_000_000n
 
 // Memoise the ink SDK and contracts per network client. A provider rebuild yields fresh instances instead of ones stranded on
