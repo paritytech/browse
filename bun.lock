@@ -79,6 +79,9 @@
       },
     },
   },
+  "patchedDependencies": {
+    "@polkadot-api/sdk-ink@0.7.0": "patches/@polkadot-api%2Fsdk-ink@0.7.0.patch",
+  },
   "overrides": {
     "polkadot-api": "2.1.4",
   },

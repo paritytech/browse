@@ -25,5 +25,8 @@
   },
   "devDependencies": {
     "@types/node": "^25.9.1"
+  },
+  "patchedDependencies": {
+    "@polkadot-api/sdk-ink@0.7.0": "patches/@polkadot-api%2Fsdk-ink@0.7.0.patch"
   }
 }

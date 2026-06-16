@@ -1,16 +1,28 @@
 import { createPapiProvider, hostApi } from '@novasamatech/host-api-wrapper'
-import { type BrowseSdk, createBrowseSdk } from '@parity/browse-sdk'
-import { paseoHub } from '@polkadot-api/descriptors'
+import {
+  type BrowseSdk,
+  createBrowseSdk,
+  PASEO_ASSET_HUB_NEXT_V2_GENESIS,
+  PREVIEWNET_ASSET_HUB_GENESIS,
+  SUMMIT_ASSET_HUB_GENESIS
+} from '@parity/browse-sdk'
+import { paseohub, previewnethub, summithub } from '@polkadot-api/descriptors'
 import type { PolkadotClient, TypedApi } from 'polkadot-api'
 
-import { ASSET_HUB_PASEO_GENESIS, NETWORK } from './config'
+import { ASSET_HUB_GENESIS, NETWORK } from './config'
 
-export type PaseoHubApi = TypedApi<typeof paseoHub>
+const descriptor = ({
+  [PASEO_ASSET_HUB_NEXT_V2_GENESIS]: paseohub,
+  [PREVIEWNET_ASSET_HUB_GENESIS]: previewnethub,
+  [SUMMIT_ASSET_HUB_GENESIS]: summithub
+}[ASSET_HUB_GENESIS] ?? paseohub) as typeof paseohub
+
+export type PaseoHubApi = TypedApi<typeof paseohub>
 
 async function networkSupported(): Promise<boolean> {
   const payload = {
     tag: 'v1',
-    value: { tag: 'Chain', value: ASSET_HUB_PASEO_GENESIS }
+    value: { tag: 'Chain', value: ASSET_HUB_GENESIS }
   } as Parameters<typeof hostApi.featureSupported>[0]
   return hostApi.featureSupported(payload).match(
     (ok) => ok.value !== false,
@@ -25,9 +37,9 @@ export function ensureBrowseSdk(): Promise<BrowseSdk> {
   if (!sdkPromise) {
     sdkPromise = (async () => {
       if (!(await networkSupported())) {
-        throw new Error(`Host does not support network ${ASSET_HUB_PASEO_GENESIS}`)
+        throw new Error(`Host does not support network ${ASSET_HUB_GENESIS}`)
       }
-      return createBrowseSdk(NETWORK, createPapiProvider(ASSET_HUB_PASEO_GENESIS))
+      return createBrowseSdk(NETWORK, createPapiProvider(ASSET_HUB_GENESIS))
     })().catch((err) => {
       sdkPromise = null
       throw err
@@ -76,7 +88,7 @@ export const ensureClient = async (): Promise<PolkadotClient> =>
   (await ensureBrowseSdk()).getClient()
 
 export const ensureApi = async (): Promise<PaseoHubApi> =>
-  (await ensureBrowseSdk()).getClient().getTypedApi(paseoHub)
+  (await ensureBrowseSdk()).getClient().getTypedApi(descriptor)
 
 // Host rate limiter is 20 req/s with a 100-slot queue; each ReviveApi.call
 // fans out to ~3 papi ops (pin + call + unpin), and other host apps share the

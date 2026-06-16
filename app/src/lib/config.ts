@@ -17,9 +17,9 @@ if (!isKnownGenesis(NETWORK_GENESIS_HASH)) {
   throw new Error(`Unknown NETWORK_GENESIS_HASH: ${NETWORK_GENESIS_HASH}`)
 }
 
-export const ASSET_HUB_PASEO_GENESIS: NetworkGenesis = NETWORK_GENESIS_HASH
+export const ASSET_HUB_GENESIS: NetworkGenesis = NETWORK_GENESIS_HASH
 
-export const NETWORK = selectNetwork(ASSET_HUB_PASEO_GENESIS)
+export const NETWORK = selectNetwork(ASSET_HUB_GENESIS)
 export const SCHEMA_LIKE_ID = NETWORK.SCHEMA_ID
 
 export const DRY_RUN_WEIGHT_LIMIT = {

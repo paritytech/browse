@@ -1,0 +1,24 @@
+diff --git a/dist/esm/src/provider.mjs b/dist/esm/src/provider.mjs
+index 25a5d41a7b7ad65fc7cc0cd5e79bbf73f86ffdd6..de58c8f76650a45dca7928951c322533b82a9143 100644
+--- a/dist/esm/src/provider.mjs
++++ b/dist/esm/src/provider.mjs
+@@ -37,6 +37,19 @@ const reviveProvider = (allApis, atBest) => {
+       CompatibilityLevel.BackwardsCompatible
+     );
+     const api = isPasset ? allApis.passet : allApis.pasAh;
++    // Only call trace_call when the selected api's descriptor matches the
++    // connected runtime; otherwise it throws an "Incompatible runtime entry"
++    // that is caught and logged on every dry-run. dryRunCall already falls back
++    // to the parallel ReviveApi.call (and its events), so a missing trace just
++    // yields { success: false } here with no functional loss.
++    const traceCompatible = isPasset
++      ? true
++      : (await allApis.pasAh.getStaticApis()).compat.apis.ReviveApi.trace_call.isCompatible(
++          CompatibilityLevel.BackwardsCompatible
++        );
++    if (!traceCompatible) {
++      return { success: false };
++    }
+     return api.apis.ReviveApi.trace_call(
+       {
+         authorization_list: [],
