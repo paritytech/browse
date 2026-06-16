@@ -1,4 +1,7 @@
 {
+  "env": {
+    "PATH": "/opt/homebrew/bin:/Users/tiago/.bun/bin:/Users/tiago/.nvm/versions/node/v22.13.1/bin:/Users/tiago/.pyenv/versions/3.11.8/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin"
+  },
   "permissions": {
     "allow": [
       "Bash(npm run build:*)",
@@ -40,12 +43,30 @@
       "Bash(bun pm view:*)",
       "Bash(npm view:*)",
       "mcp__sentry__search_events",
-      "mcp__claude_ai_Mermaid_Chart__validate_and_render_mermaid_diagram"
+      "mcp__claude_ai_Mermaid_Chart__validate_and_render_mermaid_diagram",
+      "Bash(bun --env-file=../.env scripts/_pgas-check.mjs)",
+      "Bash(SEED='mansion wood feed frama bottom leaf puppy nest cool trust celery' bun scripts/_pgas-check.mjs)",
+      "Bash(SEED='like mansion wood feed drama borrow leaf puppy nest cool trust celery' bun scripts/_pgas-check.mjs)",
+      "Bash(SEED='like mansion wood feed drama borrow leaf puppy nest cool trust celery' node --input-type=module -e ' *)",
+      "Bash(SEED='like mansion wood feed drama borrow leaf puppy nest cool trust celery' node scripts/_pgas-transfer.mjs)",
+      "Bash(MODALITY=app bun scripts/list-widgets.ts paseo)",
+      "Bash(git -C /Users/tiago/Projects/browse grep -n \"appListRef\\\\|app-list\\\\|useGetAllApps\\\\|invalidateQueries\\\\|isFetching\\\\|allFetching\\\\|ALL_APPS_KEY\\\\|loading-dots\\\\|loadingDots\" -- 'app/src/App.tsx')",
+      "Bash(git -C /Users/tiago/Projects/browse grep -n \"overflow\\\\|\\\\.app-list\\\\|\\\\.app-shell\\\\|height: 100\\\\|min-height\\\\|\\\\.main\" -- 'app/src/styles/main.css')",
+      "Bash(git -C /Users/tiago/Projects/browse grep -nE \"ALL_APPS_KEY|_KEY =|export \\(const|function\\)\" -- 'app/src/state/apps/queries.ts')",
+      "Bash(git -C /Users/tiago/Projects/browse grep -n \"export\" -- 'app/src/state/apps/queries.ts')",
+      "Bash(git -C /Users/tiago/Projects/browse grep -nE \"useEvent|const \\\\[query|const \\\\[currentMode|from './lib/use-event'\" -- 'app/src/App.tsx')",
+      "Bash(git -C /Users/tiago/Projects/browse grep -n \"length: 5\\\\|ProductCardSkeleton\" -- 'app/src/App.tsx')",
+      "Bash(git -C /Users/tiago/Projects/browse diff --stat HEAD -- app/src)",
+      "Bash(git -C /Users/tiago/Projects/browse diff HEAD -- app/src/lib/attestation-service.ts)",
+      "Bash(git -C /Users/tiago/Projects/browse add -A)",
+      "Bash(git -C /Users/tiago/Projects/browse reset -q -- app/scripts/_pgas-check.mjs app/scripts/_pgas-transfer.mjs dotns-usernames.json)",
+      "Bash(SEED='learn antenna mansion inform acoustic laptop worth hunt season model senior thrive' node scripts/_pgas-transfer.mjs)",
+      "Bash(git -C /Users/tiago/Projects/browse diff --cached --stat -- app/tests/test-chain.mjs app/tests/test-query.mjs app/tests/test-rpc.mjs app/tests/test-vouch-e2e.mjs app/abis/Multicall3.json)",
+      "Bash(git -C /Users/tiago/Projects/browse diff --cached --ignore-all-space --stat -- app/tests/test-chain.mjs app/tests/test-query.mjs app/tests/test-rpc.mjs app/tests/test-vouch-e2e.mjs)",
+      "Bash(git -C /Users/tiago/Projects/browse diff --cached -- app/tests/test-chain.mjs)",
+      "Bash(git -C /Users/tiago/Projects/browse diff --cached --name-only)"
     ],
     "deny": []
-  },
-  "env": {
-    "PATH": "/opt/homebrew/bin:/Users/tiago/.bun/bin:/Users/tiago/.nvm/versions/node/v22.13.1/bin:/Users/tiago/.pyenv/versions/3.11.8/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin"
   },
   "hooks": {
     "SessionStart": [

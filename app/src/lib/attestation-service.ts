@@ -276,49 +276,49 @@ export class AttestationService {
    */
   private async ensureAllowance(origin: string): Promise<void> {
     // Pgas.PgasAssetId is checksum-stale in the typed descriptor, so read it via
-    // the unsafe api; the typed api still serves the Assets.Account storage read.
+    // the unsafe api. The typed api still serves the Assets.Account storage read.
     const api = await this.api()
     const unsafeApi = (await this.client()).getUnsafeApi()
     const pgasAssetId = (await unsafeApi.constants.Pgas.PgasAssetId()) as number
-    const pgasAccount = await api.query.Assets.Account.getValue(pgasAssetId, origin as SS58String)
+    const pgasAccount = await api.query.Assets.Account.getValue(pgasAssetId, origin as SS58String, {
+      at: 'best'
+    })
     const pgasBalance = pgasAccount?.balance ?? 0n
     if (pgasBalance > 0n) return
 
     if (!this.truapi) {
       throw new Error('NotEnoughFunds: account holds no PGAS and host coverage is unavailable.')
     }
-    const allocated = await hostApi
-      .requestResourceAllocation({
-        tag: 'v1',
-        value: [{ tag: 'SmartContractAllowance', value: 0 }]
-      })
-      .match(
-        (res) => res.value.some((outcome) => outcome.tag === 'Allocated'),
-        () => false
-      )
-    if (!allocated) {
+    const resources = [{ tag: 'SmartContractAllowance' as const, value: 0 }]
+    const outcomes = await hostApi.requestResourceAllocation({ tag: 'v1', value: resources }).match(
+      (res) => res.value,
+      () => []
+    )
+    if (outcomes[0]?.tag !== 'Allocated') {
       throw new Error('NotEnoughFunds: account holds no PGAS and the host declined PGAS coverage.')
     }
 
-    // `Allocated` only means the host accepted the request.
+    // `Allocated` only means the host accepted the request. The claim takes a
+    // few seconds to actually mint PGAS into the account. The contract write
+    // pays its fee in PGAS, so submitting before the balance lands fails with
+    // `Invalid: Payment`. Block here until the account is funded.
     await this.waitForPgasFunded(pgasAssetId, origin)
   }
 
   /**
-   * Poll until the account's PGAS balance is non-zero.
+   * Poll the product account's PGAS balance.
    */
   private async waitForPgasFunded(pgasAssetId: number, origin: string): Promise<void> {
     const api = await this.api()
-    const POLL_MS = 1500
+    const POLL_MS = 1000
     const deadline = Date.now() + PGAS_FUNDING_TIMEOUT
-    let remaining = PGAS_FUNDING_TIMEOUT
-    while (remaining > 0) {
-      const acct = await api.query.Assets.Account.getValue(pgasAssetId, origin as SS58String)
+    while (Date.now() < deadline) {
+      const acct = await api.query.Assets.Account.getValue(pgasAssetId, origin as SS58String, {
+        at: 'best'
+      })
       if ((acct?.balance ?? 0n) > 0n) return
-      await new Promise((resolve) => setTimeout(resolve, Math.min(POLL_MS, remaining)))
-      remaining = deadline - Date.now()
+      await new Promise((resolve) => setTimeout(resolve, POLL_MS))
     }
-    // Surfaces as "Not enough allowance" via describeError.
     throw new Error('NotEnoughFunds: PGAS allowance did not fund in time')
   }
 

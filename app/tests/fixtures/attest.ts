@@ -23,9 +23,7 @@ export async function createAttestation(
       recipient,
       NETWORK.SCHEMA_ID
     )
-    const alreadyAttested = await service.isActiveAny(recipient, NETWORK.SCHEMA_ID, [
-      attesterH160
-    ])
+    const alreadyAttested = await service.isActiveAny(recipient, NETWORK.SCHEMA_ID, [attesterH160])
     if (!alreadyAttested) {
       const data = encodeAttestationLabel(label)
       await service.attest(NETWORK.SCHEMA_ID, recipient, 0n, true, 0n, data)

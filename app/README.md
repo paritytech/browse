@@ -6,6 +6,7 @@
 # Home for privacy apps.
 
 <!-- markdownlint-disable-next-line MD013 -->
+
 ![CI](https://github.com/paritytech/browse/actions/workflows/build.yml/badge.svg)
 
 <br>
@@ -23,9 +24,9 @@ Browse is published in 2 modalities:
 
 ## Compatibility
 
-| Tool | Version |
-|------|---------|
-| Bun | ~1.3.10 |
+| Tool    | Version  |
+| ------- | -------- |
+| Bun     | ~1.3.10  |
 | Node.js | ~22.13.1 |
 
 ## Develop

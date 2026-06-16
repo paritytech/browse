@@ -9,6 +9,7 @@ import { CategoryTabs } from './components/category-tabs'
 import { ContactsManager } from './components/contacts-manager'
 import { FOLLOW_ICON, SEARCH_ICON } from './components/icons'
 import { ProductCardWithAttestation } from './components/product-card/product-card-with-attestation'
+import { ProductCardSkeleton } from './components/product-card/skeleton'
 import { SearchBar } from './components/search-bar'
 import { Toast } from './components/toast'
 import { ToastContext } from './components/toast/context'
@@ -20,7 +21,14 @@ import { navigateToDomain } from './lib/navigate'
 import { subscribeHostTheme } from './lib/theme'
 import { useEvent } from './lib/use-event'
 import { useFlipReorder } from './lib/use-flip'
-import { LABELS_KEY, useGetAllApps, useLabelsStorage, useResolveLabel } from './state/apps/queries'
+import { useOverscrollSync } from './lib/use-overscroll-sync'
+import {
+  ALL_APPS_KEY,
+  LABELS_KEY,
+  useGetAllApps,
+  useLabelsStorage,
+  useResolveLabel
+} from './state/apps/queries'
 import { type AppEntry, filterApps, type FilterMode, isFilterMode } from './state/apps/types'
 import { useGetAttestationsByContacts } from './state/attestations/queries'
 import { addContact, type ContactEntry, getContacts, removeContact } from './state/contacts/api'
@@ -123,7 +131,7 @@ export function App() {
       }
     }
     // The app itself (SELF_LABEL, derived from APP_DOTNS_DOMAIN) only belongs in
-    // search on an exact name match — the label or `<label>.dot` — never as a
+    // search on an exact name match, the label or `<label>.dot`. Never as a
     // partial/substring hit.
     const normalizedQuery = deferredQuery
       .trim()
@@ -169,7 +177,7 @@ export function App() {
       isCompliant: resolvedApp.isCompliant,
       fetchedAt: Date.now(),
       // A resolved search result is NOT confirmed against the Publisher set, so
-      // mark it unpublished — otherwise materialize() would surface it in the
+      // mark it unpublished. Otherwise materialize() would surface it in the
       // All tab until the next sync prunes it. A sync flips this to true if it
       // really is published.
       published: false
@@ -228,6 +236,7 @@ export function App() {
     setToastIsError(isError)
     setToastMessage(message)
   })
+
   const handleAddContact = useEvent((address: string, username?: string) => {
     addContact(address, username)
     setContacts((prev) => [...prev, { address, username }])
@@ -320,6 +329,17 @@ export function App() {
         ? followingLoading
         : allFetching
 
+  // Pushing past the end of the list re-checks the published set for new/removed
+  // apps. Disabled while a sync runs, while searching, or on the local bookmarks
+  // tab.
+  const refreshAllApps = useEvent(() => {
+    queryClient.invalidateQueries({ queryKey: ALL_APPS_KEY })
+  })
+  useOverscrollSync(refreshAllApps, allFetching || !!query || currentMode === 'bookmarks')
+
+  // Showing skeletons.
+  const coldStart = isLoading && filtered.length === 0 && !query
+
   // Sticky display order.
   const [orderNonce, setOrderNonce] = useState(0)
   const heroLabelRef = useRef<string | null>(null)
@@ -407,8 +427,9 @@ export function App() {
               <SearchBar value={query} onInput={setQuery} onCancel={() => setQuery('')} />
               {!searchMatches && (
                 <CategoryTabs
-                  active={[currentMode]}
+                  active={coldStart ? ['all'] : [currentMode]}
                   isSignedIn={signed}
+                  disabled={coldStart}
                   onSwitch={(mode) => {
                     setCurrentMode(mode)
                     setShowContactsManager(false)
@@ -417,7 +438,9 @@ export function App() {
               )}
 
               <div class='app-list' id='app-list' ref={appListRef}>
-                {isLoading && filtered.length === 0 && !query ? null : emptyAll ? (
+                {coldStart ? (
+                  Array.from({ length: 4 }, (_, i) => <ProductCardSkeleton key={`sk-${i}`} />)
+                ) : emptyAll ? (
                   <div class='empty-state'>
                     <div class='empty-state__icon'>
                       <Package size={32} />
@@ -486,7 +509,7 @@ export function App() {
               <div
                 class='loading-dots'
                 id='loading-dots'
-                style={{ display: isLoading && !query ? 'flex' : 'none' }}
+                style={{ display: isLoading && !query && filtered.length > 0 ? 'flex' : 'none' }}
               >
                 <span class='loading-dots__dot' />
                 <span class='loading-dots__dot' />

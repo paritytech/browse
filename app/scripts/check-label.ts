@@ -30,9 +30,7 @@ import { getWsProvider } from '@polkadot-api/ws-provider'
 
 const label = process.argv[2] ?? 'host-playground33'
 const genesis =
-  process.env.GENESIS === 'paseo'
-    ? PASEO_ASSET_HUB_NEXT_V2_GENESIS
-    : PREVIEWNET_ASSET_HUB_GENESIS
+  process.env.GENESIS === 'paseo' ? PASEO_ASSET_HUB_NEXT_V2_GENESIS : PREVIEWNET_ASSET_HUB_GENESIS
 const network = selectNetwork(genesis)
 const WS_URL = process.env.WS_URL ?? network.rpcs[0]
 

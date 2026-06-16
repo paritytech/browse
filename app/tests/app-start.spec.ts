@@ -397,9 +397,9 @@ test.describe('App Start', () => {
       const page = await context.newPage()
       const target = 'browse-trusted-attester-resolver00'
       const listedLabels = async (fr: Frame) =>
-        (await fr.locator('.product-card').evaluateAll((els) =>
-          els.map((el) => el.getAttribute('data-label'))
-        )) as string[]
+        (await fr
+          .locator('.product-card')
+          .evaluateAll((els) => els.map((el) => el.getAttribute('data-label')))) as string[]
 
       // Given
       await navigateToTestHost(page, host.url)

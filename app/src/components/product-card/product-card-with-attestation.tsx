@@ -43,13 +43,16 @@ export function ProductCardWithAttestation({
       return
     }
     if (app.hasUserAttested) {
-      revokeApp.mutate(app.label, {
-        onSuccess: () => {
-          showToast('Unrecommended!')
-          onAttestationSettled?.()
-        },
-        onError: (err) => showToast(describeError(err))
-      })
+      revokeApp.mutate(
+        { label: app.label },
+        {
+          onSuccess: () => {
+            showToast('Unrecommended!')
+            onAttestationSettled?.()
+          },
+          onError: (err) => showToast(describeError(err))
+        }
+      )
     } else {
       attestProduct.mutate(
         // The count goes up and the bubbling starts the moment the tx broadcasts.
@@ -77,6 +80,8 @@ export function ProductCardWithAttestation({
       showMenu={showMenu}
       recommended={app.hasUserAttested}
       attestationPending={attestProduct.isPending || revokeApp.isPending}
+      // Pulse the whole recommend.
+      provisioning={attestProduct.isPending && !recommending}
       recommending={recommending}
       onClick={onClick}
       onBookmark={onBookmark}
