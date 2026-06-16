@@ -1,13 +1,25 @@
-import { paseoHub } from '@polkadot-api/descriptors'
+import {
+  PASEO_ASSET_HUB_NEXT_V2_GENESIS,
+  PREVIEWNET_ASSET_HUB_GENESIS,
+  SUMMIT_ASSET_HUB_GENESIS
+} from '@parity/browse-sdk'
+import { paseohub, previewnethub, summithub } from '@polkadot-api/descriptors'
 import { createClient } from 'polkadot-api'
 import { getWsProvider } from 'polkadot-api/ws'
 import { WebSocket } from 'ws'
 
 import { createDevSigner } from './fund'
 import { AttestationService } from '../../src/lib/attestation-service'
-import { NETWORK } from '../../src/lib/config'
+import { ASSET_HUB_GENESIS, NETWORK } from '../../src/lib/config'
 
 const RPC_ENDPOINTS = [...NETWORK.rpcs]
+
+// Match the chain descriptor to the active network (see client.ts).
+const descriptor = ({
+  [PASEO_ASSET_HUB_NEXT_V2_GENESIS]: paseohub,
+  [PREVIEWNET_ASSET_HUB_GENESIS]: previewnethub,
+  [SUMMIT_ASSET_HUB_GENESIS]: summithub
+}[ASSET_HUB_GENESIS] ?? paseohub) as typeof paseohub
 
 export async function withAttestationService<T>(
   devAccount: string,
@@ -22,7 +34,7 @@ export async function withAttestationService<T>(
   )
 
   try {
-    const api = client.getTypedApi(paseoHub)
+    const api = client.getTypedApi(descriptor)
     const service = new AttestationService(
       async () => api,
       async () => client,

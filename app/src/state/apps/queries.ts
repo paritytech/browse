@@ -24,7 +24,7 @@ export function useLabelsStorage() {
   })
 }
 
-export { LABELS_KEY }
+export { ALL_APPS_KEY, LABELS_KEY }
 
 /** Read the labels blob from the host bridge once per session and materialise it. */
 let initialDiskLoad: Promise<AppEntry[]> | null = null

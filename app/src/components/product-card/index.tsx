@@ -14,6 +14,7 @@ interface ProductCardProps {
   bookmarked?: boolean
   recommended?: boolean
   attestationPending?: boolean
+  provisioning?: boolean
   recommending?: boolean
   showMenu?: boolean
   onClick: (label: string) => void
@@ -28,6 +29,7 @@ export const ProductCard = memo(function ProductCard({
   bookmarked,
   recommended,
   attestationPending,
+  provisioning = false,
   recommending = false,
   showMenu = true,
   onClick,
@@ -48,10 +50,10 @@ export const ProductCard = memo(function ProductCard({
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
   const bursting = recommending && !reduceMotion
 
-  // Keep the gooey layer mounted after the burst ends so it can recede slowly —
-  // the confirmation toast lands as `bursting` flips off. `gooVisible` is
+  // Keep the gooey layer mounted after the burst ends so it can recede slowly.
+  // The confirmation toast lands as `bursting` flips off. `gooVisible` is
   // DERIVED (not set in an effect) so it turns on in the SAME render as
-  // `bursting`/`--active`: a one-render lag would let --active start its 150ms
+  // `bursting`/`--active`. A one-render lag would let --active start its 150ms
   // background fade before --bursting's instant fill applied, leaving the button
   // briefly translucent and flashing the goo through it.
   const [lingering, setLingering] = useState(false)
@@ -146,7 +148,7 @@ export const ProductCard = memo(function ProductCard({
                       child in front of its own fill. As a sibling it stays behind. */}
                   {gooVisible && <BubbleBurst fading={gooFading} />}
                   <button
-                    class={`product-card__upvote${recommended ? ' product-card__upvote--active' : ''}${attestationPending ? ' product-card__upvote--pending' : ''}${gooVisible ? ' product-card__upvote--bursting' : ''}`}
+                    class={`product-card__upvote${recommended ? ' product-card__upvote--active' : ''}${attestationPending ? ' product-card__upvote--pending' : ''}${provisioning ? ' product-card__upvote--provisioning' : ''}${gooVisible ? ' product-card__upvote--bursting' : ''}`}
                     onClick={(e) => {
                       e.stopPropagation()
                       onClickAttestation()

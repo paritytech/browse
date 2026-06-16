@@ -195,23 +195,23 @@ export function useAttestProduct() {
 
 export function useRevokeApp() {
   const queryClient = useQueryClient()
-  return useMutation<unknown, Error, string, MutationCtx>({
-    mutationFn: (label) => revokeLabel(label),
-    onMutate: (label) => {
-      const ctx = snapshot(queryClient, label)
-      queryClient.setQueryData<AppEntry[]>(ALL_KEY, (prev) => updateApp(prev, label, revokePatch))
-      queryClient.setQueryData<AttestationQueryData>(attestationKey(label), (prev) =>
-        prev
-          ? { attestationCount: Math.max(0, prev.attestationCount - 1), hasUserAttested: false }
-          : { attestationCount: 0, hasUserAttested: false }
-      )
-      patchLabels(queryClient, label, -1, false)
-      return ctx
-    },
-    onError: (_err, label, ctx) => {
+  return useMutation<unknown, Error, { label: string; onBroadcast?: () => void }, MutationCtx>({
+    onMutate: ({ label }) => snapshot(queryClient, label),
+    mutationFn: ({ label, onBroadcast }) =>
+      revokeLabel(label, () => {
+        queryClient.setQueryData<AppEntry[]>(ALL_KEY, (prev) => updateApp(prev, label, revokePatch))
+        queryClient.setQueryData<AttestationQueryData>(attestationKey(label), (prev) =>
+          prev
+            ? { attestationCount: Math.max(0, prev.attestationCount - 1), hasUserAttested: false }
+            : { attestationCount: 0, hasUserAttested: false }
+        )
+        patchLabels(queryClient, label, -1, false)
+        onBroadcast?.()
+      }),
+    onError: (_err, { label }, ctx) => {
       if (ctx) rollback(queryClient, label, ctx)
     },
-    onSuccess: (_data, label) => {
+    onSuccess: (_data, { label }) => {
       void updateAttestationCount(label, -1, false)
     }
   })

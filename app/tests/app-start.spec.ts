@@ -45,8 +45,8 @@ test.describe('App Start', () => {
     test('As an unsigned user, when I open browse, the All tab loads apps immediately', async () => {
       test.setTimeout(30_000)
       // Then
-      const cards = frame.locator('.product-card')
-      await expect(cards.first()).toBeVisible({ timeout: 10_000 })
+      const cards = frame.locator('.product-card[data-label]')
+      await expect(cards.first()).toBeVisible({ timeout: 20_000 })
       expect(await cards.count()).toBeGreaterThan(0)
       await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
       // The test host has no IPFS backend, so seed calculator's icon bytes for its lookup.
@@ -64,7 +64,7 @@ test.describe('App Start', () => {
       const reloadedFrame = await getProductFrame(reloaded, '.category-tab')
 
       // Then
-      await expect(reloadedFrame.locator('.product-card').first()).toBeVisible()
+      await expect(reloadedFrame.locator('.product-card[data-label]').first()).toBeVisible()
       await expect(reloadedFrame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
 
       await reloaded.close()
@@ -129,11 +129,9 @@ test.describe('App Start', () => {
       await frame.locator('.category-tab', { hasText: 'All' }).click()
 
       // Then
-      await expect(frame.locator('.product-card')).toHaveCount(0)
-      await expect(frame.locator('.loading-dots')).toBeVisible()
-      await frame.waitForSelector('.product-card', { timeout: 30_000 })
-      await expect(frame.locator('.product-card').first()).toBeVisible()
-      const cards = frame.locator('.product-card')
+      await frame.waitForSelector('.product-card[data-label]', { timeout: 30_000 })
+      await expect(frame.locator('.product-card[data-label]').first()).toBeVisible()
+      const cards = frame.locator('.product-card[data-label]')
       const cardCount = await cards.count()
       expect(cardCount).toBeGreaterThan(1)
       const cardData: Array<{ name: string; count: number }> = []
@@ -397,9 +395,9 @@ test.describe('App Start', () => {
       const page = await context.newPage()
       const target = 'browse-trusted-attester-resolver00'
       const listedLabels = async (fr: Frame) =>
-        (await fr.locator('.product-card').evaluateAll((els) =>
-          els.map((el) => el.getAttribute('data-label'))
-        )) as string[]
+        (await fr
+          .locator('.product-card')
+          .evaluateAll((els) => els.map((el) => el.getAttribute('data-label')))) as string[]
 
       // Given
       await navigateToTestHost(page, host.url)

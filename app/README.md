@@ -6,6 +6,7 @@
 # Home for privacy apps.
 
 <!-- markdownlint-disable-next-line MD013 -->
+
 ![CI](https://github.com/paritytech/browse/actions/workflows/build.yml/badge.svg)
 
 <br>
@@ -23,9 +24,9 @@ Browse is published in 2 modalities:
 
 ## Compatibility
 
-| Tool | Version |
-|------|---------|
-| Bun | ~1.3.10 |
+| Tool    | Version  |
+| ------- | -------- |
+| Bun     | ~1.3.10  |
 | Node.js | ~22.13.1 |
 
 ## Develop
@@ -49,8 +50,8 @@ Build both modalities, the Single-page Application (SPA) and the widget.
 make build
 ```
 
-Publish both modalities to the bulletin chain and list your domain in the Publisher registry. They
-ship together via the manifest. `MNEMONIC` is read from the repository root `.env`.
+Deploy both modalities to Polakdot. They are deployed together via the manifest. `MNEMONIC` is
+read from the repository root `.env`.
 
 ```sh
 make deploy

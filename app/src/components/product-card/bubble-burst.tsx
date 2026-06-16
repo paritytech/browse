@@ -1,20 +1,24 @@
 // Bubbles rising out of the recommend button while a recommendation is in
-// flight. Built as an SVG goo layer — the gooey metaball filter is applied to
+// flight. Built as an SVG goo layer. The gooey metaball filter is applied to
 // SVG shapes inside a <g>, NOT via CSS `filter: url(#id)` on the HTML button.
-// WebKit/Safari (the deploy target) silently drops a CSS filter over HTML and
-// the bubbles degrade to plain circles; a filter on SVG content renders
+// WebKit/Safari (the deploy target) silently drops a CSS filter over HTML, so
+// the bubbles degrade to plain circles. A filter on SVG content renders
 // everywhere.
 const BUBBLES = [
-  { cx: 14, r: 10, rise: -40, delay: 0, dur: 900 },
-  { cx: 30, r: 13, rise: -52, delay: 120, dur: 1000 },
-  { cx: 46, r: 9, rise: -36, delay: 60, dur: 860 },
-  { cx: 58, r: 14, rise: -58, delay: 180, dur: 1040 },
-  { cx: 70, r: 10, rise: -44, delay: 90, dur: 920 },
-  { cx: 84, r: 8, rise: -34, delay: 220, dur: 820 },
-  { cx: 38, r: 8, rise: -32, delay: 260, dur: 800 },
-  { cx: 64, r: 8, rise: -30, delay: 300, dur: 780 },
-  { cx: 22, r: 7, rise: -28, delay: 160, dur: 760 },
-  { cx: 78, r: 7, rise: -28, delay: 200, dur: 760 }
+  { cx: 50, r: 9, rise: -52, delay: 0, dur: 1170 },
+  { cx: 42, r: 8, rise: -44, delay: 120, dur: 1080 },
+  { cx: 58, r: 8, rise: -48, delay: 90, dur: 1110 },
+  { cx: 36, r: 7, rise: -38, delay: 240, dur: 990 },
+  { cx: 64, r: 7, rise: -40, delay: 210, dur: 1020 },
+  { cx: 48, r: 6, rise: -62, delay: 330, dur: 1290 },
+  { cx: 54, r: 6, rise: -58, delay: 300, dur: 1260 },
+  { cx: 31, r: 5, rise: -34, delay: 450, dur: 930 },
+  { cx: 69, r: 5, rise: -36, delay: 420, dur: 960 },
+  { cx: 45, r: 5, rise: -70, delay: 540, dur: 1350 },
+  { cx: 57, r: 5, rise: -66, delay: 510, dur: 1320 },
+  { cx: 50, r: 4, rise: -78, delay: 660, dur: 1410 },
+  { cx: 39, r: 4, rise: -50, delay: 600, dur: 1080 },
+  { cx: 61, r: 4, rise: -52, delay: 630, dur: 1110 }
 ]
 
 export function BubbleBurst({ fading = false }: { fading?: boolean }) {
@@ -25,7 +29,7 @@ export function BubbleBurst({ fading = false }: { fading?: boolean }) {
     >
       <defs>
         <filter id='recommend-goo' x='-40%' y='-80%' width='180%' height='260%'>
-          <feGaussianBlur in='SourceGraphic' stdDeviation='5' result='blur' />
+          <feGaussianBlur in='SourceGraphic' stdDeviation='3' result='blur' />
           <feColorMatrix
             in='blur'
             type='matrix'
@@ -36,9 +40,6 @@ export function BubbleBurst({ fading = false }: { fading?: boolean }) {
         </filter>
       </defs>
       <g class='product-card__goo-group' filter='url(#recommend-goo)'>
-        {/* A flat lip overlapping the button's top edge so the bubbles have a
-            base to merge with. */}
-        <rect class='product-card__goo-lip' x='6%' y='44' width='88%' height='22' />
         {BUBBLES.map((bubble, i) => (
           <circle
             key={i}

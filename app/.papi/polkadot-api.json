@@ -2,11 +2,23 @@
   "version": 0,
   "descriptorPath": ".papi/descriptors",
   "entries": {
-    "paseoHub": {
+    "paseohub": {
       "wsUrl": "wss://paseo-asset-hub-next-rpc.polkadot.io",
-      "metadata": ".papi/metadata/paseoHub.scale",
+      "metadata": ".papi/metadata/paseohub.scale",
       "genesis": "0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f",
-      "codeHash": "0x8514444667bd821f6e2c1e4aadd73bda104d4db7643ede26044a25efa8056f14"
+      "codeHash": "0xc1314017cbdcd76e8e343721350167ddd92a1c312b90ebc0188abff4bc4bdd4a"
+    },
+    "previewnethub": {
+      "wsUrl": "wss://previewnet.substrate.dev/asset-hub",
+      "metadata": ".papi/metadata/previewnethub.scale",
+      "genesis": "0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb",
+      "codeHash": "0xc1314017cbdcd76e8e343721350167ddd92a1c312b90ebc0188abff4bc4bdd4a"
+    },
+    "summithub": {
+      "wsUrl": "wss://summit-asset-hub-rpc.polkadot.io",
+      "metadata": ".papi/metadata/summithub.scale",
+      "genesis": "0xf388dc6d6cdf6fb77eac3c4a91f31bc0c8642b142f1a757512ab7849f9f70660",
+      "codeHash": "0x9ccee8fcad38a5068147eba6f7f62d66d244c883092a9fcb1378e6d0f8258609"
     }
   },
   "sol": {

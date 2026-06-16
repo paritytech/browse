@@ -15,6 +15,7 @@ deploy:
 		echo "Error: build output missing. Run 'make build' first." >&2; \
 		exit 1; \
 	fi; \
-	echo "==> Publishing browse.dot (app + widget)"; \
-	MNEMONIC="$$MNEMONIC" NODE_OPTIONS="--max-old-space-size=8192" bulletin-deploy --publish dist/spa browse.dot; \
+	echo "==> Deploying browse.dot (app + widget)"; \
+	PUBLISH_FLAG=""; if [ "$${PUBLISH:-}" = "1" ]; then PUBLISH_FLAG="--publish"; fi; \
+		MNEMONIC="$$MNEMONIC" NODE_OPTIONS="--max-old-space-size=8192" bulletin-deploy $$PUBLISH_FLAG dist/spa browse.dot; \
 	echo "==> Done! Live at: https://browse.dot.li"

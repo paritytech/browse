@@ -37,7 +37,9 @@ const sdk = createBrowseSdk(network, getWsProvider(network.rpcs[0]))
 
 const t0 = performance.now()
 const matches = await sdk.listAppsByModality(modality)
-console.log(`Found ${matches.length} ${modality}(s) in ${((performance.now() - t0) / 1000).toFixed(1)}s`)
+console.log(
+  `Found ${matches.length} ${modality}(s) in ${((performance.now() - t0) / 1000).toFixed(1)}s`
+)
 for (const app of matches) {
   console.log(`  ${app.label}.dot  ${app.manifest.displayName}`)
   console.log(`    cid:  ${app.contentHash}`)
