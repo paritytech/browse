@@ -41,17 +41,23 @@ function attestationKey(label: string) {
   return ['attestations', 'app', label] as const
 }
 
+function resolveLabelKey(label: string) {
+  return ['resolveLabel', label] as const
+}
+
 type MutationCtx = {
   all: AppEntry[] | undefined
   attestation: AttestationQueryData | undefined
   labels: Map<string, LabelEntry> | undefined
+  resolved: AppEntry | null | undefined
 }
 
 function snapshot(queryClient: ReturnType<typeof useQueryClient>, label: string): MutationCtx {
   return {
     all: queryClient.getQueryData<AppEntry[]>(ALL_KEY),
     attestation: queryClient.getQueryData<AttestationQueryData>(attestationKey(label)),
-    labels: queryClient.getQueryData<Map<string, LabelEntry>>(LABELS_KEY)
+    labels: queryClient.getQueryData<Map<string, LabelEntry>>(LABELS_KEY),
+    resolved: queryClient.getQueryData<AppEntry | null>(resolveLabelKey(label))
   }
 }
 
@@ -64,6 +70,18 @@ function rollback(
   if (ctx.attestation !== undefined)
     queryClient.setQueryData(attestationKey(label), ctx.attestation)
   if (ctx.labels !== undefined) queryClient.setQueryData(LABELS_KEY, ctx.labels)
+  if (ctx.resolved !== undefined) queryClient.setQueryData(resolveLabelKey(label), ctx.resolved)
+}
+
+/** Optimistically patch the resolved-search-result cache for one label. */
+function patchResolved(
+  queryClient: ReturnType<typeof useQueryClient>,
+  label: string,
+  patch: (app: AppEntry) => AppEntry
+): void {
+  queryClient.setQueryData<AppEntry | null>(resolveLabelKey(label), (prev) =>
+    prev ? patch(prev) : prev
+  )
 }
 
 /** Optimistically patch the labels-DB query cache for one label. */
@@ -182,6 +200,7 @@ export function useAttestProduct() {
             : { attestationCount: 1, hasUserAttested: true }
         )
         patchLabels(queryClient, label, 1, true)
+        patchResolved(queryClient, label, attestPatch)
         onBroadcast?.()
       }),
     onError: (_err, { label }, ctx) => {
@@ -206,6 +225,7 @@ export function useRevokeApp() {
             : { attestationCount: 0, hasUserAttested: false }
         )
         patchLabels(queryClient, label, -1, false)
+        patchResolved(queryClient, label, revokePatch)
         onBroadcast?.()
       }),
     onError: (_err, { label }, ctx) => {

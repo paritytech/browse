@@ -20,10 +20,11 @@ test.describe('Attestation works', () => {
   let frame: Frame
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(30_000)
+    test.setTimeout(60_000)
     await fund('Charlie')
     await createRevokedAttestation('host-playground', 'Charlie').catch(() => {})
     await createRevokedAttestation('calculator', 'Charlie').catch(() => {})
+    await createRevokedAttestation('browse-beta00', 'Charlie').catch(() => {})
     host = await startSignedHost('charlie')
     context = await browser.newContext({ ignoreHTTPSErrors: true })
   })
@@ -32,6 +33,7 @@ test.describe('Attestation works', () => {
     await page?.close()
     await createRevokedAttestation('host-playground', 'Charlie').catch(() => {})
     await createRevokedAttestation('calculator', 'Charlie').catch(() => {})
+    await createRevokedAttestation('browse-beta00', 'Charlie').catch(() => {})
     await context?.close()
     await host?.close()
   })
@@ -63,6 +65,33 @@ test.describe('Attestation works', () => {
     })
   })
 
+  test('As a signed user, when I search for a domain and recommend it, I see the count go up and a confirmation toast', async () => {
+    test.setTimeout(25_000)
+    page = await context.newPage()
+
+    // Given
+    await navigateToTestHost(page, host.url)
+    frame = await getProductFrame(page, '.search-bar__input')
+    await frame.locator('.search-bar__input').fill('browse-beta00')
+    const card = frame.locator('.product-card[data-label="browse-beta00"]')
+    await expect(card).toBeVisible({ timeout: 15_000 })
+    const upvote = card.locator('.product-card__upvote')
+    const upvoteCount = upvote.locator('.product-card__upvote-count')
+    const hasCount = (await upvoteCount.count()) > 0
+    const beforeText = hasCount ? ((await upvoteCount.textContent()) ?? '') : ''
+    const before = beforeText === '' ? 0 : beforeText === '999+' ? 1000 : Number(beforeText)
+
+    // When
+    await upvote.click()
+
+    // Then
+    await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 15_000 })
+    await expect(upvoteCount).toHaveText(String(before + 1), { timeout: 15_000 })
+    await expect(frame.locator('.toast--visible')).toContainText('Recommended!', {
+      timeout: 15_000
+    })
+  })
+
   test('As a signed user, when I un-recommend an app, I see the count go down and a confirmation toast', async () => {
     test.setTimeout(30_000)
     page = await context.newPage()
@@ -74,6 +103,41 @@ test.describe('Attestation works', () => {
     frame = await getProductFrame(page, '.category-tab')
     await frame.locator('.category-tab', { hasText: 'All' }).click()
     const card = frame.locator('.product-card[data-label="host-playground"]')
+    await expect(card).toBeVisible({ timeout: 15_000 })
+    const upvote = card.locator('.product-card__upvote')
+    const upvoteCount = upvote.locator('.product-card__upvote-count')
+    await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 15_000 })
+    await expect(upvoteCount).toBeVisible()
+    const beforeText = (await upvoteCount.textContent()) ?? ''
+    const before = beforeText === '999+' ? 1000 : Number(beforeText)
+    expect(before).toBeGreaterThan(0)
+
+    // When
+    await upvote.click()
+
+    // Then
+    await expect(upvote).not.toHaveClass(/product-card__upvote--active/)
+    if (before > 1) {
+      await expect(upvoteCount).toHaveText(String(before - 1))
+    } else {
+      await expect(upvoteCount).not.toBeVisible()
+    }
+    await expect(frame.locator('.toast--visible')).toContainText('Unrecommended!', {
+      timeout: 15_000
+    })
+  })
+
+  test('As a signed user, when I search for a domain and unrecommend it, I see the count go down and a confirmation toast', async () => {
+    test.setTimeout(30_000)
+    page = await context.newPage()
+
+    // Given
+    const attestResult = await createAttestation('browse-beta00', 'Charlie')
+    expect(attestResult.attestationCountAfter).toBe(attestResult.attestationCountBefore + 1n)
+    await navigateToTestHost(page, host.url)
+    frame = await getProductFrame(page, '.search-bar__input')
+    await frame.locator('.search-bar__input').fill('browse-beta00')
+    const card = frame.locator('.product-card[data-label="browse-beta00"]')
     await expect(card).toBeVisible({ timeout: 15_000 })
     const upvote = card.locator('.product-card__upvote')
     const upvoteCount = upvote.locator('.product-card__upvote-count')

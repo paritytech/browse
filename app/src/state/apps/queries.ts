@@ -5,7 +5,8 @@
 
 import { type QueryClient, queryOptions, useQuery } from '@tanstack/react-query'
 
-import { readContentByName } from './remote'
+import { resolveUserH160 } from './identity'
+import { hydrateLabelChunk } from './remote'
 import { materialize, syncAllApps } from './sync'
 import type { AppEntry } from './types'
 import { readBookmarks } from '../../db/bookmarks'
@@ -94,39 +95,23 @@ export async function prefetchAllApps(queryClient: QueryClient) {
 }
 
 /**
- * Resolve a single `.dot` label to an {@link AppEntry}, hitting the disk
- * cache first and falling back to the content resolver.
+ * Resolve a single `.dot` label to an {@link AppEntry} with live state.
  */
 async function resolveLabel(name: string): Promise<AppEntry | null> {
-  const cachedLabels = await readLabels()
-  const cached = cachedLabels.find((entry) => entry.label === name)
-  if (cached?.contentHash) {
-    return {
-      label: cached.label,
-      name: cached.name,
-      description: cached.description,
-      iconCid: cached.iconCid,
-      contentHash: cached.contentHash,
-      isLive: true,
-      attestationCount: cached.attestationCount,
-      hasUserAttested: cached.hasUserAttested,
-      isCompliant: cached.isCompliant ?? false
-    }
-  }
-
-  const content = await readContentByName(name)
-  if (!content) return null
+  const userH160 = await resolveUserH160()
+  const [entry] = await hydrateLabelChunk([name], userH160)
+  if (!entry?.contentHash) return null
 
   return {
-    label: name,
-    name: content.name,
-    description: content.description,
-    iconCid: content.iconCid,
-    contentHash: content.contentHash,
+    label: entry.label,
+    name: entry.name,
+    description: entry.description,
+    iconCid: entry.iconCid,
+    contentHash: entry.contentHash,
     isLive: true,
-    attestationCount: null,
-    hasUserAttested: false,
-    isCompliant: false
+    attestationCount: entry.attestationCount,
+    hasUserAttested: entry.hasUserAttested,
+    isCompliant: entry.isCompliant ?? false
   }
 }
 const LABEL_RESOLVE_TIMEOUT_MS = 5_000 // 5s
