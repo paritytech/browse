@@ -243,6 +243,12 @@
   animation: upvote-pop 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* The arrow is a hollow outline until the user recommends, then it fills solid
+   to read as an engaged state. */
+.product-card__upvote--active .product-card__upvote-icon {
+  fill: currentColor;
+}
+
 /* While the tx is in flight, block re-toggling. The count fills in once the tx
    broadcasts; the reorder and toast land on confirmation. */
 .product-card__upvote--pending {

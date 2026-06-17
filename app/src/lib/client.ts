@@ -9,7 +9,7 @@ import {
 import { paseohub, previewnethub, summithub } from '@polkadot-api/descriptors'
 import type { PolkadotClient, TypedApi } from 'polkadot-api'
 
-import { ASSET_HUB_GENESIS, NETWORK } from './config'
+import { ASSET_HUB_GENESIS, DUMMY_ORIGIN, NETWORK } from './config'
 
 const descriptor = ({
   [PASEO_ASSET_HUB_NEXT_V2_GENESIS]: paseohub,
@@ -106,8 +106,6 @@ function rpcGate(): Promise<void> {
   return rpcGateChain
 }
 
-const DUMMY_ORIGIN_DEFAULT = '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY'
-
 export async function lookupOriginalAccount(h160: string): Promise<string | null> {
   const api = await ensureApi()
   await rpcGate()
@@ -123,7 +121,7 @@ export async function lookupOriginalAccount(h160: string): Promise<string | null
 export async function reviveCall(
   contractAddress: string,
   encodedData: `0x${string}`,
-  origin: string = DUMMY_ORIGIN_DEFAULT,
+  origin: string = DUMMY_ORIGIN,
   _providedApi?: PaseoHubApi
 ): Promise<`0x${string}`> {
   void _providedApi

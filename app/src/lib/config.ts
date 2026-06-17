@@ -28,7 +28,7 @@ export const DRY_RUN_WEIGHT_LIMIT = {
 }
 export const DRY_RUN_STORAGE_LIMIT = 18_446_744_073_709_551_615n
 
-export const DUMMY_ORIGIN = '5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY'
+export const DUMMY_ORIGIN = '5C4hrfjw9DjXZTzV3MwzrrAr9P1MLDHajjSidz9bR544LEq1'
 
 const APP_DOTNS_DOMAIN =
   import.meta.env?.APP_DOTNS_DOMAIN ?? process.env?.APP_DOTNS_DOMAIN ?? 'browse'
