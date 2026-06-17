@@ -1,6 +1,6 @@
 import { useRef } from 'preact/hooks'
 
-import { ThumbsUp } from 'lucide-preact'
+import { ArrowBigUp } from 'lucide-preact'
 
 import './styles.css'
 
@@ -43,7 +43,7 @@ export function RecommendButton({ recommended, onClick }: RecommendButtonProps) 
       aria-pressed={recommended}
       title={tooltip}
     >
-      <ThumbsUp class='recommend-button__icon' size={18} />
+      <ArrowBigUp class='recommend-button__icon' size={18} />
     </button>
   )
 }

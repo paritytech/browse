@@ -80,7 +80,7 @@ jobs:
             |---|---|
             | Version | `${{ steps.ver.outputs.version }}` |
             | CID | `${{ steps.cid.outputs.cid }}` |
-            | Domain | `${{ env.APP_DOTNS_DOMAIN }}.dot` |
-            | Browser | https://${{ env.APP_DOTNS_DOMAIN }}.dot.li |
+            | Domain | `${{ env.APP_DOTNS_DOMAIN }}-beta00.dot` |
+            | Browser | https://${{ env.APP_DOTNS_DOMAIN }}-beta00.paseo.li |
 
             To roll back, re-run `dotns content set` with a prior release CID.
