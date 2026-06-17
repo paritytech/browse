@@ -23,7 +23,6 @@ import { subscribeHostTheme } from './lib/theme'
 import { useEvent } from './lib/use-event'
 import { useFlipReorder } from './lib/use-flip'
 import { useOverscrollSync } from './lib/use-overscroll-sync'
-import { useSyncIndicator } from './lib/use-sync-indicator'
 import {
   ALL_APPS_KEY,
   LABELS_KEY,
@@ -36,6 +35,10 @@ import { useGetAttestationsByContacts } from './state/attestations/queries'
 import { addContact, type ContactEntry, getContacts, removeContact } from './state/contacts/api'
 
 const SEARCH_GROUP_PRIORITY: FilterMode[] = ['bookmarks', 'following', 'all']
+
+// Minimum time the loading dots stay up after a mobile pull-refresh, so the
+// gesture has visible feedback even when the connection reset resolves instantly.
+const PULL_REFRESH_MIN_VISIBLE_MS = 2000
 
 export function App() {
   const queryClient = useQueryClient()
@@ -289,11 +292,30 @@ export function App() {
 
   useEffect(() => subscribeHostTheme(), [])
 
+  // Touch devices get a minimum-visible hold on the dots after a pull-refresh
+  const isTouchDevice = useMemo(
+    () => !window.matchMedia?.('(hover: hover) and (pointer: fine)').matches,
+    []
+  )
+  const [pullRefreshFloor, setPullRefreshFloor] = useState(false)
+  const pullFloorTimer = useRef<ReturnType<typeof setTimeout>>()
+  useEffect(() => () => clearTimeout(pullFloorTimer.current), [])
+
   // Completely re-establish the chain connection: drop the cached SDK (destroys
   // the papi client + chain socket) so the next query rebuilds a fresh
-  // connection, then refetch. Driven by the overscroll-at-bottom gesture.
+  // connection, then refetch. Driven by the overscroll-at-bottom gesture. On
+  // touch, hold the loading dots for a minimum window so the pull always reads
+  // as feedback even if the reset resolves instantly.
   const refreshConnection = useEvent(() => {
     resetBrowseSdk()
+    if (isTouchDevice) {
+      clearTimeout(pullFloorTimer.current)
+      setPullRefreshFloor(true)
+      pullFloorTimer.current = setTimeout(
+        () => setPullRefreshFloor(false),
+        PULL_REFRESH_MIN_VISIBLE_MS
+      )
+    }
     void queryClient.invalidateQueries({ queryKey: ALL_APPS_KEY })
   })
 
@@ -353,9 +375,9 @@ export function App() {
   // or on the local bookmarks tab.
   useOverscrollSync(refreshConnection, allFetching || !!query || currentMode === 'bookmarks')
 
-  // The sync indicator (loading dots): swallow the open-time sync on desktop and
-  // hold the dots for a minimum duration so a fast sync doesn't flash.
-  const showSyncDots = useSyncIndicator(isLoading && !query && filtered.length > 0)
+  // Loading dots track the live sync. A mobile pull-refresh additionally holds
+  // them for a minimum window so the gesture doesn't flash.
+  const showSyncDots = (isLoading && !query && filtered.length > 0) || pullRefreshFloor
 
   // Showing skeletons.
   const coldStart = isLoading && filtered.length === 0 && !query
