@@ -77,7 +77,11 @@ export function getAllAppsOptions(queryClient: QueryClient) {
       return merge(queryClient.getQueryData<AppEntry[]>(ALL_APPS_KEY), finalApps)
     },
     staleTime: 5 * 60_000,
-    retry: false
+    // A failure here is usually a stale chain connection after a long
+    // background/foreground. Retry with backoff so it
+    // self-heals before surfacing the toast.
+    retry: 1,
+    retryDelay: (attempt) => Math.min(2000 * 2 ** attempt, 8000)
   })
 }
 

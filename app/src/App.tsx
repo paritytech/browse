@@ -15,6 +15,7 @@ import { Toast } from './components/toast'
 import { ToastContext } from './components/toast/context'
 import { createBookmark, deleteBookmark, readBookmarks } from './db/bookmarks'
 import { upsertLabel } from './db/labels'
+import { resetBrowseSdk } from './lib/client'
 import { SELF_LABEL } from './lib/config'
 import { setupDebugConsole } from './lib/debug'
 import { navigateToDomain } from './lib/navigate'
@@ -22,6 +23,7 @@ import { subscribeHostTheme } from './lib/theme'
 import { useEvent } from './lib/use-event'
 import { useFlipReorder } from './lib/use-flip'
 import { useOverscrollSync } from './lib/use-overscroll-sync'
+import { useSyncIndicator } from './lib/use-sync-indicator'
 import {
   ALL_APPS_KEY,
   LABELS_KEY,
@@ -232,10 +234,17 @@ export function App() {
       if (app) void persistLabelFromApp(app)
     }
   })
-  const showToast = useEvent((message: string, isError = false) => {
-    setToastIsError(isError)
-    setToastMessage(message)
-  })
+  const showToast = useEvent(
+    (
+      message: string,
+      isError = false,
+      action: { label: string; onClick: () => void } | null = null
+    ) => {
+      setToastIsError(isError)
+      setToastAction(action)
+      setToastMessage(message)
+    }
+  )
 
   const handleAddContact = useEvent((address: string, username?: string) => {
     addContact(address, username)
@@ -280,9 +289,19 @@ export function App() {
 
   useEffect(() => subscribeHostTheme(), [])
 
-  // Surface a network failure as a toast.
+  // Completely re-establish the chain connection: drop the cached SDK (destroys
+  // the papi client + chain socket) so the next query rebuilds a fresh
+  // connection, then refetch. Driven by the overscroll-at-bottom gesture.
+  const refreshConnection = useEvent(() => {
+    resetBrowseSdk()
+    void queryClient.invalidateQueries({ queryKey: ALL_APPS_KEY })
+  })
+
+  // Surface a network failure as a (non-error) toast.
   useEffect(() => {
-    if (allError) showToast('Network not supported', true)
+    if (allError) {
+      showToast('Network connection failed')
+    }
   }, [allError, showToast])
 
   // Load bookmarks and contacts on mount
@@ -329,13 +348,14 @@ export function App() {
         ? followingLoading
         : allFetching
 
-  // Pushing past the end of the list re-checks the published set for new/removed
-  // apps. Disabled while a sync runs, while searching, or on the local bookmarks
-  // tab.
-  const refreshAllApps = useEvent(() => {
-    queryClient.invalidateQueries({ queryKey: ALL_APPS_KEY })
-  })
-  useOverscrollSync(refreshAllApps, allFetching || !!query || currentMode === 'bookmarks')
+  // Pushing past the end of the list fully re-establishes the chain connection
+  // (resetBrowseSdk) and re-syncs. Disabled while a sync runs, while searching,
+  // or on the local bookmarks tab.
+  useOverscrollSync(refreshConnection, allFetching || !!query || currentMode === 'bookmarks')
+
+  // The sync indicator (loading dots): swallow the open-time sync on desktop and
+  // hold the dots for a minimum duration so a fast sync doesn't flash.
+  const showSyncDots = useSyncIndicator(isLoading && !query && filtered.length > 0)
 
   // Showing skeletons.
   const coldStart = isLoading && filtered.length === 0 && !query
@@ -509,7 +529,7 @@ export function App() {
               <div
                 class='loading-dots'
                 id='loading-dots'
-                style={{ display: isLoading && !query && filtered.length > 0 ? 'flex' : 'none' }}
+                style={{ display: showSyncDots ? 'flex' : 'none' }}
               >
                 <span class='loading-dots__dot' />
                 <span class='loading-dots__dot' />
