@@ -1,6 +1,6 @@
 import { memo, useEffect, useState } from 'preact/compat'
 
-import { ArrowUp, ArrowUpRight, BadgeCheck, Bookmark, Share2 } from 'lucide-preact'
+import { ArrowBigUp, ArrowUpRight, BadgeCheck, Bookmark, Share2 } from 'lucide-preact'
 
 import { BubbleBurst } from './bubble-burst'
 import { useIconBlob } from '../../state/apps/icon'
@@ -159,7 +159,7 @@ export const ProductCard = memo(function ProductCard({
                     aria-busy={attestationPending}
                   >
                     <span class='product-card__upvote-label'>
-                      <ArrowUp size={16} />
+                      <ArrowBigUp class='product-card__upvote-icon' size={16} />
                       {displayCount > 0 && (
                         <span class='product-card__upvote-count'>
                           {displayCount > 999 ? '999+' : displayCount}
