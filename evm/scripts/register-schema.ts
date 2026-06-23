@@ -1,6 +1,8 @@
 import { Binary } from "polkadot-api";
 import { decodeEventLog, encodeFunctionData, parseAbi } from "viem";
 
+import { primaryAttestationResolver } from "@parity/browse-sdk/config";
+
 import {
   connect,
   ensureMapped,
@@ -25,7 +27,7 @@ async function main() {
   const SCHEMA_REGISTRY = (process.env.SCHEMA_REGISTRY ??
     config.SCHEMA_REGISTRY) as `0x${string}`;
   const RESOLVER = (process.env.RESOLVER ??
-    config.ATTESTATION_INDEX_RESOLVER) as `0x${string}`;
+    primaryAttestationResolver(config)) as `0x${string}`;
 
   console.log(`Caller: ${address}`);
   console.log(`SchemaRegistry: ${SCHEMA_REGISTRY}`);

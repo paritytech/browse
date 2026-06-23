@@ -22,7 +22,11 @@ Labels are published through [Publisher.sol](src/Publisher.sol), which records e
 and gates who can publish with proof-of-personhood and per-account rate limits. Attestations on
 products are indexed by resolvers bound to an attestation service.
 [RecipientAndAttesterIndexResolver.sol](src/RecipientAndAttesterIndexResolver.sol) groups attestation
-IDs by recipient, schema, and attester so the app can query them efficiently.
+IDs by recipient, schema, and attester so the app can query them efficiently. It also gates new
+attestations on personhood: a product account first proves, once, that a verified identity authorized
+it (an sr25519 signature checked against the System precompile via `bindIdentity`), and the resolver
+then admits an attestation only when that identity holds personhood and has not already attested the
+same recipient and schema, giving one-person-one-recommendation.
 [TrustedAttesterIndexResolver.sol](src/TrustedAttesterIndexResolver.sol) handles certification schemas
 that may only be granted by one trusted attester. It admits that attester alone and indexes the
 certified recipients by schema.
@@ -61,8 +65,10 @@ Version 2.1.0:
 * **Publisher**:
   * Contract: `0xcea6551761b9ea035b1f2be5cddd9dd85148437d`
   * Deployment and ABI: [Publisher.sol](src/Publisher.sol)
-* **RecipientAndAttesterIndexResolver**:
-  * Contract: `0x5d701a1aca551b0e1cd6a00172554e5ff2348104`
+* **RecipientAndAttesterIndexResolver** (personhood-gated, recommend schema `3`):
+  * Contract: `0x31eb991e646c4827e4785d8c295552eaafe5fac0`
+  * Previous (ungated, schema `1`, kept for reads): `0x5d701a1aca551b0e1cd6a00172554e5ff2348104`
+  * Recommendations require the attester to bind a verified identity via `bindIdentity` that holds personhood, so one person can recommend a given app only once. The SDK config keeps both versions: writes target the newest, reads union across both.
   * Deployment and ABI: [RecipientAndAttesterIndexResolver.sol](src/RecipientAndAttesterIndexResolver.sol)
 * **TrustedAttesterIndexResolver**:
   * Contract: `0xdc713ebf1028544a00225c8741eb698253c49302`
