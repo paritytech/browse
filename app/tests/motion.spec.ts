@@ -211,8 +211,6 @@ test.describe('Motion', () => {
     await reproveIdentityPersonhood()
     await createRevokedAttestation('host-playground').catch(() => {})
     const host = await startSignedHost({ name: 'smalltava.05', uri: `${DEV_PHRASE}//wallet` })
-    // Force motion on so the burst fires regardless of the host OS "Reduce
-    // Motion" setting (the card skips the burst under prefers-reduced-motion).
     const context = await browser.newContext({
       ignoreHTTPSErrors: true,
       reducedMotion: 'no-preference'
