@@ -23,6 +23,8 @@
     "papi:paseo:hub": "npx papi add -w wss://paseo-asset-hub-next-rpc.polkadot.io paseohub",
     "papi:previewnet:hub": "npx papi add -w wss://previewnet.substrate.dev/asset-hub previewnethub",
     "papi:summitnet:hub": "npx papi add -w wss://summit-asset-hub-rpc.polkadot.io summithub",
+    "papi:paseo:people": "npx papi add -w wss://paseo-people-next-system-rpc.polkadot.io paseopeople",
+    "papi:previewnet:people": "npx papi add -w wss://previewnet.substrate.dev/people previewnetpeople",
     "papi:attestation-service": "npx papi sol add src/lib/abis/AttestationService.json attestation_service",
     "papi:schema-registry": "npx papi sol add src/lib/abis/SchemaRegistry.json schema_registry",
     "test:e2e": "APP_PGAS_FUNDING_TIMEOUT=1000 NETWORK_GENESIS_HASH=0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb playwright test --config tests/playwright.config.ts"
@@ -69,6 +71,7 @@
     "prettier": "^3.8.1",
     "typescript": "^5.4.0",
     "typescript-eslint": "^8.58.0",
+    "verifiablejs": "1.3.0",
     "vite": "^6.0.0",
     "vite-plugin-node-polyfills": "^0.25.0",
     "ws": "^8.20.0"

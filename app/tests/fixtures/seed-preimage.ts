@@ -1,6 +1,6 @@
 import {
   KNOWN_NETWORKS,
-  PREVIEWNET_ASSET_HUB_GENESIS,
+  PREVIEWNET_ASSETHUB_GENESIS,
   type NetworkGenesis
 } from '@parity/browse-sdk'
 import type { Page } from '@playwright/test'
@@ -11,7 +11,7 @@ function ipfsGateway(): string {
   const known =
     genesis && Object.prototype.hasOwnProperty.call(KNOWN_NETWORKS, genesis)
       ? KNOWN_NETWORKS[genesis as NetworkGenesis]
-      : KNOWN_NETWORKS[PREVIEWNET_ASSET_HUB_GENESIS]
+      : KNOWN_NETWORKS[PREVIEWNET_ASSETHUB_GENESIS]
   return known.IPFS_GATEWAY
 }
 

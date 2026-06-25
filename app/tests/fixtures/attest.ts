@@ -2,7 +2,7 @@ import { ss58ToEthereum } from '@polkadot-api/sdk-ink'
 import { type SS58String } from 'polkadot-api'
 
 import { encodeAttestationLabel, namehash, nodeToSubject } from '../../src/lib/abi'
-import { NETWORK } from '../../src/lib/config'
+import { ACTIVE_SCHEMA_ID } from '../../src/lib/config'
 import { withAttestationService } from './with-attestation-service'
 
 interface AttestResult {
@@ -12,21 +12,17 @@ interface AttestResult {
   attestationCountAfter: bigint
 }
 
-export async function createAttestation(
-  label: string,
-  devAccount = 'Alice'
-): Promise<AttestResult> {
-  return withAttestationService(devAccount, async (service, address) => {
+// The gated resolver only accepts attestations from the bound product account,
+// so seeding always signs as that account.
+export async function createAttestation(label: string): Promise<AttestResult> {
+  return withAttestationService(async (service, address) => {
     const recipient = nodeToSubject(namehash(`${label}.dot`))
     const attesterH160 = ss58ToEthereum(address as SS58String) as `0x${string}`
-    const attestationCountBefore = await service.countByRecipientAndSchema(
-      recipient,
-      NETWORK.SCHEMA_ID
-    )
-    const alreadyAttested = await service.isActiveAny(recipient, NETWORK.SCHEMA_ID, [attesterH160])
+    const attestationCountBefore = await service.countByRecipientAndSchema(recipient)
+    const alreadyAttested = await service.isActiveAny(recipient, [attesterH160])
     if (!alreadyAttested) {
       const data = encodeAttestationLabel(label)
-      await service.attest(NETWORK.SCHEMA_ID, recipient, 0n, true, 0n, data)
+      await service.attest(ACTIVE_SCHEMA_ID, recipient, 0n, true, 0n, data)
     }
     return {
       success: true,
@@ -38,8 +34,8 @@ export async function createAttestation(
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
-  const [, , label = 'calculator', account = 'Alice'] = process.argv
-  createAttestation(label, account)
+  const [, , label = 'calculator'] = process.argv
+  createAttestation(label)
     .then((r) => {
       console.log('[main] done', r)
       process.exit(0)

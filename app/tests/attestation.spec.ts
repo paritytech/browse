@@ -9,9 +9,10 @@ import { expect, test } from '@playwright/test'
 
 import { createAttestation } from './fixtures/attest'
 import { createCachedApps } from './fixtures/cache'
-import { fund } from './fixtures/fund'
+import { createProductSigner, fundWithNative, fundWithPgas } from './fixtures/fund'
+import { reproveIdentityPersonhood } from './fixtures/reprove-personhood'
 import { createRevokedAttestation } from './fixtures/revoke-attestation'
-import { getProductFrame, navigateToTestHost, startSignedHost } from './utils'
+import { DEV_PHRASE, getProductFrame, navigateToTestHost, startSignedHost } from './utils'
 
 test.describe('Attestation works', () => {
   let host: Awaited<ReturnType<typeof startSignedHost>>
@@ -20,20 +21,21 @@ test.describe('Attestation works', () => {
   let frame: Frame
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(60_000)
-    await fund('Charlie')
-    await createRevokedAttestation('host-playground', 'Charlie').catch(() => {})
-    await createRevokedAttestation('calculator', 'Charlie').catch(() => {})
-    await createRevokedAttestation('browse-beta00', 'Charlie').catch(() => {})
-    host = await startSignedHost('charlie')
+    test.setTimeout(120_000)
+    await fundWithNative(createProductSigner().address)
+    await reproveIdentityPersonhood()
+    await createRevokedAttestation('host-playground').catch(() => {})
+    await createRevokedAttestation('calculator').catch(() => {})
+    await createRevokedAttestation('browse-beta00').catch(() => {})
+    host = await startSignedHost({ name: 'smalltava.05', uri: `${DEV_PHRASE}//wallet` })
     context = await browser.newContext({ ignoreHTTPSErrors: true })
   })
 
   test.afterAll(async () => {
     await page?.close()
-    await createRevokedAttestation('host-playground', 'Charlie').catch(() => {})
-    await createRevokedAttestation('calculator', 'Charlie').catch(() => {})
-    await createRevokedAttestation('browse-beta00', 'Charlie').catch(() => {})
+    await createRevokedAttestation('host-playground').catch(() => {})
+    await createRevokedAttestation('calculator').catch(() => {})
+    await createRevokedAttestation('browse-beta00').catch(() => {})
     await context?.close()
     await host?.close()
   })
@@ -97,7 +99,7 @@ test.describe('Attestation works', () => {
     page = await context.newPage()
 
     // Given
-    const attestResult = await createAttestation('host-playground', 'Charlie')
+    const attestResult = await createAttestation('host-playground')
     expect(attestResult.attestationCountAfter).toBe(attestResult.attestationCountBefore + 1n)
     await navigateToTestHost(page, host.url)
     frame = await getProductFrame(page, '.category-tab')
@@ -132,7 +134,7 @@ test.describe('Attestation works', () => {
     page = await context.newPage()
 
     // Given
-    const attestResult = await createAttestation('browse-beta00', 'Charlie')
+    const attestResult = await createAttestation('browse-beta00')
     expect(attestResult.attestationCountAfter).toBe(attestResult.attestationCountBefore + 1n)
     await navigateToTestHost(page, host.url)
     frame = await getProductFrame(page, '.search-bar__input')
@@ -169,9 +171,9 @@ test.describe.skip('Contacts', () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(60_000)
-    await fund('Charlie')
-    await createRevokedAttestation('calculator', 'Charlie').catch(() => {})
-    await createAttestation('calculator', 'Charlie')
+    await fundWithPgas('Alice')
+    await createRevokedAttestation('calculator').catch(() => {})
+    await createAttestation('calculator')
     host = await startSignedHost('bob')
     context = await browser.newContext({ ignoreHTTPSErrors: true })
   })
@@ -254,10 +256,10 @@ test.describe.skip('Following', () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(60_000)
-    await fund('Charlie')
-    await createRevokedAttestation('calculator', 'Charlie').catch(() => {})
-    await createRevokedAttestation('stopwatch', 'Charlie').catch(() => {})
-    await createAttestation('calculator', 'Charlie')
+    await fundWithPgas('Alice')
+    await createRevokedAttestation('calculator').catch(() => {})
+    await createRevokedAttestation('stopwatch').catch(() => {})
+    await createAttestation('calculator')
 
     host = await startSignedHost('bob')
     context = await browser.newContext({ ignoreHTTPSErrors: true })
@@ -297,7 +299,7 @@ test.describe.skip('Following', () => {
     test.setTimeout(30_000)
 
     // Given
-    await createAttestation('stopwatch', 'Charlie')
+    await createAttestation('stopwatch')
 
     // When
     const page = await context.newPage()
@@ -314,7 +316,7 @@ test.describe.skip('Following', () => {
     await page.close()
 
     // Cleanup
-    await createRevokedAttestation('stopwatch', 'Charlie').catch(() => {})
+    await createRevokedAttestation('stopwatch').catch(() => {})
   })
 })
 
@@ -323,7 +325,7 @@ test.describe('Attestation fails', () => {
   let context: BrowserContext
 
   test.beforeAll(async ({ browser }) => {
-    // Unique derivation per run → fresh keypair → guaranteed zero balance on chain.
+    // Unique derivation per run gives a fresh keypair with a guaranteed zero balance on chain.
     const uri = `//e2e-unfunded-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     host = await startSignedHost({ name: 'Unfunded', uri })
     context = await browser.newContext({ ignoreHTTPSErrors: true })

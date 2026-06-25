@@ -1,7 +1,7 @@
 import { type Browser, type Frame, expect, test } from '@playwright/test'
 
 import { createCachedApps } from './fixtures/cache'
-import { fund } from './fixtures/fund'
+import { fundWithPgas } from './fixtures/fund'
 import { createRevokedAttestation } from './fixtures/revoke-attestation'
 import { getProductFrame, navigateToTestHost, startSignedHost } from './utils'
 import { SHUFFLE_MAX_MS, SHUFFLE_MIN_MS } from '../src/lib/use-flip'
@@ -206,10 +206,9 @@ test.describe('Motion', () => {
 
   test('Recommending an app bubbles when the chain confirms', async ({ browser }) => {
     test.setTimeout(60000)
-    // Fund the signer and reset host-playground to un-attested, so the click
-    // recommends (mirrors attestation.spec, which is the funded/working path).
-    await fund('Charlie')
-    await createRevokedAttestation('host-playground', 'Charlie').catch(() => {})
+    // Fund the signer and reset host-playground to un-attested.
+    await fundWithPgas('Charlie')
+    await createRevokedAttestation('host-playground').catch(() => {})
     const host = await startSignedHost('charlie')
     // Force motion on so the burst fires regardless of the host OS "Reduce
     // Motion" setting (the card skips the burst under prefers-reduced-motion).

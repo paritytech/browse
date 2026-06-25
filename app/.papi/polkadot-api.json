@@ -19,6 +19,18 @@
       "metadata": ".papi/metadata/summithub.scale",
       "genesis": "0xf388dc6d6cdf6fb77eac3c4a91f31bc0c8642b142f1a757512ab7849f9f70660",
       "codeHash": "0x9ccee8fcad38a5068147eba6f7f62d66d244c883092a9fcb1378e6d0f8258609"
+    },
+    "paseopeople": {
+      "wsUrl": "wss://paseo-people-next-system-rpc.polkadot.io",
+      "metadata": ".papi/metadata/paseopeople.scale",
+      "genesis": "0xc5af1826b31493f08b7e2a823842f98575b806a784126f28da9608c68665afa5",
+      "codeHash": "0xf7333e38f36fd2e369c75fcd4c4be58642440ccf0f5550402a14dc373c0b9304"
+    },
+    "previewnetpeople": {
+      "wsUrl": "wss://previewnet.substrate.dev/people",
+      "metadata": ".papi/metadata/previewnetpeople.scale",
+      "genesis": "0x3389bc9179d3be32568c67278bd080d05631ac71982d28a3fe545421147b311e",
+      "codeHash": "0xdda69368da1e2353f35bcd0ddabf622c0369932e334265f0668e1f6fd67f7c1b"
     }
   },
   "sol": {

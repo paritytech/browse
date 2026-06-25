@@ -21,8 +21,8 @@ import {
   encodeText,
   labelhashToTokenId,
   namehash,
-  PASEO_ASSET_HUB_NEXT_V2_GENESIS,
-  PREVIEWNET_ASSET_HUB_GENESIS,
+  PASEO_ASSETHUB_NEXT_V2_GENESIS,
+  PREVIEWNET_ASSETHUB_GENESIS,
   selectNetwork
 } from '@parity/browse-sdk'
 import { keccak_256 } from '@noble/hashes/sha3.js'
@@ -30,9 +30,9 @@ import { getWsProvider } from '@polkadot-api/ws-provider'
 
 const label = process.argv[2] ?? 'host-playground33'
 const genesis =
-  process.env.GENESIS === 'paseo' ? PASEO_ASSET_HUB_NEXT_V2_GENESIS : PREVIEWNET_ASSET_HUB_GENESIS
+  process.env.GENESIS === 'paseo' ? PASEO_ASSETHUB_NEXT_V2_GENESIS : PREVIEWNET_ASSETHUB_GENESIS
 const network = selectNetwork(genesis)
-const WS_URL = process.env.WS_URL ?? network.rpcs[0]
+const WS_URL = process.env.WS_URL ?? network.ASSETHUB_RPCS[0]
 
 console.log(`Connecting to ${WS_URL}`)
 const provider = getWsProvider(WS_URL)

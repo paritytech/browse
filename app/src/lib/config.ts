@@ -1,7 +1,9 @@
 import {
+  activeAttestationResolver,
+  activeSchemaId,
   isKnownGenesis,
   type NetworkGenesis,
-  PASEO_ASSET_HUB_NEXT_V2_GENESIS,
+  PASEO_ASSETHUB_NEXT_V2_GENESIS,
   selectNetwork
 } from '@parity/browse-sdk'
 
@@ -11,16 +13,17 @@ declare const process: { env?: Record<string, string | undefined> }
 const NETWORK_GENESIS_HASH =
   import.meta.env?.NETWORK_GENESIS_HASH ??
   process.env?.NETWORK_GENESIS_HASH ??
-  PASEO_ASSET_HUB_NEXT_V2_GENESIS
+  PASEO_ASSETHUB_NEXT_V2_GENESIS
 
 if (!isKnownGenesis(NETWORK_GENESIS_HASH)) {
   throw new Error(`Unknown NETWORK_GENESIS_HASH: ${NETWORK_GENESIS_HASH}`)
 }
 
-export const ASSET_HUB_GENESIS: NetworkGenesis = NETWORK_GENESIS_HASH
+export const ASSETHUB_GENESIS: NetworkGenesis = NETWORK_GENESIS_HASH
 
-export const NETWORK = selectNetwork(ASSET_HUB_GENESIS)
-export const SCHEMA_LIKE_ID = NETWORK.SCHEMA_ID
+export const NETWORK = selectNetwork(ASSETHUB_GENESIS)
+export const ACTIVE_ATTESTATION_RESOLVER = activeAttestationResolver(NETWORK)
+export const ACTIVE_SCHEMA_ID = activeSchemaId(NETWORK)
 
 export const DRY_RUN_WEIGHT_LIMIT = {
   ref_time: 18_446_744_073_709_551_615n,

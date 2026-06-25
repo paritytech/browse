@@ -6,7 +6,7 @@
  */
 
 import { keccak_256 } from '@noble/hashes/sha3.js'
-import { publisherReadAddresses } from '@parity/browse-sdk'
+import { attestationVersions, publisherReadAddresses } from '@parity/browse-sdk'
 
 import { parseRootManifest } from './manifest'
 import type { LabelEntry } from '../../db/labels'
@@ -171,31 +171,32 @@ export async function hydrateLabelChunk(
     if (contentHashes[chunkIndex]) liveIndexes.push(chunkIndex)
   }
 
-  // Per live label: manifest, like count, compliance attestation, and (when
-  // signed in) the per-user "have I liked this?" probe.
-  const callsPerLive = userH160 ? 4 : 3
+  const versions = attestationVersions(NETWORK)
+  const perLive = 1 + versions.length + 1 + (userH160 ? versions.length : 0)
   let metaResults: Awaited<ReturnType<typeof multicall>> = []
   if (liveIndexes.length > 0) {
     const metaCalls: MulticallTarget[] = []
     for (const chunkIndex of liveIndexes) {
       const node = namehash(`${chunk[chunkIndex]}.dot`)
       const subject = nodeToSubject(node)
-      metaCalls.push(
-        { target: NETWORK.CONTENT_RESOLVER, callData: encodeText(node, 'manifest') },
-        {
-          target: NETWORK.ATTESTATION_INDEX_RESOLVER,
-          callData: encodeCountByRecipientAndSchema(subject, NETWORK.SCHEMA_ID)
-        },
-        {
-          target: NETWORK.TRUSTED_ATTESTER_RESOLVER,
-          callData: encodeIsActive(subject, NETWORK.COMPLIANCE_SCHEMA_ID)
-        }
-      )
-      if (userH160) {
+      metaCalls.push({ target: NETWORK.CONTENT_RESOLVER, callData: encodeText(node, 'manifest') })
+      for (const { resolver, schemaId } of versions) {
         metaCalls.push({
-          target: NETWORK.ATTESTATION_INDEX_RESOLVER,
-          callData: encodeIsActiveAny(subject, NETWORK.SCHEMA_ID, [userH160])
+          target: resolver,
+          callData: encodeCountByRecipientAndSchema(subject, schemaId)
         })
+      }
+      metaCalls.push({
+        target: NETWORK.TRUSTED_ATTESTER_RESOLVER,
+        callData: encodeIsActive(subject, NETWORK.COMPLIANCE_SCHEMA_ID)
+      })
+      if (userH160) {
+        for (const { resolver, schemaId } of versions) {
+          metaCalls.push({
+            target: resolver,
+            callData: encodeIsActiveAny(subject, schemaId, [userH160])
+          })
+        }
       }
     }
     hiddenLog(
@@ -216,7 +217,7 @@ export async function hydrateLabelChunk(
     let isCompliant = false
     let hasUserAttested = false
     if (cid) {
-      const base = metaIdx * callsPerLive
+      const base = metaIdx * perLive
       const manifestRaw = tryDecode(metaResults[base], decodeString) ?? ''
       const manifest = parseRootManifest(manifestRaw)
       if (manifest) {
@@ -224,9 +225,23 @@ export async function hydrateLabelChunk(
         description = manifest.description || 'No description'
         iconCid = manifest.icon.cid
       }
-      attestationCount = tryDecode(metaResults[base + 1], decodeUint64)
-      isCompliant = tryDecode(metaResults[base + 2], decodeBool) ?? false
-      hasUserAttested = userH160 ? (tryDecode(metaResults[base + 3], decodeBool) ?? false) : false
+      let countTotal = 0
+      let hasCount = false
+      for (let v = 0; v < versions.length; v++) {
+        const c = tryDecode(metaResults[base + 1 + v], decodeUint64)
+        if (c !== null) {
+          countTotal += c
+          hasCount = true
+        }
+      }
+      attestationCount = hasCount ? countTotal : null
+      isCompliant = tryDecode(metaResults[base + 1 + versions.length], decodeBool) ?? false
+      if (userH160) {
+        const anyBase = base + 1 + versions.length + 1
+        hasUserAttested = versions.some(
+          (_, v) => tryDecode(metaResults[anyBase + v], decodeBool) === true
+        )
+      }
       metaIdx++
     }
     out.push({

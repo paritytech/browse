@@ -6,6 +6,7 @@
  * Nothing in this module is wired into the live app today.
  */
 
+import { attestationVersions } from '@parity/browse-sdk'
 import { ss58ToEthereum } from '@polkadot-api/sdk-ink'
 import { AccountId, type SS58String } from 'polkadot-api'
 
@@ -125,7 +126,8 @@ async function flushLabelBatch(
       if (contentHashes[j]) liveIndexes.push(j)
     }
 
-    const callsPerLive = userH160 ? 4 : 3
+    const versions = attestationVersions(NETWORK)
+    const perLive = 2 + versions.length + (userH160 ? versions.length : 0)
     let metaResults: Awaited<ReturnType<typeof multicall>> = []
     if (liveIndexes.length > 0) {
       const metaCalls: MulticallTarget[] = []
@@ -134,17 +136,21 @@ async function flushLabelBatch(
         const subject = nodeToSubject(node)
         metaCalls.push(
           { target: NETWORK.CONTENT_RESOLVER, callData: encodeText(node, 'name') },
-          { target: NETWORK.CONTENT_RESOLVER, callData: encodeText(node, 'description') },
-          {
-            target: NETWORK.ATTESTATION_INDEX_RESOLVER,
-            callData: encodeCountByRecipientAndSchema(subject, NETWORK.SCHEMA_ID)
-          }
+          { target: NETWORK.CONTENT_RESOLVER, callData: encodeText(node, 'description') }
         )
-        if (userH160) {
+        for (const { resolver, schemaId } of versions) {
           metaCalls.push({
-            target: NETWORK.ATTESTATION_INDEX_RESOLVER,
-            callData: encodeIsActiveAny(subject, NETWORK.SCHEMA_ID, [userH160])
+            target: resolver,
+            callData: encodeCountByRecipientAndSchema(subject, schemaId)
           })
+        }
+        if (userH160) {
+          for (const { resolver, schemaId } of versions) {
+            metaCalls.push({
+              target: resolver,
+              callData: encodeIsActiveAny(subject, schemaId, [userH160])
+            })
+          }
         }
       }
       hiddenLog(
@@ -162,11 +168,25 @@ async function flushLabelBatch(
       let attestationCount: number | null = null
       let hasUserAttested = false
       if (cid) {
-        const base = metaIdx * callsPerLive
+        const base = metaIdx * perLive
         name = tryDecode(metaResults[base], decodeString) || null
         description = tryDecode(metaResults[base + 1], decodeString) || 'No description'
-        attestationCount = tryDecode(metaResults[base + 2], decodeUint64)
-        hasUserAttested = userH160 ? (tryDecode(metaResults[base + 3], decodeBool) ?? false) : false
+        let countTotal = 0
+        let hasCount = false
+        for (let v = 0; v < versions.length; v++) {
+          const c = tryDecode(metaResults[base + 2 + v], decodeUint64)
+          if (c !== null) {
+            countTotal += c
+            hasCount = true
+          }
+        }
+        attestationCount = hasCount ? countTotal : null
+        if (userH160) {
+          const anyBase = base + 2 + versions.length
+          hasUserAttested = versions.some(
+            (_, v) => tryDecode(metaResults[anyBase + v], decodeBool) === true
+          )
+        }
         metaIdx++
       }
       const entry: LabelEntry = {
