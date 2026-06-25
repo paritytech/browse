@@ -45,5 +45,20 @@
       "genesisHash": "0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f",
       "deployedAt": "2026-06-08T14:35:14Z"
     }
+  },
+  "recipientAndAttesterIndexResolver": {
+    "previewnet": {
+      "address": "0x31eb991e646c4827e4785d8c295552eaafe5fac0",
+      "previousAddress": "0x5d701a1aca551b0e1cd6a00172554e5ff2348104",
+      "attestationService": "0x24af868f14605460f6385aae166986cee9800514",
+      "schema": "string label",
+      "schemaId": 3,
+      "personhoodGated": true,
+      "humanityContext": "dotns",
+      "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
+      "network": "previewnet-asset-hub",
+      "genesisHash": "0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb",
+      "deployedAt": "2026-06-22"
+    }
   }
 }

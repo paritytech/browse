@@ -5,7 +5,7 @@ import { AccountId, type SS58String } from 'polkadot-api'
 import { type LabelEntry, updateAttestationCount } from '../../db/labels'
 import { encodeAttestationLabel, namehash, nodeToSubject } from '../../lib/abi'
 import { attestationService } from '../../lib/attestation-service'
-import { NETWORK } from '../../lib/config'
+import { ACTIVE_SCHEMA_ID } from '../../lib/config'
 import { type AppEntry } from '../apps/types'
 
 const ALL_KEY = ['apps', 'all'] as const
@@ -108,6 +108,9 @@ function patchLabels(
 /** Translate a raw chain/mutation error into a user-facing toast message. */
 export function describeError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err)
+  if (msg.includes('No DotNS username')) {
+    return 'Allow reveal username'
+  }
   if (msg.includes('NotEnoughFunds') || msg.includes('"type": "Payment"')) {
     return 'Not enough allowance'
   }
@@ -125,8 +128,10 @@ export async function attestLabel(label: string, onPermitted?: () => void) {
   const recipient = nodeToSubject(namehash(`${label}.dot`))
   const data = encodeAttestationLabel(label)
   try {
-    return await attestationService.attest(
-      NETWORK.SCHEMA_ID,
+    // First recommendation from an unbound account batches the identity binding
+    // and the attestation into one tx. Later ones are a plain single attest.
+    return await attestationService.recommend(
+      ACTIVE_SCHEMA_ID,
       recipient,
       0n,
       true,
@@ -149,22 +154,22 @@ async function getAttesterH160(): Promise<string> {
 export async function revokeLabel(label: string, onPermitted?: () => void) {
   try {
     const recipient = nodeToSubject(namehash(`${label}.dot`))
-    const ids = await attestationService.listByRecipientAndSchema(
-      recipient,
-      NETWORK.SCHEMA_ID,
-      0n,
-      100n
-    )
+    const ids = await attestationService.listByRecipientAndSchema(recipient, 0n, 100n)
     if (ids.length === 0) throw new Error('No attestation to revoke')
 
     const attesterH160 = await getAttesterH160()
     const attestations = await Promise.all(
       ids.map((id) => attestationService.getAttestationById(id))
     )
-    const match = ids.find((_, i) => attestations[i].attester.toLowerCase() === attesterH160)
-    if (match === undefined) throw new Error('No attestation to revoke')
+    const mine = attestations
+      .map((a, i) => ({ schema: a.schema, id: ids[i], attester: a.attester }))
+      .filter((a) => a.attester.toLowerCase() === attesterH160)
+    if (mine.length === 0) throw new Error('No attestation to revoke')
 
-    return await attestationService.revoke(NETWORK.SCHEMA_ID, match, onPermitted)
+    // Prefer the active (gated) schema so its one-per-person alias lock is
+    // released and the user can recommend again. Fall back to an older version.
+    const chosen = mine.find((a) => a.schema === ACTIVE_SCHEMA_ID) ?? mine[0]
+    return await attestationService.revoke(chosen.schema, chosen.id, onPermitted)
   } catch (err) {
     console.error('[revokeLabel] failed for', label, err)
     throw err
@@ -173,12 +178,7 @@ export async function revokeLabel(label: string, onPermitted?: () => void) {
 
 export async function getAttestationId(label: string): Promise<bigint | null> {
   const recipient = nodeToSubject(namehash(`${label}.dot`))
-  const ids = await attestationService.listByRecipientAndSchema(
-    recipient,
-    NETWORK.SCHEMA_ID,
-    0n,
-    100n
-  )
+  const ids = await attestationService.listByRecipientAndSchema(recipient, 0n, 100n)
   if (ids.length === 0) return null
 
   const attesterH160 = await getAttesterH160()

@@ -6,12 +6,12 @@ import { getWsProvider } from "@polkadot-api/ws-provider";
 
 import {
   createBrowseSdk,
-  PASEO_ASSET_HUB_NEXT_V2_GENESIS,
+  PASEO_ASSETHUB_NEXT_V2_GENESIS,
   selectNetwork,
 } from "../src/index";
 
-const network = selectNetwork(PASEO_ASSET_HUB_NEXT_V2_GENESIS);
-const browseSdk = createBrowseSdk(network, getWsProvider(network.rpcs[0]));
+const network = selectNetwork(PASEO_ASSETHUB_NEXT_V2_GENESIS);
+const browseSdk = createBrowseSdk(network, getWsProvider(network.ASSETHUB_RPCS[0]));
 
 const widgets = await browseSdk.listAppsByModality("widget");
 

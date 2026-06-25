@@ -81,7 +81,7 @@ export function connect(): {
     process.exit(1);
   }
   const config = selectNetwork(genesisHash);
-  const client = createClient(getWsProvider(config.rpcs));
+  const client = createClient(getWsProvider(config.ASSETHUB_RPCS));
   return { client, api: client.getUnsafeApi(), config };
 }
 
