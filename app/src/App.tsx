@@ -456,16 +456,6 @@ export function App() {
           <div class='card-flip' id='card-flip'>
             <div class='card front' id='card-front'>
               <div class='topbar'>
-                <div class='header'>
-                  <h1 class='title'>
-                    <span class='title__white'>browse</span>
-                  </h1>
-                  <p class='subtitle'>
-                    <span>products</span>
-                    <span class='subtitle__dot' />
-                    <span>on polkadot</span>
-                  </p>
-                </div>
                 <SearchBar value={query} onInput={setQuery} onCancel={() => setQuery('')} />
               </div>
               {!searchMatches && (

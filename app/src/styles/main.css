@@ -178,9 +178,6 @@ input {
   animation: fadeUp 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.header {
-  animation-delay: 0ms;
-}
 .card-flip {
   animation-delay: 80ms;
 }
@@ -197,53 +194,6 @@ input {
     opacity: 1;
     transform: translateY(0);
   }
-}
-
-.header {
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.title {
-  position: relative;
-  font-family: var(--font-heading);
-  font-size: 3.2rem;
-  font-weight: 400;
-  letter-spacing: -0.02em;
-  line-height: 1;
-}
-
-.title__white {
-  color: var(--color-heading);
-  text-shadow: var(--title-shadow);
-}
-
-.title__muted {
-  color: var(--color-secondary);
-  text-shadow: none;
-}
-
-.subtitle {
-  color: var(--color-secondary);
-  font-size: 0.72rem;
-  font-weight: 500;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  font-family: var(--font-mono);
-}
-
-.subtitle__dot {
-  display: inline-block;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--bg-accent);
-  margin: 0 1.1em 1px;
-  vertical-align: middle;
-  box-shadow: 0 0 10px rgb(77 141 255 / 0.55);
 }
 
 .card {
@@ -513,10 +463,6 @@ input {
 }
 
 @media (max-width: 520px) {
-  .header {
-    display: none;
-  }
-
   .card {
     background: transparent;
     border: none;
@@ -576,16 +522,12 @@ input {
     gap: var(--space-large);
   }
 
-  /* No wordmark on desktop. Empty side columns center the search. */
+  /* Search centered in the page. */
   .topbar {
     display: grid;
     grid-template-columns: 1fr minmax(0, 520px) 1fr;
     align-items: center;
     gap: var(--space-large);
-  }
-
-  .topbar .header {
-    display: none;
   }
 
   .topbar .search-bar-row {

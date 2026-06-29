@@ -70,13 +70,6 @@ test.describe('App Start', () => {
       await reloaded.close()
     })
 
-    test('As an unsigned user, when I open browse, I see the page header', async () => {
-      // Then
-      const title = frame.locator('.title')
-      await expect(title).toBeVisible()
-      await expect(title).toContainText('browse')
-    })
-
     test('As an unsigned user, when I open browse, I see the search bar', async () => {
       // Then
       await expect(frame.locator('.search-bar input')).toBeVisible()
