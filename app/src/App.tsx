@@ -453,20 +453,21 @@ export function App() {
     <ToastContext.Provider value={{ showToast }}>
       <div class='page' ref={rootRef}>
         <div class='main'>
-          <div class='header'>
-            <h1 class='title'>
-              <span class='title__white'>browse</span>
-            </h1>
-            <p class='subtitle'>
-              <span>products</span>
-              <span class='subtitle__dot' />
-              <span>on polkadot</span>
-            </p>
-          </div>
-
           <div class='card-flip' id='card-flip'>
             <div class='card front' id='card-front'>
-              <SearchBar value={query} onInput={setQuery} onCancel={() => setQuery('')} />
+              <div class='topbar'>
+                <div class='header'>
+                  <h1 class='title'>
+                    <span class='title__white'>browse</span>
+                  </h1>
+                  <p class='subtitle'>
+                    <span>products</span>
+                    <span class='subtitle__dot' />
+                    <span>on polkadot</span>
+                  </p>
+                </div>
+                <SearchBar value={query} onInput={setQuery} onCancel={() => setQuery('')} />
+              </div>
               {!searchMatches && (
                 <CategoryTabs
                   active={coldStart ? ['all'] : [currentMode]}
@@ -481,7 +482,7 @@ export function App() {
 
               <div class='app-list' id='app-list' ref={appListRef}>
                 {coldStart ? (
-                  Array.from({ length: 4 }, (_, i) => <ProductCardSkeleton key={`sk-${i}`} />)
+                  Array.from({ length: 6 }, (_, i) => <ProductCardSkeleton key={`sk-${i}`} />)
                 ) : emptyAll ? (
                   <div class='empty-state'>
                     <div class='empty-state__icon'>

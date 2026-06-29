@@ -173,7 +173,6 @@ input {
   gap: 1.5rem;
 }
 
-.header,
 .card-flip,
 .footer {
   animation: fadeUp 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
@@ -257,6 +256,12 @@ input {
   flex-direction: column;
   gap: var(--space-medium-increased);
   box-shadow: var(--card-shadow);
+}
+
+.topbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-medium-increased);
 }
 
 .app-list {
@@ -541,6 +546,81 @@ input {
 
   .list-count {
     padding: 0 1rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .page {
+    padding: 3rem 2rem 2rem;
+    background: var(--bg-surface-container);
+  }
+
+  .main {
+    max-width: 1120px;
+  }
+
+  .card {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .card-flip::before,
+  .card-flip::after {
+    display: none;
+  }
+
+  .main {
+    /* Tighter spacing between search, tabs, and grid. */
+    gap: var(--space-large);
+  }
+
+  /* No wordmark on desktop. Empty side columns center the search. */
+  .topbar {
+    display: grid;
+    grid-template-columns: 1fr minmax(0, 520px) 1fr;
+    align-items: center;
+    gap: var(--space-large);
+  }
+
+  .topbar .header {
+    display: none;
+  }
+
+  .topbar .search-bar-row {
+    grid-column: 2;
+    width: 100%;
+    max-width: 520px;
+    margin: 0;
+  }
+
+  .category-tabs {
+    margin: 0;
+  }
+
+  .app-list {
+    display: grid;
+    /* 440px floor. Two columns only when each fits a readable row. Narrower
+       widths collapse to one wide column. */
+    grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+    column-gap: var(--space-large);
+    row-gap: var(--space-extra-medium);
+    padding: 0;
+    align-items: start;
+  }
+
+  .app-list .empty-state {
+    grid-column: 1 / -1;
+  }
+
+  /* Transparent rows. Hover fill tints the whole row. */
+  .product-card:not(.product-card--skeleton) {
+    background: transparent;
+  }
+
+  .product-card--skeleton {
+    background: var(--bg-surface-nested);
   }
 }
 

@@ -122,3 +122,22 @@
     backdrop-filter: blur(20px) saturate(180%);
   }
 }
+
+/* Left-aligned field on desktop. */
+@media (min-width: 768px) {
+  .search-bar__icon {
+    transform: translate(0, -50%);
+  }
+
+  .search-bar__placeholder {
+    left: 36px;
+    transform: translate(0, -50%);
+  }
+
+  /* Match the page background. The border defines the field. */
+  .search-bar__input {
+    background: var(--bg-surface-container);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
