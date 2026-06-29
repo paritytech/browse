@@ -50,3 +50,10 @@
   opacity: 0.35;
   cursor: default;
 }
+
+/* Desktop. A lighter active pill reads cleaner on the white page. */
+@media (min-width: 768px) {
+  .category-tab--active {
+    background: var(--surface-3);
+  }
+}

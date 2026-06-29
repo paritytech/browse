@@ -173,15 +173,11 @@ input {
   gap: 1.5rem;
 }
 
-.header,
 .card-flip,
 .footer {
   animation: fadeUp 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.header {
-  animation-delay: 0ms;
-}
 .card-flip {
   animation-delay: 80ms;
 }
@@ -200,53 +196,6 @@ input {
   }
 }
 
-.header {
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.title {
-  position: relative;
-  font-family: var(--font-heading);
-  font-size: 3.2rem;
-  font-weight: 400;
-  letter-spacing: -0.02em;
-  line-height: 1;
-}
-
-.title__white {
-  color: var(--color-heading);
-  text-shadow: var(--title-shadow);
-}
-
-.title__muted {
-  color: var(--color-secondary);
-  text-shadow: none;
-}
-
-.subtitle {
-  color: var(--color-secondary);
-  font-size: 0.72rem;
-  font-weight: 500;
-  letter-spacing: 0.18em;
-  text-transform: uppercase;
-  font-family: var(--font-mono);
-}
-
-.subtitle__dot {
-  display: inline-block;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--bg-accent);
-  margin: 0 1.1em 1px;
-  vertical-align: middle;
-  box-shadow: 0 0 10px rgb(77 141 255 / 0.55);
-}
-
 .card {
   position: relative;
   background: var(--color-surface);
@@ -257,6 +206,12 @@ input {
   flex-direction: column;
   gap: var(--space-medium-increased);
   box-shadow: var(--card-shadow);
+}
+
+.topbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-medium-increased);
 }
 
 .app-list {
@@ -508,10 +463,6 @@ input {
 }
 
 @media (max-width: 520px) {
-  .header {
-    display: none;
-  }
-
   .card {
     background: transparent;
     border: none;
@@ -541,6 +492,77 @@ input {
 
   .list-count {
     padding: 0 1rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .page {
+    padding: 3rem 2rem 2rem;
+    background: var(--bg-surface-container);
+  }
+
+  .main {
+    max-width: 1120px;
+  }
+
+  .card {
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .card-flip::before,
+  .card-flip::after {
+    display: none;
+  }
+
+  .main {
+    /* Tighter spacing between search, tabs, and grid. */
+    gap: var(--space-large);
+  }
+
+  /* Search centered in the page. */
+  .topbar {
+    display: grid;
+    grid-template-columns: 1fr minmax(0, 520px) 1fr;
+    align-items: center;
+    gap: var(--space-large);
+  }
+
+  .topbar .search-bar-row {
+    grid-column: 2;
+    width: 100%;
+    max-width: 520px;
+    margin: 0;
+  }
+
+  .category-tabs {
+    margin: 0;
+  }
+
+  .app-list {
+    display: grid;
+    /* 440px floor. Two columns only when each fits a readable row. Narrower
+       widths collapse to one wide column. */
+    grid-template-columns: repeat(auto-fill, minmax(440px, 1fr));
+    column-gap: var(--space-large);
+    row-gap: var(--space-extra-medium);
+    padding: 0;
+    align-items: start;
+  }
+
+  .app-list .empty-state {
+    grid-column: 1 / -1;
+  }
+
+  /* Transparent rows. Hover fill tints the whole row. */
+  .product-card:not(.product-card--skeleton) {
+    background: transparent;
+  }
+
+  .product-card--skeleton {
+    background: var(--bg-surface-nested);
   }
 }
 
