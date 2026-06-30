@@ -15,8 +15,8 @@ const FUNDER = 'Alice'
 export const DEFAULT_PGAS_AMOUNT = 5_000_000_000n
 const MIN_PGAS_BALANCE = 1_000_000_000n
 export const PGAS_MIN_BALANCE = 10_000_000n
-const DEFAULT_NATIVE_AMOUNT = 10_000_000_000_000n
-const MIN_NATIVE_BALANCE = 2_000_000_000_000n
+const DEFAULT_NATIVE_AMOUNT = 1_000_000_000_000n
+const MIN_NATIVE_BALANCE = 500_000_000_000n
 
 function signerFor(miniSecret: Uint8Array, path: string) {
   const wallet = sr25519CreateDerive(miniSecret)(path)
@@ -79,14 +79,35 @@ async function transferPgas(
   to: string,
   amount: bigint
 ): Promise<void> {
-  const result = await api.tx.Assets.transfer({
-    id: assetId,
-    target: { type: 'Id', value: to as SS58String },
-    amount
-  }).signAndSubmit(from.signer)
-  if (!result.ok) {
-    throw new Error(`PGAS transfer failed: ${JSON.stringify(result.dispatchError)}`)
+  // Fail with a clear top-up message when the funder is short, rather than the
+  // opaque `Assets.NoAccount`/`BalanceLow` the transfer would otherwise throw.
+  const funderBalance = await pgasBalanceOf(api, assetId, from.address)
+  if (funderBalance < amount) {
+    throw new Error(
+      `PGAS funder ${from.address} holds ${funderBalance}, below the ${amount} needed to fund the test account. ` +
+        `Top up its PGAS (asset ${assetId}) on the active network.`
+    )
   }
+  await new Promise<void>((resolve, reject) => {
+    api.tx.Assets.transfer({
+      id: assetId,
+      target: { type: 'Id', value: to as SS58String },
+      amount
+    })
+      .signSubmitAndWatch(from.signer)
+      .subscribe({
+        next: (event) => {
+          if (!((event.type === 'txBestBlocksState' && event.found) || event.type === 'finalized'))
+            return
+          if (event.ok === false) {
+            reject(new Error(`PGAS transfer failed: ${JSON.stringify(event.dispatchError)}`))
+          } else {
+            resolve()
+          }
+        },
+        error: reject
+      })
+  })
 }
 
 export interface FundResult {
@@ -132,21 +153,92 @@ export async function mapAccount(tag: string): Promise<void> {
   const h160 = (ss58ToEthereum(acct.address as SS58String) as `0x${string}`).toLowerCase()
   await withAssetHubApi(async (api) => {
     if (await api.query.Revive.OriginalAccount.getValue(h160)) return
-    const result = await api.tx.Revive.map_account().signAndSubmit(acct.signer)
-    if (!result.ok) {
-      throw new Error(`map_account failed: ${JSON.stringify(result.dispatchError)}`)
-    }
+    await new Promise<void>((resolve, reject) => {
+      api.tx.Revive.map_account()
+        .signSubmitAndWatch(acct.signer)
+        .subscribe({
+          next: (event) => {
+            if (!((event.type === 'txBestBlocksState' && event.found) || event.type === 'finalized'))
+              return
+            if (event.ok === false) {
+              reject(new Error(`map_account failed: ${JSON.stringify(event.dispatchError)}`))
+            } else {
+              resolve()
+            }
+          },
+          error: reject
+        })
+    })
   })
 }
 
-/** Return all PGAS held by `fromTag` to the identity account so the pool recycles. */
-export async function reclaimPgas(fromTag: string): Promise<void> {
+/**
+ * Send the entire PGAS balance of `fromTag` to `to` so the pool recycles.
+ * Defaults to the identity account.
+ */
+export async function transferAllWithPgas(
+  fromTag: string,
+  to: string = createProductSigner().address
+): Promise<void> {
   const from = createDevSigner(fromTag)
   await withAssetHubApi(async (api) => {
     const assetId = (await api.constants.Pgas.PgasAssetId()) as number
     const balance = await pgasBalanceOf(api, assetId, from.address)
     if (balance === 0n) return
-    await transferPgas(api, assetId, from, createProductSigner().address, balance)
+    await new Promise<void>((resolve, reject) => {
+      api.tx.Assets.transfer({
+        id: assetId,
+        target: { type: 'Id', value: to as SS58String },
+        amount: balance
+      })
+        .signSubmitAndWatch(from.signer)
+        .subscribe({
+          next: (event) => {
+            if (!((event.type === 'txBestBlocksState' && event.found) || event.type === 'finalized'))
+              return
+            if (event.ok === false) {
+              reject(new Error(`PGAS transfer_all failed: ${JSON.stringify(event.dispatchError)}`))
+            } else {
+              resolve()
+            }
+          },
+          error: reject
+        })
+    })
+  })
+}
+
+/**
+ * Send the entire native balance of `fromTag` to `to` and reap the account, so a
+ * throwaway account does not permanently drain the funder. Defaults to the
+ * funder. Call after every other tx the account signs, since it leaves nothing
+ * for fees.
+ */
+export async function transferAllWithNative(
+  fromTag: string,
+  to: string = createDevSigner(FUNDER).address
+): Promise<void> {
+  const from = createDevSigner(fromTag)
+  await withAssetHubApi(async (api) => {
+    await new Promise<void>((resolve, reject) => {
+      api.tx.Balances.transfer_all({
+        dest: { type: 'Id', value: to as SS58String },
+        keep_alive: false
+      })
+        .signSubmitAndWatch(from.signer)
+        .subscribe({
+          next: (event) => {
+            if (!((event.type === 'txBestBlocksState' && event.found) || event.type === 'finalized'))
+              return
+            if (event.ok === false) {
+              reject(new Error(`native transfer_all failed: ${JSON.stringify(event.dispatchError)}`))
+            } else {
+              resolve()
+            }
+          },
+          error: reject
+        })
+    })
   })
 }
 
@@ -167,13 +259,25 @@ export async function fundWithNative(
     if ((current?.data?.free ?? 0n) >= MIN_NATIVE_BALANCE) return
 
     const funder = createDevSigner(FUNDER)
-    const result = await api.tx.Balances.transfer_keep_alive({
-      dest: { type: 'Id', value: toAddress as SS58String },
-      value: amount
-    }).signAndSubmit(funder.signer)
-    if (!result.ok) {
-      throw new Error(`native transfer failed: ${JSON.stringify(result.dispatchError)}`)
-    }
+    await new Promise<void>((resolve, reject) => {
+      api.tx.Balances.transfer_keep_alive({
+        dest: { type: 'Id', value: toAddress as SS58String },
+        value: amount
+      })
+        .signSubmitAndWatch(funder.signer)
+        .subscribe({
+          next: (event) => {
+            if (!((event.type === 'txBestBlocksState' && event.found) || event.type === 'finalized'))
+              return
+            if (event.ok === false) {
+              reject(new Error(`native transfer failed: ${JSON.stringify(event.dispatchError)}`))
+            } else {
+              resolve()
+            }
+          },
+          error: reject
+        })
+    })
   })
 }
 

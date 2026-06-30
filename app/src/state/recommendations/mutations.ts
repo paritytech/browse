@@ -111,6 +111,11 @@ export function describeError(err: unknown): string {
   if (msg.includes('No DotNS username')) {
     return 'Allow reveal username'
   }
+  // The resolver refuses a second recommendation from the same identity. Tell
+  // the user it already counts rather than showing a generic failure.
+  if (msg.includes('ResolverRejected')) {
+    return 'Already recommended by you'
+  }
   if (msg.includes('NotEnoughFunds') || msg.includes('"type": "Payment"')) {
     return 'Not enough allowance'
   }
@@ -127,9 +132,21 @@ export function describeError(err: unknown): string {
 export async function attestLabel(label: string, onPermitted?: () => void) {
   const recipient = nodeToSubject(namehash(`${label}.dot`))
   const data = encodeAttestationLabel(label)
-  // First recommendation from an unbound account batches the identity binding
-  // and the attestation into one tx. Later ones are a plain single attest.
-  return attestationService.recommend(ACTIVE_SCHEMA_ID, recipient, 0n, true, 0n, data, onPermitted)
+  const account = await attestationService.productH160()
+  // The first recommendation from an unbound account batches the identity
+  // binding and the attestation into one tx. Later ones are a plain single attest.
+  const bound = BigInt(await attestationService.boundIdentity(account)) !== 0n
+  return bound
+    ? attestationService.attest(ACTIVE_SCHEMA_ID, recipient, 0n, true, 0n, data, onPermitted)
+    : attestationService.bindIdentityAndAttest(
+        ACTIVE_SCHEMA_ID,
+        recipient,
+        0n,
+        true,
+        0n,
+        data,
+        onPermitted
+      )
 }
 
 async function getAttesterH160(): Promise<string> {

@@ -31,8 +31,8 @@ import {
   useResolveLabel
 } from './state/apps/queries'
 import { type AppEntry, filterApps, type FilterMode, isFilterMode } from './state/apps/types'
-import { useGetAttestationsByContacts } from './state/attestations/queries'
 import { addContact, type ContactEntry, getContacts, removeContact } from './state/contacts/api'
+import { useGetAttestationsByContacts } from './state/recommendations/queries'
 
 const SEARCH_GROUP_PRIORITY: FilterMode[] = ['bookmarks', 'following', 'all']
 
