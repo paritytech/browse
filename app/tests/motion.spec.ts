@@ -2,7 +2,6 @@ import { type Browser, type Frame, expect, test } from '@playwright/test'
 
 import { createCachedApps } from './fixtures/cache'
 import { createProductSigner, fundWithNative } from './fixtures/fund'
-import { reproveIdentityPersonhood } from './fixtures/reprove-personhood'
 import { createRevokedAttestation } from './fixtures/revoke-attestation'
 import { DEV_PHRASE, getProductFrame, navigateToTestHost, startSignedHost } from './utils'
 import { SHUFFLE_MAX_MS, SHUFFLE_MIN_MS } from '../src/lib/use-flip'
@@ -208,7 +207,6 @@ test.describe('Motion', () => {
   test('Recommending an app bubbles when the network confirms', async ({ browser }) => {
     test.setTimeout(60000)
     await fundWithNative(createProductSigner().address)
-    await reproveIdentityPersonhood()
     await createRevokedAttestation('host-playground').catch(() => {})
     const host = await startSignedHost({ name: 'smalltava.05', uri: `${DEV_PHRASE}//wallet` })
     const context = await browser.newContext({

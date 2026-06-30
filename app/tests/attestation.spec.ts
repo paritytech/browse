@@ -8,11 +8,27 @@ import type { BrowserContext, Frame, Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 
 import { createAttestation } from './fixtures/attest'
+import {
+  createUnboundProductAccount,
+  IDENTITY_ACCOUNT,
+  type UnboundProduct
+} from './fixtures/bind-identity'
 import { createCachedApps } from './fixtures/cache'
-import { createProductSigner, fundWithNative, fundWithPgas } from './fixtures/fund'
-import { reproveIdentityPersonhood } from './fixtures/reprove-personhood'
+import {
+  createDevSigner,
+  createProductSigner,
+  fundWithNative,
+  fundWithPgas,
+  reclaimPgas
+} from './fixtures/fund'
 import { createRevokedAttestation } from './fixtures/revoke-attestation'
-import { DEV_PHRASE, getProductFrame, navigateToTestHost, startSignedHost } from './utils'
+import {
+  DEV_PHRASE,
+  getProductFrame,
+  navigateToTestHost,
+  startSignedHost,
+  startSignedHostWithProductAccounts
+} from './utils'
 
 test.describe('Attestation works', () => {
   let host: Awaited<ReturnType<typeof startSignedHost>>
@@ -23,7 +39,6 @@ test.describe('Attestation works', () => {
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(120_000)
     await fundWithNative(createProductSigner().address)
-    await reproveIdentityPersonhood()
     await createRevokedAttestation('host-playground').catch(() => {})
     await createRevokedAttestation('calculator').catch(() => {})
     await createRevokedAttestation('browse-beta00').catch(() => {})
@@ -161,6 +176,63 @@ test.describe('Attestation works', () => {
     }
     await expect(frame.locator('.toast--visible')).toContainText('Unrecommended!', {
       timeout: 15_000
+    })
+  })
+})
+
+test.describe('Attestation binds identity', () => {
+  let host: Awaited<ReturnType<typeof startSignedHostWithProductAccounts>>
+  let context: BrowserContext
+  let unbound: UnboundProduct
+
+  // `calculator` is recommended by no active test, so the bound identity has no
+  // standing attestation on it that the one-identity-one-recommendation gate
+  // would reject.
+  const APP = 'calculator'
+
+  test.beforeAll(async ({ browser }) => {
+    test.setTimeout(120_000)
+    // The identity account funds the fresh product PGAS seed in native.
+    await fundWithNative(createProductSigner().address)
+    // Clear any prior attestation by this fresh account (it owns the key).
+    unbound = await createUnboundProductAccount()
+    await createRevokedAttestation(APP, createDevSigner(unbound.tag)).catch(() => {})
+    host = await startSignedHostWithProductAccounts(IDENTITY_ACCOUNT, unbound.productAccounts)
+    context = await browser.newContext({ ignoreHTTPSErrors: true })
+  })
+
+  test.afterAll(async () => {
+    test.setTimeout(60_000)
+    // Revoke as the fresh attester so APP returns to un-attested for next run.
+    if (unbound) {
+      await createRevokedAttestation(APP, createDevSigner(unbound.tag)).catch(() => {})
+      await reclaimPgas(unbound.tag).catch(() => {})
+    }
+    await context?.close()
+    await host?.close()
+  })
+
+  test('As a user whose product account is unbound, when I recommend an app it binds my identity and recommends in one signature', async () => {
+    test.setTimeout(40_000)
+    const page = await context.newPage()
+
+    // Given
+    // The host maps the app product account to a fresh, unbound account, so the
+    // recommendation goes through the bind-and-attest batch instead of a plain attest.
+    await navigateToTestHost(page, host.url)
+    const frame = await getProductFrame(page, '.search-bar__input')
+    await frame.locator('.search-bar__input').fill(APP)
+    const card = frame.locator(`.product-card[data-label="${APP}"]`)
+    await expect(card).toBeVisible({ timeout: 15_000 })
+    const upvote = card.locator('.product-card__upvote')
+
+    // When
+    await upvote.click()
+
+    // Then
+    await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 25_000 })
+    await expect(frame.locator('.toast--visible')).toContainText('Recommended!', {
+      timeout: 25_000
     })
   })
 })

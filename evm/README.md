@@ -23,10 +23,10 @@ and gates who can publish with proof-of-personhood and per-account rate limits. 
 products are indexed by resolvers bound to an attestation service.
 [RecipientAndAttesterIndexResolver.sol](src/RecipientAndAttesterIndexResolver.sol) groups attestation
 IDs by recipient, schema, and attester so the app can query them efficiently. It also gates new
-attestations on personhood: a product account first proves, once, that a verified identity authorized
+attestations on a bound identity: a product account first proves, once, that an identity authorized
 it (an sr25519 signature checked against the System precompile via `bindIdentity`), and the resolver
-then admits an attestation only when that identity holds personhood and has not already attested the
-same recipient and schema, giving one-person-one-recommendation.
+then admits an attestation only when that identity has not already attested the same recipient and
+schema, giving one-identity-one-recommendation. It does not check personhood.
 [TrustedAttesterIndexResolver.sol](src/TrustedAttesterIndexResolver.sol) handles certification schemas
 that may only be granted by one trusted attester. It admits that attester alone and indexes the
 certified recipients by schema.
@@ -49,7 +49,7 @@ Version 2.1.0:
   * Contract: `0x0d30645f1d2c7dfa11926190e456a45db440581f`
   * Deployment and ABI: [Publisher.sol](src/Publisher.sol)
 * **RecipientAndAttesterIndexResolver**:
-  * Contract: `0x5d701a1aca551b0e1cd6a00172554e5ff2348104`
+  * Contract: `0x1fa4627395455ec42cfb574c895b5bc5e9e40c4f`
   * Deployment and ABI: [RecipientAndAttesterIndexResolver.sol](src/RecipientAndAttesterIndexResolver.sol)
 * **TrustedAttesterIndexResolver**:
   * Contract: `0x5abfc89934ee846d12629dfb5b22eecc59bbaed3`
@@ -65,10 +65,8 @@ Version 2.1.0:
 * **Publisher**:
   * Contract: `0xcea6551761b9ea035b1f2be5cddd9dd85148437d`
   * Deployment and ABI: [Publisher.sol](src/Publisher.sol)
-* **RecipientAndAttesterIndexResolver** (personhood-gated, recommend schema `3`):
-  * Contract: `0x31eb991e646c4827e4785d8c295552eaafe5fac0`
-  * Previous (ungated, schema `1`, kept for reads): `0x5d701a1aca551b0e1cd6a00172554e5ff2348104`
-  * Recommendations require the attester to bind a verified identity via `bindIdentity` that holds personhood, so one person can recommend a given app only once. The SDK config keeps both versions: writes target the newest, reads union across both.
+* **RecipientAndAttesterIndexResolver**:
+  * Contract: `0x2870c80ce3a18e1f1ffb9da2747347036355bd9a`
   * Deployment and ABI: [RecipientAndAttesterIndexResolver.sol](src/RecipientAndAttesterIndexResolver.sol)
 * **TrustedAttesterIndexResolver**:
   * Contract: `0xdc713ebf1028544a00225c8741eb698253c49302`
@@ -100,8 +98,8 @@ and skips whatever is already in the SDK config. The individual steps are:
 ```sh
 npm run deploy:publisher          # deploy the publishing registry
 npm run deploy:resolver           # deploy the attestation index resolver
-npm run deploy:trusted-resolver   # deploy the trusted-attester (certification) resolver
-npm run register:schema           # register a schema (SCHEMA required, RESOLVER overridable)
+npm run deploy:trusted-resolver   # deploy the certification resolver
+npm run register:schema           # register a schema
 ```
 
 ## Happy browsing!

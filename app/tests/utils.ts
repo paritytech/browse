@@ -87,6 +87,25 @@ export async function startSignedHost(...accounts: Account[]) {
   })
 }
 
+/**
+ * Like {@link startSignedHost} but with explicit product-account mappings,
+ * keyed `${dotnsId}/${index}`. Lets a test point a chosen derivation index at a
+ * distinct (fundable) account, such as a fresh, never-bound attester that drives
+ * the bind-and-attest batch.
+ */
+export async function startSignedHostWithProductAccounts(
+  account: Account,
+  productAccounts: Record<string, Account>
+) {
+  const { createTestHostServer } = await import('@parity/host-api-test-sdk')
+  return createTestHostServer({
+    productUrl: APP_URL,
+    accounts: [account],
+    networks: [activeNetwork(), activePeopleChain()],
+    productAccounts
+  })
+}
+
 export async function startUnsignedHost() {
   const { createTestHostServer } = await import('@parity/host-api-test-sdk')
   return createTestHostServer({

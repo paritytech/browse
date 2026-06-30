@@ -5,7 +5,7 @@ import { type AsyncTransaction, createInkSdk, ss58ToEthereum } from '@polkadot-a
 import { AccountId, type PolkadotClient, type PolkadotSigner, type SS58String } from 'polkadot-api'
 import { bytesToHex } from 'viem'
 
-import { ensureApi, ensureClient, type PaseoHubApi } from './client'
+import { endTransaction, ensureClient, resetBrowseSdk, startTransaction } from './client'
 import {
   ACTIVE_ATTESTATION_RESOLVER,
   DRY_RUN_WEIGHT_LIMIT,
@@ -16,7 +16,6 @@ import {
 } from './config'
 import { signIdentityMessage } from './identity-binding'
 
-export type ApiProvider = () => Promise<PaseoHubApi>
 export type ClientProvider = () => Promise<PolkadotClient>
 export type SignerProvider = () => Promise<{
   signer: PolkadotSigner
@@ -27,6 +26,16 @@ export type SignerProvider = () => Promise<{
 function bigStr(_: string, v: unknown): unknown {
   if (typeof v === 'bigint') return v.toString()
   return v
+}
+
+/**
+ * A `ChainHead disjointed` surfaces when a concurrent `resetBrowseSdk` destroys
+ * the shared client mid-operation.
+ */
+function isChainDisjoint(err: unknown): boolean {
+  // `String(err)` includes the Error name and message, so this covers both
+  // `DisjointError` and a `ChainHead disjointed` message.
+  return /disjoint/i.test(String(err))
 }
 
 async function hostSigner(): Promise<{
@@ -79,7 +88,12 @@ type AttestData = {
 
 const GAS = DRY_RUN_WEIGHT_LIMIT
 const STORAGE = 1_000_000_000_000n
-const BATCH_CALL_GAS = { ref_time: 30_000_000_000n, proof_size: 3_000_000n }
+
+// Gas cap for the batched attest. It can't be dry-run while the account is
+// unbound, so we cap it instead of measuring. Generous but block-bounded, and
+// matches the proven evm/scripts Revive.call limit. batch_all is atomic, so an
+// undercap (or any failure) reverts the whole batch rather than half-binding.
+const CALL_WEIGHT = { ref_time: 10_000_000_000n, proof_size: 1_000_000n }
 
 // Memoised per client so a provider rebuild yields fresh instances, not ones
 // stranded on the dead client.
@@ -91,7 +105,6 @@ const resolverByClient = new WeakMap<PolkadotClient, any>()
 
 export class AttestationService {
   constructor(
-    private api: ApiProvider = ensureApi,
     private client: ClientProvider = ensureClient,
     private signer: SignerProvider = hostSigner,
     private truapi: boolean = true
@@ -292,7 +305,40 @@ export class AttestationService {
     return this.submitAttest(origin, attestData, signer, onBroadcast)
   }
 
-  /** Make a recommendation, binding the product account's identity first when the network requires it. */
+  /**
+   * Run a write, recovering from a `ChainHead disjointed` thrown when a
+   * concurrent `resetBrowseSdk` destroys the shared client. Resets and retries
+   * on a fresh client, but only before the tx broadcasts so a settled
+   * submission is never re-sent.
+   */
+  private async withTransactionRetry(
+    run: (onBroadcast: () => void) => Promise<TxResult>,
+    onBroadcast?: () => void
+  ): Promise<TxResult> {
+    let broadcasted = false
+    const track = () => {
+      broadcasted = true
+      onBroadcast?.()
+    }
+    const MAX_ATTEMPTS = 3
+    for (let attempt = 1; ; attempt++) {
+      // Bracket the attempt so an unrelated reset (foreground, background sync)
+      // is deferred instead of yanking the client mid-write.
+      startTransaction()
+      try {
+        return await run(track)
+      } catch (err) {
+        if (broadcasted || attempt >= MAX_ATTEMPTS || !isChainDisjoint(err)) throw err
+        // Fall through to reset and retry once the bracket is released below.
+      } finally {
+        endTransaction()
+      }
+      resetBrowseSdk()
+      await new Promise((resolve) => setTimeout(resolve, 400))
+    }
+  }
+
+  /** Recommend an app, binding the product account identity first when unbound. */
   async recommend(
     schema: bigint,
     recipient: `0x${string}`,
@@ -302,27 +348,25 @@ export class AttestationService {
     data: `0x${string}`,
     onBroadcast?: () => void
   ): Promise<TxResult> {
-    const { signer, origin } = await this.signer()
-    const attestData = {
-      request: { schema, data: { recipient, expirationTime, revocable, refId, data } }
-    }
-
-    await this.ensureAllowance(origin)
-
-    // On a personhood-gated network the first recommendation from an unbound
-    // account must bind its identity. Bundle the bind and attest into one atomic
-    // batch so the user signs once, then memoise so later recommendations skip
-    // the on-chain re-read. Ungated networks attest directly with no bind.
-    if (NETWORK.ATTESTATION_GATED && !this.identityBound) {
-      const account = await this.productH160()
-      const existing = await this.boundIdentity(account)
-      if (BigInt(existing) === 0n) {
-        return this.bindAndAttest(account, attestData, signer, onBroadcast)
+    return this.withTransactionRetry(async (track) => {
+      const { signer, origin } = await this.signer()
+      const attestData = {
+        request: { schema, data: { recipient, expirationTime, revocable, refId, data } }
       }
-      this.identityBound = true
-    }
+      await this.ensureAllowance(origin)
 
-    return this.submitAttest(origin, attestData, signer, onBroadcast)
+      // The first recommendation from an unbound account binds its identity and
+      // attests in one atomic batch. Later ones attest directly, skipping the
+      // re-read once the binding is memoised.
+      if (!this.identityBound) {
+        const account = await this.productH160()
+        if (BigInt(await this.boundIdentity(account)) === 0n) {
+          return this.bindAndAttest(account, attestData, origin, signer, track)
+        }
+        this.identityBound = true
+      }
+      return this.submitAttest(origin, attestData, signer, track)
+    }, onBroadcast)
   }
 
   /** Dry-run and submit a single attest. */
@@ -345,39 +389,45 @@ export class AttestationService {
   }
 
   /**
-   * Bind the product account to its identity and attest in one atomic
-   * `Utility.batch_all`, so the user signs once. The post-bind attest can't be
-   * dry-run (its standalone dry-run reverts while unbound), so both calls use a
-   * bounded gas limit.
+   * Bind the product account to its identity and attest in one signature, as an
+   * atomic `Utility.batch_all([bindIdentity, attest])`. A failed attest reverts
+   * the bind too, so the account is never left bound but not recommended.
+   *
+   * The attest can't be dry-run while unbound (its `onAttest` gate checks the
+   * binding the batch sets), so it takes a bounded gas cap while the bind is
+   * dry-run for an accurate weight.
    */
   private async bindAndAttest(
     account: `0x${string}`,
     attestData: AttestData,
+    origin: string,
     signer: PolkadotSigner,
     onBroadcast?: () => void
   ): Promise<TxResult> {
     const { pubKey, signature } = await signIdentityMessage(ACTIVE_ATTESTATION_RESOLVER, account)
+
+    // Build the inner calls with sdk-ink so the nested call codec matches the
+    // runtime. A raw `Revive.call` fails the Utility sign-time check.
     const resolver = await this.getResolver()
-    const contract = await this.getContract()
-    // sdk-ink's `.decodedCall` is a Promise (the tx is built asynchronously),
-    // so await both before wrapping them in Utility.batch_all. Otherwise the
-    // batch arg holds Promises and fails papi's runtime compatibility check.
-    const bindCall = await resolver.send('bindIdentity', {
+    const bindDry = await resolver.query('bindIdentity', {
+      origin: origin as SS58String,
       data: { pubKey: bytesToHex(pubKey), signature: bytesToHex(signature) },
-      gasLimit: BATCH_CALL_GAS,
-      storageDepositLimit: STORAGE
-    }).decodedCall
+      options: { gasLimit: GAS, storageDepositLimit: STORAGE }
+    })
+    if (!bindDry.success) {
+      throw new Error(`bindIdentity dry-run failed: ${JSON.stringify(bindDry.value, bigStr)}`)
+    }
+    const contract = await this.getContract()
+    const bindCall = await bindDry.value.send().decodedCall
     const attestCall = await contract.send('attest', {
       data: attestData,
-      gasLimit: BATCH_CALL_GAS,
+      gasLimit: CALL_WEIGHT,
       storageDepositLimit: STORAGE
     }).decodedCall
 
-    const api = await this.api()
+    const api = (await this.client()).getUnsafeApi()
     const batch = api.tx.Utility.batch_all({ calls: [bindCall, attestCall] })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const send = () => batch as unknown as AsyncTransaction<any, any, any, any>
-    const result = await this.submitTx(send, signer, onBroadcast)
+    const result = await this.submitTx(() => batch as never, signer, onBroadcast)
     this.identityBound = true
     return result
   }
@@ -386,7 +436,7 @@ export class AttestationService {
     return this.signer()
   }
 
-  /** The product account's EVM H160 (the on-chain attester / bindIdentity caller). */
+  /** The product account EVM H160 (the on-chain attester and bindIdentity caller). */
   private async productH160(): Promise<`0x${string}`> {
     const { publicKey } = await this.signer()
     const ss58 = AccountId().dec(publicKey) as SS58String
@@ -401,41 +451,48 @@ export class AttestationService {
       data: { account },
       options: { gasLimit: GAS, storageDepositLimit: STORAGE }
     })
-    if (!result.success) throw new Error('boundIdentity dry-run failed')
+    if (!result.success) {
+      throw new Error(`boundIdentity dry-run failed: ${JSON.stringify(result.value, bigStr)}`)
+    }
     return result.value.response as `0x${string}`
   }
 
   async revoke(schema: bigint, id: bigint, onBroadcast?: () => void): Promise<TxResult> {
-    const { signer, origin } = await this.signer()
-    const contract = await this.getContract()
+    return this.withTransactionRetry(async (track) => {
+      const { signer, origin } = await this.signer()
+      const contract = await this.getContract()
+      await this.ensureAllowance(origin)
 
-    await this.ensureAllowance(origin)
-
-    const dryRun = await contract.query('revoke', {
-      origin: origin as SS58String,
-      data: { request: { schema, data: { id } } },
-      options: { gasLimit: GAS, storageDepositLimit: STORAGE }
-    })
-
-    if (!dryRun.success) {
-      throw new Error(`revoke dry-run failed: ${JSON.stringify(dryRun.value, bigStr)}`)
-    }
-
-    return this.submitTx(dryRun.value.send, signer, onBroadcast)
+      const dryRun = await contract.query('revoke', {
+        origin: origin as SS58String,
+        data: { request: { schema, data: { id } } },
+        options: { gasLimit: GAS, storageDepositLimit: STORAGE }
+      })
+      if (!dryRun.success) {
+        throw new Error(`revoke dry-run failed: ${JSON.stringify(dryRun.value, bigStr)}`)
+      }
+      return this.submitTx(dryRun.value.send, signer, track)
+    }, onBroadcast)
   }
 
   /**
-   * Provision the account PGAS allowance before a contract write.
+   * Ensure the product account can pay for a contract write via a
+   * SmartContractAllowance grant (RFC-0010).
+   *
+   * Request it only when the PGAS balance is zero. A non-zero balance means the
+   * account is already provisioned, and re-requesting re-prompts the user every
+   * time. The grant authorizes the `AsPgas` fee route rather than minting a
+   * balance, so do not wait for one after `Allocated`. Without the grant,
+   * `createTransaction` fails with `CreateTransactionErr::PermissionDenied`.
    */
   private async ensureAllowance(origin: string): Promise<void> {
-    // Pgas.PgasAssetId is checksum-stale in the typed descriptor, so read it via
-    // the unsafe api. The typed api still serves the Assets.Account storage read.
-    const api = await this.api()
+    // Pgas.PgasAssetId is checksum-stale in the typed descriptor, so read it and
+    // the Assets.Account balance via the unsafe api.
     const unsafeApi = (await this.client()).getUnsafeApi()
     const pgasAssetId = (await unsafeApi.constants.Pgas.PgasAssetId()) as number
-    const pgasAccount = await api.query.Assets.Account.getValue(pgasAssetId, origin as SS58String, {
+    const pgasAccount = (await unsafeApi.query.Assets.Account.getValue(pgasAssetId, origin, {
       at: 'best'
-    })
+    })) as { balance?: bigint } | undefined
     const pgasBalance = pgasAccount?.balance ?? 0n
     if (pgasBalance > 0n) return
 
@@ -447,8 +504,11 @@ export class AttestationService {
       (res) => res.value,
       () => []
     )
-    if (outcomes[0]?.tag !== 'Allocated') {
-      throw new Error('NotEnoughFunds: account holds no PGAS and the host declined PGAS coverage.')
+    const outcome = outcomes[0]?.tag
+    if (outcome !== 'Allocated') {
+      throw new Error(
+        `NotEnoughFunds: SmartContractAllowance not granted (outcome: ${outcome ?? 'none'})`
+      )
     }
 
     // `Allocated` only means the host accepted the request. The claim takes a
@@ -459,13 +519,13 @@ export class AttestationService {
   }
 
   private async waitForPgasFunded(pgasAssetId: number, origin: string): Promise<void> {
-    const api = await this.api()
+    const unsafeApi = (await this.client()).getUnsafeApi()
     const POLL_MS = 1000
     const deadline = Date.now() + PGAS_FUNDING_TIMEOUT
     while (Date.now() < deadline) {
-      const acct = await api.query.Assets.Account.getValue(pgasAssetId, origin as SS58String, {
+      const acct = (await unsafeApi.query.Assets.Account.getValue(pgasAssetId, origin, {
         at: 'best'
-      })
+      })) as { balance?: bigint } | undefined
       if ((acct?.balance ?? 0n) > 0n) return
       await new Promise((resolve) => setTimeout(resolve, POLL_MS))
     }

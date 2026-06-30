@@ -127,22 +127,9 @@ export function describeError(err: unknown): string {
 export async function attestLabel(label: string, onPermitted?: () => void) {
   const recipient = nodeToSubject(namehash(`${label}.dot`))
   const data = encodeAttestationLabel(label)
-  try {
-    // First recommendation from an unbound account batches the identity binding
-    // and the attestation into one tx. Later ones are a plain single attest.
-    return await attestationService.recommend(
-      ACTIVE_SCHEMA_ID,
-      recipient,
-      0n,
-      true,
-      0n,
-      data,
-      onPermitted
-    )
-  } catch (err) {
-    console.error('[attestLabel] failed for', label, err)
-    throw err
-  }
+  // First recommendation from an unbound account batches the identity binding
+  // and the attestation into one tx. Later ones are a plain single attest.
+  return attestationService.recommend(ACTIVE_SCHEMA_ID, recipient, 0n, true, 0n, data, onPermitted)
 }
 
 async function getAttesterH160(): Promise<string> {
@@ -152,28 +139,21 @@ async function getAttesterH160(): Promise<string> {
 }
 
 export async function revokeLabel(label: string, onPermitted?: () => void) {
-  try {
-    const recipient = nodeToSubject(namehash(`${label}.dot`))
-    const ids = await attestationService.listByRecipientAndSchema(recipient, 0n, 100n)
-    if (ids.length === 0) throw new Error('No attestation to revoke')
+  const recipient = nodeToSubject(namehash(`${label}.dot`))
+  const ids = await attestationService.listByRecipientAndSchema(recipient, 0n, 100n)
+  if (ids.length === 0) throw new Error('No attestation to revoke')
 
-    const attesterH160 = await getAttesterH160()
-    const attestations = await Promise.all(
-      ids.map((id) => attestationService.getAttestationById(id))
-    )
-    const mine = attestations
-      .map((a, i) => ({ schema: a.schema, id: ids[i], attester: a.attester }))
-      .filter((a) => a.attester.toLowerCase() === attesterH160)
-    if (mine.length === 0) throw new Error('No attestation to revoke')
+  const attesterH160 = await getAttesterH160()
+  const attestations = await Promise.all(ids.map((id) => attestationService.getAttestationById(id)))
+  const mine = attestations
+    .map((a, i) => ({ schema: a.schema, id: ids[i], attester: a.attester }))
+    .filter((a) => a.attester.toLowerCase() === attesterH160)
+  if (mine.length === 0) throw new Error('No attestation to revoke')
 
-    // Prefer the active (gated) schema so its one-per-person alias lock is
-    // released and the user can recommend again. Fall back to an older version.
-    const chosen = mine.find((a) => a.schema === ACTIVE_SCHEMA_ID) ?? mine[0]
-    return await attestationService.revoke(chosen.schema, chosen.id, onPermitted)
-  } catch (err) {
-    console.error('[revokeLabel] failed for', label, err)
-    throw err
-  }
+  // Prefer the active schema so its one-per-identity lock is released and the
+  // user can recommend again. Fall back to an older version.
+  const chosen = mine.find((a) => a.schema === ACTIVE_SCHEMA_ID) ?? mine[0]
+  return attestationService.revoke(chosen.schema, chosen.id, onPermitted)
 }
 
 export async function getAttestationId(label: string): Promise<bigint | null> {

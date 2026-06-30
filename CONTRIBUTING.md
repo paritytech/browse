@@ -16,6 +16,10 @@ Good documentation starts with a single, clear sentence. Everything else comes a
 
    Bad: `Click upvote → cache patches → toast confirms.`
    Good: `Click upvote. The cache patches optimistically. A toast confirms.`
+8. **No possessive apostrophes.** Drop the `'s`.
+
+   Bad: `Releases the identity's lock so it can attest again.`
+   Good: `Releases the identity lock so it can attest again.`
 
 #### TypeScript
 
@@ -46,3 +50,4 @@ export async function resolveLabel(label: string): Promise<Cid | null> {
 3. Use examples and links generously.
 4. If documenting something requires explaining too many unrelated concepts, reconsider the API design.
 5. Rewrite around em-dashes, semicolons, prose `+`, and Unicode arrows. Short sentences are better.
+6. No possessive apostrophes. "the account attestation", not "the account's".
