@@ -27,9 +27,6 @@ export interface NetworkConfig extends NetworkAddresses {
   IPFS_GATEWAY: string;
   SCHEMA_ID: readonly bigint[];
   COMPLIANCE_SCHEMA_ID: bigint;
-  // Whether the active index-resolver gates attestations on a personhood-bound
-  // identity. When true, the first recommendation must bind the identity first.
-  ATTESTATION_GATED: boolean;
   ASSETHUB_RPCS: readonly string[];
   PEOPLE_GENESIS?: `0x${string}`;
   PEOPLE_RPCS?: readonly string[];
@@ -63,12 +60,14 @@ export const KNOWN_NETWORKS = {
     ],
     SCHEMA_REGISTRY: "0xbe92a66b697dc9bd4a35b1b8e3aead484d2010a7",
     ATTESTATION_SERVICE: "0x24af868f14605460f6385aae166986cee9800514",
-    ATTESTATION_INDEX_RESOLVER: ["0x5d701a1aca551b0e1cd6a00172554e5ff2348104"],
+    ATTESTATION_INDEX_RESOLVER: [
+      "0x1fa4627395455ec42cfb574c895b5bc5e9e40c4f",
+      "0x5d701a1aca551b0e1cd6a00172554e5ff2348104",
+    ],
     TRUSTED_ATTESTER_RESOLVER: "0x5abfc89934ee846d12629dfb5b22eecc59bbaed3",
     IPFS_GATEWAY: "https://paseo-bulletin-next-ipfs.polkadot.io",
-    SCHEMA_ID: [1n],
+    SCHEMA_ID: [5n, 1n],
     COMPLIANCE_SCHEMA_ID: 2n,
-    ATTESTATION_GATED: false,
     ASSETHUB_RPCS: ["wss://paseo-asset-hub-next-rpc.polkadot.io"],
     PEOPLE_GENESIS:
       "0xc5af1826b31493f08b7e2a823842f98575b806a784126f28da9608c68665afa5",
@@ -93,14 +92,13 @@ export const KNOWN_NETWORKS = {
     SCHEMA_REGISTRY: "0xbe92a66b697dc9bd4a35b1b8e3aead484d2010a7",
     ATTESTATION_SERVICE: "0x24af868f14605460f6385aae166986cee9800514",
     ATTESTATION_INDEX_RESOLVER: [
-      "0x31eb991e646c4827e4785d8c295552eaafe5fac0",
+      "0x2870c80ce3a18e1f1ffb9da2747347036355bd9a",
       "0x5d701a1aca551b0e1cd6a00172554e5ff2348104",
     ],
     TRUSTED_ATTESTER_RESOLVER: "0xdc713ebf1028544a00225c8741eb698253c49302",
     IPFS_GATEWAY: "https://previewnet.substrate.dev",
-    SCHEMA_ID: [3n, 1n],
+    SCHEMA_ID: [5n, 1n],
     COMPLIANCE_SCHEMA_ID: 2n,
-    ATTESTATION_GATED: true,
     ASSETHUB_RPCS: ["wss://previewnet.substrate.dev/asset-hub"],
     PEOPLE_GENESIS:
       "0x3389bc9179d3be32568c67278bd080d05631ac71982d28a3fe545421147b311e",
@@ -125,7 +123,6 @@ export const KNOWN_NETWORKS = {
     IPFS_GATEWAY: "https://summit-bulletin-rpc.polkadot.io",
     SCHEMA_ID: [1n],
     COMPLIANCE_SCHEMA_ID: 0n,
-    ATTESTATION_GATED: false,
     ASSETHUB_RPCS: ["wss://summit-asset-hub-rpc.polkadot.io"],
   },
 } as const satisfies Record<string, NetworkConfig>;

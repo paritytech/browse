@@ -2,12 +2,16 @@ import { ss58ToEthereum } from '@polkadot-api/sdk-ink'
 import { AccountId, type SS58String } from 'polkadot-api'
 
 import { namehash, nodeToSubject } from '../../src/lib/abi'
-import { withAttestationService } from './with-attestation-service'
+import { createProductSigner } from './fund'
+import { withSigner } from './with-attestation-service'
 
-// Revokes the bound product account attestation. It is the only account that
-// can hold one under the gated resolver.
-export async function createRevokedAttestation(label: string): Promise<void> {
-  await withAttestationService(async (service) => {
+// Revokes the given account attestation on `label`. Defaults to the bound
+// product account. Pass a different signer to revoke another attester.
+export async function createRevokedAttestation(
+  label: string,
+  credentials = createProductSigner()
+): Promise<void> {
+  await withSigner(credentials, async (service) => {
     const recipient = nodeToSubject(namehash(`${label}.dot`))
     const { publicKey } = await service.getSigner()
     const ss58 = AccountId().dec(publicKey)

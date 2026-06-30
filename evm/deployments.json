@@ -48,17 +48,30 @@
   },
   "recipientAndAttesterIndexResolver": {
     "previewnet": {
-      "address": "0x31eb991e646c4827e4785d8c295552eaafe5fac0",
-      "previousAddress": "0x5d701a1aca551b0e1cd6a00172554e5ff2348104",
+      "address": "0x2870c80ce3a18e1f1ffb9da2747347036355bd9a",
+      "previousAddress": "0x6c1b493985c5f86fb551aaafbd4dbce04ce8c580",
       "attestationService": "0x24af868f14605460f6385aae166986cee9800514",
       "schema": "string label",
-      "schemaId": 3,
-      "personhoodGated": true,
-      "humanityContext": "dotns",
+      "schemaId": 5,
+      "personhoodGated": false,
+      "identityGated": true,
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
       "network": "previewnet-asset-hub",
       "genesisHash": "0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb",
-      "deployedAt": "2026-06-22"
+      "deployedAt": "2026-06-28"
+    },
+    "paseo-asset-hub-next-v2": {
+      "address": "0x1fa4627395455ec42cfb574c895b5bc5e9e40c4f",
+      "previousAddress": "0xfa64ae58b4ce0c3a3dfd68b429959c4166394ba1",
+      "attestationService": "0x24af868f14605460f6385aae166986cee9800514",
+      "schema": "string label",
+      "schemaId": 5,
+      "personhoodGated": false,
+      "identityGated": true,
+      "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
+      "network": "paseo-asset-hub-next-v2",
+      "genesisHash": "0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f",
+      "deployedAt": "2026-06-28"
     }
   }
 }

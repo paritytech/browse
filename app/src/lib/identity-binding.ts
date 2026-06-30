@@ -14,7 +14,7 @@
  * verifies both the wrapped and bare forms, so we sign the bare bytes here.
  */
 
-import { createAccountsProvider } from '@novasamatech/host-api-wrapper'
+import { getAccountsProvider } from '@parity/product-sdk-host'
 import { hexToBytes } from 'viem'
 
 import { resolveUsernameOwner } from './client'
@@ -52,7 +52,10 @@ export async function signIdentityMessage(
   resolver: `0x${string}`,
   account: `0x${string}`
 ): Promise<IdentityBinding> {
-  const accountsProvider = createAccountsProvider()
+  const accountsProvider = await getAccountsProvider()
+  if (!accountsProvider) {
+    throw new Error('Host accounts provider unavailable (not in a host container?).')
+  }
 
   const username = (
     await accountsProvider.getUserId().match(
@@ -69,8 +72,9 @@ export async function signIdentityMessage(
     throw new Error(`No account owns DotNS username "${username}".`)
   }
 
+  const message = buildBindingMessage(resolver, account)
   const signer = accountsProvider.getLegacyAccountSigner({ publicKey: pubKey, name: username })
-  const signature = await signer.signBytes(buildBindingMessage(resolver, account))
+  const signature = await signer.signBytes(message)
 
   return { pubKey, signature }
 }

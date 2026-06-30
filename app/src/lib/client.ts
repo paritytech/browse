@@ -60,13 +60,35 @@ export function ensureBrowseSdk(): Promise<BrowseSdk> {
   return sdkPromise
 }
 
+// A reset destroys the shared client, which disjoints every in-flight operation
+// on it.
+let pendingWrites = 0
+let resetRequested = false
+
+/** Bracket a network request so a concurrent reset is deferred, not applied under it. */
+export function startTransaction(): void {
+  pendingWrites += 1
+}
+
+export function endTransaction(): void {
+  pendingWrites = Math.max(0, pendingWrites - 1)
+  if (pendingWrites === 0 && resetRequested) {
+    resetRequested = false
+    resetBrowseSdk()
+  }
+}
+
 /**
  * Drop the cached SDK and destroy the old client. Destroying propagates the
  * disconnect through the host bridge so the host deletes its chain-connection
  * entry. Otherwise it reuses a stale, post-background/foreground connection
- * that never recovers.
+ * that never recovers. Deferred while a chain write is in flight.
  */
 export function resetBrowseSdk(): void {
+  if (pendingWrites > 0) {
+    resetRequested = true
+    return
+  }
   const stale = sdkPromise
   sdkPromise = null
   void stale

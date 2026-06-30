@@ -5,12 +5,12 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 
 import {Attestation, IAttestationService} from "./interfaces/IAttestationService.sol";
 import {IAttestationResolver} from "./interfaces/IAttestationResolver.sol";
-import {IPersonhood} from "./interfaces/IPersonhood.sol";
 import {ISystem} from "./interfaces/ISystem.sol";
 
 /// @title RecipientAndAttesterIndexResolver
 /// @notice Indexes attestations by (recipient, schema) and by attester, admitting only
-///         attestations from a product account bound to a verified human identity.
+///         attestations from a product account bound to an identity, and only once per
+///         (identity, recipient, schema) so one identity recommends a given app once.
 contract RecipientAndAttesterIndexResolver is IAttestationResolver {
     using EnumerableSet for EnumerableSet.UintSet;
 
@@ -36,17 +36,6 @@ contract RecipientAndAttesterIndexResolver is IAttestationResolver {
     ISystem private constant SYSTEM =
         ISystem(0x0000000000000000000000000000000000000900);
 
-    // The humanity precompile backed by the alias-accounts pallet.
-    IPersonhood private constant HUMANITY =
-        IPersonhood(0x000000000000000000000000000000000a010000);
-
-    // The lowest humanity tier admitted. 1 is Lite, 2 is Full.
-    uint8 public constant MIN_HUMANITY_STATUS = 1;
-
-    // The application context for humanity and alias derivation, shared with Publisher so the
-    // same person resolves to one alias namespace across publishing and recommending.
-    bytes32 public constant HUMANITY_CONTEXT = bytes32("dotns");
-
     // Domain tag prepended to the identity-binding message so a signature cannot be replayed
     // against a different message shape. The per-deployment binding comes from address(this) and
     // block.chainid in the message body.
@@ -66,12 +55,12 @@ contract RecipientAndAttesterIndexResolver is IAttestationResolver {
     mapping(address attester => EnumerableSet.UintSet ids)
         private _attestationsByAttester;
 
-    // Whether a person (context alias) has already attested a given (recipient, schema).
-    mapping(bytes32 key => mapping(bytes32 personAlias => bool used))
-        private _aliasAttested;
+    // Whether a bound identity has already attested a given (recipient, schema).
+    mapping(bytes32 key => mapping(address identity => bool used))
+        private _identityAttested;
 
-    // The context alias recorded for an attestation, so a revoke can release the alias lock.
-    mapping(uint256 id => bytes32 personAlias) private _aliasByAttestation;
+    // The identity recorded for an attestation, so a revoke can release the identity lock.
+    mapping(uint256 id => address identity) private _identityByAttestation;
 
     /// @dev Creates a new RecipientAndAttesterIndexResolver bound to `service`.
     /// @param service The attestation service authorised to invoke the hooks.
@@ -131,56 +120,53 @@ contract RecipientAndAttesterIndexResolver is IAttestationResolver {
     }
 
     /// @inheritdoc IAttestationResolver
-    /// @dev Admits the attestation only when its attester is bound to an identity that still holds
-    ///      humanity and whose person has not already attested this (recipient, schema). Returns
-    ///      false on any failure so the service rejects it.
+    /// @dev Admits the attestation only when its attester is bound to an identity that has not
+    ///      already attested this (recipient, schema). Returns false on any failure so the service
+    ///      rejects it.
     function onAttest(
         Attestation calldata attestation
     ) external onlyService returns (bool) {
         address identity = _boundIdentity[attestation.attester];
         if (identity == address(0)) return false;
 
-        bytes32 personAlias = _humanityAlias(identity);
-        if (personAlias == bytes32(0)) return false;
-
         bytes32 key = _compositeKey(attestation.recipient, attestation.schema);
-        if (_aliasAttested[key][personAlias]) return false;
+        if (_identityAttested[key][identity]) return false;
 
-        _aliasAttested[key][personAlias] = true;
-        _aliasByAttestation[attestation.id] = personAlias;
+        _identityAttested[key][identity] = true;
+        _identityByAttestation[attestation.id] = identity;
         _attestationsByRecipientAndSchema[key].add(attestation.id);
         _attestationsByAttester[attestation.attester].add(attestation.id);
         return true;
     }
 
     /// @inheritdoc IAttestationResolver
-    /// @dev Releases the person's alias lock for the (recipient, schema) so they may attest it
-    ///      again later, then de-indexes the attestation.
+    /// @dev Releases the identity lock for the (recipient, schema) so it may attest it again
+    ///      later, then de-indexes the attestation.
     function onRevoke(
         Attestation calldata attestation
     ) external onlyService returns (bool) {
         bytes32 key = _compositeKey(attestation.recipient, attestation.schema);
-        bytes32 personAlias = _aliasByAttestation[attestation.id];
-        if (personAlias != bytes32(0)) {
-            delete _aliasAttested[key][personAlias];
-            delete _aliasByAttestation[attestation.id];
+        address identity = _identityByAttestation[attestation.id];
+        if (identity != address(0)) {
+            delete _identityAttested[key][identity];
+            delete _identityByAttestation[attestation.id];
         }
         _attestationsByRecipientAndSchema[key].remove(attestation.id);
         _attestationsByAttester[attestation.attester].remove(attestation.id);
         return true;
     }
 
-    /// @notice Checks whether a person (by context alias) has already attested the pair.
+    /// @notice Checks whether a bound identity has already attested the pair.
     /// @param recipient The recipient address.
     /// @param schema The schema ID.
-    /// @param personAlias The context alias returned by the humanity precompile.
-    /// @return Whether that person has an attestation recorded for the pair.
-    function aliasHasAttested(
+    /// @param identity The bound identity account.
+    /// @return Whether that identity has an attestation recorded for the pair.
+    function identityHasAttested(
         address recipient,
         uint256 schema,
-        bytes32 personAlias
+        address identity
     ) external view returns (bool) {
-        return _aliasAttested[_compositeKey(recipient, schema)][personAlias];
+        return _identityAttested[_compositeKey(recipient, schema)][identity];
     }
 
     /// @notice Checks whether any of the provided attesters has an active attestation for the
@@ -281,17 +267,6 @@ contract RecipientAndAttesterIndexResolver is IAttestationResolver {
         }
 
         return _page(_attestationsByAttester[attester], offset, limit);
-    }
-
-    /// @dev Reads the identity's humanity tier and alias from the precompile. Returns the context
-    ///      alias when the identity meets the minimum tier, or the zero alias otherwise.
-    function _humanityAlias(address identity) private view returns (bytes32) {
-        IPersonhood.PersonhoodInfo memory info = HUMANITY.personhoodStatus(
-            identity,
-            HUMANITY_CONTEXT
-        );
-        if (info.status < MIN_HUMANITY_STATUS) return bytes32(0);
-        return info.contextAlias;
     }
 
     /// @dev Rebuilds the bare message the identity key signs to bind `account`. Binding this
