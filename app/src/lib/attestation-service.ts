@@ -73,19 +73,6 @@ export type AttestationRecord = {
 
 export type TxResult = { txHash: string; block: string }
 
-type AttestData = {
-  request: {
-    schema: bigint
-    data: {
-      recipient: `0x${string}`
-      expirationTime: bigint
-      revocable: boolean
-      refId: bigint
-      data: `0x${string}`
-    }
-  }
-}
-
 const GAS = DRY_RUN_WEIGHT_LIMIT
 const STORAGE = 1_000_000_000_000n
 
@@ -109,9 +96,6 @@ export class AttestationService {
     private signer: SignerProvider = hostSigner,
     private truapi: boolean = true
   ) {}
-
-  // Skip the on-chain bind re-check once bound this session.
-  private identityBound = false
 
   private async getSdk() {
     const client = await this.client()
@@ -288,6 +272,10 @@ export class AttestationService {
     return result.value.response as AttestationRecord
   }
 
+  /**
+   * Submit a single attestation. Assumes the attester is
+   * already bound to its identity.
+   */
   async attest(
     schema: bigint,
     recipient: `0x${string}`,
@@ -297,12 +285,31 @@ export class AttestationService {
     data: `0x${string}`,
     onBroadcast?: () => void
   ): Promise<TxResult> {
-    const { signer, origin } = await this.signer()
-    const attestData = {
-      request: { schema, data: { recipient, expirationTime, revocable, refId, data } }
-    }
-    await this.ensureAllowance(origin)
-    return this.submitAttest(origin, attestData, signer, onBroadcast)
+    return this.withTransactionRetry(async (track) => {
+      const { signer, origin } = await this.signer()
+      const attestData = {
+        request: { schema, data: { recipient, expirationTime, revocable, refId, data } }
+      }
+      await this.ensureAllowance(origin)
+
+      const contract = await this.getContract()
+      const dryRun = await contract.query('attest', {
+        origin: origin as SS58String,
+        data: attestData,
+        options: { gasLimit: GAS, storageDepositLimit: STORAGE }
+      })
+      if (!dryRun.success) {
+        const detail = JSON.stringify(dryRun.value, bigStr)
+        // The resolver refuses a second recommendation from the same identity by
+        // reverting with AttestationService__ResolverRejected().
+        const rejectedSelector = [0xad, 0x0d, 0x91, 0xb9].map((b, i) => `"${i}":${b}`).join(',')
+        if (detail.includes(rejectedSelector)) {
+          throw new Error('AttestationService__ResolverRejected')
+        }
+        throw new Error(`attest dry-run failed: ${detail}`)
+      }
+      return this.submitTx(dryRun.value.send, signer, track)
+    }, onBroadcast)
   }
 
   /**
@@ -338,8 +345,17 @@ export class AttestationService {
     }
   }
 
-  /** Recommend an app, binding the product account identity first when unbound. */
-  async recommend(
+  /**
+   * Bind the product account to its identity and attest in one signature, as an
+   * atomic `Utility.batch_all([bindIdentity, attest])` (the first recommendation
+   * from an unbound account). A failed attest reverts the bind too, so the
+   * account is never left bound but not recommended.
+   *
+   * The attest can't be dry-run while unbound (its `onAttest` gate checks the
+   * binding the batch sets), so it takes a bounded gas cap while the bind is
+   * dry-run for an accurate weight.
+   */
+  async bindIdentityAndAttest(
     schema: bigint,
     recipient: `0x${string}`,
     expirationTime: bigint,
@@ -350,86 +366,36 @@ export class AttestationService {
   ): Promise<TxResult> {
     return this.withTransactionRetry(async (track) => {
       const { signer, origin } = await this.signer()
+      const account = await this.productH160()
       const attestData = {
         request: { schema, data: { recipient, expirationTime, revocable, refId, data } }
       }
       await this.ensureAllowance(origin)
 
-      // The first recommendation from an unbound account binds its identity and
-      // attests in one atomic batch. Later ones attest directly, skipping the
-      // re-read once the binding is memoised.
-      if (!this.identityBound) {
-        const account = await this.productH160()
-        if (BigInt(await this.boundIdentity(account)) === 0n) {
-          return this.bindAndAttest(account, attestData, origin, signer, track)
-        }
-        this.identityBound = true
+      // Build the inner calls with sdk-ink so the nested call codec matches the
+      // runtime. A raw `Revive.call` fails the Utility sign-time check.
+      const { pubKey, signature } = await signIdentityMessage(ACTIVE_ATTESTATION_RESOLVER, account)
+      const resolver = await this.getResolver()
+      const bindDry = await resolver.query('bindIdentity', {
+        origin: origin as SS58String,
+        data: { pubKey: bytesToHex(pubKey), signature: bytesToHex(signature) },
+        options: { gasLimit: GAS, storageDepositLimit: STORAGE }
+      })
+      if (!bindDry.success) {
+        throw new Error(`bindIdentity dry-run failed: ${JSON.stringify(bindDry.value, bigStr)}`)
       }
-      return this.submitAttest(origin, attestData, signer, track)
+      const contract = await this.getContract()
+      const bindCall = await bindDry.value.send().decodedCall
+      const attestCall = await contract.send('attest', {
+        data: attestData,
+        gasLimit: CALL_WEIGHT,
+        storageDepositLimit: STORAGE
+      }).decodedCall
+
+      const api = (await this.client()).getUnsafeApi()
+      const batch = api.tx.Utility.batch_all({ calls: [bindCall, attestCall] })
+      return this.submitTx(() => batch as never, signer, track)
     }, onBroadcast)
-  }
-
-  /** Dry-run and submit a single attest. */
-  private async submitAttest(
-    origin: string,
-    attestData: AttestData,
-    signer: PolkadotSigner,
-    onBroadcast?: () => void
-  ): Promise<TxResult> {
-    const contract = await this.getContract()
-    const dryRun = await contract.query('attest', {
-      origin: origin as SS58String,
-      data: attestData,
-      options: { gasLimit: GAS, storageDepositLimit: STORAGE }
-    })
-    if (!dryRun.success) {
-      throw new Error(`attest dry-run failed: ${JSON.stringify(dryRun.value, bigStr)}`)
-    }
-    return this.submitTx(dryRun.value.send, signer, onBroadcast)
-  }
-
-  /**
-   * Bind the product account to its identity and attest in one signature, as an
-   * atomic `Utility.batch_all([bindIdentity, attest])`. A failed attest reverts
-   * the bind too, so the account is never left bound but not recommended.
-   *
-   * The attest can't be dry-run while unbound (its `onAttest` gate checks the
-   * binding the batch sets), so it takes a bounded gas cap while the bind is
-   * dry-run for an accurate weight.
-   */
-  private async bindAndAttest(
-    account: `0x${string}`,
-    attestData: AttestData,
-    origin: string,
-    signer: PolkadotSigner,
-    onBroadcast?: () => void
-  ): Promise<TxResult> {
-    const { pubKey, signature } = await signIdentityMessage(ACTIVE_ATTESTATION_RESOLVER, account)
-
-    // Build the inner calls with sdk-ink so the nested call codec matches the
-    // runtime. A raw `Revive.call` fails the Utility sign-time check.
-    const resolver = await this.getResolver()
-    const bindDry = await resolver.query('bindIdentity', {
-      origin: origin as SS58String,
-      data: { pubKey: bytesToHex(pubKey), signature: bytesToHex(signature) },
-      options: { gasLimit: GAS, storageDepositLimit: STORAGE }
-    })
-    if (!bindDry.success) {
-      throw new Error(`bindIdentity dry-run failed: ${JSON.stringify(bindDry.value, bigStr)}`)
-    }
-    const contract = await this.getContract()
-    const bindCall = await bindDry.value.send().decodedCall
-    const attestCall = await contract.send('attest', {
-      data: attestData,
-      gasLimit: CALL_WEIGHT,
-      storageDepositLimit: STORAGE
-    }).decodedCall
-
-    const api = (await this.client()).getUnsafeApi()
-    const batch = api.tx.Utility.batch_all({ calls: [bindCall, attestCall] })
-    const result = await this.submitTx(() => batch as never, signer, onBroadcast)
-    this.identityBound = true
-    return result
   }
 
   async getSigner() {
@@ -437,10 +403,37 @@ export class AttestationService {
   }
 
   /** The product account EVM H160 (the on-chain attester and bindIdentity caller). */
-  private async productH160(): Promise<`0x${string}`> {
+  async productH160(): Promise<`0x${string}`> {
     const { publicKey } = await this.signer()
     const ss58 = AccountId().dec(publicKey) as SS58String
     return ss58ToEthereum(ss58).toLowerCase() as `0x${string}`
+  }
+
+  /**
+   * Bind the signing product account to the identity that signed `signature`
+   * over the binding message (the resolver's `bindIdentity`). The app does this
+   * as part of {@link bindIdentityAndAttest}; this standalone submit is for
+   * callers that hold the identity signature directly.
+   */
+  async bindIdentity(
+    pubKey: `0x${string}`,
+    signature: `0x${string}`,
+    onBroadcast?: () => void
+  ): Promise<TxResult> {
+    return this.withTransactionRetry(async (track) => {
+      const { signer, origin } = await this.signer()
+      await this.ensureAllowance(origin)
+      const resolver = await this.getResolver()
+      const dryRun = await resolver.query('bindIdentity', {
+        origin: origin as SS58String,
+        data: { pubKey, signature },
+        options: { gasLimit: GAS, storageDepositLimit: STORAGE }
+      })
+      if (!dryRun.success) {
+        throw new Error(`bindIdentity dry-run failed: ${JSON.stringify(dryRun.value, bigStr)}`)
+      }
+      return this.submitTx(dryRun.value.send, signer, track)
+    }, onBroadcast)
   }
 
   /** Returns the identity account a product account is bound to, or the zero address. */
