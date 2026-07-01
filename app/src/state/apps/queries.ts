@@ -5,7 +5,7 @@
 
 import { type QueryClient, queryOptions, useQuery } from '@tanstack/react-query'
 
-import { resolveUserH160 } from './identity'
+import { resolveIdentityH160 } from './identity'
 import { hydrateLabelChunk } from './remote'
 import { materialize, syncAllApps } from './sync'
 import type { AppEntry } from './types'
@@ -102,8 +102,8 @@ export async function prefetchAllApps(queryClient: QueryClient) {
  * Resolve a single `.dot` label to an {@link AppEntry} with live state.
  */
 async function resolveLabel(name: string): Promise<AppEntry | null> {
-  const userH160 = await resolveUserH160()
-  const [entry] = await hydrateLabelChunk([name], userH160)
+  const identityH160 = await resolveIdentityH160()
+  const [entry] = await hydrateLabelChunk([name], identityH160)
   if (!entry?.contentHash) return null
 
   return {

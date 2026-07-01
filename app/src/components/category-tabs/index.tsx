@@ -7,30 +7,20 @@ interface CategoryTab {
   enabled: boolean
 }
 
-const BASE_CATEGORIES: CategoryTab[] = [
+const CATEGORIES: CategoryTab[] = [
   { id: 'bookmarks', label: 'Bookmarks', enabled: true },
-  { id: 'all', label: 'All', enabled: true }
-]
-
-const SIGNED_CATEGORIES: CategoryTab[] = [
-  { id: 'bookmarks', label: 'Bookmarks', enabled: true },
+  { id: 'following', label: 'Following', enabled: true },
   { id: 'all', label: 'All', enabled: true }
 ]
 
 interface CategoryTabsProps {
   active: FilterMode[]
-  isSignedIn: boolean
   onSwitch: (mode: FilterMode) => void
   disabled?: boolean
 }
 
-export function CategoryTabs({
-  active,
-  isSignedIn,
-  onSwitch,
-  disabled = false
-}: CategoryTabsProps) {
-  const categories = isSignedIn ? SIGNED_CATEGORIES : BASE_CATEGORIES
+export function CategoryTabs({ active, onSwitch, disabled = false }: CategoryTabsProps) {
+  const categories = CATEGORIES
   const activeSet = new Set(active)
 
   return (

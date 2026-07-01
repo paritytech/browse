@@ -105,7 +105,8 @@ export function encodeOwner(): Hex {
 const ATTESTATION_ABI = parseAbi([
   'function countByRecipientAndSchema(address recipient, uint256 schemaId) view returns (uint64)',
   'function isActiveAny(address recipient, uint256 schemaId, address[] attesters) view returns (bool)',
-  'function isActive(address recipient, uint256 schemaId) view returns (bool)'
+  'function isActive(address recipient, uint256 schemaId) view returns (bool)',
+  'function identityHasAttested(address recipient, uint256 schemaId, address identity) view returns (bool)'
 ])
 
 export function encodeCountByRecipientAndSchema(recipient: Address, schemaId: bigint): Hex {
@@ -121,6 +122,26 @@ export function encodeIsActiveAny(recipient: Address, schemaId: bigint, attester
     abi: ATTESTATION_ABI,
     functionName: 'isActiveAny',
     args: [recipient, schemaId, attesters]
+  })
+}
+
+/**
+ * `RecipientAndAttesterIndexResolver.identityHasAttested(recipient, schemaId, identity)`
+ *
+ * Whether the given identity account has an active attestation for the pair,
+ * independent of which product account signed it. Use this rather than
+ * `isActiveAny` when the question is "did this identity recommend?", since the
+ * attester is a product account bound to the identity, not the identity itself.
+ */
+export function encodeIdentityHasAttested(
+  recipient: Address,
+  schemaId: bigint,
+  identity: Address
+): Hex {
+  return encodeFunctionData({
+    abi: ATTESTATION_ABI,
+    functionName: 'identityHasAttested',
+    args: [recipient, schemaId, identity]
   })
 }
 

@@ -1,0 +1,233 @@
+.following-modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Bias the modal a little above center, like Instagram. */
+  padding: 16px 16px 12vh;
+  background: rgb(0 0 0 / 0.55);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+  z-index: 100;
+}
+
+.following-modal-overlay--visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.following-modal {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 440px;
+  max-height: min(640px, 86dvh);
+  background: var(--sheet-bg);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--stroke-2);
+  border-radius: 16px;
+  transform: scale(0.96);
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.following-modal-overlay--visible .following-modal {
+  transform: scale(1);
+}
+
+.following-modal__header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--stroke-2);
+}
+
+.following-modal__title {
+  font-family: var(--font-sans);
+  font-size: var(--type-title-md-size);
+  font-weight: var(--type-title-md-weight);
+  line-height: var(--type-title-md-line);
+  color: var(--fg-primary);
+}
+
+.following-modal__close {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  background: none;
+  border: none;
+  color: var(--fg-3);
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .following-modal__close:hover {
+    color: var(--fg-primary);
+  }
+}
+
+.following-modal__body {
+  padding: 16px;
+}
+
+.following-modal__input-row {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+}
+
+.following-modal__results {
+  margin-top: 8px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.following-modal__state {
+  margin: 20px 8px;
+  text-align: center;
+  color: var(--fg-5);
+  font-family: var(--font-sans);
+  font-size: var(--type-body-md-size);
+  line-height: var(--type-body-md-line);
+}
+
+.following-modal__option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  /* Left inset centers the 30px avatar under the input `@` glyph. */
+  padding: 8px 14px 8px 8px;
+  background: none;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 120ms ease;
+}
+
+@media (hover: hover) {
+  .following-modal__option:hover {
+    background: var(--surface-3);
+  }
+}
+
+/* Mirror the domain search bar: subtle surface-container fill, faint border,
+   pill radius, not a heavy solid-gray box. */
+.following-modal__field {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 14px;
+  background: var(--bg-surface-container);
+  border: 1px solid rgb(var(--fg-rgb) / 0.12);
+  border-radius: 20px;
+  transition: border-color 150ms ease;
+}
+
+.following-modal__field:focus-within {
+  border-color: rgb(var(--fg-rgb) / 0.24);
+}
+
+.following-modal__at {
+  flex: none;
+  margin-right: 2px;
+  color: var(--fg-5);
+  font-family: var(--font-sans);
+  font-size: var(--type-body-md-size);
+}
+
+.following-modal__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: transparent;
+  border: none;
+  color: var(--fg-primary);
+  font-family: var(--font-sans);
+  font-size: var(--type-body-md-size);
+  line-height: var(--type-body-md-line);
+  outline: none;
+}
+
+.following-modal__input::placeholder {
+  color: var(--fg-5);
+}
+
+.following-modal__following {
+  display: flex;
+  flex-direction: column;
+  margin-top: 12px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.following-modal__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  /* Left inset centers the avatar under the `@`. The right edge aligns with the
+     input field, so the Unfollow button sits flush with the field right edge. */
+  padding: 5px 0 5px 8px;
+}
+
+.following-modal__avatar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  /* Background is set inline, seeded by the name (see avatarBg). */
+  background: var(--surface-4);
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  user-select: none;
+}
+
+.following-modal__row-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-heading);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.following-modal__unfollow {
+  flex: none;
+  height: 32px;
+  padding: 0 14px;
+  background: var(--surface-4);
+  border: none;
+  border-radius: 10px;
+  color: var(--color-heading);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+@media (hover: hover) {
+  .following-modal__unfollow:hover {
+    background: var(--surface-6);
+  }
+}

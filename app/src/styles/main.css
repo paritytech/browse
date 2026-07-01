@@ -222,7 +222,21 @@ input {
 }
 
 .card.front:has(.corner-chip) .app-list {
-  padding-bottom: 2rem;
+  /* Reserve the chip footprint (its 1rem bottom offset plus its height: the
+     title-sm line plus 8px vertical padding) plus one card gap, so the space
+     above the chip matches the tabs-to-first-row gap. */
+  padding-bottom: calc(1rem + var(--type-title-sm-line) + 8px + var(--space-medium-increased));
+}
+
+/* With the manage chip present, float the sync dots in the reserved bottom band
+   so toggling them never changes the card height (which would otherwise shove
+   the absolutely-positioned chip down). */
+.card.front:has(.corner-chip) #loading-dots {
+  position: absolute;
+  left: 50%;
+  bottom: 1rem;
+  transform: translateX(-50%);
+  padding: 0;
 }
 
 .skeleton-pulse {
@@ -493,6 +507,12 @@ input {
   .list-count {
     padding: 0 1rem;
   }
+
+  /* Card padding collapses to 0 on phones, so align the manage chip with the
+     app icon: the app-list inset plus the card row padding. */
+  .corner-chip--manage {
+    left: calc(var(--space-small) + var(--space-medium-increased));
+  }
 }
 
 @media (min-width: 768px) {
@@ -554,6 +574,12 @@ input {
 
   .app-list .empty-state {
     grid-column: 1 / -1;
+  }
+
+  /* Align the manage chip with the app content: the grid sits at the card edge
+     but each row insets its icon by the card padding, so match that inset. */
+  .corner-chip--manage {
+    left: var(--space-medium-increased);
   }
 
   /* Transparent rows. Hover fill tints the whole row. */

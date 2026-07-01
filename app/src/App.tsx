@@ -8,7 +8,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { ArrowUp, Bookmark, Package } from 'lucide-preact'
 
 import { CategoryTabs } from './components/category-tabs'
-import { ContactsManager } from './components/contacts-manager'
+import { FollowingManager } from './components/following-manager'
 import { FOLLOW_ICON, SEARCH_ICON } from './components/icons'
 import { ProductCardWithAttestation } from './components/product-card/product-card-with-attestation'
 import { ProductCardSkeleton } from './components/product-card/skeleton'
@@ -34,8 +34,11 @@ import {
   useResolveLabel
 } from './state/apps/queries'
 import { type AppEntry, filterApps, type FilterMode, isFilterMode } from './state/apps/types'
-import { addContact, type ContactEntry, getContacts, removeContact } from './state/contacts/api'
-import { useGetAttestationsByContacts } from './state/recommendations/queries'
+import { follow, type FollowedAccount, getFollowing, unfollow } from './state/following/api'
+import {
+  useGetAttestationsByFollowing,
+  useGetMyRecommendations
+} from './state/recommendations/queries'
 
 const SEARCH_GROUP_PRIORITY: FilterMode[] = ['bookmarks', 'following', 'all']
 
@@ -73,8 +76,8 @@ export function App() {
     null
   )
   const [signed, setSigned] = useState(false)
-  const [contacts, setContacts] = useState<ContactEntry[]>([])
-  const [showContactsManager, setShowContactsManager] = useState(false)
+  const [following, setFollowing] = useState<FollowedAccount[]>([])
+  const [showFollowingManager, setShowFollowingManager] = useState(false)
   const [suggestionPrefix, setSuggestionPrefix] = useState('')
   // Touch devices get a minimum-visible hold on the dots after a pull-refresh.
   const [pullRefreshFloor, setPullRefreshFloor] = useState(false)
@@ -93,7 +96,7 @@ export function App() {
   // Derived state and query data. This is one dependency chain, not a reorderable
   // set: each query feeds a memo that feeds the next, so the kinds necessarily
   // interleave. Coarse-pointer / no-hover device scopes the pull-refresh hold to
-  // touch; search renders product cards on every form factor.
+  // touch. Search renders product cards on every form factor.
   const isMobile = useMemo(
     () => !window.matchMedia?.('(hover: hover) and (pointer: fine)').matches,
     []
@@ -105,9 +108,44 @@ export function App() {
     isError: allError
   } = useGetAllApps(queryClient)
   const { data: labelDb } = useLabelsStorage()
-  const contactAddresses = useMemo(() => contacts.map((contact) => contact.address), [contacts])
+  const followingAddresses = useMemo(() => following.map((account) => account.address), [following])
   const { data: followingApps = new Set<string>(), isLoading: followingLoading } =
-    useGetAttestationsByContacts(allApps, contactAddresses)
+    useGetAttestationsByFollowing(allApps, followingAddresses)
+  // Apps the current user identity has recommended, by the same attester-to-
+  // identity logic as the following set, so the recommend button reflects every
+  // recommendation the identity made, across product accounts and resolvers.
+  const { data: myRecommendations = new Set<string>() } = useGetMyRecommendations(allApps)
+  // The following set actually shown. Additions land immediately. Removals from
+  // unfollowing fade their cards out before leaving, like unbookmarking, so the
+  // tab never blanks into skeletons.
+  const [followingDisplay, setFollowingDisplay] = useState<Set<string>>(() => new Set())
+  const followingDisplayRef = useRef(followingDisplay)
+  followingDisplayRef.current = followingDisplay
+  useEffect(() => {
+    const shown = followingDisplayRef.current
+    const added = [...followingApps].filter((label) => !shown.has(label))
+    const removed = [...shown].filter((label) => !followingApps.has(label))
+    if (added.length > 0) {
+      setFollowingDisplay((prev) => {
+        const next = new Set(prev)
+        for (const label of added) next.add(label)
+        return next
+      })
+    }
+    if (removed.length === 0) return
+    for (const label of removed) {
+      const card = rootRef.current?.querySelector(`[data-label="${label}"]`) as HTMLElement | null
+      card?.classList.add('product-card--removing')
+    }
+    const timer = setTimeout(() => {
+      setFollowingDisplay((prev) => {
+        const next = new Set(prev)
+        for (const label of removed) next.delete(label)
+        return next
+      })
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [followingApps])
   const appsForFiltering = useMemo(() => {
     const byLabel = new Map<string, AppEntry>()
     for (const app of allApps) byLabel.set(app.label, app)
@@ -128,10 +166,17 @@ export function App() {
         isCompliant: cached?.isCompliant ?? false
       })
     }
-    for (const label of followingApps) addLabel(label)
+    for (const label of followingDisplay) addLabel(label)
     for (const label of bookmarkedApps) addLabel(label)
-    return [...byLabel.values()]
-  }, [allApps, followingApps, bookmarkedApps, labelDb])
+    // The recommend button active state is identity-based: OR in the apps this
+    // identity recommended, keeping any optimistic `hasUserAttested` from a
+    // just-submitted recommendation.
+    return [...byLabel.values()].map((app) =>
+      myRecommendations.has(app.label) && !app.hasUserAttested
+        ? { ...app, hasUserAttested: true }
+        : app
+    )
+  }, [allApps, followingDisplay, bookmarkedApps, labelDb, myRecommendations])
   // Labels from the Publisher set, used to scope the All tab to published apps
   // only (bookmarked/followed entries belong to their own tabs).
   const publishedLabels = useMemo(() => new Set(allApps.map((app) => app.label)), [allApps])
@@ -141,14 +186,21 @@ export function App() {
       deferredQuery,
       currentMode,
       bookmarkedApps,
-      followingApps,
+      followingDisplay,
       publishedLabels
     )
     if (currentMode === 'all' && !deferredQuery.trim()) {
       return result.filter((app) => app.label !== SELF_LABEL)
     }
     return result
-  }, [appsForFiltering, deferredQuery, currentMode, bookmarkedApps, followingApps, publishedLabels])
+  }, [
+    appsForFiltering,
+    deferredQuery,
+    currentMode,
+    bookmarkedApps,
+    followingDisplay,
+    publishedLabels
+  ])
   orderSourceRef.current = filtered
   // While the user is typing, search ignores tabs.
   const searchMatches = useMemo<AppEntry[] | null>(() => {
@@ -161,7 +213,7 @@ export function App() {
         deferredQuery,
         mode,
         bookmarkedApps,
-        followingApps,
+        followingDisplay,
         publishedLabels
       )
       for (const app of modeMatches) {
@@ -179,7 +231,7 @@ export function App() {
       .replace(/\.dot$/, '')
     const exactSelf = normalizedQuery === SELF_LABEL
     return exactSelf ? matches : matches.filter((app) => app.label !== SELF_LABEL)
-  }, [deferredQuery, appsForFiltering, bookmarkedApps, followingApps, publishedLabels])
+  }, [deferredQuery, appsForFiltering, bookmarkedApps, followingDisplay, publishedLabels])
   const tryLabel = query
     .trim()
     .toLowerCase()
@@ -335,13 +387,13 @@ export function App() {
       setToastMessage(message)
     }
   )
-  const handleAddContact = useEvent((address: string, username?: string) => {
-    addContact(address, username)
-    setContacts((prev) => [...prev, { address, username }])
+  const handleFollow = useEvent((address: string, username?: string) => {
+    follow(address, username)
+    setFollowing((prev) => [...prev, { address, username }])
   })
-  const handleRemoveContact = useEvent((address: string) => {
-    removeContact(address)
-    setContacts((prev) => prev.filter((contact) => contact.address !== address))
+  const handleUnfollow = useEvent((address: string) => {
+    unfollow(address)
+    setFollowing((prev) => prev.filter((account) => account.address !== address))
   })
   const handleShare = useEvent(async (app: AppEntry) => {
     const domain = `${app.label}.dot`
@@ -427,13 +479,13 @@ export function App() {
       showToast('Network connection failed')
     }
   }, [allError, showToast])
-  // Load bookmarks and contacts on mount.
+  // Load bookmarks and the following list on mount.
   useEffect(() => {
     readBookmarks().then((bookmark) => {
       setBookmarkedApps(new Set(bookmark))
       setBookmarkedAppsLoaded(true)
     })
-    getContacts().then(setContacts)
+    getFollowing().then(setFollowing)
   }, [])
   useEffect(() => {
     if (!bookmarkedAppsLoaded || initialTabPicked.current) return
@@ -479,10 +531,11 @@ export function App() {
     />
   )
   const emptyBookmarks = currentMode === 'bookmarks' && filtered.length === 0 && !query
-  const emptyFollowingNoContacts = currentMode === 'following' && contacts.length === 0 && !query
+  const emptyFollowingNobody =
+    currentMode === 'following' && following.length === 0 && filtered.length === 0 && !query
   const emptyFollowingNoMatches =
     currentMode === 'following' &&
-    contacts.length > 0 &&
+    following.length > 0 &&
     filtered.length === 0 &&
     !query &&
     !followingLoading
@@ -500,11 +553,10 @@ export function App() {
               {!searchMatches && (
                 <CategoryTabs
                   active={coldStart ? ['all'] : [currentMode]}
-                  isSignedIn={signed}
                   disabled={coldStart}
                   onSwitch={(mode) => {
                     setCurrentMode(mode)
-                    setShowContactsManager(false)
+                    setShowFollowingManager(false)
                   }}
                 />
               )}
@@ -526,15 +578,15 @@ export function App() {
                     </div>
                     <p class='empty-state__text'>No bookmarks yet</p>
                   </div>
-                ) : emptyFollowingNoContacts ? (
+                ) : emptyFollowingNobody ? (
                   <div class='empty-state'>
                     <div class='empty-state__icon empty-state__icon--faint'>{FOLLOW_ICON}</div>
                     <p class='empty-state__text'>
                       Follow people to see what they recommend{' '}
                       <ArrowUp size={14} class='empty-state__inline-icon' />
                     </p>
-                    <button class='empty-state__btn' onClick={() => setShowContactsManager(true)}>
-                      Add address
+                    <button class='empty-state__btn' onClick={() => setShowFollowingManager(true)}>
+                      Add Person
                     </button>
                   </div>
                 ) : emptyFollowingNoMatches ? (
@@ -596,17 +648,20 @@ export function App() {
                 <span class='loading-dots__dot' />
               </div>
 
-              {currentMode === 'following' && contacts.length > 0 && (
-                <button
-                  type='button'
-                  class='corner-chip corner-chip--manage'
-                  onClick={() => setShowContactsManager(true)}
-                  aria-label={`Manage following, ${contacts.length} address${contacts.length === 1 ? '' : 'es'}`}
-                >
-                  <span class='corner-chip__label'>Following</span>
-                  <span class='corner-chip__addr'>{contacts.length}</span>
-                </button>
-              )}
+              {currentMode === 'following' &&
+                (following.length > 0 || followingDisplay.size > 0) && (
+                  <button
+                    type='button'
+                    class='corner-chip corner-chip--manage'
+                    onClick={() => setShowFollowingManager(true)}
+                    aria-label={`Manage following, ${following.length} address${following.length === 1 ? '' : 'es'}`}
+                  >
+                    <span class='corner-chip__label'>Following</span>
+                    {following.length > 0 && (
+                      <span class='corner-chip__addr'>{following.length}</span>
+                    )}
+                  </button>
+                )}
             </div>
 
             <div class='card back' id='card-back'>
@@ -621,12 +676,12 @@ export function App() {
           <div class='footer' />
         </div>
 
-        <ContactsManager
-          contacts={contacts}
-          visible={showContactsManager}
-          onAdd={handleAddContact}
-          onRemove={handleRemoveContact}
-          onDismiss={() => setShowContactsManager(false)}
+        <FollowingManager
+          following={following}
+          visible={showFollowingManager}
+          onAdd={handleFollow}
+          onRemove={handleUnfollow}
+          onDismiss={() => setShowFollowingManager(false)}
         />
 
         <Toast

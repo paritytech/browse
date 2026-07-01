@@ -5,7 +5,14 @@ import { type AsyncTransaction, createInkSdk, ss58ToEthereum } from '@polkadot-a
 import { AccountId, type PolkadotClient, type PolkadotSigner, type SS58String } from 'polkadot-api'
 import { bytesToHex } from 'viem'
 
-import { endTransaction, ensureClient, resetBrowseSdk, startTransaction } from './client'
+import { decodeBool, encodeIdentityHasAttested } from './abi'
+import {
+  endTransaction,
+  ensureClient,
+  resetBrowseSdk,
+  reviveCall,
+  startTransaction
+} from './client'
 import {
   ACTIVE_ATTESTATION_RESOLVER,
   DRY_RUN_WEIGHT_LIMIT,
@@ -75,6 +82,7 @@ export type TxResult = { txHash: string; block: string }
 
 const GAS = DRY_RUN_WEIGHT_LIMIT
 const STORAGE = 1_000_000_000_000n
+const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const
 
 // Gas cap for the batched attest. It can't be dry-run while the account is
 // unbound, so we cap it instead of measuring. Generous but block-bounded, and
@@ -239,17 +247,45 @@ export class AttestationService {
     return results.some(Boolean)
   }
 
+  /**
+   * Whether the given identity account has an active recommendation for the
+   * recipient, across every schema version. Unlike {@link isActiveAny}, this is
+   * keyed on the identity rather than the attester, so it holds regardless of
+   * which product account signed the recommendation. Read via `reviveCall`
+   * because `identityHasAttested` is not in the ink contract descriptor.
+   */
+  async identityHasAttested(recipient: `0x${string}`, identity: `0x${string}`): Promise<boolean> {
+    const results = await Promise.all(
+      attestationVersions(NETWORK).map(async ({ resolver, schemaId }) => {
+        try {
+          const raw = await reviveCall(
+            resolver,
+            encodeIdentityHasAttested(recipient, schemaId, identity)
+          )
+          return decodeBool(raw)
+        } catch {
+          // Legacy resolvers predate identity binding and revert on this call.
+          return false
+        }
+      })
+    )
+    return results.some(Boolean)
+  }
+
   async listByRecipientAndSchema(
     recipient: `0x${string}`,
     offset: bigint,
     limit: bigint
   ): Promise<bigint[]> {
-    const { origin } = await this.signer()
+    // A dry-run view read returns the same data from any origin, so use the
+    // dummy origin rather than the host signer. The following query reads
+    // recommendations from other accounts and must not block on the user
+    // product account.
     const lists = await Promise.all(
       attestationVersions(NETWORK).map(async ({ resolver, schemaId }) => {
         const contract = await this.getResolverAt(resolver)
         const result = await contract.query('listByRecipientAndSchema', {
-          origin: origin as SS58String,
+          origin: DUMMY_ORIGIN as SS58String,
           data: { recipient, schema: schemaId, offset, limit },
           options: { gasLimit: GAS, storageDepositLimit: STORAGE }
         })
@@ -448,6 +484,33 @@ export class AttestationService {
       throw new Error(`boundIdentity dry-run failed: ${JSON.stringify(result.value, bigStr)}`)
     }
     return result.value.response as `0x${string}`
+  }
+
+  /**
+   * Resolve the identity account bound to `account`, searching every deployed
+   * index resolver (a binding lives on whichever resolver received it). Returns
+   * the first non-zero identity, or the zero address when unbound everywhere.
+   */
+  async identityOf(account: `0x${string}`): Promise<`0x${string}`> {
+    const identities = await Promise.all(
+      NETWORK.ATTESTATION_INDEX_RESOLVER.map(async (resolver) => {
+        try {
+          const contract = await this.getResolverAt(resolver)
+          const result = await contract.query('boundIdentity', {
+            origin: DUMMY_ORIGIN as SS58String,
+            data: { account },
+            options: { gasLimit: GAS, storageDepositLimit: STORAGE }
+          })
+          if (!result.success) return ZERO_ADDRESS
+          return result.value.response as `0x${string}`
+        } catch {
+          // Legacy resolvers predate identity binding and have no
+          // `boundIdentity`.
+          return ZERO_ADDRESS
+        }
+      })
+    )
+    return identities.find((id) => BigInt(id) !== 0n) ?? ZERO_ADDRESS
   }
 
   async revoke(schema: bigint, id: bigint, onBroadcast?: () => void): Promise<TxResult> {

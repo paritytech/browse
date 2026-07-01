@@ -1,100 +1,147 @@
 import { ss58ToEthereum } from '@polkadot-api/sdk-ink'
-import { useQuery } from '@tanstack/react-query'
-import { AccountId, type SS58String } from 'polkadot-api'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { type SS58String } from 'polkadot-api'
 
 import { getCachedFollowed, setCachedFollowed } from './cache'
-import { decodeAttestationLabel, namehash, nodeToSubject } from '../../lib/abi'
+import { namehash, nodeToSubject } from '../../lib/abi'
 import { attestationService } from '../../lib/attestation-service'
-import { NETWORK } from '../../lib/config'
+import { resolveIdentityH160 } from '../apps/identity'
 import { type AppEntry } from '../apps/types'
 
 const PAGE_SIZE = 100n
 const PAGE_SIZE_NUM = Number(PAGE_SIZE)
 
-async function listAllAttestationsByAttester(attester: `0x${string}`): Promise<bigint[]> {
-  const count = await attestationService.countByAttester(attester)
+async function listRecipientAttestations(recipient: `0x${string}`): Promise<bigint[]> {
+  const count = await attestationService.countByRecipientAndSchema(recipient)
   if (count === 0n) return []
 
   const ids: bigint[] = []
   for (let offset = 0n; offset < count; offset += PAGE_SIZE) {
     const remaining = count - offset
     const limit = remaining < PAGE_SIZE ? remaining : PAGE_SIZE
-    const page = await attestationService.listByAttester(attester, offset, limit)
-    ids.push(...page)
+    ids.push(...(await attestationService.listByRecipientAndSchema(recipient, offset, limit)))
   }
   return ids
 }
 
-async function getFollowedApps(apps: AppEntry[], contacts: string[]): Promise<Set<string>> {
-  if (contacts.length === 0) return new Set()
+/**
+ * Map each label to the subset of `identityH160s` that recommended it. Labels
+ * with no matching recommender are omitted.
+ *
+ * A recommendation on-chain attester is a product account bound to an identity.
+ * We enumerate the live attestations for each app and match the *current* bound
+ * identity of each attester against `identityH160s`. This captures every
+ * recommendation an identity made, across its product accounts and across
+ * resolver versions, including legacy resolvers with no identity index.
+ */
+async function mapRecommendersByLabel(
+  labels: string[],
+  identityH160s: string[]
+): Promise<Map<string, Set<string>>> {
+  const byLabel = new Map<string, Set<string>>()
+  if (labels.length === 0 || identityH160s.length === 0) return byLabel
 
-  const h160Contacts = contacts.map((ss58) => ss58ToEthereum(ss58 as SS58String) as `0x${string}`)
-
-  const recipientToLabel = new Map<string, string>()
-  for (const app of apps) {
-    const recipient = nodeToSubject(namehash(`${app.label}.dot`)).toLowerCase()
-    recipientToLabel.set(recipient, app.label)
-  }
-
-  const idsPerAttester = await Promise.all(h160Contacts.map(listAllAttestationsByAttester))
-  const allIds = idsPerAttester.flat()
-  if (allIds.length === 0) return new Set()
-
+  const wanted = new Set(identityH160s.map((h) => h.toLowerCase()))
   const now = BigInt(Math.floor(Date.now() / 1000))
-  const followed = new Set<string>()
+  const identityH160ByAttester = new Map<string, string>()
 
-  for (let i = 0; i < allIds.length; i += PAGE_SIZE_NUM) {
-    const batch = allIds.slice(i, i + PAGE_SIZE_NUM)
-    const records = await attestationService.getAttestationByIds(batch)
-    for (const record of records) {
-      if (!NETWORK.SCHEMA_ID.includes(record.schema)) continue
-      if (record.revocationTime !== 0n) continue
-      if (record.expirationTime !== 0n && record.expirationTime <= now) continue
-      const label =
-        decodeAttestationLabel(record.data) ?? recipientToLabel.get(record.recipient.toLowerCase())
-      if (label) followed.add(label)
-    }
-  }
+  await Promise.all(
+    labels.map(async (label) => {
+      const recipient = nodeToSubject(namehash(`${label}.dot`)) as `0x${string}`
+      const ids = await listRecipientAttestations(recipient)
+      if (ids.length === 0) return
 
-  return followed
+      const matched = new Set<string>()
+      for (let i = 0; i < ids.length; i += PAGE_SIZE_NUM) {
+        const records = await attestationService.getAttestationByIds(
+          ids.slice(i, i + PAGE_SIZE_NUM)
+        )
+        for (const record of records) {
+          if (record.revocationTime !== 0n) continue
+          if (record.expirationTime !== 0n && record.expirationTime <= now) continue
+
+          const attester = record.attester.toLowerCase()
+          let identityH160 = identityH160ByAttester.get(attester)
+          if (identityH160 === undefined) {
+            identityH160 = (await attestationService.identityOf(record.attester)).toLowerCase()
+            identityH160ByAttester.set(attester, identityH160)
+          }
+          if (wanted.has(identityH160)) matched.add(identityH160)
+        }
+      }
+      if (matched.size > 0) byLabel.set(label, matched)
+    })
+  )
+
+  return byLabel
 }
 
-export function useGetAttestationsByContacts(apps: AppEntry[], contactAddresses: string[]) {
-  const sorted = [...contactAddresses].sort()
+async function getAppsRecommendedByIdentities(
+  labels: string[],
+  identityH160s: string[]
+): Promise<Set<string>> {
+  return new Set((await mapRecommendersByLabel(labels, identityH160s)).keys())
+}
+
+async function getFollowedApps(
+  apps: AppEntry[],
+  followingAddresses: string[]
+): Promise<Set<string>> {
+  if (followingAddresses.length === 0) return new Set()
+
+  // A followed SS58 is the *identity* (bound) account. Map it to its identity
+  // H160 the way the resolver derives it, then match apps by that identity.
+  const identityH160s = followingAddresses.map(
+    (ss58) => ss58ToEthereum(ss58 as SS58String) as string
+  )
+  return getAppsRecommendedByIdentities(
+    apps.map((app) => app.label),
+    identityH160s
+  )
+}
+
+/** The apps at least one followed account has recommended, for the Following tab. */
+export function useGetAttestationsByFollowing(apps: AppEntry[], followingAddresses: string[]) {
+  const sorted = [...followingAddresses].sort()
 
   return useQuery<Set<string>>({
-    queryKey: ['attestations', 'followed', sorted],
+    queryKey: ['attestations', 'following', sorted],
     queryFn: async () => {
-      const result = await getFollowedApps(apps, contactAddresses)
+      const result = await getFollowedApps(apps, followingAddresses)
       setCachedFollowed([...result])
       return result
     },
-    enabled: contactAddresses.length > 0 && apps.length > 0,
+    // Run even with nobody followed, which returns an empty set immediately.
+    // Unfollowing the last account must resolve to empty so the caller can fade
+    // its cards out, rather than leaving the query disabled on stale data.
+    enabled: apps.length > 0,
+    // Keep the last resolved set on screen while the following set refetches, so
+    // unfollowing never blanks the tab into skeletons. The caller fades the
+    // dropped apps out once the new set resolves.
+    placeholderData: keepPreviousData,
     staleTime: 5 * 60_000
   })
 }
 
-export function useGetAppAttestation(label: string) {
-  return useQuery({
-    queryKey: ['attestations', 'app', label],
+/**
+ * The published apps the current user identity has recommended. Uses the same
+ * attester-to-identity enumeration as the Following query, via
+ * {@link getAppsRecommendedByIdentities}, so the recommend button active state
+ * reflects every recommendation the identity made, regardless of which product
+ * account signed it or which resolver version recorded it.
+ */
+export function useGetMyRecommendations(apps: AppEntry[]) {
+  const labels = [...apps.map((app) => app.label)].sort()
+  return useQuery<Set<string>>({
+    queryKey: ['attestations', 'mine', labels],
     queryFn: async () => {
-      const recipient = nodeToSubject(namehash(`${label}.dot`))
-      const { publicKey } = await attestationService.getSigner()
-      const ss58 = AccountId().dec(publicKey)
-      const userH160 = ss58ToEthereum(ss58 as SS58String) as `0x${string}`
-      const [count, hasUserAttested] = await Promise.all([
-        attestationService.countByRecipientAndSchema(recipient),
-        attestationService.isActiveAny(recipient, [userH160])
-      ])
-      return { attestationCount: Number(count), hasUserAttested }
+      const identityH160 = await resolveIdentityH160()
+      if (!identityH160) return new Set<string>()
+      return getAppsRecommendedByIdentities(labels, [identityH160])
     },
-    staleTime: Infinity,
-    gcTime: Infinity,
-    retry: 1,
-    retryOnMount: false,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false
+    enabled: apps.length > 0,
+    placeholderData: keepPreviousData,
+    staleTime: 5 * 60_000
   })
 }
 

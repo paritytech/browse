@@ -20,8 +20,8 @@ import {
   encodeContenthash,
   encodeCountByRecipientAndSchema,
   encodeGetPublished,
+  encodeIdentityHasAttested,
   encodeIsActive,
-  encodeIsActiveAny,
   encodeLabelOf,
   encodeText,
   labelhashToTokenId,
@@ -143,16 +143,17 @@ export async function resolveLabels(
 }
 
 /**
- * Hydrate a chunk of labels with content + attestation metadata.
+ * Hydrate a chunk of labels with content and attestation metadata.
  *
  * Two-pass: first batch fetches `contenthash` to identify live labels, the
- * second batch fetches `name`/`description`/attestation count (plus a per-user
- * "have I attested?" probe when `userH160` is provided). Non-live labels come
- * back with `contentHash: null`. Caller chunks input to {@link HYDRATE_CHUNK_SIZE}.
+ * second batch fetches `name`/`description`/attestation count. When
+ * `identityH160` is provided, it also runs a per-user "have I attested?" probe.
+ * Non-live labels come back with `contentHash: null`. Caller chunks input to
+ * {@link HYDRATE_CHUNK_SIZE}.
  */
 export async function hydrateLabelChunk(
   chunk: string[],
-  userH160: `0x${string}` | null
+  identityH160: `0x${string}` | null
 ): Promise<LabelEntry[]> {
   const chCalls: MulticallTarget[] = chunk.map((label) => ({
     target: NETWORK.CONTENT_RESOLVER,
@@ -172,7 +173,7 @@ export async function hydrateLabelChunk(
   }
 
   const versions = attestationVersions(NETWORK)
-  const perLive = 1 + versions.length + 1 + (userH160 ? versions.length : 0)
+  const perLive = 1 + versions.length + 1 + (identityH160 ? versions.length : 0)
   let metaResults: Awaited<ReturnType<typeof multicall>> = []
   if (liveIndexes.length > 0) {
     const metaCalls: MulticallTarget[] = []
@@ -190,11 +191,11 @@ export async function hydrateLabelChunk(
         target: NETWORK.TRUSTED_ATTESTER_RESOLVER,
         callData: encodeIsActive(subject, NETWORK.COMPLIANCE_SCHEMA_ID)
       })
-      if (userH160) {
+      if (identityH160) {
         for (const { resolver, schemaId } of versions) {
           metaCalls.push({
             target: resolver,
-            callData: encodeIsActiveAny(subject, schemaId, [userH160])
+            callData: encodeIdentityHasAttested(subject, schemaId, identityH160)
           })
         }
       }
@@ -236,7 +237,7 @@ export async function hydrateLabelChunk(
       }
       attestationCount = hasCount ? countTotal : null
       isCompliant = tryDecode(metaResults[base + 1 + versions.length], decodeBool) ?? false
-      if (userH160) {
+      if (identityH160) {
         const anyBase = base + 1 + versions.length + 1
         hasUserAttested = versions.some(
           (_, v) => tryDecode(metaResults[anyBase + v], decodeBool) === true

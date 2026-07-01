@@ -4,7 +4,7 @@ interface IdenticonProps {
 }
 
 // djb2 hash. Fast, deterministic, 32-bit.
-function hashSeed(seed: string): number {
+export function hashSeed(seed: string): number {
   let h = 5381
   for (let i = 0; i < seed.length; i++) {
     h = (h << 5) + h + seed.charCodeAt(i)
@@ -26,6 +26,11 @@ const JEWELS = [
   'garnet'
 ] as const
 
+/** A deterministic `--avatar-bg-*` design token seeded by `seed`. */
+export function avatarBg(seed: string): string {
+  return `var(--avatar-bg-${JEWELS[hashSeed(seed) % JEWELS.length]})`
+}
+
 /**
  * Generative identicon for product thumbs.
  *
@@ -37,8 +42,7 @@ const JEWELS = [
 export function Identicon({ seed, size = 64 }: IdenticonProps) {
   const hash = hashSeed(seed)
   const cellSize = size / 5
-  const jewel = JEWELS[hash % JEWELS.length]
-  const fill = `var(--avatar-bg-${jewel})`
+  const fill = avatarBg(seed)
 
   const cells: boolean[][] = []
   for (let r = 0; r < 5; r++) {
