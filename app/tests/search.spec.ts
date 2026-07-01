@@ -12,6 +12,8 @@ import type { BrowserContext } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 
 import { createCachedApps } from './fixtures/cache'
+import { SNAPSHOT_BLOCKS, SNAPSHOT_ONLY_LABEL } from './fixtures/domains-snapshot'
+import { seedPreimage } from './fixtures/seed-preimage'
 import { getProductFrame, navigateToTestHost, startUnsignedHost } from './utils'
 
 const DEBOUNCE_MS = 500
@@ -91,6 +93,24 @@ test.describe('Search', () => {
     // Then
     const card = frame.locator('.product-card[data-label="host-playground44"]')
     await expect(card).toBeVisible({ timeout: 15_000 })
+
+    await page.close()
+  })
+
+  test("As an un/signed user, when I type 2 or more characters in the search bar, I see every app on the network whose name starts with those characters, so that I can discover and open apps I didn't know existed without typing their exact full name", async () => {
+    // Given
+    const page = await context.newPage()
+    await navigateToTestHost(page, host.url)
+    const frame = await getProductFrame(page, '.category-tab')
+    for (const block of SNAPSHOT_BLOCKS) await seedPreimage(page, block)
+
+    // When
+    await frame.locator('.search-bar__input').fill('zz')
+
+    // Then
+    const card = frame.locator(`.product-card[data-label="${SNAPSHOT_ONLY_LABEL}"]`)
+    await expect(card).toBeVisible({ timeout: 15_000 })
+    await expect(card.locator('.product-card__name')).toHaveText(`${SNAPSHOT_ONLY_LABEL}.dot`)
 
     await page.close()
   })
