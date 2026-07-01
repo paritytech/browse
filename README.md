@@ -7,7 +7,6 @@
 
 <!-- markdownlint-disable-next-line MD013 -->
 ![CI](https://github.com/paritytech/browse/actions/workflows/build.yml/badge.svg)
-<!-- markdownlint-disable-next-line MD013 -->
 ![Tests](https://github.com/paritytech/browse/actions/workflows/e2e.yml/badge.svg)
 [![License](https://img.shields.io/badge/license-AGPL--3.0-blue?style=flat-square)](./LICENSE)
 [![Polkadot](https://img.shields.io/badge/polkadot-ecosystem-E6007A?style=flat-square&logo=polkadot)](https://polkadot.com)
