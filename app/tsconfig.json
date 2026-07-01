@@ -20,5 +20,6 @@
       "@parity/browse-sdk": ["../packages/browse-sdk/src/index.ts"]
     }
   },
-  "include": ["src", "tests"]
+  "include": ["src", "tests"],
+  "exclude": ["src/**/*.test.ts"]
 }

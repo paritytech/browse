@@ -8,7 +8,7 @@ import {
   fundWithNative,
   fundWithPgas,
   mapAccount,
-  PGAS_MIN_BALANCE
+  PGAS_SEED_AMOUNT
 } from './fund'
 
 type Account = import('@parity/host-api-test-sdk').Account
@@ -36,7 +36,7 @@ export async function createUnboundProductAccount(): Promise<UnboundProduct> {
   await fundWithNative(product.address)
   await mapAccount(tag)
   // Seed a minimum PGAS balance from the identity account.
-  await fundWithPgas(tag, PGAS_MIN_BALANCE, createProductSigner())
+  await fundWithPgas(tag, PGAS_SEED_AMOUNT, createProductSigner())
   return {
     tag,
     productAccounts: {

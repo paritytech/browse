@@ -10,13 +10,15 @@ import { NETWORK } from '../../src/lib/config'
 import { DEV_PHRASE as IDENTITY_PHRASE } from '../utils'
 
 const RPC_ENDPOINTS = [...NETWORK.ASSETHUB_RPCS]
-// Alice funds native top-ups (and PGAS where she holds it) on the dev networks.
-const FUNDER = 'Alice'
+
+// Amounts transferred on a top-up (the `amount` passed to the fund helpers).
 export const DEFAULT_PGAS_AMOUNT = 5_000_000_000n
-const MIN_PGAS_BALANCE = 1_000_000_000n
-export const PGAS_MIN_BALANCE = 10_000_000n
+export const PGAS_SEED_AMOUNT = 10_000_000n
 const DEFAULT_NATIVE_AMOUNT = 1_000_000_000_000n
-const MIN_NATIVE_BALANCE = 500_000_000_000n
+
+// A top-up is skipped when the recipient already holds at least this much.
+const PGAS_TOPUP_THRESHOLD = 1_000_000_000n
+const NATIVE_TOPUP_THRESHOLD = 500_000_000_000n
 
 function signerFor(miniSecret: Uint8Array, path: string) {
   const wallet = sr25519CreateDerive(miniSecret)(path)
@@ -118,20 +120,20 @@ export interface FundResult {
 
 /**
  * Ensure dev account `toAccount` holds enough PGAS to pay for contract calls.
- * Idempotent: skips the transfer when already above `MIN_PGAS_BALANCE`. `from`
- * defaults to Alice. Pass {@link createProductSigner} to fund from the account
- * that actually holds PGAS on the dev networks (Alice has none there).
+ * Idempotent: skips the transfer when already above `PGAS_TOPUP_THRESHOLD`. `from`
+ * defaults to the identity account ({@link createProductSigner}), the single
+ * funder that holds both PGAS and native on the dev networks.
  */
 export async function fundWithPgas(
   toAccount = 'Charlie',
   amount: bigint = DEFAULT_PGAS_AMOUNT,
-  from: Credentials = createDevSigner(FUNDER)
+  from: Credentials = createProductSigner()
 ): Promise<FundResult> {
   const to = createDevSigner(toAccount)
   return withAssetHubApi(async (api) => {
     const assetId = (await api.constants.Pgas.PgasAssetId()) as number
     const balance = await pgasBalanceOf(api, assetId, to.address)
-    if (balance >= MIN_PGAS_BALANCE) {
+    if (balance >= PGAS_TOPUP_THRESHOLD) {
       return { topUp: false, toAddress: to.address, pgasBalance: balance }
     }
     await transferPgas(api, assetId, from, to.address, amount)
@@ -158,7 +160,9 @@ export async function mapAccount(tag: string): Promise<void> {
         .signSubmitAndWatch(acct.signer)
         .subscribe({
           next: (event) => {
-            if (!((event.type === 'txBestBlocksState' && event.found) || event.type === 'finalized'))
+            if (
+              !((event.type === 'txBestBlocksState' && event.found) || event.type === 'finalized')
+            )
               return
             if (event.ok === false) {
               reject(new Error(`map_account failed: ${JSON.stringify(event.dispatchError)}`))
@@ -181,42 +185,56 @@ export async function transferAllWithPgas(
   to: string = createProductSigner().address
 ): Promise<void> {
   const from = createDevSigner(fromTag)
-  await withAssetHubApi(async (api) => {
-    const assetId = (await api.constants.Pgas.PgasAssetId()) as number
-    const balance = await pgasBalanceOf(api, assetId, from.address)
-    if (balance === 0n) return
-    await new Promise<void>((resolve, reject) => {
-      api.tx.Assets.transfer({
-        id: assetId,
-        target: { type: 'Id', value: to as SS58String },
-        amount: balance
-      })
-        .signSubmitAndWatch(from.signer)
-        .subscribe({
-          next: (event) => {
-            if (!((event.type === 'txBestBlocksState' && event.found) || event.type === 'finalized'))
-              return
-            if (event.ok === false) {
-              reject(new Error(`PGAS transfer_all failed: ${JSON.stringify(event.dispatchError)}`))
-            } else {
-              resolve()
-            }
-          },
-          error: reject
+  try {
+    await withAssetHubApi(async (api) => {
+      const assetId = (await api.constants.Pgas.PgasAssetId()) as number
+      const balance = await pgasBalanceOf(api, assetId, from.address)
+      if (balance === 0n) return
+      await new Promise<void>((resolve, reject) => {
+        api.tx.Assets.transfer({
+          id: assetId,
+          target: { type: 'Id', value: to as SS58String },
+          amount: balance
         })
+          .signSubmitAndWatch(from.signer)
+          .subscribe({
+            next: (event) => {
+              if (
+                !((event.type === 'txBestBlocksState' && event.found) || event.type === 'finalized')
+              )
+                return
+              if (event.ok === false) {
+                reject(
+                  new Error(`PGAS transfer_all failed: ${JSON.stringify(event.dispatchError)}`)
+                )
+              } else {
+                resolve()
+              }
+            },
+            error: reject
+          })
+      })
     })
-  })
+  } catch (e) {
+    // A failed reclaim strands this account's PGAS permanently (the tag is
+    // random per run), so surface it loudly instead of leaking silently.
+    console.error(
+      `transferAllWithPgas from ${fromTag} (${from.address}) to ${to} failed; PGAS is now stranded:`,
+      e
+    )
+    throw e
+  }
 }
 
 /**
  * Send the entire native balance of `fromTag` to `to` and reap the account, so a
  * throwaway account does not permanently drain the funder. Defaults to the
- * funder. Call after every other tx the account signs, since it leaves nothing
- * for fees.
+ * identity funder. Call after every other tx the account signs, since it leaves
+ * nothing for fees.
  */
 export async function transferAllWithNative(
   fromTag: string,
-  to: string = createDevSigner(FUNDER).address
+  to: string = createProductSigner().address
 ): Promise<void> {
   const from = createDevSigner(fromTag)
   await withAssetHubApi(async (api) => {
@@ -228,10 +246,14 @@ export async function transferAllWithNative(
         .signSubmitAndWatch(from.signer)
         .subscribe({
           next: (event) => {
-            if (!((event.type === 'txBestBlocksState' && event.found) || event.type === 'finalized'))
+            if (
+              !((event.type === 'txBestBlocksState' && event.found) || event.type === 'finalized')
+            )
               return
             if (event.ok === false) {
-              reject(new Error(`native transfer_all failed: ${JSON.stringify(event.dispatchError)}`))
+              reject(
+                new Error(`native transfer_all failed: ${JSON.stringify(event.dispatchError)}`)
+              )
             } else {
               resolve()
             }
@@ -246,7 +268,7 @@ export async function transferAllWithNative(
  * Ensure `toAddress` holds enough native token to pay tx fees. The identity
  * account signs fixture txs with a plain signer that pays fees in native, but it
  * only holds PGAS, so it needs a native top-up. Idempotent: skips when already
- * above `MIN_NATIVE_BALANCE`.
+ * above `NATIVE_TOPUP_THRESHOLD`.
  */
 export async function fundWithNative(
   toAddress: string,
@@ -256,9 +278,9 @@ export async function fundWithNative(
     const current = (await api.query.System.Account.getValue(toAddress as SS58String)) as {
       data?: { free?: bigint }
     }
-    if ((current?.data?.free ?? 0n) >= MIN_NATIVE_BALANCE) return
+    if ((current?.data?.free ?? 0n) >= NATIVE_TOPUP_THRESHOLD) return
 
-    const funder = createDevSigner(FUNDER)
+    const funder = createProductSigner()
     await new Promise<void>((resolve, reject) => {
       api.tx.Balances.transfer_keep_alive({
         dest: { type: 'Id', value: toAddress as SS58String },
@@ -267,7 +289,9 @@ export async function fundWithNative(
         .signSubmitAndWatch(funder.signer)
         .subscribe({
           next: (event) => {
-            if (!((event.type === 'txBestBlocksState' && event.found) || event.type === 'finalized'))
+            if (
+              !((event.type === 'txBestBlocksState' && event.found) || event.type === 'finalized')
+            )
               return
             if (event.ok === false) {
               reject(new Error(`native transfer failed: ${JSON.stringify(event.dispatchError)}`))

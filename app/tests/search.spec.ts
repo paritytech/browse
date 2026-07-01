@@ -1,17 +1,19 @@
 /**
- * Search E2E Tests
+ * Search E2E tests.
  *
- * Validates search behaviour across the user stories:
- *   1. Match in selected tab → card shows instantly.
- *   2. Match in another tab  → "Also found in <tab>" hint.
- *   3. No match in any tab, but resolvable via the labels cache → card appears after debounce.
- *   4. No match anywhere and not resolvable → "No products matching" + "Visit X.dot anyway".
+ * Covers the search user stories in this suite:
+ *   1. A match on the selected tab shows its card instantly.
+ *   2. Searching deselects the tabs and shows the card in the unified list.
+ *   3. A `.dot` name not loaded in any tab resolves to a card after a debounce.
+ *   4. A name that resolves to nothing shows "No products matching" and a "Try X.dot anyway" action.
  */
 
 import type { BrowserContext } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 
 import { createCachedApps } from './fixtures/cache'
+import { SNAPSHOT_BLOCKS, SNAPSHOT_ONLY_LABEL } from './fixtures/domains-snapshot'
+import { seedPreimage } from './fixtures/seed-preimage'
 import { getProductFrame, navigateToTestHost, startUnsignedHost } from './utils'
 
 const DEBOUNCE_MS = 500
@@ -23,6 +25,13 @@ test.describe('Search', () => {
   test.beforeAll(async ({ browser }) => {
     host = await startUnsignedHost()
     context = await browser.newContext({ ignoreHTTPSErrors: true })
+    // Warm the dev server: vite optimizes deps on the first page load and
+    // reloads mid-render, which would drop the first test's fill/Enter. Load
+    // once up front so the real tests run against a warm, stable bundle.
+    const warm = await context.newPage()
+    await navigateToTestHost(warm, host.url)
+    await getProductFrame(warm, '.category-tab')
+    await warm.close()
   })
 
   test.afterAll(async () => {
@@ -30,7 +39,8 @@ test.describe('Search', () => {
     await host?.close()
   })
 
-  test('As an un/signed user, when I search for an app that exists on the selected tab, the card shows instantly', async () => {
+  test('As an un/signed user, when I search for an app that exists on the selected tab, a product card shows instantly', async () => {
+    test.setTimeout(20_000)
     // Given
     const page = await context.newPage()
     await createCachedApps(page)
@@ -41,11 +51,12 @@ test.describe('Search', () => {
 
     // When
     await frame.locator('.search-bar__input').fill('calc')
-
     // Then
-    const matched = frame.locator('.product-card[data-label="calculator"]')
-    await expect(matched).toBeVisible()
+    const card = frame.locator('.product-card[data-label="calculator"]')
+    await expect(card).toBeVisible({ timeout: 15_000 })
     await expect(frame.locator('.product-card')).toHaveCount(1)
+    // The `.dot` domain surfaces as the card's native hover tooltip.
+    await expect(card).toHaveAttribute('title', 'Open calculator.dot')
 
     await page.close()
   })
@@ -71,7 +82,7 @@ test.describe('Search', () => {
     await page.close()
   })
 
-  test('As an un/signed user, when I search for a .dot name not loaded in any tab, the card appears after a debounce', async () => {
+  test('As an un/signed user, when I search for a .dot name not loaded in any tab, a product card appears after a debounce', async () => {
     // Given
     const page = await context.newPage()
     await navigateToTestHost(page, host.url)
@@ -79,10 +90,27 @@ test.describe('Search', () => {
 
     // When
     await frame.locator('.search-bar__input').fill('host-playground44')
+    // Then
+    const card = frame.locator('.product-card[data-label="host-playground44"]')
+    await expect(card).toBeVisible({ timeout: 15_000 })
+
+    await page.close()
+  })
+
+  test("As an un/signed user, when I type 2 or more characters in the search bar, I see every app on the network whose name starts with those characters, so that I can discover and open apps I didn't know existed without typing their exact full name", async () => {
+    // Given
+    const page = await context.newPage()
+    await navigateToTestHost(page, host.url)
+    const frame = await getProductFrame(page, '.category-tab')
+    for (const block of SNAPSHOT_BLOCKS) await seedPreimage(page, block)
+
+    // When
+    await frame.locator('.search-bar__input').fill('zz')
 
     // Then
-    const resolvedCard = frame.locator('.product-card[data-label="host-playground44"]')
-    await expect(resolvedCard).toBeVisible({ timeout: 15_000 })
+    const card = frame.locator(`.product-card[data-label="${SNAPSHOT_ONLY_LABEL}"]`)
+    await expect(card).toBeVisible({ timeout: 15_000 })
+    await expect(card.locator('.product-card__name')).toHaveText(`${SNAPSHOT_ONLY_LABEL}.dot`)
 
     await page.close()
   })

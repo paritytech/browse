@@ -1,0 +1,70 @@
+name: Snapshot Domains
+
+on:
+  schedule:
+    # Daily at 03:17 UTC, off the top of the hour to dodge cron congestion.
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: snapshot-domains-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  snapshot-domains:
+    name: Build & publish the .dot domain snapshot
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        working-directory: app
+        run: bun install --frozen-lockfile
+
+      - name: Build & publish snapshot
+        id: snapshot
+        working-directory: app
+        env:
+          MNEMONIC: ${{ secrets.MNEMONIC }}
+          NETWORK_GENESIS_HASH: '0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f'
+        run: |
+          bun run snapshot:domains | tee snapshot.log
+          cid=$(grep -oE 'APP_DOMAINS_SNAPSHOT_CID=[A-Za-z0-9]+' snapshot.log | tail -1 | cut -d= -f2)
+          echo "cid=$cid" >> "$GITHUB_OUTPUT"
+
+      - name: Stage snapshot CID
+        if: steps.snapshot.outputs.cid != ''
+        env:
+          CID: ${{ steps.snapshot.outputs.cid }}
+        run: |
+          mkdir -p .snapshot-cid
+          echo "$CID" > .snapshot-cid/cid
+
+      # Persist the manifest CID so the next build bakes it in. The key rotates
+      # per run because caches are immutable. build.yml restores the most recent
+      # one via the `domains-snapshot-cid-` prefix.
+      - name: Cache snapshot CID
+        if: steps.snapshot.outputs.cid != ''
+        uses: actions/cache/save@v4
+        with:
+          path: .snapshot-cid
+          key: domains-snapshot-cid-${{ github.run_id }}
+
+      - name: Snapshot summary
+        env:
+          CID: ${{ steps.snapshot.outputs.cid }}
+        run: |
+          {
+            echo "### .dot domain snapshot"
+            echo ""
+            echo "Manifest CID &nbsp; \`${CID}\`"
+            echo ""
+            echo "Cached as \`APP_DOMAINS_SNAPSHOT_CID\` for the next build."
+          } >> "$GITHUB_STEP_SUMMARY"
