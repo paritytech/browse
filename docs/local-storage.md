@@ -20,8 +20,8 @@ Three kinds of data live there: cloud caches (apps, stores, address mappings), u
 | `browse:stores`      | `StoreEntry[]`                     | [db/stores.ts](../app/src/db/stores.ts)                                        | none                       |
 | `browse:addresses`   | `Record<h160, ss58>`               | [db/addresses.ts](../app/src/db/addresses.ts)                                  | none                       |
 | `browse:bookmarks`   | `string[]`                         | [db/bookmarks.ts](../app/src/db/bookmarks.ts)                                   | none                       |
-| `browse:contacts`    | `ContactEntry[]`                   | [state/contacts/api.ts](../app/src/state/contacts/api.ts)                      | none                       |
-| `browse:followed`    | `{ apps: AppEntry[], timestamp }`  | [state/attestations/cache.ts](../app/src/state/attestations/cache.ts)          | timestamp, not enforced    |
+| `browse:following`   | `FollowedAccount[]`                | [state/following/api.ts](../app/src/state/following/api.ts)                     | none                       |
+| `browse:followed`    | `{ apps: AppEntry[], timestamp }`  | [state/recommendations/cache.ts](../app/src/state/recommendations/cache.ts)    | timestamp, not enforced    |
 
 All keys use the `browse:` prefix.
 
