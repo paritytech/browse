@@ -1,3 +1,5 @@
+import { type VNode } from 'preact'
+
 import { useDeferredValue } from 'preact/compat'
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
@@ -18,6 +20,7 @@ import { upsertLabel } from './db/labels'
 import { resetBrowseSdk } from './lib/client'
 import { SELF_LABEL } from './lib/config'
 import { setupDebugConsole } from './lib/debug'
+import { useDomainSuggestions } from './lib/domains-snapshot'
 import { navigateToDomain } from './lib/navigate'
 import { subscribeHostTheme } from './lib/theme'
 import { useEvent } from './lib/use-event'
@@ -40,6 +43,22 @@ const SEARCH_GROUP_PRIORITY: FilterMode[] = ['bookmarks', 'following', 'all']
 // gesture has visible feedback even when the connection reset resolves instantly.
 const PULL_REFRESH_MIN_VISIBLE_MS = 2000
 
+/**
+ * Render a snapshot-only search result as a product card, lazily resolving its
+ * name and icon (the snapshot carries only the `.dot` domain). Published entries
+ * already have their metadata and render directly via `renderCard`.
+ */
+function LazyResolvedCard({
+  app,
+  render
+}: {
+  app: AppEntry
+  render: (app: AppEntry) => VNode
+}): VNode {
+  const { data } = useResolveLabel(app.label, true)
+  return render(data ?? app)
+}
+
 export function App() {
   const queryClient = useQueryClient()
 
@@ -56,6 +75,14 @@ export function App() {
   const [signed, setSigned] = useState(false)
   const [contacts, setContacts] = useState<ContactEntry[]>([])
   const [showContactsManager, setShowContactsManager] = useState(false)
+  const [suggestionPrefix, setSuggestionPrefix] = useState('')
+
+  // Coarse-pointer / no-hover device, used to scope the pull-to-refresh hold to
+  // touch. Search renders product cards on every form factor.
+  const isMobile = useMemo(
+    () => !window.matchMedia?.('(hover: hover) and (pointer: fine)').matches,
+    []
+  )
   const deferredQuery = useDeferredValue(query)
 
   const rootRef = useRef<HTMLDivElement>(null)
@@ -159,6 +186,53 @@ export function App() {
     resolverLabel,
     shouldResolve
   )
+  // Domain-snapshot suggestions feed the inline compact results list (not a
+  // dropdown). The prefix is the raw query (trailing `.dot` stripped, lowercased)
+  // debounced ~150ms. It is a local snapshot lookup, independent of the 500ms
+  // debouncedQuery that drives useResolveLabel.
+  const suggestionPrefixSource = query
+    .trim()
+    .toLowerCase()
+    .replace(/\.dot$/, '')
+  useEffect(() => {
+    const id = setTimeout(() => setSuggestionPrefix(suggestionPrefixSource), 150)
+    return () => clearTimeout(id)
+  }, [suggestionPrefixSource])
+
+  const { data: domainSuggestions = [] } = useDomainSuggestions(suggestionPrefix)
+
+  // Merge the search results shown while typing: published matches (with real
+  // metadata and icons) first, then every other `.dot` name from the snapshot
+  // as a minimal entry (Identicon and `<label>.dot`). Deduped by label.
+  const searchEntries = useMemo<{ app: AppEntry; snapshotOnly: boolean }[]>(() => {
+    if (!searchMatches) return []
+    const published = [
+      ...searchMatches,
+      ...(resolvedApp && !searchMatches.some((app) => app.label === resolvedApp.label)
+        ? [resolvedApp]
+        : [])
+    ]
+    const known = new Set(published.map((app) => app.label))
+    known.add(SELF_LABEL)
+    const snapshotOnly = domainSuggestions
+      .filter((label) => !known.has(label))
+      .map((label) => ({
+        app: {
+          label,
+          name: null,
+          description: 'No description',
+          iconCid: null,
+          contentHash: null,
+          isLive: false,
+          attestationCount: null,
+          hasUserAttested: false,
+          isCompliant: false
+        } satisfies AppEntry,
+        snapshotOnly: true
+      }))
+    return [...published.map((app) => ({ app, snapshotOnly: false })), ...snapshotOnly]
+  }, [searchMatches, resolvedApp, domainSuggestions])
+
   // True while a search is in flight: typing hasn't settled (debounce or
   // useDeferredValue), or the on-chain resolver is fetching.
   const isSearching =
@@ -293,10 +367,6 @@ export function App() {
   useEffect(() => subscribeHostTheme(), [])
 
   // Touch devices get a minimum-visible hold on the dots after a pull-refresh
-  const isTouchDevice = useMemo(
-    () => !window.matchMedia?.('(hover: hover) and (pointer: fine)').matches,
-    []
-  )
   const [pullRefreshFloor, setPullRefreshFloor] = useState(false)
   const pullFloorTimer = useRef<ReturnType<typeof setTimeout>>()
   useEffect(() => () => clearTimeout(pullFloorTimer.current), [])
@@ -308,7 +378,7 @@ export function App() {
   // as feedback even if the reset resolves instantly.
   const refreshConnection = useEvent(() => {
     resetBrowseSdk()
-    if (isTouchDevice) {
+    if (isMobile) {
       clearTimeout(pullFloorTimer.current)
       setPullRefreshFloor(true)
       pullFloorTimer.current = setTimeout(
@@ -505,13 +575,21 @@ export function App() {
                       <ArrowUp size={14} class='empty-state__inline-icon' /> any products yet
                     </p>
                   </div>
-                ) : searchMatches && (searchMatches.length > 0 || resolvedApp) ? (
-                  [
-                    ...searchMatches,
-                    ...(resolvedApp && !searchMatches.some((app) => app.label === resolvedApp.label)
-                      ? [resolvedApp]
-                      : [])
-                  ].map(renderCard)
+                ) : searchMatches && searchEntries.length > 0 ? (
+                  // Search results render as product cards on both form factors.
+                  // Snapshot-only labels resolve their name and icon lazily.
+                  // Published entries render directly.
+                  searchEntries.map(({ app, snapshotOnly }, i) =>
+                    snapshotOnly ? (
+                      <LazyResolvedCard
+                        key={app.label}
+                        app={app}
+                        render={(resolved) => renderCard(resolved, i)}
+                      />
+                    ) : (
+                      renderCard(app, i)
+                    )
+                  )
                 ) : searchMatches ? (
                   isSearching ? (
                     <div class='empty-state'>
@@ -535,7 +613,7 @@ export function App() {
                     </div>
                   )
                 ) : (
-                  orderedFiltered.map(renderCard)
+                  orderedFiltered.map((app, i) => renderCard(app, i))
                 )}
               </div>
 

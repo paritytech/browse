@@ -39,6 +39,13 @@ const APP_DOTNS_DOMAIN =
 export const SELF_LABEL = APP_DOTNS_DOMAIN.toLowerCase().replace(/\.dot$/, '')
 
 /**
+ * Manifest-block CID of the daily verifiable `.dot` domain snapshot, used to
+ * power the search suggestions. Unset disables the snapshot surface entirely.
+ */
+export const DOMAINS_SNAPSHOT_CID =
+  import.meta.env?.APP_DOMAINS_SNAPSHOT_CID ?? process.env?.APP_DOMAINS_SNAPSHOT_CID ?? undefined
+
+/**
  * Product identity presented on localhost, where the
  * real product account is not provisionable. The e2e host maps this same id to
  * a funded account, so keep the two in sync.

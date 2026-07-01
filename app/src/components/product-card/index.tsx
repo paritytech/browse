@@ -74,6 +74,7 @@ export const ProductCard = memo(function ProductCard({
       class={`product-card${instant ? ' product-card--instant' : ''}`}
       style={`animation-delay: ${delay}ms`}
       data-label={app.label}
+      title={`Open ${app.label}.dot`}
       tabIndex={0}
       onClick={() => onClick(app.label)}
       onKeyDown={(e) => {
