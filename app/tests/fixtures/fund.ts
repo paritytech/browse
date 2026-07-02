@@ -6,19 +6,27 @@ import { getPolkadotSigner } from 'polkadot-api/signer'
 import { getWsProvider } from 'polkadot-api/ws'
 import { WebSocket } from 'ws'
 
+import { claimPgas } from './claim-pgas'
 import { NETWORK } from '../../src/lib/config'
 import { DEV_PHRASE as IDENTITY_PHRASE } from '../utils'
+
+// Keep the funder above this PGAS balance. One claim mints far more, so a single
+// successful claim covers many tests. Claim across daily slots to top up.
+const FUNDER_PGAS_FLOOR = 20_000_000_000n
+const MAX_CLAIM_SLOTS = 20
 
 const RPC_ENDPOINTS = [...NETWORK.ASSETHUB_RPCS]
 
 // Amounts transferred on a top-up (the `amount` passed to the fund helpers).
 export const DEFAULT_PGAS_AMOUNT = 5_000_000_000n
 export const PGAS_SEED_AMOUNT = 10_000_000n
-const DEFAULT_NATIVE_AMOUNT = 1_000_000_000_000n
+// Native only pays tx fees, so a small grant is plenty. Kept well under the
+// funder balance so it can seed several sub-accounts without a native top-up.
+const DEFAULT_NATIVE_AMOUNT = 100_000_000_000n
 
 // A top-up is skipped when the recipient already holds at least this much.
 const PGAS_TOPUP_THRESHOLD = 1_000_000_000n
-const NATIVE_TOPUP_THRESHOLD = 500_000_000_000n
+const NATIVE_TOPUP_THRESHOLD = 50_000_000_000n
 
 function signerFor(miniSecret: Uint8Array, path: string) {
   const wallet = sr25519CreateDerive(miniSecret)(path)
@@ -124,11 +132,34 @@ export interface FundResult {
  * defaults to the identity account ({@link createProductSigner}), the single
  * funder that holds both PGAS and native on the dev networks.
  */
+/**
+ * Ensure the funder holds PGAS, self-claiming from the personhood faucet when it
+ * has run dry. The funder is also the product account that signs attestations,
+ * so it must stay funded for both transfers and its own contract calls.
+ */
+export async function ensureFunderPgas(from: Credentials = createProductSigner()): Promise<void> {
+  await withAssetHubApi(async (api) => {
+    const assetId = (await api.constants.Pgas.PgasAssetId()) as number
+    let balance = await pgasBalanceOf(api, assetId, from.address)
+    for (let slot = 0; slot < MAX_CLAIM_SLOTS && balance < FUNDER_PGAS_FLOOR; slot++) {
+      try {
+        const { claimed } = await claimPgas(from.address, slot)
+        if (!claimed) break
+      } catch {
+        // Slot already claimed today or a transient failure, so try the next slot.
+        continue
+      }
+      balance = await pgasBalanceOf(api, assetId, from.address)
+    }
+  })
+}
+
 export async function fundWithPgas(
   toAccount = 'Charlie',
   amount: bigint = DEFAULT_PGAS_AMOUNT,
   from: Credentials = createProductSigner()
 ): Promise<FundResult> {
+  await ensureFunderPgas(from)
   const to = createDevSigner(toAccount)
   return withAssetHubApi(async (api) => {
     const assetId = (await api.constants.Pgas.PgasAssetId()) as number
@@ -274,13 +305,15 @@ export async function fundWithNative(
   toAddress: string,
   amount: bigint = DEFAULT_NATIVE_AMOUNT
 ): Promise<void> {
+  const funder = createProductSigner()
+  // The funder is the native source, so it cannot top up itself.
+  if (toAddress === funder.address) return
   await withAssetHubApi(async (api) => {
     const current = (await api.query.System.Account.getValue(toAddress as SS58String)) as {
       data?: { free?: bigint }
     }
     if ((current?.data?.free ?? 0n) >= NATIVE_TOPUP_THRESHOLD) return
 
-    const funder = createProductSigner()
     await new Promise<void>((resolve, reject) => {
       api.tx.Balances.transfer_keep_alive({
         dest: { type: 'Id', value: toAddress as SS58String },
