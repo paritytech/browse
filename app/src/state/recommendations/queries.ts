@@ -124,11 +124,13 @@ export function useGetAttestationsByFollowing(apps: AppEntry[], followingAddress
 }
 
 /**
- * The published apps the current user identity has recommended. Uses the same
- * attester-to-identity enumeration as the Following query, via
- * {@link getAppsRecommendedByIdentities}, so the recommend button active state
- * reflects every recommendation the identity made, regardless of which product
- * account signed it or which resolver version recorded it.
+ * The published apps the current user identity has recommended.
+ *
+ * Uses the same attester-to-identity enumeration as the Following query, so the
+ * recommend button matches the Following list no matter which product account
+ * signed a recommendation or which resolver version recorded it. The attest and
+ * revoke mutations keep this set fresh optimistically, so it never lags the
+ * toggle.
  */
 export function useGetMyRecommendations(apps: AppEntry[]) {
   const labels = [...apps.map((app) => app.label)].sort()

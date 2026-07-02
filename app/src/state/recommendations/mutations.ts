@@ -105,6 +105,26 @@ function patchLabels(
   })
 }
 
+/**
+ * Add or remove a label from the my-recommendations set for the caller identity.
+ *
+ * Matches every `['attestations', 'mine']` query so the recommend button toggles
+ * at once instead of waiting for the enumeration to refetch.
+ */
+function patchMine(
+  queryClient: ReturnType<typeof useQueryClient>,
+  label: string,
+  add: boolean
+): void {
+  queryClient.setQueriesData<Set<string>>({ queryKey: ['attestations', 'mine'] }, (prev) => {
+    if (!prev) return prev
+    const next = new Set(prev)
+    if (add) next.add(label)
+    else next.delete(label)
+    return next
+  })
+}
+
 /** Translate a raw chain/mutation error into a user-facing toast message. */
 export function describeError(err: unknown): string {
   const msg = err instanceof Error ? err.message : String(err)
@@ -198,10 +218,12 @@ export function useAttestProduct() {
         )
         patchLabels(queryClient, label, 1, true)
         patchResolved(queryClient, label, attestPatch)
+        patchMine(queryClient, label, true)
         onBroadcast?.()
       }),
     onError: (_err, { label }, ctx) => {
       if (ctx) rollback(queryClient, label, ctx)
+      void queryClient.invalidateQueries({ queryKey: ['attestations', 'mine'] })
     },
     onSuccess: (_data, { label }) => {
       void updateAttestationCount(label, 1, true)
@@ -223,10 +245,12 @@ export function useRevokeApp() {
         )
         patchLabels(queryClient, label, -1, false)
         patchResolved(queryClient, label, revokePatch)
+        patchMine(queryClient, label, false)
         onBroadcast?.()
       }),
     onError: (_err, { label }, ctx) => {
       if (ctx) rollback(queryClient, label, ctx)
+      void queryClient.invalidateQueries({ queryKey: ['attestations', 'mine'] })
     },
     onSuccess: (_data, { label }) => {
       void updateAttestationCount(label, -1, false)

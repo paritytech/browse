@@ -111,9 +111,9 @@ export function App() {
   const followingAddresses = useMemo(() => following.map((account) => account.address), [following])
   const { data: followingApps = new Set<string>(), isLoading: followingLoading } =
     useGetAttestationsByFollowing(allApps, followingAddresses)
-  // Apps the current user identity has recommended, by the same attester-to-
-  // identity logic as the following set, so the recommend button reflects every
-  // recommendation the identity made, across product accounts and resolvers.
+  // Apps the current user identity has recommended, matched the same way as the
+  // following set. The recommend button treats these as recommended, and the
+  // attest and revoke mutations keep the set fresh optimistically.
   const { data: myRecommendations = new Set<string>() } = useGetMyRecommendations(allApps)
   // The following set actually shown. Additions land immediately. Removals from
   // unfollowing fade their cards out before leaving, like unbookmarking, so the
@@ -168,9 +168,8 @@ export function App() {
     }
     for (const label of followingDisplay) addLabel(label)
     for (const label of bookmarkedApps) addLabel(label)
-    // The recommend button active state is identity-based: OR in the apps this
-    // identity recommended, keeping any optimistic `hasUserAttested` from a
-    // just-submitted recommendation.
+    // The recommend button is active when this identity recommended the app,
+    // preserving any optimistic `hasUserAttested` from a just-submitted toggle.
     return [...byLabel.values()].map((app) =>
       myRecommendations.has(app.label) && !app.hasUserAttested
         ? { ...app, hasUserAttested: true }
