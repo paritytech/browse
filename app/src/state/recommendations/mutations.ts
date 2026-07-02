@@ -6,6 +6,7 @@ import { type LabelEntry, updateAttestationCount } from '../../db/labels'
 import { encodeAttestationLabel, namehash, nodeToSubject } from '../../lib/abi'
 import { attestationService } from '../../lib/attestation-service'
 import { ACTIVE_SCHEMA_ID } from '../../lib/config'
+import { resolveIdentityH160 } from '../apps/identity'
 import { type AppEntry } from '../apps/types'
 
 const ALL_KEY = ['apps', 'all'] as const
@@ -185,7 +186,17 @@ export async function revokeLabel(label: string, onPermitted?: () => void) {
   const mine = attestations
     .map((a, i) => ({ schema: a.schema, id: ids[i], attester: a.attester }))
     .filter((a) => a.attester.toLowerCase() === attesterH160)
-  if (mine.length === 0) throw new Error('No attestation to revoke')
+  if (mine.length === 0) {
+    // The button is active because this identity recommended the app, but the
+    // attestation was signed by a different product account of the same
+    // identity, so there is nothing this account can revoke. Surface it as the
+    // one-per-identity lock rather than a generic failure.
+    const identity = await resolveIdentityH160()
+    if (identity && (await attestationService.identityHasAttested(recipient, identity))) {
+      throw new Error('AttestationService__ResolverRejected')
+    }
+    throw new Error('No attestation to revoke')
+  }
 
   // Prefer the active schema so its one-per-identity lock is released and the
   // user can recommend again. Fall back to an older version.
