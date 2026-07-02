@@ -26,9 +26,8 @@
   max-width: 440px;
   max-height: min(640px, 86dvh);
   background: var(--sheet-bg);
-  backdrop-filter: blur(16px);
   border: 1px solid var(--stroke-2);
-  border-radius: 16px;
+  border-radius: var(--radius-medium-increased);
   transform: scale(0.96);
   transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
 }
@@ -109,7 +108,7 @@
   padding: 8px 14px 8px 8px;
   background: none;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius-small-increased);
   cursor: pointer;
   text-align: left;
   transition: background 120ms ease;
@@ -132,7 +131,7 @@
   padding: 0 14px;
   background: var(--bg-surface-container);
   border: 1px solid rgb(var(--fg-rgb) / 0.12);
-  border-radius: 20px;
+  border-radius: var(--radius-full);
   transition: border-color 150ms ease;
 }
 
@@ -192,10 +191,11 @@
   border-radius: 50%;
   /* Background is set inline, seeded by the name (see avatarBg). */
   background: var(--surface-4);
+  /* Always white, seeded colored disc below. Constant across themes, not fg. */
   color: #fff;
   font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--type-title-sm-size);
+  font-weight: var(--type-title-sm-weight);
   user-select: none;
 }
 
@@ -205,10 +205,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  color: var(--color-heading);
+  color: var(--fg-primary);
   font-family: var(--font-sans);
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--type-title-sm-size);
+  font-weight: var(--type-title-sm-weight);
+  line-height: var(--type-title-sm-line);
 }
 
 .following-modal__unfollow {
@@ -217,11 +218,11 @@
   padding: 0 14px;
   background: var(--surface-4);
   border: none;
-  border-radius: 10px;
-  color: var(--color-heading);
+  border-radius: var(--radius-small-increased);
+  color: var(--fg-primary);
   font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--type-title-sm-size);
+  font-weight: var(--type-title-sm-weight);
   cursor: pointer;
   transition: background 150ms ease;
 }
