@@ -17,6 +17,7 @@ export {
   encodeGetLabels,
   encodeGetLabelStores,
   encodeGetPublished,
+  encodeIdentityHasAttested,
   encodeIsActive,
   encodeIsActiveAny,
   encodeLabelOf,

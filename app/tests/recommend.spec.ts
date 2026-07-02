@@ -288,6 +288,7 @@ test.describe('Recommendation fails', () => {
     const card = frame.locator('.product-card[data-label="calculator"]')
     await expect(card).toBeVisible({ timeout: 15_000 })
     const upvote = card.locator('.product-card__upvote')
+    await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 15_000 })
 
     // When
     await upvote.click()
@@ -296,6 +297,6 @@ test.describe('Recommendation fails', () => {
     await expect(frame.locator('.toast--visible')).toContainText('Already recommended by you', {
       timeout: 25_000
     })
-    await expect(upvote).not.toHaveClass(/product-card__upvote--active/)
+    await expect(upvote).toHaveClass(/product-card__upvote--active/)
   })
 })

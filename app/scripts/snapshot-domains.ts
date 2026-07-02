@@ -49,7 +49,12 @@ const DUMMY_ORIGIN = '5C4hrfjw9DjXZTzV3MwzrrAr9P1MLDHajjSidz9bR544LEq1'
 const RAW_CODEC = 0x55
 const BLAKE2B_256 = 0xb220
 
-const BULLETIN_RPC = process.env.BULLETIN_RPC ?? 'wss://paseo-bulletin-next-rpc.polkadot.io'
+// Bulletin RPC per network, keyed by the resolved genesis: paseo publishes to
+// the paseo bulletin, previewnet to the previewnet bulletin.
+const BULLETIN_RPC_BY_GENESIS: Partial<Record<NetworkGenesis, string>> = {
+  [PASEO_ASSETHUB_NEXT_V2_GENESIS]: 'wss://paseo-bulletin-next-rpc.polkadot.io',
+  [PREVIEWNET_ASSETHUB_GENESIS]: 'wss://previewnet.substrate.dev/bulletin'
+}
 const POOL_SIZE = 10
 const POOL_PREFIX = '//deploy'
 
@@ -202,14 +207,18 @@ interface Block {
  * Each account confirms a nonce by block inclusion before advancing. A stale
  * nonce is retried after re-reading the pool-aware next index.
  */
-async function storeBlocks(mnemonic: string, blocks: Block[]): Promise<void> {
-  const client = createClient(getWsProvider(BULLETIN_RPC))
+async function storeBlocks(
+  mnemonic: string,
+  blocks: Block[],
+  bulletinRpc: string
+): Promise<void> {
+  const client = createClient(getWsProvider(bulletinRpc))
   const api = client.getUnsafeApi()
   const derive = sr25519CreateDerive(entropyToMiniSecret(mnemonicToEntropy(mnemonic)))
 
   // Pool-aware next nonce that accounts for in-flight pool txs. papi reads
   // finalized, so use the @polkadot/api `system_accountNextIndex` RPC.
-  const pjs = await ApiPromise.create({ provider: new WsProvider(BULLETIN_RPC), noInitWarn: true })
+  const pjs = await ApiPromise.create({ provider: new WsProvider(bulletinRpc), noInitWarn: true })
   const pool = await Promise.all(
     Array.from({ length: POOL_SIZE }, async (_, i) => {
       const kp = derive(`${POOL_PREFIX}/${i}`)
@@ -283,9 +292,15 @@ async function main(): Promise<void> {
   }
   const genesis = resolveGenesis()
   const network = selectNetwork(genesis)
+  const bulletinRpc = BULLETIN_RPC_BY_GENESIS[genesis]
+  if (!bulletinRpc) {
+    console.error(`No Bulletin RPC configured for network ${genesis}`)
+    process.exit(1)
+  }
 
   console.log(`network:   ${genesis}`)
-  console.log(`rpc:       ${network.ASSETHUB_RPCS[0]}\n`)
+  console.log(`rpc:       ${network.ASSETHUB_RPCS[0]}`)
+  console.log(`bulletin:  ${bulletinRpc}\n`)
 
   const sdk = createBrowseSdk(network, getWsProvider(network.ASSETHUB_RPCS[0]!))
 
@@ -334,7 +349,7 @@ async function main(): Promise<void> {
   blocks.push({ cid: manifestCid, data: manifestBytes })
 
   console.log(`blocks:    ${blocks.length} (${buckets.size} shards + manifest)`)
-  await storeBlocks(mnemonic, blocks)
+  await storeBlocks(mnemonic, blocks, bulletinRpc)
 
   console.log(`\nPublished ${labels.length} domains in ${buckets.size} shards.`)
   console.log(`\nAPP_DOMAINS_SNAPSHOT_CID=${manifestCid.toString()}`)

@@ -1,7 +1,7 @@
 /**
  * Following E2E Tests
  *
- * Validates contacts and following behaviour.
+ * Validates following behaviour.
  */
 
 import type { BrowserContext } from '@playwright/test'
@@ -9,11 +9,16 @@ import { expect, test } from '@playwright/test'
 
 import { createAttestation } from './fixtures/attest'
 import { createCachedApps } from './fixtures/cache'
-import { fundWithPgas } from './fixtures/fund'
+import { createProductSigner, fundWithPgas } from './fixtures/fund'
 import { createRevokedAttestation } from './fixtures/revoke-attestation'
 import { getProductFrame, navigateToTestHost, startSignedHost } from './utils'
 
-test.describe.skip('Contacts', () => {
+// The seeded attestations are signed by the `smalltava.05 //wallet` identity
+// account (see createAttestation → createProductSigner), so following that
+// account is what surfaces its recommendations.
+const IDENTITY_ADDRESS = createProductSigner().address
+
+test.describe('Following', () => {
   let host: Awaited<ReturnType<typeof startSignedHost>>
   let context: BrowserContext
 
@@ -31,7 +36,7 @@ test.describe.skip('Contacts', () => {
     await host?.close()
   })
 
-  test('As a signed user, when I add an address as a contact, I see it in my Following list', async () => {
+  test('As a signed user, when I follow an address, I see it in my Following list', async () => {
     test.setTimeout(30_000)
     const page = await context.newPage()
 
@@ -52,22 +57,21 @@ test.describe.skip('Contacts', () => {
     await frame.locator('.empty-state__btn').click()
 
     // Then
-    await expect(frame.locator('.contacts-manager--visible')).toBeVisible()
+    await expect(frame.locator('.following-modal-overlay--visible')).toBeVisible()
 
     // When
-    const input = frame.locator('.contacts-manager__input')
-    await input.fill('5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y')
-    await frame.locator('.contacts-manager__add-btn').click()
+    const input = frame.locator('.following-modal__input')
+    await input.fill(IDENTITY_ADDRESS)
+    await frame.locator('.following-modal__option').click()
 
     // Then
-    await expect(frame.locator('.contacts-manager__item')).toHaveCount(1)
-    await expect(frame.locator('.contacts-manager__addr')).toBeVisible()
+    await expect(frame.locator('.following-modal__row')).toHaveCount(1)
 
     // When
-    await frame.locator('.contacts-manager__close').click()
+    await frame.locator('.following-modal__close').click()
 
     // Then
-    await expect(frame.locator('.contacts-manager--visible')).not.toBeVisible()
+    await expect(frame.locator('.following-modal-overlay--visible')).not.toBeVisible()
     await expect(frame.locator('.product-card').first()).toBeVisible({ timeout: 15_000 })
     const cards = frame.locator('.product-card')
     expect(await cards.count()).toBeGreaterThan(0)
@@ -76,7 +80,7 @@ test.describe.skip('Contacts', () => {
     await page.close()
   })
 
-  test('As a signed user, when I reload the page, my contacts still show up', async () => {
+  test('As a signed user, when I reload the page, my following still shows up', async () => {
     const page = await context.newPage()
 
     // Given
@@ -96,9 +100,8 @@ test.describe.skip('Contacts', () => {
   })
 })
 
-test.describe.skip('Following', () => {
+test.describe('Following', () => {
   test.describe.configure({ timeout: 15_000 })
-  const CHARLIE_ADDRESS = '5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y'
   let host: Awaited<ReturnType<typeof startSignedHost>>
   let context: BrowserContext
 
@@ -130,10 +133,10 @@ test.describe.skip('Following', () => {
     await frame.locator('.category-tab', { hasText: 'Following' }).click()
     await frame.waitForTimeout(300)
     await frame.locator('.empty-state__btn').click()
-    await expect(frame.locator('.contacts-manager--visible')).toBeVisible()
-    await frame.locator('.contacts-manager__input').fill(CHARLIE_ADDRESS)
-    await frame.locator('.contacts-manager__add-btn').click()
-    await frame.locator('.contacts-manager__close').click()
+    await expect(frame.locator('.following-modal-overlay--visible')).toBeVisible()
+    await frame.locator('.following-modal__input').fill(IDENTITY_ADDRESS)
+    await frame.locator('.following-modal__option').click()
+    await frame.locator('.following-modal__close').click()
 
     // Then
     await expect(frame.locator('.product-card').first()).toBeVisible({ timeout: 20_000 })

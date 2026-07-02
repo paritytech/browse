@@ -189,7 +189,7 @@ type PeopleApi = TypedApi<typeof previewnetpeople>
 
 let peoplePromise: Promise<PeopleApi> | null = null
 
-function ensurePeopleApi(): Promise<PeopleApi> {
+export function ensurePeopleApi(): Promise<PeopleApi> {
   if (!peoplePromise) {
     peoplePromise = (async () => {
       const genesis = NETWORK.PEOPLE_GENESIS

@@ -48,7 +48,9 @@ export function filterApps(
     )
   }
 
-  if (mode === 'all') {
+  // All and Following rank by recommendation count, then name. Bookmarks stays
+  // alphabetical.
+  if (mode === 'all' || mode === 'following') {
     return filtered.sort((a, b) => {
       const upvotesA = a.attestationCount ?? 0
       const upvotesB = b.attestationCount ?? 0
