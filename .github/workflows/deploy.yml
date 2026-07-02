@@ -67,9 +67,10 @@ jobs:
             reuse-artifact: true
             required: true
           - env: preview
-            display-name: Preview
+            display-name: Previewnet
             genesis: '0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb'
             reuse-artifact: false
+            snapshot-cache-prefix: previewnet-domains-snapshot-cid
             required: true
     outputs:
       cid: ${{ steps.final.outputs.cid }}
@@ -114,11 +115,32 @@ jobs:
         with:
           bun-version: latest
 
+      # Restore the network snapshot published by the daily snapshot job so a
+      # fresh build bakes it in, matching what build.yml does for the shared
+      # artifact. Absent until the first snapshot run for this network.
+      - name: Restore snapshot CID
+        if: matrix.target.reuse-artifact != true && matrix.target.snapshot-cache-prefix != ''
+        uses: actions/cache/restore@v4
+        with:
+          path: .snapshot-cid
+          key: ${{ matrix.target.snapshot-cache-prefix }}
+          restore-keys: |
+            ${{ matrix.target.snapshot-cache-prefix }}-
+
+      - name: Read snapshot CID
+        id: snapshot-cid
+        if: matrix.target.reuse-artifact != true
+        run: |
+          if [ -f .snapshot-cid/cid ]; then
+            echo "cid=$(cat .snapshot-cid/cid)" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build for ${{ matrix.target.env }}
         if: matrix.target.reuse-artifact != true
         working-directory: app
         env:
           NETWORK_GENESIS_HASH: ${{ matrix.target.genesis }}
+          APP_DOMAINS_SNAPSHOT_CID: ${{ steps.snapshot-cid.outputs.cid }}
         run: |
           bun install --frozen-lockfile
           bun run build

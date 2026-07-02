@@ -15,8 +15,24 @@ concurrency:
 
 jobs:
   snapshot-domains:
-    name: Build & publish the .dot domain snapshot
+    name: Publish ${{ matrix.network.name }} domains snapshot
     runs-on: ubuntu-latest
+    strategy:
+      # One network failing must not skip publishing the other.
+      fail-fast: false
+      matrix:
+        network:
+          - name: Paseo Next V2
+            genesis: '0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f'
+            bulletin-rpc: 'wss://paseo-bulletin-next-rpc.polkadot.io'
+            # build.yml restores this via the `domains-snapshot-cid-` prefix.
+            cache-prefix: domains-snapshot-cid
+          - name: Previewnet
+            genesis: '0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb'
+            bulletin-rpc: 'wss://previewnet.substrate.dev/bulletin'
+            # deploy.yml restores this for the preview build via the
+            # `previewnet-domains-snapshot-cid-` prefix.
+            cache-prefix: previewnet-domains-snapshot-cid
     steps:
       - uses: actions/checkout@v4
 
@@ -33,7 +49,8 @@ jobs:
         working-directory: app
         env:
           MNEMONIC: ${{ secrets.MNEMONIC }}
-          NETWORK_GENESIS_HASH: '0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f'
+          NETWORK_GENESIS_HASH: ${{ matrix.network.genesis }}
+          BULLETIN_RPC: ${{ matrix.network.bulletin-rpc }}
         run: |
           bun run snapshot:domains | tee snapshot.log
           cid=$(grep -oE 'APP_DOMAINS_SNAPSHOT_CID=[A-Za-z0-9]+' snapshot.log | tail -1 | cut -d= -f2)
@@ -48,21 +65,22 @@ jobs:
           echo "$CID" > .snapshot-cid/cid
 
       # Persist the manifest CID so the next build bakes it in. The key rotates
-      # per run because caches are immutable. build.yml restores the most recent
-      # one via the `domains-snapshot-cid-` prefix.
+      # per run because caches are immutable. The consuming build restores the
+      # most recent one via the network `cache-prefix`.
       - name: Cache snapshot CID
         if: steps.snapshot.outputs.cid != ''
         uses: actions/cache/save@v4
         with:
           path: .snapshot-cid
-          key: domains-snapshot-cid-${{ github.run_id }}
+          key: ${{ matrix.network.cache-prefix }}-${{ github.run_id }}
 
       - name: Snapshot summary
         env:
           CID: ${{ steps.snapshot.outputs.cid }}
+          NETWORK: ${{ matrix.network.name }}
         run: |
           {
-            echo "### .dot domain snapshot"
+            echo "### ${NETWORK} .dot domain snapshot"
             echo ""
             echo "Manifest CID &nbsp; \`${CID}\`"
             echo ""
