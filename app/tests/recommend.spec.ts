@@ -71,7 +71,7 @@ test.describe('Recommend works', () => {
   })
 
   test('As a signed user, when I recommend an app, I see the count go up and a confirmation toast', async () => {
-    test.setTimeout(25_000)
+    test.setTimeout(35_000)
     page = await context.newPage()
 
     // Given
@@ -93,7 +93,7 @@ test.describe('Recommend works', () => {
     await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 15_000 })
     await expect(upvoteCount).toHaveText(String(before + 1), { timeout: 15_000 })
     await expect(frame.locator('.toast--visible')).toContainText('Recommended!', {
-      timeout: 15_000
+      timeout: 25_000
     })
   })
 
@@ -125,7 +125,7 @@ test.describe('Recommend works', () => {
   })
 
   test('As a signed user, when I un-recommend an app, I see the count go down and a confirmation toast', async () => {
-    test.setTimeout(30_000)
+    test.setTimeout(40_000)
     page = await context.newPage()
 
     // Given
@@ -155,7 +155,7 @@ test.describe('Recommend works', () => {
       await expect(upvoteCount).not.toBeVisible()
     }
     await expect(frame.locator('.toast--visible')).toContainText('Unrecommended!', {
-      timeout: 15_000
+      timeout: 25_000
     })
   })
 

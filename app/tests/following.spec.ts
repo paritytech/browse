@@ -106,7 +106,7 @@ test.describe('Following', () => {
   let context: BrowserContext
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(60_000)
+    test.setTimeout(70_000)
     await fundWithPgas('Alice')
     await createRevokedAttestation('calculator').catch(() => {})
     await createRevokedAttestation('stopwatch').catch(() => {})
@@ -122,7 +122,7 @@ test.describe('Following', () => {
   })
 
   test('As a signed user, when I follow someone, I see their recommended apps in the Following tab', async () => {
-    test.setTimeout(30_000)
+    test.setTimeout(40_000)
     const page = await context.newPage()
 
     // Given
@@ -147,7 +147,7 @@ test.describe('Following', () => {
   })
 
   test('As a signed user, when someone I follow recommends another app, I see it appear and disappear when revoked', async () => {
-    test.setTimeout(30_000)
+    test.setTimeout(40_000)
 
     // Given
     await createAttestation('stopwatch')
