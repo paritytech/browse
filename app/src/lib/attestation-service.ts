@@ -62,6 +62,21 @@ function isChainDisjoint(err: unknown): boolean {
   return /disjoint/i.test(String(err))
 }
 
+/**
+ * A `Stale` transaction error means the nonce was already consumed by another
+ * tx from the same account. This happens whenever the account is signed from
+ * concurrently — parallel e2e workers, overlapping CI runs, or manual use of the
+ * shared funder. papi rebuilds the nonce from chain on the next submit, so
+ * resetting and resubmitting picks up the advanced nonce.
+ */
+function isStaleNonce(err: unknown): boolean {
+  if (err && typeof err === 'object') {
+    const value = (err as { value?: { type?: string } }).value
+    if (value?.type === 'Stale') return true
+  }
+  return /stale/i.test(String(err))
+}
+
 async function hostSigner(): Promise<{
   signer: PolkadotSigner
   origin: string
@@ -395,7 +410,12 @@ export class AttestationService {
       try {
         return await run(track)
       } catch (err) {
-        if (broadcasted || attempt >= MAX_ATTEMPTS || !isChainDisjoint(err)) throw err
+        // A stale nonce means a concurrent tx from the same account (parallel
+        // workers, overlapping CI runs, manual use) took the nonce; resubmitting
+        // reads the advanced nonce. Safe only before broadcast so a settled tx is
+        // never re-sent.
+        const retryable = isChainDisjoint(err) || isStaleNonce(err)
+        if (broadcasted || attempt >= MAX_ATTEMPTS || !retryable) throw err
         // Fall through to reset and retry once the bracket is released below.
       } finally {
         endTransaction()
