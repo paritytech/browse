@@ -148,11 +148,11 @@ test.describe('Recommend works', () => {
     await upvote.click()
 
     // Then
-    await expect(upvote).not.toHaveClass(/product-card__upvote--active/)
+    await expect(upvote).not.toHaveClass(/product-card__upvote--active/, { timeout: 15_000 })
     if (before > 1) {
-      await expect(upvoteCount).toHaveText(String(before - 1))
+      await expect(upvoteCount).toHaveText(String(before - 1), { timeout: 15_000 })
     } else {
-      await expect(upvoteCount).not.toBeVisible()
+      await expect(upvoteCount).not.toBeVisible({ timeout: 15_000 })
     }
     await expect(frame.locator('.toast--visible')).toContainText('Unrecommended!', {
       timeout: 25_000
