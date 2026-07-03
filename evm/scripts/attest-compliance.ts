@@ -12,10 +12,17 @@ import { connect, ensureMapped, getSigner, waitBestBlock } from "./lib.ts";
 // The single .dot domain to certify, passed as a CLI argument. No default.
 const DOMAIN = process.argv[2];
 if (!DOMAIN) {
-  console.error("Usage: attest-compliance <domain>   (e.g. browse)");
+  console.error(
+    "Usage: attest-compliance <domain> [contentCid]   (e.g. browse bafy…)"
+  );
   process.exit(1);
 }
 const label = DOMAIN.toLowerCase().replace(/\.dot$/, "");
+
+// The markdown CID explaining this certificate. Optional: empty string when the
+// certificate is explained only by the deployer's bundled document.
+const CONTENT_CID =
+  process.argv[3] ?? process.env.CONTENT_CID ?? "";
 
 const ABI = parseAbi([
   "function attest((uint256 schema, (address recipient, uint64 expirationTime, bool revocable, uint256 refId, bytes data) data) request) returns (uint256)"
@@ -67,10 +74,16 @@ async function main() {
       await ensureMapped(api, signer);
     }
 
-    // Schema spec is "bool compliant".
-    const data = encodeAbiParameters([{ type: "bool" }], [true]);
+    // Schema spec is "bool compliant,string contentCid".
+    const data = encodeAbiParameters(
+      [{ type: "bool" }, { type: "string" }],
+      [true, CONTENT_CID]
+    );
     const recipient = recipientOf(label);
-    console.log(`\nAttesting "${label}.dot" → recipient ${recipient}`);
+    console.log(
+      `\nAttesting "${label}.dot" to recipient ${recipient}` +
+        (CONTENT_CID ? ` (cid ${CONTENT_CID})` : " (no cid)")
+    );
 
     const callData = encodeFunctionData({
       abi: ABI,

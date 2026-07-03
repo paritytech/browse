@@ -7,10 +7,13 @@
 
 import { keccak_256 } from '@noble/hashes/sha3.js'
 import { attestationVersions, publisherReadAddresses } from '@parity/browse-sdk'
+import { toHex } from 'viem'
 
 import { parseRootManifest } from './manifest'
+import type { AppCertificate } from './types'
 import type { LabelEntry } from '../../db/labels'
 import {
+  decodeAttestation,
   decodeBool,
   decodeBytes,
   decodeBytes32Array,
@@ -19,15 +22,16 @@ import {
   decodeUint64,
   encodeContenthash,
   encodeCountByRecipientAndSchema,
+  encodeGetAttestationById,
   encodeGetPublished,
   encodeIdentityHasAttested,
-  encodeIsActive,
   encodeLabelOf,
   encodeText,
   labelhashToTokenId,
   type MulticallTarget,
   namehash,
-  nodeToSubject
+  nodeToSubject,
+  trustedAttestationId
 } from '../../lib/abi'
 import { reviveCall } from '../../lib/client'
 import { NETWORK } from '../../lib/config'
@@ -173,7 +177,12 @@ export async function hydrateLabelChunk(
   }
 
   const versions = attestationVersions(NETWORK)
-  const perLive = 1 + versions.length + 1 + (identityH160 ? versions.length : 0)
+  // When a trusted attester is configured, each label fetches its compliance
+  // attestation. An active record (not revoked, not expired) marks the app
+  // certified, so no separate `isActive` call is needed.
+  const trustedAttester = NETWORK.TRUSTED_ATTESTER
+  const perLive =
+    1 + versions.length + (trustedAttester ? 1 : 0) + (identityH160 ? versions.length : 0)
   let metaResults: Awaited<ReturnType<typeof multicall>> = []
   if (liveIndexes.length > 0) {
     const metaCalls: MulticallTarget[] = []
@@ -187,10 +196,17 @@ export async function hydrateLabelChunk(
           callData: encodeCountByRecipientAndSchema(subject, schemaId)
         })
       }
-      metaCalls.push({
-        target: NETWORK.TRUSTED_ATTESTER_RESOLVER,
-        callData: encodeIsActive(subject, NETWORK.COMPLIANCE_SCHEMA_ID)
-      })
+      if (trustedAttester) {
+        const attestationId = trustedAttestationId(
+          trustedAttester,
+          subject,
+          NETWORK.COMPLIANCE_SCHEMA_ID
+        )
+        metaCalls.push({
+          target: NETWORK.ATTESTATION_SERVICE,
+          callData: encodeGetAttestationById(attestationId)
+        })
+      }
       if (identityH160) {
         for (const { resolver, schemaId } of versions) {
           metaCalls.push({
@@ -207,6 +223,7 @@ export async function hydrateLabelChunk(
   }
 
   const fetchedAt = Date.now()
+  const now = BigInt(Math.floor(fetchedAt / 1000))
   const out: LabelEntry[] = []
   let metaIdx = 0
   for (let chunkIndex = 0; chunkIndex < chunk.length; chunkIndex++) {
@@ -215,7 +232,7 @@ export async function hydrateLabelChunk(
     let description = 'No description'
     let iconCid: string | null = null
     let attestationCount: number | null = null
-    let isCompliant = false
+    let certificate: AppCertificate | null = null
     let hasUserAttested = false
     if (cid) {
       const base = metaIdx * perLive
@@ -236,9 +253,29 @@ export async function hydrateLabelChunk(
         }
       }
       attestationCount = hasCount ? countTotal : null
-      isCompliant = tryDecode(metaResults[base + 1 + versions.length], decodeBool) ?? false
+      // The `getAttestationById` slot follows the counts only when a trusted
+      // attester is configured, so `identityHasAttested` starts one later.
+      const certBase = base + 1 + versions.length
+      if (trustedAttester) {
+        const decoded = tryDecode(metaResults[certBase], decodeAttestation)
+        // Keep only an active attestation (not revoked, not expired). Its
+        // presence is what marks the app certified.
+        const active =
+          decoded !== null &&
+          decoded.revocationTime === 0n &&
+          (decoded.expirationTime === 0n || decoded.expirationTime > now)
+        if (decoded && active) {
+          certificate = {
+            id: toHex(decoded.id, { size: 32 }),
+            attester: decoded.attester,
+            issuedAt: Number(decoded.time),
+            expiresAt: Number(decoded.expirationTime),
+            cid: decoded.cid
+          }
+        }
+      }
       if (identityH160) {
-        const anyBase = base + 1 + versions.length + 1
+        const anyBase = certBase + (trustedAttester ? 1 : 0)
         hasUserAttested = versions.some(
           (_, v) => tryDecode(metaResults[anyBase + v], decodeBool) === true
         )
@@ -252,7 +289,7 @@ export async function hydrateLabelChunk(
       iconCid,
       contentHash: cid,
       attestationCount,
-      isCompliant,
+      certificate,
       hasUserAttested,
       fetchedAt
     })

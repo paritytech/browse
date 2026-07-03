@@ -121,7 +121,11 @@
   align-items: center;
   flex-shrink: 0;
   margin-left: var(--space-tiny);
+  padding: 0;
+  background: none;
+  border: none;
   color: var(--fg-primary);
+  cursor: pointer;
 }
 
 .product-card__certified svg {

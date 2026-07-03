@@ -42,9 +42,11 @@ export type {
 } from './types.js'
 
 export {
+  trustedAttestationId,
   decodeAddress,
   decodeAddressArray,
   decodeAggregate3Result,
+  decodeAttestation,
   decodeAttestationLabel,
   decodeBool,
   decodeBytes,
@@ -57,6 +59,7 @@ export {
   encodeAttestationLabel,
   encodeContenthash,
   encodeCountByRecipientAndSchema,
+  encodeGetAttestationById,
   encodeGetLabels,
   encodeGetLabelStores,
   encodeGetPublished,
@@ -73,4 +76,4 @@ export {
   nodeToSubject,
   tryDecode
 } from './abi/index.js'
-export type { AggregateResult, MulticallTarget } from './abi/index.js'
+export type { AggregateResult, DecodedAttestation, MulticallTarget } from './abi/index.js'

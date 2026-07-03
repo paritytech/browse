@@ -18,7 +18,7 @@ const NETWORK_GENESIS_HASH =
   process.env.NETWORK_GENESIS_HASH ??
   "0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f";
 
-// The SS58 address allowed to issue certifications. Optional: when unset, deploy-trusted-resolver
+// The SS58 address allowed to issue certificates. Optional: when unset, deploy-trusted-resolver
 // defaults to the deployer account and derives the EVM address the resolver gates on.
 const TRUSTED_ATTESTER_SS58_ADDRESS = process.env.TRUSTED_ATTESTER_SS58_ADDRESS ?? "";
 
@@ -141,14 +141,14 @@ function main(): void {
 
   if (net.COMPLIANCE_SCHEMA_ID > 0n) {
     skip(
-      "Register certification schema",
+      "Register certificate schema",
       `already registered at id ${net.COMPLIANCE_SCHEMA_ID}`,
     );
   } else {
-    stage("Register certification schema", () =>
+    stage("Register certificate schema", () =>
       sh("cd evm && npm run register:schema", {
         NETWORK_GENESIS_HASH,
-        SCHEMA: "bool compliant",
+        SCHEMA: "bool compliant,string contentCid",
         UNIQUE: "true",
         RESOLVER: net.TRUSTED_ATTESTER_RESOLVER,
       }),

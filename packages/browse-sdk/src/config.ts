@@ -24,6 +24,7 @@ export interface NetworkConfig extends NetworkAddresses {
   ATTESTATION_SERVICE: `0x${string}`;
   ATTESTATION_INDEX_RESOLVER: readonly `0x${string}`[];
   TRUSTED_ATTESTER_RESOLVER: `0x${string}`;
+  TRUSTED_ATTESTER?: `0x${string}`;
   IPFS_GATEWAY: string;
   SCHEMA_ID: readonly bigint[];
   COMPLIANCE_SCHEMA_ID: bigint;
@@ -65,6 +66,7 @@ export const KNOWN_NETWORKS = {
       "0x5d701a1aca551b0e1cd6a00172554e5ff2348104",
     ],
     TRUSTED_ATTESTER_RESOLVER: "0x5abfc89934ee846d12629dfb5b22eecc59bbaed3",
+    TRUSTED_ATTESTER: "0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20",
     IPFS_GATEWAY: "https://paseo-bulletin-next-ipfs.polkadot.io",
     SCHEMA_ID: [5n, 1n],
     COMPLIANCE_SCHEMA_ID: 2n,
@@ -96,6 +98,7 @@ export const KNOWN_NETWORKS = {
       "0x5d701a1aca551b0e1cd6a00172554e5ff2348104",
     ],
     TRUSTED_ATTESTER_RESOLVER: "0xdc713ebf1028544a00225c8741eb698253c49302",
+    TRUSTED_ATTESTER: "0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20",
     IPFS_GATEWAY: "https://previewnet.substrate.dev",
     SCHEMA_ID: [5n, 1n],
     COMPLIANCE_SCHEMA_ID: 2n,

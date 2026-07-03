@@ -33,6 +33,7 @@
         "@tanstack/react-query": "^5.96.2",
         "buffer": "^6.0.3",
         "lucide-preact": "^1.8.0",
+        "marked": "^14.1.4",
         "polkadot-api": "^2.1.2",
         "preact": "^10.29.1",
         "smoldot": "^2.0.40",
@@ -914,6 +915,8 @@
     "lucide-preact": ["lucide-preact@1.8.0", "", { "peerDependencies": { "preact": "^10.27.2" } }, "sha512-va4a8kofUvE324fKPgBIewfpm9IiGm1TwMN8NoveK2wwywuZIQxsXX9IJVB0+rM1I79XBMnfWNuLjIF2LwAXiQ=="],
 
     "magic-string": ["magic-string@0.30.21", "", { "dependencies": { "@jridgewell/sourcemap-codec": "^1.5.5" } }, "sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ=="],
+
+    "marked": ["marked@14.1.4", "", { "bin": { "marked": "bin/marked.js" } }, "sha512-vkVZ8ONmUdPnjCKc5uTRvmkRbx4EAi2OkTOXmfTDhZz3OFqMNBM1oTTWwTr4HY4uAEojhzPf+Fy8F1DWa3Sndg=="],
 
     "math-intrinsics": ["math-intrinsics@1.1.0", "", {}, "sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g=="],
 

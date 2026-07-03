@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs'
 
 import type { Page } from '@playwright/test'
 
+import type { AppCertificate } from '../../src/state/apps/types'
+
 const SEED_STORE_ADDRESS = '0x000000000000000000000000000000000e2e7e57'
 
 const SEED_LABEL_ENTRIES = [
@@ -46,6 +48,7 @@ export interface OrphanLabel {
 export type LabelOverride = Partial<{
   attestationCount: number | null
   hasUserAttested: boolean
+  certificate: AppCertificate | null
 }>
 
 /**

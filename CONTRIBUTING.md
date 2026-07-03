@@ -24,6 +24,10 @@ Good documentation starts with a single, clear sentence. Everything else comes a
 
    Bad: `Usernames live in the UsernameOwnerOf map (username bytes to owner SS58).`
    Good: `Usernames live in the UsernameOwnerOf map, which maps username bytes to an owner SS58 address.`
+10. **Prefer full words to abbreviations.** In prose and in the names you reference. Established acronyms like `cid`, `evm`, and `sdk` are fine.
+
+   Bad: `const att = decodeAttestation(data)`
+   Good: `const attestation = decodeAttestation(data)`
 
 #### TypeScript
 
@@ -56,3 +60,4 @@ export async function resolveLabel(label: string): Promise<Cid | null> {
 5. Rewrite around em-dashes, semicolons, prose `+`, and Unicode arrows. Short sentences are better.
 6. No possessive apostrophes. "the account attestation", not "the account's".
 7. Minimize parenthetical asides. Fold the detail into the sentence or drop it.
+8. Prefer the full word to a truncated one. "certificate", not "cert".
