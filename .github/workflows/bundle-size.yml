@@ -42,30 +42,34 @@ jobs:
         run: |
           {
             echo 'report<<EOF'
-            echo '| File | Raw | Gzip |'
-            echo '|------|-----|------|'
-            for f in dist/assets/*.{js,css}; do
-              [ -f "$f" ] || continue
-              name=$(basename "$f")
-              raw=$(wc -c < "$f" | xargs)
-              gz=$(gzip -c "$f" | wc -c | xargs)
-              raw_kb=$(echo "scale=1; $raw / 1024" | bc)
-              gz_kb=$(echo "scale=1; $gz / 1024" | bc)
-              echo "| \`$name\` | ${raw_kb} KB | ${gz_kb} KB |"
+            for target in spa widget; do
+              case $target in
+                spa) title='App' ;;
+                widget) title='Widget' ;;
+              esac
+              echo "#### $title"
+              echo ''
+              echo '| File | Raw | Gzip |'
+              echo '|------|-----|------|'
+              sub_raw=0
+              sub_gz=0
+              for f in dist/$target/assets/*.{js,css}; do
+                [ -f "$f" ] || continue
+                name=$(basename "$f")
+                raw=$(wc -c < "$f" | xargs)
+                gz=$(gzip -c "$f" | wc -c | xargs)
+                raw_kb=$(echo "scale=1; $raw / 1024" | bc)
+                gz_kb=$(echo "scale=1; $gz / 1024" | bc)
+                echo "| \`$name\` | ${raw_kb} KB | ${gz_kb} KB |"
+                sub_raw=$((sub_raw + raw))
+                sub_gz=$((sub_gz + gz))
+              done
+              sub_raw_kb=$(echo "scale=1; $sub_raw / 1024" | bc)
+              sub_gz_kb=$(echo "scale=1; $sub_gz / 1024" | bc)
+              echo ''
+              echo "**$title total: ${sub_raw_kb} KB raw / ${sub_gz_kb} KB gzip**"
+              echo ''
             done
-            echo ''
-            total_raw=0
-            total_gz=0
-            for f in dist/assets/*.{js,css}; do
-              [ -f "$f" ] || continue
-              raw=$(wc -c < "$f" | xargs)
-              gz=$(gzip -c "$f" | wc -c | xargs)
-              total_raw=$((total_raw + raw))
-              total_gz=$((total_gz + gz))
-            done
-            total_raw_kb=$(echo "scale=1; $total_raw / 1024" | bc)
-            total_gz_kb=$(echo "scale=1; $total_gz / 1024" | bc)
-            echo "**Total: ${total_raw_kb} KB raw / ${total_gz_kb} KB gzip**"
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
@@ -74,7 +78,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bundle-baseline
-          path: app/dist/assets/
+          path: |
+            app/dist/spa/assets/
+            app/dist/widget/assets/
           retention-days: 30
 
       - name: Download baseline
@@ -92,34 +98,41 @@ jobs:
         id: compare
         run: |
           if [ ! -d /tmp/baseline ]; then
-            echo "diff=No baseline found — first run on main will generate it." >> "$GITHUB_OUTPUT"
+            echo "diff=_No baseline found — first run on main will generate it._" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          baseline_gz=0
-          for f in /tmp/baseline/*.{js,css}; do
-            [ -f "$f" ] || continue
-            gz=$(gzip -c "$f" | wc -c | xargs)
-            baseline_gz=$((baseline_gz + gz))
-          done
-
-          current_gz=0
-          for f in dist/assets/*.{js,css}; do
-            [ -f "$f" ] || continue
-            gz=$(gzip -c "$f" | wc -c | xargs)
-            current_gz=$((current_gz + gz))
-          done
-
-          delta=$((current_gz - baseline_gz))
-          delta_kb=$(echo "scale=1; $delta / 1024" | bc)
-
-          if [ $delta -gt 0 ]; then
-            echo "diff=+${delta_kb} KB gzip vs main" >> "$GITHUB_OUTPUT"
-          elif [ $delta -lt 0 ]; then
-            echo "diff=${delta_kb} KB gzip vs main" >> "$GITHUB_OUTPUT"
-          else
-            echo "diff=No change vs main" >> "$GITHUB_OUTPUT"
-          fi
+          {
+            echo 'diff<<EOF'
+            for target in spa widget; do
+              case $target in
+                spa) title='App' ;;
+                widget) title='Widget' ;;
+              esac
+              base_gz=0
+              for f in /tmp/baseline/$target/assets/*.{js,css}; do
+                [ -f "$f" ] || continue
+                gz=$(gzip -c "$f" | wc -c | xargs)
+                base_gz=$((base_gz + gz))
+              done
+              cur_gz=0
+              for f in dist/$target/assets/*.{js,css}; do
+                [ -f "$f" ] || continue
+                gz=$(gzip -c "$f" | wc -c | xargs)
+                cur_gz=$((cur_gz + gz))
+              done
+              delta=$((cur_gz - base_gz))
+              delta_kb=$(echo "scale=1; $delta / 1024" | bc)
+              if [ $delta -gt 0 ]; then
+                echo "- **$title:** +${delta_kb} KB gzip vs main"
+              elif [ $delta -lt 0 ]; then
+                echo "- **$title:** ${delta_kb} KB gzip vs main"
+              else
+                echo "- **$title:** no change vs main"
+              fi
+            done
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
 
       - name: Post PR comment
         if: github.event_name == 'pull_request'
@@ -136,7 +149,7 @@ jobs:
               '',
               process.env.REPORT,
               '',
-              `> ${process.env.DIFF}`,
+              process.env.DIFF,
             ].join('\n')
 
             const { data: comments } = await github.rest.issues.listComments({

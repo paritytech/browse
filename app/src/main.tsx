@@ -21,10 +21,23 @@ if (import.meta.env.DEV) {
 
 // The host tears the network WebSocket down while the app is backgrounded and
 // rebuilds it on return, which orphans the existing subscription. Drop the
-// stale SDK on foreground so the next network access
-// rebuilds on the fresh connection instead of hanging on the dead one.
+// stale SDK on foreground so the next network access rebuilds on the fresh
+// connection instead of hanging on the dead one.
 document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') resetBrowseSdk()
+  if (document.visibilityState === 'visible') resetBrowseSdk(true)
+})
+
+// The mobile host reliably calls __resumeConnections__ on willEnterForeground,
+// but visibilitychange sometimes doesn't fire after a
+// real-device resume. Wrap the resume signal to also reset the SDK so we
+// don't keep using chainHead subscription IDs from the previous server
+// session.
+queueMicrotask(() => {
+  const originalResume = window.__resumeConnections__
+  window.__resumeConnections__ = () => {
+    resetBrowseSdk(true)
+    originalResume?.()
+  }
 })
 
 applyInitialTheme()

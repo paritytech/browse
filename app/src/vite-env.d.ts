@@ -17,6 +17,8 @@ declare global {
   interface Window {
     /** TanStack Query client, exposed in dev builds so e2e specs can invalidate queries. */
     __queryClient?: QueryClient
+    /** Installed by the host container to resume chain connections on foreground. */
+    __resumeConnections__?: () => void
   }
 }
 

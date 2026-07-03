@@ -82,17 +82,24 @@ export function endTransaction(): void {
  * Drop the cached SDK and destroy the old client. Destroying propagates the
  * disconnect through the host bridge so the host deletes its chain-connection
  * entry. Otherwise it reuses a stale, post-background/foreground connection
- * that never recovers. Deferred while a chain write is in flight.
+ * that never recovers. Deferred while a chain write is in flight unless
+ * `force` is set — foreground and hard-failure paths know the socket is dead
+ * so preserving the in-flight write is pointless.
  */
-export function resetBrowseSdk(): void {
-  if (pendingWrites > 0) {
+export function resetBrowseSdk(force: boolean = false): void {
+  if (pendingWrites > 0 && !force) {
     resetRequested = true
     return
   }
+  if (pendingWrites > 0) {
+    pendingWrites = 0
+  }
+  resetRequested = false
   const stale = sdkPromise
   sdkPromise = null
+  if (!stale) return
   void stale
-    ?.then((sdk) => {
+    .then((sdk) => {
       try {
         sdk.destroy()
       } catch {
@@ -175,7 +182,7 @@ export async function reviveCall(
   try {
     return await attempt()
   } catch {
-    resetBrowseSdk()
+    resetBrowseSdk(true)
     return attempt()
   }
 }
