@@ -41,6 +41,12 @@ export async function bindIdentityAndAttest(tag: string, label: string): Promise
     await service.bindIdentity(bytesToHex(identity.publicKey), bytesToHex(signature))
     const recipient = nodeToSubject(namehash(`${label}.dot`))
     const data = encodeAttestationLabel(label)
-    await service.attest(ACTIVE_SCHEMA_ID, recipient, 0n, true, 0n, data)
+    try {
+      await service.attest(ACTIVE_SCHEMA_ID, recipient, 0n, true, 0n, data)
+    } catch (err) {
+      // The identity may already recommend this label via another bound product
+      // account or a prior seed.
+      if (!String(err).includes('ResolverRejected')) throw err
+    }
   })
 }
