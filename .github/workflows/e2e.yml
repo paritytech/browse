@@ -79,7 +79,11 @@ jobs:
 
       - name: Run e2e tests
         if: needs.check.outputs.skip != 'true'
-        run: bun run test:e2e --retries=1
+        # Serialize with a single worker: the tx-driving specs (recommend,
+        # following, motion) all sign from the shared funder account, so parallel
+        # workers collide on its nonce (InvalidTxError: Stale) and flake. One
+        # worker keeps the funder's txs sequential. Slower, but consistent.
+        run: bun run test:e2e --retries=1 --workers=1
 
   mark-passed:
     name: Mark as passed
