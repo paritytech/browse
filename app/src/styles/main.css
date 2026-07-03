@@ -442,9 +442,12 @@ input {
   line-height: var(--type-title-sm-line);
 }
 
-.corner-chip:hover,
-.corner-chip:hover .corner-chip__label {
-  color: var(--color-text);
+/* Pointer-only. On touch this brighten sticks after a tap opens the manager. */
+@media (hover: hover) {
+  .corner-chip:hover,
+  .corner-chip:hover .corner-chip__label {
+    color: var(--color-text);
+  }
 }
 
 .corner-chip:focus-visible {
