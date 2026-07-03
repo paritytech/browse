@@ -1,4 +1,5 @@
 import { localStorage } from '../lib/local-storage'
+import type { AppCertificate } from '../state/apps/types'
 
 const KEY = 'browse:labels'
 
@@ -10,7 +11,7 @@ export interface LabelEntry {
   contentHash: string | null
   attestationCount: number | null
   hasUserAttested: boolean
-  isCompliant?: boolean
+  certificate?: AppCertificate | null
   fetchedAt?: number
   published?: boolean
 }

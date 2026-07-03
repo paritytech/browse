@@ -8,6 +8,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { ArrowUp, Bookmark, Package } from 'lucide-preact'
 
 import { CategoryTabs } from './components/category-tabs'
+import { CertificateModal } from './components/certificate-modal'
 import { FollowingManager } from './components/following-manager'
 import { FOLLOW_ICON, SEARCH_ICON } from './components/icons'
 import { ProductCardWithAttestation } from './components/product-card/product-card-with-attestation'
@@ -33,7 +34,13 @@ import {
   useLabelsStorage,
   useResolveLabel
 } from './state/apps/queries'
-import { type AppEntry, filterApps, type FilterMode, isFilterMode } from './state/apps/types'
+import {
+  type AppCertificate,
+  type AppEntry,
+  filterApps,
+  type FilterMode,
+  isFilterMode
+} from './state/apps/types'
 import { follow, type FollowedAccount, getFollowing, unfollow } from './state/following/api'
 import {
   useGetAttestationsByFollowing,
@@ -83,6 +90,15 @@ export function App() {
   const [pullRefreshFloor, setPullRefreshFloor] = useState(false)
   // Nonce that commits the current display order into a sticky snapshot.
   const [orderNonce, setOrderNonce] = useState(0)
+  const [certificateModalOpen, setCertificateModalOpen] = useState(false)
+  // The last-opened certificate subject and attestation details. Kept after
+  // close so the content stays put through the collapse animation instead of
+  // clearing mid-transition.
+  const [certificateView, setCertificateView] = useState<{
+    subjectName: string | null
+    subjectDomain: string
+    certificate: AppCertificate | null
+  } | null>(null)
 
   const rootRef = useRef<HTMLDivElement>(null)
   const appListRef = useRef<HTMLDivElement>(null)
@@ -163,7 +179,7 @@ export function App() {
         isLive: cached?.contentHash != null,
         attestationCount: cached?.attestationCount ?? null,
         hasUserAttested: cached?.hasUserAttested ?? false,
-        isCompliant: cached?.isCompliant ?? false
+        certificate: cached?.certificate ?? null
       })
     }
     for (const label of followingDisplay) addLabel(label)
@@ -277,7 +293,7 @@ export function App() {
           isLive: false,
           attestationCount: null,
           hasUserAttested: false,
-          isCompliant: false
+          certificate: null
         } satisfies AppEntry,
         snapshotOnly: true
       }))
@@ -339,7 +355,7 @@ export function App() {
       contentHash: app.contentHash,
       attestationCount: app.attestationCount,
       hasUserAttested: app.hasUserAttested,
-      isCompliant: app.isCompliant,
+      certificate: app.certificate,
       fetchedAt: Date.now()
     })
     await queryClient.invalidateQueries({ queryKey: LABELS_KEY })
@@ -453,7 +469,7 @@ export function App() {
       contentHash: resolvedApp.contentHash,
       attestationCount: resolvedApp.attestationCount,
       hasUserAttested: resolvedApp.hasUserAttested,
-      isCompliant: resolvedApp.isCompliant,
+      certificate: resolvedApp.certificate,
       fetchedAt: Date.now(),
       // A resolved search result is NOT confirmed against the Publisher set, so
       // mark it unpublished. Otherwise materialize() would surface it in the
@@ -527,6 +543,14 @@ export function App() {
       onBookmark={handleBookmark}
       onShare={handleShare}
       onAttestationSettled={() => commitOrder(app.label)}
+      onClickCertificate={() => {
+        setCertificateView({
+          subjectName: app.name,
+          subjectDomain: `${app.label}.dot`,
+          certificate: app.certificate
+        })
+        setCertificateModalOpen(true)
+      }}
     />
   )
   const emptyBookmarks = currentMode === 'bookmarks' && filtered.length === 0 && !query
@@ -681,6 +705,14 @@ export function App() {
           onAdd={handleFollow}
           onRemove={handleUnfollow}
           onDismiss={() => setShowFollowingManager(false)}
+        />
+
+        <CertificateModal
+          visible={certificateModalOpen}
+          subjectName={certificateView?.subjectName ?? null}
+          subjectDomain={certificateView?.subjectDomain ?? null}
+          certificate={certificateView?.certificate ?? null}
+          onDismiss={() => setCertificateModalOpen(false)}
         />
 
         <Toast

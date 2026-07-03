@@ -20,6 +20,7 @@ interface ProductCardWithAttestationProps {
   onBookmark: (label: string) => void
   onShare: (app: AppEntry) => void
   onAttestationSettled?: () => void
+  onClickCertificate?: () => void
 }
 
 export function ProductCardWithAttestation({
@@ -31,7 +32,8 @@ export function ProductCardWithAttestation({
   onClick,
   onBookmark,
   onShare,
-  onAttestationSettled
+  onAttestationSettled,
+  onClickCertificate
 }: ProductCardWithAttestationProps) {
   const attestProduct = useAttestProduct()
   const revokeApp = useRevokeApp()
@@ -91,6 +93,7 @@ export function ProductCardWithAttestation({
       onBookmark={onBookmark}
       onShare={onShare}
       onClickAttestation={handleAttestation}
+      onClickCertificate={onClickCertificate}
     />
   )
 }

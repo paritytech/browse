@@ -12,25 +12,11 @@ import {
   readPublishedLabelhashes,
   resolveLabels
 } from './remote'
-import type { AppEntry } from './types'
+import { type AppEntry, labelToApp } from './types'
 import { createOrUpdateLabels, type LabelEntry } from '../../db/labels'
 import { hiddenLog } from '../../lib/debug'
 
 const METADATA_TTL_MS = 60 * 1000
-
-function labelToApp(l: LabelEntry): AppEntry {
-  return {
-    label: l.label,
-    name: l.name,
-    description: l.description,
-    iconCid: l.iconCid ?? null,
-    contentHash: l.contentHash,
-    isLive: l.contentHash !== null,
-    attestationCount: l.attestationCount,
-    hasUserAttested: l.hasUserAttested,
-    isCompliant: l.isCompliant ?? false
-  }
-}
 
 /**
  * Collapse a label cache into the live {@link AppEntry} list for the All tab.

@@ -1,7 +1,9 @@
 export {
+  trustedAttestationId,
   decodeAddress,
   decodeAddressArray,
   decodeAggregate3Result,
+  decodeAttestation,
   decodeAttestationLabel,
   decodeBool,
   decodeBytes,
@@ -14,6 +16,7 @@ export {
   encodeAttestationLabel,
   encodeContenthash,
   encodeCountByRecipientAndSchema,
+  encodeGetAttestationById,
   encodeGetLabels,
   encodeGetLabelStores,
   encodeGetPublished,

@@ -1,3 +1,19 @@
+import type { LabelEntry } from '../../db/labels'
+
+/** Details of a compliance attestation, surfaced in the certificate modal. */
+export interface AppCertificate {
+  /** Attestation id, the certificate fingerprint. */
+  id: string
+  /** EVM address of the trusted attester that issued it. */
+  attester: string
+  /** Unix seconds the attestation was issued. */
+  issuedAt: number
+  /** Unix seconds it expires, or 0 for never. */
+  expiresAt: number
+  /** Markdown CID explaining the certificate, when present. */
+  cid: string | null
+}
+
 export interface AppEntry {
   label: string
   name: string | null
@@ -7,8 +23,23 @@ export interface AppEntry {
   isLive: boolean
   attestationCount: number | null
   hasUserAttested: boolean
-  /** Holds an active compliance attestation from the trusted attester. */
-  isCompliant: boolean
+  /** Active compliance attestation from the trusted attester, or null. */
+  certificate: AppCertificate | null
+}
+
+/** Map a persisted {@link LabelEntry} to a live {@link AppEntry}. */
+export function labelToApp(l: LabelEntry): AppEntry {
+  return {
+    label: l.label,
+    name: l.name,
+    description: l.description,
+    iconCid: l.iconCid ?? null,
+    contentHash: l.contentHash,
+    isLive: l.contentHash !== null,
+    attestationCount: l.attestationCount,
+    hasUserAttested: l.hasUserAttested,
+    certificate: l.certificate ?? null
+  }
 }
 
 export const FILTER_MODES = ['all', 'bookmarks', 'following'] as const

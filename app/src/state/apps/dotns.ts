@@ -10,7 +10,7 @@ import { attestationVersions } from '@parity/browse-sdk'
 import { ss58ToEthereum } from '@polkadot-api/sdk-ink'
 import { AccountId, type SS58String } from 'polkadot-api'
 
-import { type AppEntry } from './types'
+import { type AppEntry, labelToApp } from './types'
 import { type AddressMap, readAllAddresses, writeAllAddresses } from '../../db/addresses'
 import { createOrUpdateLabels, type LabelEntry, readLabels } from '../../db/labels'
 import { readAllStores, type StoreEntry, writeAllStores } from '../../db/stores'
@@ -55,20 +55,6 @@ function tryDecode<T>(
     return fn(r.returnData)
   } catch {
     return null
-  }
-}
-
-function labelToApp(l: LabelEntry): AppEntry {
-  return {
-    label: l.label,
-    name: l.name,
-    description: l.description,
-    iconCid: l.iconCid ?? null,
-    contentHash: l.contentHash,
-    isLive: l.contentHash !== null,
-    attestationCount: l.attestationCount,
-    hasUserAttested: l.hasUserAttested,
-    isCompliant: l.isCompliant ?? false
   }
 }
 
