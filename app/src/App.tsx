@@ -655,10 +655,10 @@ export function App() {
                     onClick={() => setShowFollowingManager(true)}
                     aria-label={`Manage following, ${following.length} address${following.length === 1 ? '' : 'es'}`}
                   >
-                    <span class='corner-chip__label'>Following</span>
                     {following.length > 0 && (
                       <span class='corner-chip__addr'>{following.length}</span>
                     )}
+                    <span class='corner-chip__label'>following</span>
                   </button>
                 )}
             </div>
