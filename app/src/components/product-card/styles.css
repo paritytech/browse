@@ -22,10 +22,11 @@
   .product-card:hover {
     background: var(--bg-selection-container-hover);
   }
-}
 
-.product-card:active {
-  background: var(--bg-selection-container-active);
+  /* Pointer-only. On touch this fill sticks after a tap navigates away. */
+  .product-card:active {
+    background: var(--bg-selection-container-active);
+  }
 }
 
 @keyframes productCardIn {
