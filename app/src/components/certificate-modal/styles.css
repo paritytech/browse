@@ -105,6 +105,8 @@
 .certificate-modal__body {
   flex: 1;
   overflow-y: auto;
+  /* Keep the scroll inside the modal so the app behind stays put at the ends. */
+  overscroll-behavior: contain;
   padding: 0 24px 24px;
   padding-bottom: max(24px, env(safe-area-inset-bottom));
   font-family: var(--font-sans);

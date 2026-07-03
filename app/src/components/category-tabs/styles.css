@@ -5,6 +5,29 @@
   margin: 0 16px;
 }
 
+/* Sliding pill behind the tabs. Position and width are set inline from the
+   active tab's measured box; it slides between tabs instead of the old
+   per-tab background crossfade, which read as a flash rather than a switch. */
+.category-tabs__indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 36px;
+  border-radius: 24px;
+  background: var(--surface-4);
+  pointer-events: none;
+  z-index: 0;
+  transition:
+    transform 260ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .category-tabs__indicator {
+    transition: none;
+  }
+}
+
 .category-tab {
   position: relative;
   display: inline-flex;
@@ -43,7 +66,6 @@
 
 .category-tab--active {
   color: var(--color-heading);
-  background: var(--surface-4);
 }
 
 .category-tab--disabled {
@@ -53,7 +75,7 @@
 
 /* Desktop. A lighter active pill reads cleaner on the white page. */
 @media (min-width: 768px) {
-  .category-tab--active {
+  .category-tabs__indicator {
     background: var(--surface-3);
   }
 }
