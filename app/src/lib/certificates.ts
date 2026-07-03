@@ -16,5 +16,5 @@ export interface Certificate {
 export const CERTIFICATE: Certificate = {
   name: 'Parity User Interface Compliance',
   issuer: 'Parity Technologies',
-  contentCid: 'bafk2bzaceba5zm52srzef7ao2hztv3w3n75wb6gqxx4xmg3aif33vnko36yry'
+  contentCid: 'bafk2bzacec24ygsnr37b2cirygtv4zf53lxoolexsgiq2jfpsvzwmepinu7oq'
 }

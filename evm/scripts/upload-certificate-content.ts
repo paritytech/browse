@@ -33,9 +33,9 @@ const RAW_CODEC = 0x55n;
 // Keep in sync with CERTIFICATE.contentCid in app/src/lib/certificates.ts. The
 // digest is the blake2b-256 embedded in that CID, used as a drift guard below.
 const EXPECTED_CID =
-  "bafk2bzaceba5zm52srzef7ao2hztv3w3n75wb6gqxx4xmg3aif33vnko36yry";
+  "bafk2bzacec24ygsnr37b2cirygtv4zf53lxoolexsgiq2jfpsvzwmepinu7oq";
 const EXPECTED_DIGEST =
-  "0x41dcb3ba947242fc0ed1f33aeedb6ffb60f8d0bdf9761b604177bab54edfb11c";
+  "0xb5cc1a4d8efe1d0911c1a75e64bddaeee72c9791910d24af95736611e86d3ee8";
 
 // The account that signs the store. Must be authorized on the Bulletin chain.
 const SIGNER_PATH = "//wallet";
