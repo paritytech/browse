@@ -44,8 +44,8 @@ type UnsafeApi = ReturnType<PolkadotClient['getUnsafeApi']>
 
 /**
  * Submit a tx and resolve on inclusion, retrying on a stale nonce. The shared
- * funder is signed from concurrently (parallel workers, overlapping CI runs,
- * manual use), so its nonce can be taken between read and submit; resubmitting
+ * funder is signed from concurrently by parallel workers, overlapping CI runs,
+ * and manual use, so its nonce can be taken between read and submit. Resubmitting
  * reads the advanced nonce.
  */
 async function watchTxWithRetry(
