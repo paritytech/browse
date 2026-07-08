@@ -23,7 +23,7 @@ function entry(label: string, name: string, attestationCount: number): AppEntry 
     isLive: true,
     attestationCount,
     hasUserAttested: false,
-    certificate: null
+    certificates: []
   }
 }
 

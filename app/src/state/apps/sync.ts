@@ -15,6 +15,8 @@ import {
 import { type AppEntry, labelToApp } from './types'
 import { createOrUpdateLabels, type LabelEntry } from '../../db/labels'
 import { hiddenLog } from '../../lib/debug'
+import { knownCertificateAuthorities } from '../certificate-authorities/queries'
+import type { CertificateAuthority } from '../certificate-authorities/types'
 
 const METADATA_TTL_MS = 60 * 1000
 
@@ -42,12 +44,13 @@ async function flushLabelBatch(
   labels: Map<string, LabelEntry>,
   batch: string[],
   identityH160: `0x${string}` | null,
+  authorities: CertificateAuthority[],
   publishedNames: ReadonlySet<string>,
   onProgress?: (apps: AppEntry[]) => void
 ): Promise<void> {
   for (let i = 0; i < batch.length; i += HYDRATE_CHUNK_SIZE) {
     const chunk = batch.slice(i, i + HYDRATE_CHUNK_SIZE)
-    const entries = await hydrateLabelChunk(chunk, identityH160)
+    const entries = await hydrateLabelChunk(chunk, identityH160, authorities)
     // `published` is derived from the current Publisher set, not from hydration:
     // bookmarked labels are refreshed too but stay out of the All list.
     for (const entry of entries) {
@@ -121,6 +124,10 @@ export async function syncAllApps(
   const toRefresh = [...staleLabels, ...newLabels]
   if (toRefresh.length > 0) {
     const identityH160 = await resolveIdentityH160()
+    // Hydrate certificates for every known authority, not only the enabled ones,
+    // so a badge is already cached when its authority is enabled. Trust is a
+    // display filter, not a fetch gate.
+    const authorities = await knownCertificateAuthorities()
     if (staleLabels.length > 0) {
       hiddenLog(`Refreshing ${staleLabels.length} stale label(s) (TTL ${METADATA_TTL_MS / 1000}s)`)
     }
@@ -129,7 +136,7 @@ export async function syncAllApps(
         `Hydrating ${newLabels.length} new label(s)${identityH160 ? ' (including your attestations)' : ''}`
       )
     }
-    await flushLabelBatch(labels, toRefresh, identityH160, publishedNames, onProgress)
+    await flushLabelBatch(labels, toRefresh, identityH160, authorities, publishedNames, onProgress)
   }
 
   const apps = materialize(labels)

@@ -6,7 +6,9 @@
     "deploy:publisher": "forge build && tsx --tsconfig scripts/tsconfig.json --env-file-if-exists=../.env scripts/deploy-publisher.ts",
     "deploy:resolver": "forge build && tsx --tsconfig scripts/tsconfig.json --env-file-if-exists=../.env scripts/deploy-resolver.ts",
     "deploy:trusted-resolver": "forge build && tsx --tsconfig scripts/tsconfig.json --env-file-if-exists=../.env scripts/deploy-trusted-resolver.ts",
-    "register:schema": "tsx --tsconfig scripts/tsconfig.json --env-file-if-exists=../.env scripts/register-schema.ts"
+    "register:schema": "tsx --tsconfig scripts/tsconfig.json --env-file-if-exists=../.env scripts/register-schema.ts",
+    "attest:compliance": "tsx --tsconfig scripts/tsconfig.json --env-file-if-exists=../.env scripts/attest-compliance.ts",
+    "upload:certificate-content": "tsx --tsconfig scripts/tsconfig.json --env-file-if-exists=../.env scripts/upload-certificate-content.ts"
   },
   "dependencies": {
     "@polkadot-labs/hdkd": "^0.0.25",

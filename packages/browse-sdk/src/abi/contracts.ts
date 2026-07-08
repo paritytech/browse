@@ -102,6 +102,56 @@ export function encodeOwner(): Hex {
   return encodeFunctionData({ abi: LABEL_STORE_ABI, functionName: 'owner' })
 }
 
+const SCHEMA_REGISTRY_ABI = parseAbi([
+  'function schemaCount() view returns (uint256)',
+  'function getSchema(uint256 id) view returns ((uint256 id, address registerer, address resolver, bool revocable, bool unique, string schema))'
+])
+
+/** `SchemaRegistry.schemaCount()`, the total registered schemas. Ids are sequential. */
+export function encodeSchemaCount(): Hex {
+  return encodeFunctionData({ abi: SCHEMA_REGISTRY_ABI, functionName: 'schemaCount' })
+}
+
+/** `SchemaRegistry.getSchema(id)`, the schema record with its spec and resolver. */
+export function encodeGetSchema(id: bigint): Hex {
+  return encodeFunctionData({ abi: SCHEMA_REGISTRY_ABI, functionName: 'getSchema', args: [id] })
+}
+
+const TRUSTED_ATTESTER_RESOLVER_ABI = parseAbi([
+  'function trustedAttester() view returns (address)',
+  'function countBySchema(uint256 schema) view returns (uint256)',
+  'function listBySchema(uint256 schema, uint64 offset, uint64 limit) view returns (address[])'
+])
+
+/** `TrustedAttesterIndexResolver.listBySchema(schema, offset, limit)`, the certified recipients. */
+export function encodeListBySchema(schemaId: bigint, offset: bigint, limit: bigint): Hex {
+  return encodeFunctionData({
+    abi: TRUSTED_ATTESTER_RESOLVER_ABI,
+    functionName: 'listBySchema',
+    args: [schemaId, offset, limit]
+  })
+}
+
+/**
+ * `TrustedAttesterIndexResolver.trustedAttester()`, the attester address for the
+ * authority.
+ *
+ * Reverts on a resolver that isn't a trusted-attester resolver, which is how we
+ * tell an authority schema apart from the recommendation schema during discovery.
+ */
+export function encodeTrustedAttester(): Hex {
+  return encodeFunctionData({ abi: TRUSTED_ATTESTER_RESOLVER_ABI, functionName: 'trustedAttester' })
+}
+
+/** `TrustedAttesterIndexResolver.countBySchema(schema)`, the number of certified recipients. */
+export function encodeCountBySchema(schemaId: bigint): Hex {
+  return encodeFunctionData({
+    abi: TRUSTED_ATTESTER_RESOLVER_ABI,
+    functionName: 'countBySchema',
+    args: [schemaId]
+  })
+}
+
 const ATTESTATION_ABI = parseAbi([
   'function countByRecipientAndSchema(address recipient, uint256 schemaId) view returns (uint64)',
   'function isActiveAny(address recipient, uint256 schemaId, address[] attesters) view returns (bool)',

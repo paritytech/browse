@@ -28,8 +28,12 @@ export interface DecodedAttestation {
   recipient: Address
   attester: Address
   revocable: boolean
-  /** `contentCid` from the `(bool,string)` data payload, when present. */
+  /** Description document CID from the data payload, or null. */
   cid: string | null
+  /** Badge image CID from the data payload, or null. */
+  badgeIconCid: string | null
+  /** Certificate name from the data payload, or null. */
+  name: string | null
 }
 
 /**
@@ -110,6 +114,51 @@ export function decodeBool(data: Hex): boolean {
   }
 }
 
+export function decodeUint(data: Hex): bigint | null {
+  try {
+    const [v] = decodeAbiParameters([{ type: 'uint256' }], data)
+    return v
+  } catch {
+    return null
+  }
+}
+
+/** A schema record decoded from `SchemaRegistry.getSchema`. */
+export interface DecodedSchema {
+  id: bigint
+  resolver: Address
+  schema: string
+  unique: boolean
+}
+
+const SCHEMA_RECORD_TUPLE = {
+  type: 'tuple',
+  components: [
+    { name: 'id', type: 'uint256' },
+    { name: 'registerer', type: 'address' },
+    { name: 'resolver', type: 'address' },
+    { name: 'revocable', type: 'bool' },
+    { name: 'unique', type: 'bool' },
+    { name: 'schema', type: 'string' }
+  ]
+} as const
+
+/** Decode a `SchemaRegistry.getSchema` result, or null on a malformed or empty read. */
+export function decodeSchemaRecord(data: Hex): DecodedSchema | null {
+  try {
+    const [record] = decodeAbiParameters([SCHEMA_RECORD_TUPLE], data)
+    const r = record as unknown as {
+      id: bigint
+      resolver: Address
+      schema: string
+      unique: boolean
+    }
+    return { id: r.id, resolver: r.resolver, schema: r.schema, unique: r.unique }
+  } catch {
+    return null
+  }
+}
+
 const ATTESTATION_TUPLE = {
   type: 'tuple',
   components: [
@@ -126,31 +175,51 @@ const ATTESTATION_TUPLE = {
   ]
 } as const
 
+const nonEmpty = (value: string | undefined): string | null =>
+  value && value.length > 0 ? value : null
+
 /**
  * Decode an `AttestationService.getAttestationById` result into its fields.
  *
  * Returns `null` for a missing attestation (zero-valued struct or a reverted
- * call). The `contentCid` is parsed from the `(bool,string)` data of a
- * `"bool compliant,string contentCid"` schema. It stays `null` for an old
- * `"bool compliant"`-only attestation (the inner decode throws) or an empty CID.
+ * call). Parses the data payload of the
+ * `"bool compliant,string contentCid,string badgeIconCid,string name"` schema,
+ * falling back to the legacy `"bool compliant,string contentCid"` and
+ * `"bool compliant"` shapes. Missing fields stay `null`.
  */
 export function decodeAttestation(data: Hex): DecodedAttestation | null {
   try {
     const [decoded] = decodeAbiParameters([ATTESTATION_TUPLE], data)
-    const attestation = decoded as unknown as Omit<DecodedAttestation, 'cid'> & { data: Hex }
+    const attestation = decoded as unknown as Omit<
+      DecodedAttestation,
+      'cid' | 'badgeIconCid' | 'name'
+    > & { data: Hex }
     // A non-existent id comes back zero-valued. Treat that as "no attestation".
     if (attestation.id === 0n && attestation.time === 0n) return null
 
     let cid: string | null = null
+    let badgeIconCid: string | null = null
+    let name: string | null = null
     if (attestation.data && attestation.data !== '0x') {
       try {
-        const [, parsed] = decodeAbiParameters(
-          [{ type: 'bool' }, { type: 'string' }],
+        const [, contentCid, badge, certName] = decodeAbiParameters(
+          [{ type: 'bool' }, { type: 'string' }, { type: 'string' }, { type: 'string' }],
           attestation.data
         )
-        cid = parsed && parsed.length > 0 ? parsed : null
+        cid = nonEmpty(contentCid)
+        badgeIconCid = nonEmpty(badge)
+        name = nonEmpty(certName)
       } catch {
-        // Old "bool compliant"-only attestation: no CID.
+        // Legacy shapes: "bool compliant,string contentCid" or "bool compliant".
+        try {
+          const [, contentCid] = decodeAbiParameters(
+            [{ type: 'bool' }, { type: 'string' }],
+            attestation.data
+          )
+          cid = nonEmpty(contentCid)
+        } catch {
+          // "bool compliant"-only: nothing more to parse.
+        }
       }
     }
 
@@ -163,7 +232,9 @@ export function decodeAttestation(data: Hex): DecodedAttestation | null {
       recipient: attestation.recipient,
       attester: attestation.attester,
       revocable: attestation.revocable,
-      cid
+      cid,
+      badgeIconCid,
+      name
     }
   } catch {
     return null

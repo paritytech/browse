@@ -31,13 +31,18 @@ test.describe('Certificate', () => {
     await createCachedApps(page, {
       overrides: {
         calculator: {
-          certificate: {
-            id: `0x${'ab'.repeat(32)}`,
-            attester: '0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20',
-            issuedAt: 1_715_212_320,
-            expiresAt: 0,
-            cid: null
-          }
+          certificates: [
+            {
+              resolver: '0xdc713ebf1028544a00225c8741eb698253c49302',
+              attester: '0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20',
+              name: CERTIFICATE_NAME,
+              contentCid: null,
+              badgeIconCid: null,
+              id: `0x${'ab'.repeat(32)}`,
+              issuedAt: 1_715_212_320,
+              expiresAt: 0
+            }
+          ]
         }
       }
     })
@@ -58,7 +63,7 @@ test.describe('Certificate', () => {
     const body = frame.locator('.certificate-modal__body')
     await expect(frame.locator('.certificate-modal--visible')).toBeVisible()
     await expect(frame.locator('.certificate-modal__title')).toHaveText(CERTIFICATE_NAME)
-    await expect(body).toContainText('Parity Technologies')
+    await expect(body).toContainText('Attester Address')
     await expect(frame.locator('.certificate-modal__copy').first()).toBeVisible()
 
     // When

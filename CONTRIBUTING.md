@@ -28,6 +28,14 @@ Good documentation starts with a single, clear sentence. Everything else comes a
 
    Bad: `const att = decodeAttestation(data)`
    Good: `const attestation = decodeAttestation(data)`
+11. **Don't write "on-chain".** Either omit it or say "network". The reader knows the data comes from the chain from context.
+
+   Bad: `Discovered on-chain by enumerating schemas.`
+   Good: `Discovered by enumerating schemas.` or `Read from the network by enumerating schemas.`
+12. **Don't name the variable in its own doc.** The declaration already shows the name. Describe what the value holds, not what it is called.
+
+   Bad: `` /** `badgeIconCid` (badge image) from the payload. */ `` above `badgeIconCid: string | null`
+   Good: `/** Badge image CID from the payload. */` above `badgeIconCid: string | null`
 
 #### TypeScript
 
@@ -61,3 +69,5 @@ export async function resolveLabel(label: string): Promise<Cid | null> {
 6. No possessive apostrophes. "the account attestation", not "the account's".
 7. Minimize parenthetical asides. Fold the detail into the sentence or drop it.
 8. Prefer the full word to a truncated one. "certificate", not "cert".
+9. Don't write "on-chain". Omit it or say "network".
+10. Don't repeat the variable name in its own doc. Describe what it holds.

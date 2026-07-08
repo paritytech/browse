@@ -69,7 +69,7 @@ export const KNOWN_NETWORKS = {
     TRUSTED_ATTESTER: "0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20",
     IPFS_GATEWAY: "https://paseo-bulletin-next-ipfs.polkadot.io",
     SCHEMA_ID: [5n, 1n],
-    COMPLIANCE_SCHEMA_ID: 2n,
+    COMPLIANCE_SCHEMA_ID: 6n,
     ASSETHUB_RPCS: ["wss://paseo-asset-hub-next-rpc.polkadot.io"],
     PEOPLE_GENESIS:
       "0xc5af1826b31493f08b7e2a823842f98575b806a784126f28da9608c68665afa5",
@@ -101,7 +101,7 @@ export const KNOWN_NETWORKS = {
     TRUSTED_ATTESTER: "0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20",
     IPFS_GATEWAY: "https://previewnet.substrate.dev",
     SCHEMA_ID: [5n, 1n],
-    COMPLIANCE_SCHEMA_ID: 2n,
+    COMPLIANCE_SCHEMA_ID: 7n,
     ASSETHUB_RPCS: ["wss://previewnet.substrate.dev/asset-hub"],
     PEOPLE_GENESIS:
       "0x3389bc9179d3be32568c67278bd080d05631ac71982d28a3fe545421147b311e",

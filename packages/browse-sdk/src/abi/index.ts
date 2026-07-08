@@ -22,27 +22,35 @@ export {
   decodeBool,
   decodeBytes,
   decodeBytes32Array,
+  decodeSchemaRecord,
+  type DecodedSchema,
   decodeString,
   decodeStringArray,
+  decodeUint,
   decodeUint64
 } from './codec.js'
 export { decodeIpfsContenthash } from './contenthash.js'
 export {
   trustedAttestationId,
   encodeContenthash,
+  encodeCountBySchema,
   encodeCountByRecipientAndSchema,
   encodeGetAttestationById,
   encodeGetLabels,
   encodeGetLabelStores,
   encodeGetPublished,
+  encodeGetSchema,
   encodeIdentityHasAttested,
   encodeIsActive,
   encodeIsActiveAny,
   encodeLabelOf,
+  encodeListBySchema,
   encodeNodeOwner,
   encodeOwner,
   encodePublishedCount,
-  encodeText
+  encodeSchemaCount,
+  encodeText,
+  encodeTrustedAttester
 } from './contracts.js'
 export {
   type AggregateResult,

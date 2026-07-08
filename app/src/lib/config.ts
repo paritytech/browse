@@ -25,6 +25,23 @@ export const NETWORK = selectNetwork(ASSETHUB_GENESIS)
 export const ACTIVE_ATTESTATION_RESOLVER = activeAttestationResolver(NETWORK)
 export const ACTIVE_SCHEMA_ID = activeSchemaId(NETWORK)
 
+/**
+ * Lowercased certificate authority resolver addresses trusted by default.
+ *
+ * Their badges show until the user disables them in the manager. Read as a
+ * comma-separated list from `APP_DEFAULT_CERTIFICATES`, falling back to the
+ * network built-in trusted-attester resolver so the bundled authority is trusted
+ * out of the box.
+ */
+export const DEFAULT_CERTIFICATES: string[] = (
+  import.meta.env?.APP_DEFAULT_CERTIFICATES ??
+  process.env?.APP_DEFAULT_CERTIFICATES ??
+  NETWORK.TRUSTED_ATTESTER_RESOLVER
+)
+  .split(',')
+  .map((address: string) => address.trim().toLowerCase())
+  .filter(Boolean)
+
 export const DRY_RUN_WEIGHT_LIMIT = {
   ref_time: 18_446_744_073_709_551_615n,
   proof_size: 18_446_744_073_709_551_615n

@@ -415,6 +415,72 @@ input {
   border-color: color-mix(in srgb, var(--bg-status-error) 82%, transparent);
 }
 
+/* Aligns the issuer pill with the category tabs on the same row. */
+.tabs-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* A grey pill of enabled-authority badges. On desktop, hover reveals the
+   "Badges" label. */
+.issuer-stack {
+  display: inline-flex;
+  align-items: center;
+  height: 36px;
+  margin-right: 16px;
+  padding: 0 12px;
+  border: none;
+  border-radius: var(--radius-full, 24px);
+  background: var(--surface-3);
+  color: var(--fg-primary);
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.issuer-stack:hover {
+  background: var(--surface-4);
+}
+
+.issuer-stack__marks {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.issuer-stack__marks svg {
+  display: block;
+}
+
+.issuer-stack__label {
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  opacity: 0;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 600;
+  transition:
+    max-width 200ms ease,
+    opacity 150ms ease,
+    margin-left 200ms ease;
+}
+
+/* No enabled badges: the pill just reads "Badges" (always visible). */
+.issuer-stack__label--static {
+  max-width: none;
+  opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .issuer-stack:hover .issuer-stack__label,
+  .issuer-stack:focus-visible .issuer-stack__label {
+    max-width: 80px;
+    margin-left: 2px;
+    opacity: 1;
+  }
+}
+
 .corner-chip {
   position: absolute;
   right: calc(1.5rem + 16px);

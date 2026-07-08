@@ -148,7 +148,7 @@ function main(): void {
     stage("Register certificate schema", () =>
       sh("cd evm && npm run register:schema", {
         NETWORK_GENESIS_HASH,
-        SCHEMA: "bool compliant,string contentCid",
+        SCHEMA: "bool compliant,string contentCid,string badgeIconCid,string name",
         UNIQUE: "true",
         RESOLVER: net.TRUSTED_ATTESTER_RESOLVER,
       }),

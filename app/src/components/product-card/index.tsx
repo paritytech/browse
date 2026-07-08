@@ -1,11 +1,11 @@
 import { memo, useEffect, useState } from 'preact/compat'
 
-import { ArrowBigUp, ArrowUpRight, BadgeCheck, Bookmark, Share2 } from 'lucide-preact'
+import { ArrowBigUp, ArrowUpRight, Bookmark, Share2 } from 'lucide-preact'
 
 import { BubbleBurst } from './bubble-burst'
-import { CERTIFICATE } from '../../lib/certificates'
 import { useIconBlob } from '../../state/apps/icon'
-import { type AppEntry, displayName } from '../../state/apps/types'
+import { type AppCertificate, type AppEntry, displayName } from '../../state/apps/types'
+import { CertificateBadge } from '../certificate-badge'
 import { Identicon } from '../identicon'
 import './styles.css'
 
@@ -22,7 +22,7 @@ interface ProductCardProps {
   onBookmark?: (label: string) => void
   onShare?: (app: AppEntry) => void
   onClickAttestation?: () => void
-  onClickCertificate?: () => void
+  onClickCertificate?: (certificate: AppCertificate) => void
 }
 
 export const ProductCard = memo(function ProductCard({
@@ -109,18 +109,19 @@ export const ProductCard = memo(function ProductCard({
         <div class='product-card__text'>
           <div class='product-card__title-row'>
             <span class='product-card__name'>{name}</span>
-            {app.certificate && (
+            {app.certificates.map((certificate) => (
               <button
+                key={certificate.resolver}
                 class='product-card__certified'
-                aria-label={CERTIFICATE.name}
+                aria-label={certificate.name ?? 'Certificate'}
                 onClick={(e) => {
                   e.stopPropagation()
-                  onClickCertificate?.()
+                  onClickCertificate?.(certificate)
                 }}
               >
-                <BadgeCheck size={14} />
+                <CertificateBadge cid={certificate.badgeIconCid} size={14} />
               </button>
-            )}
+            ))}
             {showActions && (
               <button
                 class={`product-card__bookmark${bookmarked ? ' product-card__bookmark--active' : ''}`}

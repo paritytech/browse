@@ -13,16 +13,17 @@ import { connect, ensureMapped, getSigner, waitBestBlock } from "./lib.ts";
 const DOMAIN = process.argv[2];
 if (!DOMAIN) {
   console.error(
-    "Usage: attest-compliance <domain> [contentCid]   (e.g. browse bafy…)"
+    "Usage: attest-compliance <domain> [contentCid] [badgeIconCid] [name]"
   );
   process.exit(1);
 }
 const label = DOMAIN.toLowerCase().replace(/\.dot$/, "");
 
-// The markdown CID explaining this certificate. Optional: empty string when the
-// certificate is explained only by the deployer's bundled document.
-const CONTENT_CID =
-  process.argv[3] ?? process.env.CONTENT_CID ?? "";
+// The certificate payload. All optional (empty string when unset):
+// contentCid = markdown doc, badgeIconCid = badge image, name = certificate name.
+const CONTENT_CID = process.argv[3] ?? process.env.CONTENT_CID ?? "";
+const BADGE_ICON_CID = process.argv[4] ?? process.env.BADGE_ICON_CID ?? "";
+const CERTIFICATE_NAME = process.argv[5] ?? process.env.CERTIFICATE_NAME ?? "";
 
 const ABI = parseAbi([
   "function attest((uint256 schema, (address recipient, uint64 expirationTime, bool revocable, uint256 refId, bytes data) data) request) returns (uint256)"
@@ -74,15 +75,15 @@ async function main() {
       await ensureMapped(api, signer);
     }
 
-    // Schema spec is "bool compliant,string contentCid".
+    // Schema spec is "bool compliant,string contentCid,string badgeIconCid,string name".
     const data = encodeAbiParameters(
-      [{ type: "bool" }, { type: "string" }],
-      [true, CONTENT_CID]
+      [{ type: "bool" }, { type: "string" }, { type: "string" }, { type: "string" }],
+      [true, CONTENT_CID, BADGE_ICON_CID, CERTIFICATE_NAME]
     );
     const recipient = recipientOf(label);
     console.log(
       `\nAttesting "${label}.dot" to recipient ${recipient}` +
-        (CONTENT_CID ? ` (cid ${CONTENT_CID})` : " (no cid)")
+        (CERTIFICATE_NAME ? ` as "${CERTIFICATE_NAME}"` : "")
     );
 
     const callData = encodeFunctionData({
