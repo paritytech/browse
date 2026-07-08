@@ -465,6 +465,7 @@ export function App() {
   // touch, hold the loading dots for a minimum window so the pull always reads
   // as feedback even if the reset resolves instantly.
   const refreshConnection = useEvent(() => {
+    console.warn('debug network connection', JSON.stringify({ event: 'refreshConnection' }))
     resetBrowseSdk()
     if (isMobile) {
       clearTimeout(pullFloorTimer.current)
@@ -511,6 +512,10 @@ export function App() {
   useEffect(() => {
     const provider = createAccountsProvider()
     const sub = provider.subscribeAccountConnectionStatus((status) => {
+      console.warn(
+        'debug network connection',
+        JSON.stringify({ event: 'accountConnectionStatus', status })
+      )
       setSigned(status === 'connected')
     })
     return () => sub.unsubscribe()

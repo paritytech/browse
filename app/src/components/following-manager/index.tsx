@@ -54,6 +54,7 @@ export function FollowingManager({
   // the user (or a test) typing right after it becomes visible and would wipe
   // the field.
   useEffect(() => {
+    console.warn('debug network connection', JSON.stringify({ event: 'modal:visible', visible }))
     if (!visible) {
       setInput('')
       setResult(null)
@@ -68,6 +69,10 @@ export function FollowingManager({
   // Resolve as the user types (debounced). The People-chain lookup is exact, so
   // a result appears once the full username is typed.
   useEffect(() => {
+    console.warn(
+      'debug network connection',
+      JSON.stringify({ event: 'modal:searchEffect', query, ss58, visible })
+    )
     if (!query || ss58) {
       setResult(null)
       setSearching(false)
@@ -76,16 +81,32 @@ export function FollowingManager({
     let cancelled = false
     setSearching(true)
     const id = setTimeout(async () => {
+      console.warn(
+        'debug network connection',
+        JSON.stringify({ event: 'modal:searchFiring', query })
+      )
       try {
         const [match] = await searchUsernames(query)
+        console.warn(
+          'debug network connection',
+          JSON.stringify({ event: 'modal:searchResolved', match: match ?? null, cancelled })
+        )
         if (!cancelled) setResult(match ?? null)
-      } catch {
+      } catch (err) {
+        console.warn(
+          'debug network connection',
+          JSON.stringify({ event: 'modal:searchThrew', err: String(err), cancelled })
+        )
         if (!cancelled) setResult(null)
       } finally {
         if (!cancelled) setSearching(false)
       }
     }, 300)
     return () => {
+      console.warn(
+        'debug network connection',
+        JSON.stringify({ event: 'modal:searchCleanup', query })
+      )
       cancelled = true
       clearTimeout(id)
     }

@@ -47,15 +47,32 @@ let sdkPromise: Promise<BrowseSdk> | null = null
 
 export function ensureBrowseSdk(): Promise<BrowseSdk> {
   if (!sdkPromise) {
+    console.warn(
+      'debug network connection',
+      JSON.stringify({ event: 'ensureBrowseSdk:creating', genesis: ASSETHUB_GENESIS })
+    )
     sdkPromise = (async () => {
-      if (!(await networkSupported())) {
+      const supported = await networkSupported()
+      console.warn(
+        'debug network connection',
+        JSON.stringify({ event: 'ensureBrowseSdk:networkSupported', supported })
+      )
+      if (!supported) {
         throw new Error(`Host does not support network ${ASSETHUB_GENESIS}`)
       }
-      return createBrowseSdk(NETWORK, createPapiProvider(ASSETHUB_GENESIS))
+      const sdk = createBrowseSdk(NETWORK, createPapiProvider(ASSETHUB_GENESIS))
+      console.warn('debug network connection', JSON.stringify({ event: 'ensureBrowseSdk:created' }))
+      return sdk
     })().catch((err) => {
+      console.warn(
+        'debug network connection',
+        JSON.stringify({ event: 'ensureBrowseSdk:failed', err: String(err) })
+      )
       sdkPromise = null
       throw err
     })
+  } else {
+    console.warn('debug network connection', JSON.stringify({ event: 'ensureBrowseSdk:reuse' }))
   }
   return sdkPromise
 }
@@ -68,10 +85,18 @@ let resetRequested = false
 /** Bracket a network request so a concurrent reset is deferred, not applied under it. */
 export function startTransaction(): void {
   pendingWrites += 1
+  console.warn(
+    'debug network connection',
+    JSON.stringify({ event: 'startTransaction', pendingWrites })
+  )
 }
 
 export function endTransaction(): void {
   pendingWrites = Math.max(0, pendingWrites - 1)
+  console.warn(
+    'debug network connection',
+    JSON.stringify({ event: 'endTransaction', pendingWrites, resetRequested })
+  )
   if (pendingWrites === 0 && resetRequested) {
     resetRequested = false
     resetBrowseSdk()
@@ -85,18 +110,44 @@ export function endTransaction(): void {
  * that never recovers. Deferred while a chain write is in flight.
  */
 export function resetBrowseSdk(): void {
+  console.warn(
+    'debug network connection',
+    JSON.stringify({
+      event: 'resetBrowseSdk:called',
+      pendingWrites,
+      hasSdk: !!sdkPromise,
+      resetRequested
+    })
+  )
   if (pendingWrites > 0) {
     resetRequested = true
+    console.warn('debug network connection', JSON.stringify({ event: 'resetBrowseSdk:deferred' }))
     return
   }
   const stale = sdkPromise
   sdkPromise = null
+  if (!stale) {
+    console.warn(
+      'debug network connection',
+      JSON.stringify({ event: 'resetBrowseSdk:nothingToDestroy' })
+    )
+    return
+  }
+  console.warn('debug network connection', JSON.stringify({ event: 'resetBrowseSdk:destroying' }))
   void stale
     ?.then((sdk) => {
       try {
         sdk.destroy()
-      } catch {
+        console.warn(
+          'debug network connection',
+          JSON.stringify({ event: 'resetBrowseSdk:destroyed' })
+        )
+      } catch (err) {
         // papi throws synchronously if a chainHead follow is still active
+        console.warn(
+          'debug network connection',
+          JSON.stringify({ event: 'resetBrowseSdk:destroyThrew', err: String(err) })
+        )
       }
     })
     .catch(() => {})
@@ -166,6 +217,10 @@ export async function reviveCall(
   const attempt = async () => {
     const sdk = await ensureBrowseSdk()
     await rpcGate()
+    console.warn(
+      'debug network connection',
+      JSON.stringify({ event: 'reviveCall:attempt', contractAddress })
+    )
     return withTimeout(
       sdk.reviveCall(contractAddress as `0x${string}`, encodedData, origin),
       RPC_TIMEOUT_MS,
@@ -174,7 +229,11 @@ export async function reviveCall(
   }
   try {
     return await attempt()
-  } catch {
+  } catch (err) {
+    console.warn(
+      'debug network connection',
+      JSON.stringify({ event: 'reviveCall:failed', contractAddress, err: String(err) })
+    )
     resetBrowseSdk()
     return attempt()
   }
@@ -191,21 +250,38 @@ let peoplePromise: Promise<PeopleApi> | null = null
 
 export function ensurePeopleApi(): Promise<PeopleApi> {
   if (!peoplePromise) {
+    console.warn('debug network connection', JSON.stringify({ event: 'ensurePeopleApi:creating' }))
     peoplePromise = (async () => {
       const genesis = NETWORK.PEOPLE_GENESIS
       const descriptor =
         PEOPLE_DESCRIPTOR_BY_ASSETHUB[
           ASSETHUB_GENESIS as keyof typeof PEOPLE_DESCRIPTOR_BY_ASSETHUB
         ]
+      console.warn(
+        'debug network connection',
+        JSON.stringify({
+          event: 'ensurePeopleApi:config',
+          genesis,
+          hasDescriptor: !!descriptor,
+          assethub: ASSETHUB_GENESIS
+        })
+      )
       if (!genesis || !descriptor) {
         throw new Error(`No People chain configured for network ${ASSETHUB_GENESIS}`)
       }
       const client = createClient(createPapiProvider(genesis))
+      console.warn('debug network connection', JSON.stringify({ event: 'ensurePeopleApi:created' }))
       return client.getTypedApi(descriptor) as PeopleApi
     })().catch((err) => {
+      console.warn(
+        'debug network connection',
+        JSON.stringify({ event: 'ensurePeopleApi:failed', err: String(err) })
+      )
       peoplePromise = null
       throw err
     })
+  } else {
+    console.warn('debug network connection', JSON.stringify({ event: 'ensurePeopleApi:reuse' }))
   }
   return peoplePromise
 }
@@ -216,9 +292,21 @@ export function ensurePeopleApi(): Promise<PeopleApi> {
  * account.
  */
 export async function resolveUsernameOwner(username: string): Promise<Uint8Array | null> {
+  console.warn(
+    'debug network connection',
+    JSON.stringify({ event: 'resolveUsernameOwner:start', username })
+  )
   const api = await ensurePeopleApi()
+  console.warn(
+    'debug network connection',
+    JSON.stringify({ event: 'resolveUsernameOwner:querying' })
+  )
   const owner = await api.query.Resources.UsernameOwnerOf.getValue(
     new TextEncoder().encode(username)
+  )
+  console.warn(
+    'debug network connection',
+    JSON.stringify({ event: 'resolveUsernameOwner:returned', owner: owner ?? null })
   )
   if (!owner) return null
   return AccountId().enc(owner as SS58String)

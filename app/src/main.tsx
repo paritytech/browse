@@ -24,6 +24,10 @@ if (import.meta.env.DEV) {
 // stale SDK on foreground so the next network access
 // rebuilds on the fresh connection instead of hanging on the dead one.
 document.addEventListener('visibilitychange', () => {
+  console.warn(
+    'debug network connection',
+    JSON.stringify({ event: 'visibilitychange', state: document.visibilityState })
+  )
   if (document.visibilityState === 'visible') resetBrowseSdk()
 })
 
