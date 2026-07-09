@@ -42,6 +42,49 @@ function signerFor(miniSecret: Uint8Array, path: string) {
 type Credentials = ReturnType<typeof signerFor>
 type UnsafeApi = ReturnType<PolkadotClient['getUnsafeApi']>
 
+/**
+ * Submit a tx and resolve on inclusion, retrying on a stale nonce. The shared
+ * funder is signed from concurrently (parallel workers, overlapping CI runs,
+ * manual use), so its nonce can be taken between read and submit; resubmitting
+ * reads the advanced nonce.
+ */
+async function watchTxWithRetry(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  makeTx: () => { signSubmitAndWatch: (signer: any) => { subscribe: (o: any) => void } },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  signer: any,
+  label: string
+): Promise<void> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await new Promise<void>((resolve, reject) => {
+        makeTx()
+          .signSubmitAndWatch(signer)
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .subscribe({
+            next: (event: any) => {
+              if (!((event.type === 'txBestBlocksState' && event.found) || event.type === 'finalized'))
+                return
+              if (event.ok === false) {
+                reject(new Error(`${label} failed: ${JSON.stringify(event.dispatchError)}`))
+              } else {
+                resolve()
+              }
+            },
+            error: reject
+          })
+      })
+      return
+    } catch (e) {
+      if (attempt < 3 && /stale/i.test(String(e))) {
+        await new Promise((r) => setTimeout(r, 400))
+        continue
+      }
+      throw e
+    }
+  }
+}
+
 export function createDevSigner(name: string) {
   return signerFor(mnemonicToMiniSecret(DEV_PHRASE, ''), `//${name}`)
 }
@@ -98,26 +141,16 @@ async function transferPgas(
         `Top up its PGAS (asset ${assetId}) on the active network.`
     )
   }
-  await new Promise<void>((resolve, reject) => {
-    api.tx.Assets.transfer({
-      id: assetId,
-      target: { type: 'Id', value: to as SS58String },
-      amount
-    })
-      .signSubmitAndWatch(from.signer)
-      .subscribe({
-        next: (event) => {
-          if (!((event.type === 'txBestBlocksState' && event.found) || event.type === 'finalized'))
-            return
-          if (event.ok === false) {
-            reject(new Error(`PGAS transfer failed: ${JSON.stringify(event.dispatchError)}`))
-          } else {
-            resolve()
-          }
-        },
-        error: reject
-      })
-  })
+  await watchTxWithRetry(
+    () =>
+      api.tx.Assets.transfer({
+        id: assetId,
+        target: { type: 'Id', value: to as SS58String },
+        amount
+      }),
+    from.signer,
+    'PGAS transfer'
+  )
 }
 
 export interface FundResult {
@@ -314,27 +347,15 @@ export async function fundWithNative(
     }
     if ((current?.data?.free ?? 0n) >= NATIVE_TOPUP_THRESHOLD) return
 
-    await new Promise<void>((resolve, reject) => {
-      api.tx.Balances.transfer_keep_alive({
-        dest: { type: 'Id', value: toAddress as SS58String },
-        value: amount
-      })
-        .signSubmitAndWatch(funder.signer)
-        .subscribe({
-          next: (event) => {
-            if (
-              !((event.type === 'txBestBlocksState' && event.found) || event.type === 'finalized')
-            )
-              return
-            if (event.ok === false) {
-              reject(new Error(`native transfer failed: ${JSON.stringify(event.dispatchError)}`))
-            } else {
-              resolve()
-            }
-          },
-          error: reject
-        })
-    })
+    await watchTxWithRetry(
+      () =>
+        api.tx.Balances.transfer_keep_alive({
+          dest: { type: 'Id', value: toAddress as SS58String },
+          value: amount
+        }),
+      funder.signer,
+      'native transfer'
+    )
   })
 }
 

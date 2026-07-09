@@ -48,14 +48,14 @@
   },
   "recipientAndAttesterIndexResolver": {
     "previewnet": {
-      "address": "0x2870c80ce3a18e1f1ffb9da2747347036355bd9a",
-      "previousAddress": "0x6c1b493985c5f86fb551aaafbd4dbce04ce8c580",
+      "address": "0x3b34b05eb4b761bbc7f284f90bb4f9bbafd16570",
+      "previousAddress": "0x2870c80ce3a18e1f1ffb9da2747347036355bd9a",
       "attestationService": "0x24af868f14605460f6385aae166986cee9800514",
       "schema": "string label",
-      "schemaId": 5,
+      "schemaId": 6,
       "personhoodGated": false,
       "identityGated": true,
-      "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
+      "deployer": "5D5KbdjgNB9awjjnPrcKYWmz1bjkZXgkcTZCPtVSz6zpskhD",
       "network": "previewnet-asset-hub",
       "genesisHash": "0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb",
       "deployedAt": "2026-06-28"

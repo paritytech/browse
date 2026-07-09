@@ -22,7 +22,17 @@ export async function createAttestation(label: string): Promise<AttestResult> {
     const alreadyAttested = await service.isActiveAny(recipient, [attesterH160])
     if (!alreadyAttested) {
       const data = encodeAttestationLabel(label)
-      await service.attest(ACTIVE_SCHEMA_ID, recipient, 0n, true, 0n, data)
+      try {
+        await service.attest(ACTIVE_SCHEMA_ID, recipient, 0n, true, 0n, data)
+      } catch (err) {
+        // The one-per-identity lock is keyed on the identity, not the attester,
+        // so a recommendation left by another product account of this identity
+        // (e.g. a leftover bind-and-attest seed) makes this re-attest revert
+        // with ResolverRejected. For seeding that is a success: the label is
+        // already recommended by the identity, so treat it as an idempotent
+        // no-op rather than failing the whole suite.
+        if (!String(err).includes('ResolverRejected')) throw err
+      }
     }
     return {
       success: true,

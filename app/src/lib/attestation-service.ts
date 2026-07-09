@@ -15,6 +15,7 @@ import {
 } from './client'
 import {
   ACTIVE_ATTESTATION_RESOLVER,
+  ACTIVE_SCHEMA_ID,
   DRY_RUN_WEIGHT_LIMIT,
   DUMMY_ORIGIN,
   NETWORK,
@@ -35,6 +36,22 @@ function bigStr(_: string, v: unknown): unknown {
   return v
 }
 
+// Selector of AttestationService__ResolverRejected(), the resolver revert for a
+// second recommendation from the same identity.
+const RESOLVER_REJECTED_SELECTOR = '0xad0d91b9'
+
+/**
+ * Whether a dry-run outcome represents the resolver's ResolverRejected revert.
+ * Accepts either the value from a failed `contract.query` (the selector shows up
+ * as a `{ "0": 173, "1": 13, ... }` byte map) or a thrown decode error whose
+ * message carries the raw `0xad0d91b9` selector.
+ */
+function isResolverRejected(outcome: unknown): boolean {
+  const byteMap = [0xad, 0x0d, 0x91, 0xb9].map((b, i) => `"${i}":${b}`).join(',')
+  const detail = outcome instanceof Error ? String(outcome) : JSON.stringify(outcome, bigStr)
+  return detail.includes(RESOLVER_REJECTED_SELECTOR) || detail.includes(byteMap)
+}
+
 /**
  * A `ChainHead disjointed` surfaces when a concurrent `resetBrowseSdk` destroys
  * the shared client mid-operation.
@@ -43,6 +60,21 @@ function isChainDisjoint(err: unknown): boolean {
   // `String(err)` includes the Error name and message, so this covers both
   // `DisjointError` and a `ChainHead disjointed` message.
   return /disjoint/i.test(String(err))
+}
+
+/**
+ * A `Stale` transaction error means the nonce was already consumed by another
+ * tx from the same account. This happens whenever the account is signed from
+ * concurrently — parallel e2e workers, overlapping CI runs, or manual use of the
+ * shared funder. papi rebuilds the nonce from chain on the next submit, so
+ * resetting and resubmitting picks up the advanced nonce.
+ */
+function isStaleNonce(err: unknown): boolean {
+  if (err && typeof err === 'object') {
+    const value = (err as { value?: { type?: string } }).value
+    if (value?.type === 'Stale') return true
+  }
+  return /stale/i.test(String(err))
 }
 
 async function hostSigner(): Promise<{
@@ -249,27 +281,25 @@ export class AttestationService {
 
   /**
    * Whether the given identity account has an active recommendation for the
-   * recipient, across every schema version. Unlike {@link isActiveAny}, this is
-   * keyed on the identity rather than the attester, so it holds regardless of
-   * which product account signed the recommendation. Read via `reviveCall`
-   * because `identityHasAttested` is not in the ink contract descriptor.
+   * recipient. Unlike {@link isActiveAny}, this is keyed on the identity rather
+   * than the attester, so it holds regardless of which product account signed
+   * the recommendation. Read via `reviveCall` because `identityHasAttested` is
+   * not in the ink contract descriptor.
+   *
+   * Only the active resolver has the identity index. Older versions have no
+   * `identityHasAttested` and would revert with empty data, so they are never
+   * a source here.
    */
   async identityHasAttested(recipient: `0x${string}`, identity: `0x${string}`): Promise<boolean> {
-    const results = await Promise.all(
-      attestationVersions(NETWORK).map(async ({ resolver, schemaId }) => {
-        try {
-          const raw = await reviveCall(
-            resolver,
-            encodeIdentityHasAttested(recipient, schemaId, identity)
-          )
-          return decodeBool(raw)
-        } catch {
-          // Legacy resolvers predate identity binding and revert on this call.
-          return false
-        }
-      })
-    )
-    return results.some(Boolean)
+    try {
+      const raw = await reviveCall(
+        ACTIVE_ATTESTATION_RESOLVER,
+        encodeIdentityHasAttested(recipient, ACTIVE_SCHEMA_ID, identity)
+      )
+      return decodeBool(raw)
+    } catch {
+      return false
+    }
   }
 
   async listByRecipientAndSchema(
@@ -329,20 +359,29 @@ export class AttestationService {
       await this.ensureAllowance(origin)
 
       const contract = await this.getContract()
-      const dryRun = await contract.query('attest', {
-        origin: origin as SS58String,
-        data: attestData,
-        options: { gasLimit: GAS, storageDepositLimit: STORAGE }
-      })
-      if (!dryRun.success) {
-        const detail = JSON.stringify(dryRun.value, bigStr)
+      let dryRun
+      try {
+        dryRun = await contract.query('attest', {
+          origin: origin as SS58String,
+          data: attestData,
+          options: { gasLimit: GAS, storageDepositLimit: STORAGE }
+        })
+      } catch (err) {
         // The resolver refuses a second recommendation from the same identity by
-        // reverting with AttestationService__ResolverRejected().
-        const rejectedSelector = [0xad, 0x0d, 0x91, 0xb9].map((b, i) => `"${i}":${b}`).join(',')
-        if (detail.includes(rejectedSelector)) {
+        // reverting with AttestationService__ResolverRejected(). Its selector is
+        // defined on the resolver, not the AttestationService ABI, so sdk-ink
+        // throws AbiErrorSignatureNotFoundError while decoding rather than
+        // returning `success: false`. Map it here instead of crashing.
+        if (isResolverRejected(err)) {
+          throw new Error('AttestationService__ResolverRejected', { cause: err })
+        }
+        throw err
+      }
+      if (!dryRun.success) {
+        if (isResolverRejected(dryRun.value)) {
           throw new Error('AttestationService__ResolverRejected')
         }
-        throw new Error(`attest dry-run failed: ${detail}`)
+        throw new Error(`attest dry-run failed: ${JSON.stringify(dryRun.value, bigStr)}`)
       }
       return this.submitTx(dryRun.value.send, signer, track)
     }, onBroadcast)
@@ -371,7 +410,12 @@ export class AttestationService {
       try {
         return await run(track)
       } catch (err) {
-        if (broadcasted || attempt >= MAX_ATTEMPTS || !isChainDisjoint(err)) throw err
+        // A stale nonce means a concurrent tx from the same account (parallel
+        // workers, overlapping CI runs, manual use) took the nonce; resubmitting
+        // reads the advanced nonce. Safe only before broadcast so a settled tx is
+        // never re-sent.
+        const retryable = isChainDisjoint(err) || isStaleNonce(err)
+        if (broadcasted || attempt >= MAX_ATTEMPTS || !retryable) throw err
         // Fall through to reset and retry once the bracket is released below.
       } finally {
         endTransaction()
@@ -487,30 +531,26 @@ export class AttestationService {
   }
 
   /**
-   * Resolve the identity account bound to `account`, searching every deployed
-   * index resolver (a binding lives on whichever resolver received it). Returns
-   * the first non-zero identity, or the zero address when unbound everywhere.
+   * Resolve the identity account bound to `account`, or the zero address when
+   * unbound.
+   *
+   * Only the active resolver holds identity bindings. Older versions have no
+   * `boundIdentity` and would revert with empty data, so this reads just the
+   * active one rather than probing every version and swallowing the reverts.
    */
   async identityOf(account: `0x${string}`): Promise<`0x${string}`> {
-    const identities = await Promise.all(
-      NETWORK.ATTESTATION_INDEX_RESOLVER.map(async (resolver) => {
-        try {
-          const contract = await this.getResolverAt(resolver)
-          const result = await contract.query('boundIdentity', {
-            origin: DUMMY_ORIGIN as SS58String,
-            data: { account },
-            options: { gasLimit: GAS, storageDepositLimit: STORAGE }
-          })
-          if (!result.success) return ZERO_ADDRESS
-          return result.value.response as `0x${string}`
-        } catch {
-          // Legacy resolvers predate identity binding and have no
-          // `boundIdentity`.
-          return ZERO_ADDRESS
-        }
+    try {
+      const contract = await this.getResolverAt(ACTIVE_ATTESTATION_RESOLVER)
+      const result = await contract.query('boundIdentity', {
+        origin: DUMMY_ORIGIN as SS58String,
+        data: { account },
+        options: { gasLimit: GAS, storageDepositLimit: STORAGE }
       })
-    )
-    return identities.find((id) => BigInt(id) !== 0n) ?? ZERO_ADDRESS
+      if (!result.success) return ZERO_ADDRESS
+      return result.value.response as `0x${string}`
+    } catch {
+      return ZERO_ADDRESS
+    }
   }
 
   async revoke(schema: bigint, id: bigint, onBroadcast?: () => void): Promise<TxResult> {
