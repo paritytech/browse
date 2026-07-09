@@ -2,7 +2,7 @@ import { useState } from 'preact/hooks'
 
 import { ProductCard } from './index'
 import { useEvent } from '../../lib/use-event'
-import { type AppEntry } from '../../state/apps/types'
+import { type AppCertificate, type AppEntry } from '../../state/apps/types'
 import {
   describeError,
   useAttestProduct,
@@ -20,7 +20,7 @@ interface ProductCardWithAttestationProps {
   onBookmark: (label: string) => void
   onShare: (app: AppEntry) => void
   onAttestationSettled?: () => void
-  onClickCertificate?: () => void
+  onClickCertificate?: (certificate: AppCertificate) => void
 }
 
 export function ProductCardWithAttestation({

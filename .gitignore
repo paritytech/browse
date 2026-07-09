@@ -3,6 +3,9 @@ dist/
 .vite/
 *.log
 
+# The evm workspace uses package-lock.json; ignore a stray bun lockfile.
+evm/bun.lock
+
 # Hardhat / Foundry
 cache/
 cache_hh/

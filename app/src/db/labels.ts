@@ -11,7 +11,7 @@ export interface LabelEntry {
   contentHash: string | null
   attestationCount: number | null
   hasUserAttested: boolean
-  certificate?: AppCertificate | null
+  certificates?: AppCertificate[]
   fetchedAt?: number
   published?: boolean
 }

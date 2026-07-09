@@ -12,6 +12,7 @@ import { type AppEntry, labelToApp } from './types'
 import { readBookmarks } from '../../db/bookmarks'
 import { type LabelEntry, readLabels } from '../../db/labels'
 import { ensureBrowseSdk } from '../../lib/client'
+import { knownCertificateAuthorities } from '../certificate-authorities/queries'
 
 const ALL_APPS_KEY = ['apps', 'all'] as const
 const LABELS_KEY = ['labels', 'db'] as const
@@ -103,7 +104,8 @@ export async function prefetchAllApps(queryClient: QueryClient) {
  */
 async function resolveLabel(name: string): Promise<AppEntry | null> {
   const identityH160 = await resolveIdentityH160()
-  const [entry] = await hydrateLabelChunk([name], identityH160)
+  const authorities = await knownCertificateAuthorities()
+  const [entry] = await hydrateLabelChunk([name], identityH160, authorities)
   if (!entry?.contentHash) return null
 
   return labelToApp(entry)

@@ -1,0 +1,5 @@
+.certificate-badge__img {
+  display: block;
+  border-radius: var(--radius-extra-small, 4px);
+  object-fit: cover;
+}

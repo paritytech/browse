@@ -48,7 +48,7 @@ export interface OrphanLabel {
 export type LabelOverride = Partial<{
   attestationCount: number | null
   hasUserAttested: boolean
-  certificate: AppCertificate | null
+  certificates: AppCertificate[]
 }>
 
 /**

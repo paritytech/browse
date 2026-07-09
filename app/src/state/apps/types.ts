@@ -1,17 +1,20 @@
 import type { LabelEntry } from '../../db/labels'
+import type { CertificateIdentity } from '../certificate-authorities/types'
 
-/** Details of a compliance attestation, surfaced in the certificate modal. */
-export interface AppCertificate {
+/**
+ * A product active compliance attestation from one certificate authority, used
+ * to render the badge and the certificate modal.
+ *
+ * The issuer and presentation fields come from {@link CertificateIdentity}. The
+ * rest describe the concrete attestation instance.
+ */
+export interface AppCertificate extends CertificateIdentity {
   /** Attestation id, the certificate fingerprint. */
   id: string
-  /** EVM address of the trusted attester that issued it. */
-  attester: string
   /** Unix seconds the attestation was issued. */
   issuedAt: number
   /** Unix seconds it expires, or 0 for never. */
   expiresAt: number
-  /** Markdown CID explaining the certificate, when present. */
-  cid: string | null
 }
 
 export interface AppEntry {
@@ -23,8 +26,8 @@ export interface AppEntry {
   isLive: boolean
   attestationCount: number | null
   hasUserAttested: boolean
-  /** Active compliance attestation from the trusted attester, or null. */
-  certificate: AppCertificate | null
+  /** Active certificates from every trusted authority that certified this product. */
+  certificates: AppCertificate[]
 }
 
 /** Map a persisted {@link LabelEntry} to a live {@link AppEntry}. */
@@ -38,7 +41,7 @@ export function labelToApp(l: LabelEntry): AppEntry {
     isLive: l.contentHash !== null,
     attestationCount: l.attestationCount,
     hasUserAttested: l.hasUserAttested,
-    certificate: l.certificate ?? null
+    certificates: l.certificates ?? []
   }
 }
 

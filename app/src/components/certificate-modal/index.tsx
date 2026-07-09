@@ -2,12 +2,11 @@ import type { ComponentChildren } from 'preact'
 
 import { useMemo, useState } from 'preact/hooks'
 
-import { BadgeCheck } from 'lucide-preact'
 import { marked } from 'marked'
 
 import { useMarkdownFromCid } from '../../hooks/use-markdown-from-cid'
-import { CERTIFICATE } from '../../lib/certificates'
 import type { AppCertificate } from '../../state/apps/types'
+import { CertificateBadge } from '../certificate-badge'
 import './styles.css'
 
 interface CertificateModalProps {
@@ -64,15 +63,16 @@ export function CertificateModal({
   certificate,
   onDismiss
 }: CertificateModalProps) {
-  // Download the markdown: the attestation contentCid when present, otherwise
-  // the deployer default. Gated on `subjectDomain` (set on first open and kept
-  // afterwards) so the content survives the close animation and never prefetches.
-  const cid = certificate?.cid ?? CERTIFICATE.contentCid
-  const { text: remote, failed } = useMarkdownFromCid(subjectDomain ? cid : null)
-  const aboutLoading = !remote && !failed
+  const title = certificate?.name ?? (certificate ? 'Certificate' : '')
 
-  // The markdown is attester/deployer-authored (trusted), so it's rendered
-  // as-is.
+  // Download the certificate markdown, the per-product content set by the
+  // authority. Gated on `subjectDomain`, which is set on first open and kept
+  // afterwards, so the content survives the close animation and never prefetches.
+  const cid = certificate?.contentCid ?? null
+  const { text: remote, failed } = useMarkdownFromCid(subjectDomain ? cid : null)
+  const aboutLoading = !!cid && !remote && !failed
+
+  // The markdown is authored by the trusted attester, so it is rendered as-is.
   const aboutHtml = useMemo(() => (remote ? marked.parse(remote, { async: false }) : ''), [remote])
 
   return (
@@ -85,16 +85,16 @@ export function CertificateModal({
         class={`certificate-modal${visible ? ' certificate-modal--visible' : ''}`}
         role='dialog'
         aria-modal='true'
-        aria-label={CERTIFICATE.name}
+        aria-label={title}
       >
         <button class='certificate-modal__close' onClick={onDismiss} aria-label='Close'>
           ✕
         </button>
         <div class='certificate-modal__hero'>
           <span class='certificate-modal__badge'>
-            <BadgeCheck size={64} strokeWidth={1.75} />
+            <CertificateBadge cid={certificate?.badgeIconCid ?? null} size={64} />
           </span>
-          <span class='certificate-modal__title'>{CERTIFICATE.name}</span>
+          <span class='certificate-modal__title'>{title}</span>
         </div>
 
         <div class='certificate-modal__body'>
@@ -108,15 +108,14 @@ export function CertificateModal({
             )}
           </section>
 
-          <section class='certificate-modal__section'>
-            <h3 class='certificate-modal__section-title'>Issued by</h3>
-            <Row label='Issuer'>{CERTIFICATE.issuer}</Row>
-            {certificate && (
+          {certificate && (
+            <section class='certificate-modal__section'>
+              <h3 class='certificate-modal__section-title'>Issued by</h3>
               <Row label='Attester Address'>
                 <CopyValue value={certificate.attester} />
               </Row>
-            )}
-          </section>
+            </section>
+          )}
 
           {certificate && (
             <section class='certificate-modal__section'>

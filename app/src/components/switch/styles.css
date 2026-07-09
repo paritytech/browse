@@ -1,0 +1,51 @@
+/* Matches the polkadot-app-ios toggle: a success-tinted track (fgSuccess) with a
+   full white thumb, native ~1.7:1 proportions. */
+.switch {
+  flex-shrink: 0;
+  position: relative;
+  width: 44px;
+  height: 26px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--surface-4);
+  cursor: pointer;
+  transition: background 200ms ease;
+}
+
+.switch:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--focus-ring, var(--fg-primary));
+}
+
+.switch--on {
+  background: var(--fg-success);
+}
+
+.switch:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.switch__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.2);
+  transition: transform 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.switch--on .switch__thumb {
+  transform: translateX(18px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .switch,
+  .switch__thumb {
+    transition: none;
+  }
+}

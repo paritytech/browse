@@ -7,6 +7,7 @@ interface ImportMetaEnv {
   readonly APP_DOTNS_DOMAIN?: string
   readonly APP_DEBUG?: string
   readonly APP_DOMAINS_SNAPSHOT_CID?: string
+  readonly APP_DEFAULT_CERTIFICATES?: string
 }
 
 interface ImportMeta {
