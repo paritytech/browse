@@ -452,9 +452,9 @@ input {
 }
 
 /* The manager entries live together in the bottom-left corner. They reveal only
-   after the product cards finish entering (`productCardIn` is 800ms) so they
-   never appear mid-animation. `both` keeps them hidden through the delay, and
-   the `key={currentMode}` on the container replays this on every tab switch. */
+   after the product cards finish entering so they never appear mid-animation. 
+   `both` keeps them hidden through the delay, and the `key={currentMode}` on 
+   the container replays this on every tab switch. */
 .corner-chips {
   position: absolute;
   left: calc(1.5rem + 16px);

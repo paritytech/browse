@@ -5,10 +5,8 @@ export interface UsernameEntry {
   account: string
 }
 
-// A People-chain lookup normally completes in <1 s. Any longer means the WS is
-// flapping (WKWebView "network connection was lost" tight-loop) and the RPC is
-// wedged behind an unstable socket. Fail fast so the caller can surface an
-// empty-result state instead of leaving the modal hung for minutes.
+// Fail fast so the caller can surface an empty-result state instead of
+// leaving the modal hung for minutes.
 const LOOKUP_TIMEOUT_MS = 5_000
 
 // Usernames live in the People chain DotNS `Resources.UsernameOwnerOf` map,
