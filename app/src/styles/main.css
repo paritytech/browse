@@ -416,76 +416,57 @@ input {
 }
 
 /* Aligns the issuer pill with the category tabs on the same row. */
-.tabs-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-/* A grey pill of enabled-authority badges. On desktop, hover reveals the
-   "Badges" label. */
-.issuer-stack {
-  display: inline-flex;
-  align-items: center;
-  height: 36px;
-  margin-right: 16px;
-  padding: 0 12px;
-  border: none;
-  border-radius: var(--radius-full, 24px);
-  background: var(--surface-3);
-  color: var(--fg-primary);
-  cursor: pointer;
-  transition: background 150ms ease;
-}
-
-.issuer-stack:hover {
-  background: var(--surface-4);
-}
-
+/* The selected issuers rendered as an overlapping badge stack, shown inside the
+   Badges corner chip. */
 .issuer-stack__marks {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+}
+
+/* Each badge image tucks under the one before it, with a ring in the page
+   background so the overlap reads as a stack. No fill: the badge image is the
+   chip. */
+.issuer-stack__chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  overflow: hidden;
+  box-shadow: 0 0 0 2px var(--bg-surface-main);
+}
+
+.issuer-stack__chip + .issuer-stack__chip {
+  margin-left: -6px;
+}
+
+/* The overflow count has no image, so it keeps a subtle fill to read as a chip. */
+.issuer-stack__chip--more {
+  background: var(--surface-3);
+  color: var(--fg-secondary);
 }
 
 .issuer-stack__marks svg {
   display: block;
 }
 
-.issuer-stack__label {
-  max-width: 0;
-  overflow: hidden;
-  white-space: nowrap;
-  opacity: 0;
-  font-family: var(--font-sans);
-  font-size: 13px;
-  font-weight: 600;
-  transition:
-    max-width 200ms ease,
-    opacity 150ms ease,
-    margin-left 200ms ease;
-}
-
-/* No enabled badges: the pill just reads "Badges" (always visible). */
-.issuer-stack__label--static {
-  max-width: none;
-  opacity: 1;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .issuer-stack:hover .issuer-stack__label,
-  .issuer-stack:focus-visible .issuer-stack__label {
-    max-width: 80px;
-    margin-left: 2px;
-    opacity: 1;
-  }
+/* The manager entries live together in the bottom-left corner. They reveal only
+   after the product cards finish entering so they never appear mid-animation. 
+   `both` keeps them hidden through the delay, and the `key={currentMode}` on 
+   the container replays this on every tab switch. */
+.corner-chips {
+  position: absolute;
+  left: calc(1.5rem + 16px);
+  bottom: 1rem;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  animation: fadeUp 300ms cubic-bezier(0.16, 1, 0.3, 1) 820ms both;
 }
 
 .corner-chip {
-  position: absolute;
-  right: calc(1.5rem + 16px);
-  bottom: 1rem;
-  z-index: 1;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -499,9 +480,8 @@ input {
   cursor: pointer;
 }
 
-.corner-chip--manage {
-  left: calc(1.5rem + 16px);
-  right: auto;
+.corner-chip--manage,
+.corner-chip--badges {
   font-family: var(--font-sans);
   font-size: var(--type-title-sm-size);
   font-weight: var(--type-title-sm-weight);
@@ -577,9 +557,9 @@ input {
     padding: 0 1rem;
   }
 
-  /* Card padding collapses to 0 on phones, so align the manage chip with the
-     app icon: the app-list inset plus the card row padding. */
-  .corner-chip--manage {
+  /* Card padding collapses to 0 on phones, so align the chips with the app
+     icon: the app-list inset plus the card row padding. */
+  .corner-chips {
     left: calc(var(--space-small) + var(--space-medium-increased));
   }
 }
@@ -645,9 +625,9 @@ input {
     grid-column: 1 / -1;
   }
 
-  /* Align the manage chip with the app content: the grid sits at the card edge
-     but each row insets its icon by the card padding, so match that inset. */
-  .corner-chip--manage {
+  /* Align the chips with the app content: the grid sits at the card edge but
+     each row insets its icon by the card padding, so match that inset. */
+  .corner-chips {
     left: var(--space-medium-increased);
   }
 

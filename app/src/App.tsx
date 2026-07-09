@@ -608,43 +608,14 @@ export function App() {
                 <SearchBar value={query} onInput={setQuery} onCancel={() => setQuery('')} />
               </div>
               {!searchMatches && (
-                <div class='tabs-row'>
-                  <CategoryTabs
-                    active={coldStart ? ['all'] : [currentMode]}
-                    disabled={coldStart}
-                    onSwitch={(mode) => {
-                      setCurrentMode(mode)
-                      setShowFollowingManager(false)
-                    }}
-                  />
-                  <button
-                    type='button'
-                    class='issuer-stack'
-                    onClick={() => setShowIssuers(true)}
-                    aria-label='Badges'
-                  >
-                    {installedBadges.length === 0 ? (
-                      <span class='issuer-stack__label issuer-stack__label--static'>Badges</span>
-                    ) : (
-                      <>
-                        <span class='issuer-stack__marks'>
-                          {installedBadges.length > 3 ? (
-                            <Plus size={16} />
-                          ) : (
-                            installedBadges.map((certificate) => (
-                              <CertificateBadge
-                                key={certificate.resolver}
-                                cid={certificate.badgeIconCid}
-                                size={16}
-                              />
-                            ))
-                          )}
-                        </span>
-                        <span class='issuer-stack__label'>Badges</span>
-                      </>
-                    )}
-                  </button>
-                </div>
+                <CategoryTabs
+                  active={coldStart ? ['all'] : [currentMode]}
+                  disabled={coldStart}
+                  onSwitch={(mode) => {
+                    setCurrentMode(mode)
+                    setShowFollowingManager(false)
+                  }}
+                />
               )}
 
               <div class='app-list' id='app-list' ref={appListRef}>
@@ -734,20 +705,47 @@ export function App() {
                 <span class='loading-dots__dot' />
               </div>
 
-              {currentMode === 'following' &&
-                (following.length > 0 || followingDisplay.size > 0) && (
+              {!coldStart && (
+                <div class='corner-chips' key={currentMode}>
+                  {currentMode === 'following' &&
+                    (following.length > 0 || followingDisplay.size > 0) && (
+                      <button
+                        type='button'
+                        class='corner-chip corner-chip--manage'
+                        onClick={() => setShowFollowingManager(true)}
+                        aria-label={`Manage following, ${following.length} address${following.length === 1 ? '' : 'es'}`}
+                      >
+                        {following.length > 0 && (
+                          <span class='corner-chip__addr'>{following.length}</span>
+                        )}
+                        <span class='corner-chip__label'>following</span>
+                      </button>
+                    )}
+
                   <button
                     type='button'
-                    class='corner-chip corner-chip--manage'
-                    onClick={() => setShowFollowingManager(true)}
-                    aria-label={`Manage following, ${following.length} address${following.length === 1 ? '' : 'es'}`}
+                    class='corner-chip corner-chip--badges'
+                    onClick={() => setShowIssuers(true)}
+                    aria-label='Badges'
                   >
-                    {following.length > 0 && (
-                      <span class='corner-chip__addr'>{following.length}</span>
+                    {installedBadges.length > 0 && (
+                      <span class='issuer-stack__marks'>
+                        {installedBadges.slice(0, 3).map((certificate) => (
+                          <span class='issuer-stack__chip' key={certificate.resolver}>
+                            <CertificateBadge cid={certificate.badgeIconCid} size={20} />
+                          </span>
+                        ))}
+                        {installedBadges.length > 3 && (
+                          <span class='issuer-stack__chip issuer-stack__chip--more'>
+                            <Plus size={14} />
+                          </span>
+                        )}
+                      </span>
                     )}
-                    <span class='corner-chip__label'>following</span>
+                    <span class='corner-chip__label'>badges</span>
                   </button>
-                )}
+                </div>
+              )}
             </div>
 
             <div class='card back' id='card-back'>

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'preact/hooks'
 
 import { preimageManager } from '@novasamatech/host-api-wrapper'
 
-import { NETWORK } from '../lib/config'
 import { cidToBlake2b256DigestHex } from '../state/apps/icon'
 
 export interface UseMarkdownResult {
@@ -10,17 +9,16 @@ export interface UseMarkdownResult {
   failed: boolean
 }
 
-// How long to wait for the host preimage manager before falling back to the
-// IPFS gateway. Standalone (no embedding host) the lookup never resolves, so the
-// gateway is the only path.
-const PREIMAGE_TIMEOUT_MS = 1500
+// Without an embedding host the preimage lookup never resolves, so this bounds
+// the wait before the section is hidden.
+const PREIMAGE_TIMEOUT_MS = 3000
 
 /**
- * Fetch UTF-8 markdown stored at a `CIDv1(raw, blake2b-256)`.
+ * Fetch UTF-8 markdown stored at a `CIDv1(raw, blake2b-256)` via the host
+ * preimage manager, the same path icons use.
  *
- * Prefers the host preimage manager (the same path icons use), then falls back
- * to the network IPFS gateway when the host is absent or the lookup is
- * interrupted. `failed` lets callers hide the section.
+ * `failed` lets callers hide the section when the host is absent, the lookup is
+ * interrupted, or the CID is malformed.
  */
 export function useMarkdownFromCid(cid: string | null): UseMarkdownResult {
   const [text, setText] = useState<string | null>(null)
@@ -39,39 +37,26 @@ export function useMarkdownFromCid(cid: string | null): UseMarkdownResult {
       else setText(value)
     }
 
-    async function fetchGateway() {
-      try {
-        const res = await fetch(`${NETWORK.IPFS_GATEWAY}/ipfs/${cid}`)
-        finish(res.ok ? await res.text() : null)
-      } catch {
-        finish(null)
-      }
-    }
-
-    let key: `0x${string}` | null = null
+    let key: `0x${string}`
     try {
       key = cidToBlake2b256DigestHex(cid)
     } catch {
-      // Legacy/malformed CID: skip the preimage path and try the gateway.
+      // Legacy or malformed CID: nothing to look up.
+      finish(null)
+      return
     }
 
-    const subscription = key
-      ? preimageManager.lookup(key, (bytes) => {
-          if (bytes) finish(new TextDecoder().decode(bytes))
-        })
-      : null
-    subscription?.onInterrupt(() => {
-      if (!done) void fetchGateway()
+    const subscription = preimageManager.lookup(key, (bytes) => {
+      if (bytes) finish(new TextDecoder().decode(bytes))
     })
+    subscription.onInterrupt(() => finish(null))
 
-    const timer = setTimeout(() => {
-      if (!done) void fetchGateway()
-    }, PREIMAGE_TIMEOUT_MS)
+    const timer = setTimeout(() => finish(null), PREIMAGE_TIMEOUT_MS)
 
     return () => {
       done = true
       clearTimeout(timer)
-      subscription?.unsubscribe()
+      subscription.unsubscribe()
     }
   }, [cid])
 
