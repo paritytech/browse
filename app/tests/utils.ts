@@ -14,6 +14,38 @@ const APP_URL = `http://localhost:${PORT}`
 export const DEV_PHRASE =
   'learn antenna mansion inform acoustic laptop worth hunt season model senior thrive'
 
+/** Returns the run-unique id shared by the wallet path and username, or undefined locally. */
+function runId(): string | undefined {
+  return process.env.GITHUB_RUN_ID ?? process.env.E2E_RUN_ID
+}
+
+/**
+ * Derives the wallet path for the per-run identity, off `smalltava.05`. Each CI
+ * run gets a unique identity so a dead account leaving a stuck one-per-identity
+ * lock on one run never blocks another, and concurrent runs never contend on the
+ * same identity. Locally it falls back to the bare wallet, where a single actor
+ * needs no isolation.
+ */
+export function identityPath(): string {
+  const id = runId()
+  return id ? `//wallet//run${id}` : '//wallet'
+}
+
+/** Builds the host uri for the per-run identity, matching {@link identityPath}. */
+export function identityUri(): string {
+  return `${DEV_PHRASE}${identityPath()}`
+}
+
+/**
+ * Returns the DotNS username the per-run identity reveals on a first
+ * recommendation. Locally it falls back to the real `smalltava.05`, which the
+ * master identity already owns.
+ */
+export function identityUsername(): string {
+  const id = runId()
+  return id ? `smalltava.05.run${id}` : 'smalltava.05'
+}
+
 type Account = import('@parity/host-api-test-sdk').Account
 type NetworkConfig = import('@parity/host-api-test-sdk').NetworkConfig
 
