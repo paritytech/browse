@@ -24,6 +24,7 @@ exclude = [
 	"github\\.com/paritytech/dotns",
 	"github\\.com/paritytech/attestation-protocol",
 	"github\\.com/paritytech/triangle-js-sdks",
+	"github\\.com/paritytech/individuality",
 ]
 
 # Vendored or tooling-generated markdown we don't own.
