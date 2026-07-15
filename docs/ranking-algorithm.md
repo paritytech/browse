@@ -1,3 +1,13 @@
+---
+summary: "The composite score that orders the All and Following tabs: recency-weighted recommend demand, times freshness, certification, and completeness modifiers."
+title: "Ranking Algorithm"
+read_when:
+  - You are changing how the All or Following tab orders apps
+  - You are tuning the ranking weights or half-lives
+  - You are adding a new ranking signal
+  - You are debugging why an app ranks where it does
+---
+
 # Browse ranking algorithm
 
 |                 |                                                                                              |
