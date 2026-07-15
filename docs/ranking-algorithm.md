@@ -8,11 +8,11 @@
 
 ## Summary
 
-Rank apps by a recency-weighted recommend score, then apply multiplicative modifiers: a strong decaying freshness boost, a strong certification boost, and a gentle completeness penalty. This is the concrete scoring spec. The objective is to surface what verified humans value now, give new and maintained apps a fair shot, and resist gaming by construction.
+Rank apps by a recency-weighted recommend score, then apply multiplicative modifiers for freshness, certification, and completeness. This is the concrete scoring spec. The objective is to surface what verified humans value now, give new and maintained apps a fair shot, and resist gaming by construction.
 
 ## Motivation
 
-Browse ranks its one list by a lifetime recommend count today, which is stale and traps new apps at the bottom. This spec replaces that with a composite score: demand velocity as the lever, plus a strong but decaying freshness boost, a strong certification boost, and a gentle completeness penalty. Every marketplace studied ranks on recent velocity and treats reviews or trust as a nudge, not the primary rank, so the shape here follows proven prior art.
+Browse ranks its one list by a lifetime recommend count today, which is stale and traps new apps at the bottom. This spec replaces that with a composite score: demand velocity as the lever, plus freshness, certification, and completeness modifiers. Every marketplace studied ranks on recent velocity and treats reviews or trust as a nudge, not the primary rank, so the shape here follows proven prior art.
 
 ## Stakeholders
 
@@ -29,7 +29,7 @@ Browse ranks its one list by a lifetime recommend count today, which is stale an
 score(app) = Demand(app) * Freshness(app) * Trust(app) * Quality(app)
 ```
 
-The form is multiplicative so it is scale-free and easy to tune, and every modifier stays gentle so Demand remains the lever. Tie-break by lifetime recommend count descending, then display name.
+The form is multiplicative so it is scale-free and easy to tune. Demand is the lever and the other terms multiply it. Tie-break by lifetime recommend count descending, then display name.
 
 ### Demand
 
@@ -46,7 +46,7 @@ Freshness(app) = 1 + newBoost    * 0.5 ^ (ageSincePublish / newHalfLife)
                    + updateBoost * 0.5 ^ (ageSinceUpdate  / updateHalfLife)
 ```
 
-A lift for new and recently-updated apps that decays back to `1`. `ageSincePublish` is the time since the earliest `Published` event for the label. `ageSinceUpdate` is the time since the last real content change, meaning the `contentHash` changed and not a republish that only refreshes the timestamp. Propose `newBoost = 1.0, newHalfLife = 14 days` for the launch window, and `updateBoost = 0.5, updateHalfLife = 14 days` for genuine updates. Freshness is the strongest modifier by design: a brand-new app can be lifted up to `2.5x`, so it gets a real, decaying head start rather than a token nudge, which is how a new app escapes the cold-start trap.
+A lift for new and recently-updated apps that decays back to `1`. `ageSincePublish` is the time since the earliest `Published` event for the label. `ageSinceUpdate` is the time since the last real content change, meaning the `contentHash` changed and not a republish that only refreshes the timestamp. Propose `newBoost = 1.0, newHalfLife = 14 days` for the launch window, and `updateBoost = 0.5, updateHalfLife = 14 days` for genuine updates. A brand-new app is lifted up to `2.5x` and decays back to `1`, so a new or updated app is not stuck at the bottom while it earns recommends.
 
 The client ships the `newBoost` term only. It reads `ageSincePublish` from `Publisher.publicationOf(labelhash).timestamp`, a view call with no index needed. That value is the last publish, so it equals first publish for an app never republished, and a republish refreshes it. The `updateBoost` term is not applied yet: it needs the dotNS content-hash change time, which is not a view (see [paritytech/dotns#193](https://github.com/paritytech/dotns/issues/193)).
 
@@ -56,7 +56,7 @@ The client ships the `newBoost` term only. It reads `ageSincePublish` from `Publ
 Trust(app) = certified ? 2.0 : 1.0
 ```
 
-A strong boost for a certified app, though not a gate, because publishing is permissionless. `certified` means the app holds at least one active certificate from a trusted authority, the `certificates` field on the app. The same flag also filters a curated Featured lane.
+A boost for a certified app, not a gate, because publishing is permissionless. `certified` means the app holds at least one active certificate from a trusted authority, the `certificates` field on the app. The same flag also filters a curated Featured lane.
 
 ### Quality
 
@@ -66,15 +66,17 @@ Quality(app) = (hasIcon and hasDescription and isLive) ? 1.0 : 0.6
 
 A completeness check that pushes broken or empty listings down without hiding them. All three come from the app entry ([types.ts:17](../app/src/state/apps/types.ts#L17)): an icon, a description, and `isLive`, which is true when `contentHash` is set.
 
-### Why multiplicative, and how the modifiers are weighted
+### Notes
 
-Demand is the lever. Freshness (up to about `2.5x`) and Trust (`2.0x` when certified) are deliberate strong boosts, so a new or a certified app gets a real chance to be seen rather than a token nudge. Only Quality stays a gentle penalty, `0.6`, for an incomplete listing. A genuinely popular app, with many recommends, still tops the list because Demand dwarfs the modifiers once the count is high, but a certified or brand-new app can now outrank a lightly-recommended one. The `demandPrior` is what lets Freshness and Trust surface a brand-new app that has no recommends yet.
+#### Why multiplicative, and how the modifiers are weighted
 
-### Last update is a boost, not a penalty
+Demand is the lever. Freshness reaches up to `2.5x` and Trust `2.0x` when certified, so a new or certified app can outrank a lightly-recommended one, while Quality multiplies by `0.6` for an incomplete listing. A popular app still tops the list, because Demand dwarfs the modifiers once the count is high. `demandPrior` lets Freshness and Trust surface a brand-new app that has no recommends yet.
+
+#### Last update is a boost, not a penalty
 
 Do not decay an old but loved app. Its Demand carries it. Reward a genuine update through the Freshness term, and ignore an empty republish, which changes the timestamp but not the `contentHash`.
 
-### Cold start
+#### Cold start
 
 When the whole catalog has near-zero Demand, the Freshness and Trust terms dominate on their own, and a hand-picked Editorial order overrides the score until there is real signal.
 
@@ -125,6 +127,7 @@ The composite follows patterns proven across app and content marketplaces: the A
 ## Unresolved Questions
 
 - The constants (`recommendHalfLife`, `demandPrior`, `newBoost`, `newHalfLife`, `updateBoost`, `updateHalfLife`, and the modifier caps) need tuning from real data.
+- The `ageSinceUpdate` half of Freshness is not computable yet. dotNS exposes no content-update time, only the current `contenthash`, so the `updateBoost` term stays off until dotNS adds an `updatedAt` view (dotns [#193](https://github.com/paritytech/dotns/issues/193)) or an events index supplies it.
 - Whether to blend one order or run a separate short-half-life trending view beside the main order.
 - The exact per-follow-cluster cap, which needs the follow graph and its own design.
 
