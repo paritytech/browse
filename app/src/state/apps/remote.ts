@@ -7,7 +7,7 @@
 
 import { keccak_256 } from '@noble/hashes/sha3.js'
 import { attestationVersions, publisherReadAddresses } from '@parity/browse-sdk'
-import { toHex } from 'viem'
+import { decodeFunctionResult, encodeFunctionData, parseAbi, toHex } from 'viem'
 
 import { parseRootManifest } from './manifest'
 import type { AppCertificate } from './types'
@@ -55,6 +55,28 @@ export function certificateIdentityFrom(
     contentCid: decoded.cid,
     badgeIconCid: decoded.badgeIconCid
   }
+}
+
+const PUBLICATION_ABI = parseAbi([
+  'function publicationOf(bytes32 labelhash) view returns ((address publisher, uint64 timestamp, uint32 indexPlusOne))'
+])
+
+function encodePublicationOf(labelhash: `0x${string}`): `0x${string}` {
+  return encodeFunctionData({
+    abi: PUBLICATION_ABI,
+    functionName: 'publicationOf',
+    args: [labelhash]
+  })
+}
+
+/** Publish time in unix seconds from a `publicationOf` result, or null when the label is absent from that Publisher. */
+function decodePublishedAt(data: `0x${string}`): number | null {
+  const pub = decodeFunctionResult({
+    abi: PUBLICATION_ABI,
+    functionName: 'publicationOf',
+    data
+  }) as { timestamp: bigint; indexPlusOne: number }
+  return pub.indexPlusOne === 0 ? null : Number(pub.timestamp)
 }
 
 /** Decode one Multicall3 sub-result, swallowing per-call failures as `null`. */
@@ -236,6 +258,31 @@ export async function hydrateLabelChunk(
     metaResults = await multicall(metaCalls)
   }
 
+  // Publish time drives the freshness rank. A record for a label can live on any
+  // deployed Publisher, since older records stay put across redeployments, so
+  // probe each and keep the latest timestamp found.
+  const publishedAtByIndex = new Map<number, number>()
+  const publishers = publisherReadAddresses(NETWORK)
+  if (liveIndexes.length > 0 && publishers.length > 0) {
+    const pubCalls: MulticallTarget[] = []
+    for (const chunkIndex of liveIndexes) {
+      const labelhash = labelhashOf(chunk[chunkIndex])
+      for (const publisher of publishers) {
+        pubCalls.push({ target: publisher, callData: encodePublicationOf(labelhash) })
+      }
+    }
+    const pubResults = await multicall(pubCalls)
+    let p = 0
+    for (const chunkIndex of liveIndexes) {
+      let latest: number | null = null
+      for (let i = 0; i < publishers.length; i++) {
+        const ts = tryDecode(pubResults[p++], decodePublishedAt)
+        if (ts !== null && (latest === null || ts > latest)) latest = ts
+      }
+      if (latest !== null) publishedAtByIndex.set(chunkIndex, latest)
+    }
+  }
+
   const fetchedAt = Date.now()
   const now = BigInt(Math.floor(fetchedAt / 1000))
   const out: LabelEntry[] = []
@@ -304,7 +351,8 @@ export async function hydrateLabelChunk(
       attestationCount,
       certificates,
       hasUserAttested,
-      fetchedAt
+      fetchedAt,
+      publishedAt: publishedAtByIndex.get(chunkIndex)
     })
   }
   return out

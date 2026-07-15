@@ -14,6 +14,7 @@ export interface LabelEntry {
   certificates?: AppCertificate[]
   fetchedAt?: number
   published?: boolean
+  publishedAt?: number
 }
 
 export async function readLabels(): Promise<LabelEntry[]> {

@@ -195,7 +195,8 @@ export function App() {
         isLive: cached?.contentHash != null,
         attestationCount: cached?.attestationCount ?? null,
         hasUserAttested: cached?.hasUserAttested ?? false,
-        certificates: cached?.certificates ?? []
+        certificates: cached?.certificates ?? [],
+        publishedAt: cached?.publishedAt ?? null
       })
     }
     for (const label of followingDisplay) addLabel(label)
@@ -322,7 +323,8 @@ export function App() {
           isLive: false,
           attestationCount: null,
           hasUserAttested: false,
-          certificates: []
+          certificates: [],
+          publishedAt: null
         } satisfies AppEntry,
         snapshotOnly: true
       }))
