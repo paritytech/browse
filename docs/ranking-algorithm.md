@@ -8,11 +8,11 @@
 
 ## Summary
 
-Rank apps by a recency-weighted recommend score, then apply multiplicative modifiers: a strong decaying freshness boost, a strong certification boost, and a gentle completeness penalty. This is the concrete scoring spec that implements the surfacing design in [ranking-design-v1.md](./ranking-design-v1.md). The objective is to surface what verified humans value now, give new and maintained apps a fair shot, and resist gaming by construction.
+Rank apps by a recency-weighted recommend score, then apply multiplicative modifiers: a strong decaying freshness boost, a strong certification boost, and a gentle completeness penalty. This is the concrete scoring spec that implements the surfacing design in `ranking-design-v1.md`. The objective is to surface what verified humans value now, give new and maintained apps a fair shot, and resist gaming by construction.
 
 ## Motivation
 
-Browse ranks its one list by a lifetime recommend count today, which is stale and traps new apps at the bottom. This spec replaces that with a composite score: demand velocity as the lever, plus a strong but decaying freshness boost, a strong certification boost, and a gentle completeness penalty. Every marketplace studied ranks on recent velocity and treats reviews or trust as a nudge, not the primary rank, so the shape here follows proven prior art. See [ranking-design-v1.md](./ranking-design-v1.md) for the full reasoning.
+Browse ranks its one list by a lifetime recommend count today, which is stale and traps new apps at the bottom. This spec replaces that with a composite score: demand velocity as the lever, plus a strong but decaying freshness boost, a strong certification boost, and a gentle completeness penalty. Every marketplace studied ranks on recent velocity and treats reviews or trust as a nudge, not the primary rank, so the shape here follows proven prior art. See `ranking-design-v1.md` for the full reasoning.
 
 ## Stakeholders
 
@@ -76,7 +76,7 @@ Do not decay an old but loved app. Its Demand carries it. Reward a genuine updat
 
 ### Cold start
 
-When the whole catalog has near-zero Demand, the Freshness and Trust terms dominate on their own, and a hand-picked Editorial order overrides the score until there is real signal. See [ranking-design-v1.md](./ranking-design-v1.md).
+When the whole catalog has near-zero Demand, the Freshness and Trust terms dominate on their own, and a hand-picked Editorial order overrides the score until there is real signal. See `ranking-design-v1.md`.
 
 ## Drawbacks
 
@@ -117,7 +117,7 @@ The change is to the comparison only. It reuses the existing sticky-order snapsh
 
 The composite follows patterns proven across app and content marketplaces: the App Store and Google Play rank charts on recent install velocity rather than lifetime totals, Product Hunt ranks by weighted votes with time decay, and Steam shows a recent-30-day review score beside the all-time one so the divergence flags a decline. Reviews and trust act as a gate or a nudge everywhere, not as the primary rank, which is why the modifiers here stay small.
 
-- [ranking-design-v1.md](./ranking-design-v1.md): the design and reasoning behind this score.
+- `ranking-design-v1.md`: the design and reasoning behind this score.
 - [`filterApps`](../app/src/state/apps/types.ts#L56): where the sort lives today.
 - [types.ts:17](../app/src/state/apps/types.ts#L17): the app entry fields the score reads.
 - [RecipientAndAttesterIndexResolver.sol](../evm/src/RecipientAndAttesterIndexResolver.sol): one recommend per identity.
@@ -131,4 +131,4 @@ The composite follows patterns proven across app and content marketplaces: the A
 
 ## Future Directions and Related Material
 
-Once the [honour pallet](https://github.com/paritytech/individuality/pull/663) is live on the networks Browse targets, honour becomes a per-recommend credibility weight inside Demand and a downvote that can pull a bad app down, not just fail to lift it. The per-cluster cap and a broader certificate-gated Featured lane build on the same inputs. See [ranking-design-v1.md](./ranking-design-v1.md) for how these fit the surfacing design.
+Once the [honour pallet](https://github.com/paritytech/individuality/pull/663) is live on the networks Browse targets, honour becomes a per-recommend credibility weight inside Demand and a downvote that can pull a bad app down, not just fail to lift it. The per-cluster cap and a broader certificate-gated Featured lane build on the same inputs. See `ranking-design-v1.md` for how these fit the surfacing design.
