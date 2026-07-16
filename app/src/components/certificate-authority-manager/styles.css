@@ -180,10 +180,17 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
   font-family: var(--font-sans);
   font-size: var(--type-title-sm-size, 14px);
   font-weight: 600;
   color: var(--fg-primary);
+}
+
+/* Only the name text truncates; the Default pill stays fully visible instead of
+   being clipped under the toggle. */
+.ca-modal__name-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

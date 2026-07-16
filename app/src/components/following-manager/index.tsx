@@ -23,6 +23,8 @@ interface FollowingManagerProps {
   onAdd: (address: string, username?: string) => void
   onRemove: (address: string) => void
   onDismiss: () => void
+  /** Render just the body, for embedding inside the settings modal tab. */
+  embedded?: boolean
 }
 
 function truncateAddress(addr: string): string {
@@ -38,7 +40,8 @@ export function FollowingManager({
   visible,
   onAdd,
   onRemove,
-  onDismiss
+  onDismiss,
+  embedded = false
 }: FollowingManagerProps) {
   const [input, setInput] = useState('')
   const [result, setResult] = useState<UsernameEntry | null>(null)
@@ -62,7 +65,9 @@ export function FollowingManager({
       return
     }
     // Drop the caret into the field once the open transition starts.
-    const id = setTimeout(() => inputRef.current?.focus(), 50)
+    // `preventScroll` stops the browser scrolling an ancestor to reveal the
+    // input — which would shift the customize popover's slide track sideways.
+    const id = setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 50)
     return () => clearTimeout(id)
   }, [visible])
 
@@ -126,6 +131,107 @@ export function FollowingManager({
 
   const searchMode = trimmed.length > 0
 
+  const body = (
+    <div class='following-modal__body'>
+      <div class='following-modal__input-row'>
+        <div class='following-modal__field'>
+          <span class='following-modal__at'>@</span>
+          <input
+            ref={inputRef}
+            class='following-modal__input'
+            type='text'
+            autocomplete='off'
+            spellcheck={false}
+            placeholder='username'
+            value={input}
+            onInput={(e) => setInput((e.target as HTMLInputElement).value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                commit()
+              } else if (e.key === 'Backspace' && input === '' && following.length > 0) {
+                // Pull the last-followed username back into the field so it can
+                // be edited rather than dropped outright.
+                const last = following[following.length - 1]
+                onRemove(last.address)
+                setInput(last.username ?? last.address)
+              } else if (e.key === 'Escape') {
+                onDismiss()
+              }
+            }}
+          />
+        </div>
+      </div>
+
+      {searchMode ? (
+        <div class='following-modal__results'>
+          {ss58 ? (
+            isFollowing(trimmed) ? (
+              <p class='following-modal__state'>You already follow this address</p>
+            ) : (
+              <button type='button' class='following-modal__option' onClick={() => follow(trimmed)}>
+                <span
+                  class='following-modal__avatar'
+                  style={{ backgroundColor: avatarBg(trimmed) }}
+                >
+                  {trimmed.charAt(0).toUpperCase()}
+                </span>
+                <span class='following-modal__row-label'>{truncateAddress(trimmed)}</span>
+              </button>
+            )
+          ) : searching ? (
+            <p class='following-modal__state'>Searching…</p>
+          ) : result ? (
+            isFollowing(result.account) ? (
+              <p class='following-modal__state'>You already follow @{result.username}</p>
+            ) : (
+              <button
+                type='button'
+                class='following-modal__option'
+                onClick={() => follow(result.account, result.username)}
+              >
+                <span
+                  class='following-modal__avatar'
+                  style={{ backgroundColor: avatarBg(result.username) }}
+                >
+                  {result.username.charAt(0).toUpperCase()}
+                </span>
+                <span class='following-modal__row-label'>{result.username}</span>
+              </button>
+            )
+          ) : (
+            <p class='following-modal__state'>No results for “{query}”</p>
+          )}
+        </div>
+      ) : (
+        following.length > 0 && (
+          <div class='following-modal__following'>
+            {following.map((account) => (
+              <div key={account.address} class='following-modal__row'>
+                <span
+                  class='following-modal__avatar'
+                  style={{ backgroundColor: avatarBg(account.username ?? account.address) }}
+                >
+                  {(account.username ?? account.address).charAt(0).toUpperCase()}
+                </span>
+                <span class='following-modal__row-label'>{accountLabel(account)}</span>
+                <button
+                  type='button'
+                  class='following-modal__unfollow'
+                  onClick={() => onRemove(account.address)}
+                >
+                  Unfollow
+                </button>
+              </div>
+            ))}
+          </div>
+        )
+      )}
+    </div>
+  )
+
+  if (embedded) return body
+
   return (
     <div
       class={`following-modal-overlay${visible ? ' following-modal-overlay--visible' : ''}`}
@@ -138,107 +244,7 @@ export function FollowingManager({
             <X size={22} />
           </button>
         </div>
-
-        <div class='following-modal__body'>
-          <div class='following-modal__input-row'>
-            <div class='following-modal__field'>
-              <span class='following-modal__at'>@</span>
-              <input
-                ref={inputRef}
-                class='following-modal__input'
-                type='text'
-                autocomplete='off'
-                spellcheck={false}
-                placeholder='username'
-                value={input}
-                onInput={(e) => setInput((e.target as HTMLInputElement).value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    commit()
-                  } else if (e.key === 'Backspace' && input === '' && following.length > 0) {
-                    // Pull the last-followed username back into the field so it can
-                    // be edited rather than dropped outright.
-                    const last = following[following.length - 1]
-                    onRemove(last.address)
-                    setInput(last.username ?? last.address)
-                  } else if (e.key === 'Escape') {
-                    onDismiss()
-                  }
-                }}
-              />
-            </div>
-          </div>
-
-          {searchMode ? (
-            <div class='following-modal__results'>
-              {ss58 ? (
-                isFollowing(trimmed) ? (
-                  <p class='following-modal__state'>You already follow this address</p>
-                ) : (
-                  <button
-                    type='button'
-                    class='following-modal__option'
-                    onClick={() => follow(trimmed)}
-                  >
-                    <span
-                      class='following-modal__avatar'
-                      style={{ backgroundColor: avatarBg(trimmed) }}
-                    >
-                      {trimmed.charAt(0).toUpperCase()}
-                    </span>
-                    <span class='following-modal__row-label'>{truncateAddress(trimmed)}</span>
-                  </button>
-                )
-              ) : searching ? (
-                <p class='following-modal__state'>Searching…</p>
-              ) : result ? (
-                isFollowing(result.account) ? (
-                  <p class='following-modal__state'>You already follow @{result.username}</p>
-                ) : (
-                  <button
-                    type='button'
-                    class='following-modal__option'
-                    onClick={() => follow(result.account, result.username)}
-                  >
-                    <span
-                      class='following-modal__avatar'
-                      style={{ backgroundColor: avatarBg(result.username) }}
-                    >
-                      {result.username.charAt(0).toUpperCase()}
-                    </span>
-                    <span class='following-modal__row-label'>{result.username}</span>
-                  </button>
-                )
-              ) : (
-                <p class='following-modal__state'>No results for “{query}”</p>
-              )}
-            </div>
-          ) : (
-            following.length > 0 && (
-              <div class='following-modal__following'>
-                {following.map((account) => (
-                  <div key={account.address} class='following-modal__row'>
-                    <span
-                      class='following-modal__avatar'
-                      style={{ backgroundColor: avatarBg(account.username ?? account.address) }}
-                    >
-                      {(account.username ?? account.address).charAt(0).toUpperCase()}
-                    </span>
-                    <span class='following-modal__row-label'>{accountLabel(account)}</span>
-                    <button
-                      type='button'
-                      class='following-modal__unfollow'
-                      onClick={() => onRemove(account.address)}
-                    >
-                      Unfollow
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )
-          )}
-        </div>
+        {body}
       </div>
     </div>
   )

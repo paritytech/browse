@@ -1,11 +1,11 @@
 import { type VNode } from 'preact'
 
 import { useDeferredValue } from 'preact/compat'
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { createAccountsProvider } from '@novasamatech/host-api-wrapper'
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowUp, Bookmark, Package, Plus } from 'lucide-preact'
+import { ArrowLeft, ArrowUp, Bookmark, MoreVertical, Package, X } from 'lucide-preact'
 
 import { CategoryTabs } from './components/category-tabs'
 import { CertificateAuthorityManager } from './components/certificate-authority-manager'
@@ -44,7 +44,7 @@ import {
   isFilterMode
 } from './state/apps/types'
 import {
-  useKnownCertificateAuthorities,
+  useCertificateAuthorities,
   useSelectedCertificateAuthorities
 } from './state/certificate-authorities/queries'
 import { follow, type FollowedAccount, getFollowing, unfollow } from './state/following/api'
@@ -54,6 +54,10 @@ import {
 } from './state/recommendations/queries'
 
 const SEARCH_GROUP_PRIORITY: FilterMode[] = ['bookmarks', 'following', 'all']
+
+// Number of certificate-authority badge marks shown in the menu before the rest
+// collapse into a `+N` chip.
+const MENU_BADGE_LIMIT = 3
 
 // Minimum time the loading dots stay up after a mobile pull-refresh, so the
 // gesture has visible feedback even when the connection reset resolves instantly.
@@ -90,8 +94,17 @@ export function App() {
   )
   const [signed, setSigned] = useState(false)
   const [following, setFollowing] = useState<FollowedAccount[]>([])
-  const [showFollowingManager, setShowFollowingManager] = useState(false)
-  const [showIssuers, setShowIssuers] = useState(false)
+  // The ⋮ trigger at the trailing edge of the category tabs opens a small
+  // anchored popover. The back arrow returns to the menu.
+  // The cross closes the whole popover.
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [view, setView] = useState<'menu' | 'following' | 'badges'>('menu')
+  // Fixed viewport coordinates for the popover, measured off the trigger on open.
+  const [anchor, setAnchor] = useState<{ top: number; right: number } | null>(null)
+  // The popover height, animated to the measured content height of the active
+  // view so the modal expands and collapses smoothly between the menu and a
+  // manager.
+  const [popoverHeight, setPopoverHeight] = useState<number>()
   const [suggestionPrefix, setSuggestionPrefix] = useState('')
   // Touch devices get a minimum-visible hold on the dots after a pull-refresh.
   const [pullRefreshFloor, setPullRefreshFloor] = useState(false)
@@ -115,6 +128,15 @@ export function App() {
   // Live source for the sticky order, refreshed each render below, read (not
   // depended on) by orderedLabels.
   const orderSourceRef = useRef<AppEntry[]>([])
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const popoverRef = useRef<HTMLDivElement>(null)
+  // Natural-height inner of each view, measured to animate the popover height as
+  // it expands from the menu into a manager and back.
+  const menuInnerRef = useRef<HTMLDivElement>(null)
+  const drillInnerRef = useRef<HTMLDivElement>(null)
+  // Holds the last drilled view while collapsing back to the menu so its content
+  // doesn't blank mid-transition.
+  const lastDrillRef = useRef<'following' | 'badges'>('following')
 
   // Derived state and query data. This is one dependency chain, not a reorderable
   // set: each query feeds a memo that feeds the next, so the kinds necessarily
@@ -173,10 +195,16 @@ export function App() {
   // certificate, and only selected ones render as badges. Toggling an authority
   // in the manager updates this set and re-filters instantly, with no re-sync.
   const { data: selectedAuthorities = [] } = useSelectedCertificateAuthorities()
-  const { data: knownAuthorities = [] } = useKnownCertificateAuthorities()
+  const { data: certificateAuthorities = [] } = useCertificateAuthorities()
   const selectedResolvers = useMemo(
     () => new Set(selectedAuthorities.map((resolver) => resolver.toLowerCase())),
     [selectedAuthorities]
+  )
+  // Enabled authorities: the catalog filtered to the selected resolver set. Used
+  // to render the stacked badge images on the menu's Badges row.
+  const enabledCertificateAuthorities = useMemo(
+    () => certificateAuthorities.filter((ca) => selectedResolvers.has(ca.resolver.toLowerCase())),
+    [certificateAuthorities, selectedResolvers]
   )
   const appsForFiltering = useMemo(() => {
     const byLabel = new Map<string, AppEntry>()
@@ -217,13 +245,6 @@ export function App() {
   // Labels from the Publisher set, used to scope the All tab to published apps
   // only (bookmarked/followed entries belong to their own tabs).
   const publishedLabels = useMemo(() => new Set(allApps.map((app) => app.label)), [allApps])
-  // The selected authorities shown as badges in the pill, the known set filtered
-  // by the same selected resolvers as the card badges. Toggling in the manager
-  // updates it immediately, independent of whether it certified any loaded app.
-  const installedBadges = useMemo(
-    () => knownAuthorities.filter((authority) => selectedResolvers.has(authority.resolver)),
-    [knownAuthorities, selectedResolvers]
-  )
   const filtered = useMemo(() => {
     const result = filterApps(
       appsForFiltering,
@@ -481,6 +502,14 @@ export function App() {
     heroLabelRef.current = label
     setOrderNonce((n) => n + 1)
   })
+  // Open the popover, anchoring it right-aligned under the ⋮ by measuring the
+  // trigger. `next` lets the empty-state button expand straight into Following.
+  const openMenu = (next: 'menu' | 'following' = 'menu') => {
+    const rect = triggerRef.current?.getBoundingClientRect()
+    if (rect) setAnchor({ top: rect.bottom + 8, right: window.innerWidth - rect.right })
+    setView(next)
+    setMenuOpen(true)
+  }
 
   // Debounce the snapshot-suggestion prefix ~150ms behind the raw query.
   useEffect(() => {
@@ -559,6 +588,53 @@ export function App() {
     const id = setTimeout(() => setDebouncedQuery(query), 500)
     return () => clearTimeout(id)
   }, [query])
+  // Always reopen on the menu view.
+  useEffect(() => {
+    if (!menuOpen) setView('menu')
+  }, [menuOpen])
+  // Light-dismiss the popover on Escape, or any scroll or resize so it never
+  // floats detached from the trigger. Scroll is captured so a scroll inside the
+  // app list, not just the window, also closes it. Outside clicks close via the
+  // transparent catcher rendered under the popover.
+  useEffect(() => {
+    if (!menuOpen) return
+    const close = () => setMenuOpen(false)
+    const onScroll = (e: Event) => {
+      // Ignore scrolling inside the popover itself, and the scroll a focused
+      // embedded input triggers as it settles. Only the page scrolling out from
+      // under the trigger should close it.
+      const target = e.target
+      if (target instanceof Node && popoverRef.current?.contains(target)) return
+      setMenuOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('scroll', onScroll, true)
+    window.addEventListener('resize', close)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('scroll', onScroll, true)
+      window.removeEventListener('resize', close)
+    }
+  }, [menuOpen])
+  // Animate the popover height to the natural content height of the active view,
+  // so it expands as a view drills in and collapses on the way back. A
+  // ResizeObserver keeps it in step as the embedded managers load their data.
+  useLayoutEffect(() => {
+    if (!menuOpen) return
+    const inner = view === 'menu' ? menuInnerRef.current : drillInnerRef.current
+    if (!inner) return
+    // offsetHeight, not getBoundingClientRect: the latter is scaled by the
+    // popover entrance animation, which would measure the height ~8% short and
+    // clip the bottom padding.
+    const measure = () => setPopoverHeight(inner.offsetHeight)
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(inner)
+    return () => observer.disconnect()
+  }, [menuOpen, view, following.length, enabledCertificateAuthorities.length])
   // Pushing past the end of the list fully re-establishes the chain connection
   // (resetBrowseSdk) and re-syncs. Disabled while a sync runs, while searching,
   // or on the local bookmarks tab.
@@ -598,6 +674,11 @@ export function App() {
     !followingLoading
   const emptyAll = currentMode === 'all' && filtered.length === 0 && !query && !allFetching
 
+  // The drill pane always renders one manager: the active drill view, or the last
+  // one while collapsing back to the menu so it doesn't blank mid-transition.
+  if (view !== 'menu') lastDrillRef.current = view
+  const drill = view === 'menu' ? lastDrillRef.current : view
+
   return (
     <ToastContext.Provider value={{ showToast }}>
       <div class='page' ref={rootRef}>
@@ -608,14 +689,27 @@ export function App() {
                 <SearchBar value={query} onInput={setQuery} onCancel={() => setQuery('')} />
               </div>
               {!searchMatches && (
-                <CategoryTabs
-                  active={coldStart ? ['all'] : [currentMode]}
-                  disabled={coldStart}
-                  onSwitch={(mode) => {
-                    setCurrentMode(mode)
-                    setShowFollowingManager(false)
-                  }}
-                />
+                <div class='tabs-row'>
+                  <CategoryTabs
+                    active={coldStart ? ['all'] : [currentMode]}
+                    disabled={coldStart}
+                    onSwitch={(mode) => {
+                      setCurrentMode(mode)
+                      setMenuOpen(false)
+                    }}
+                  />
+                  <button
+                    type='button'
+                    ref={triggerRef}
+                    class='customize-trigger'
+                    aria-label='Customize'
+                    aria-haspopup='menu'
+                    aria-expanded={menuOpen}
+                    onClick={() => openMenu()}
+                  >
+                    <MoreVertical size={20} />
+                  </button>
+                </div>
               )}
 
               <div class='app-list' id='app-list' ref={appListRef}>
@@ -642,7 +736,7 @@ export function App() {
                       Follow people to see what they recommend{' '}
                       <ArrowUp size={14} class='empty-state__inline-icon' />
                     </p>
-                    <button class='empty-state__btn' onClick={() => setShowFollowingManager(true)}>
+                    <button class='empty-state__btn' onClick={() => openMenu('following')}>
                       Add Person
                     </button>
                   </div>
@@ -704,48 +798,6 @@ export function App() {
                 <span class='loading-dots__dot' />
                 <span class='loading-dots__dot' />
               </div>
-
-              {!coldStart && (
-                <div class='corner-chips' key={currentMode}>
-                  {currentMode === 'following' &&
-                    (following.length > 0 || followingDisplay.size > 0) && (
-                      <button
-                        type='button'
-                        class='corner-chip corner-chip--manage'
-                        onClick={() => setShowFollowingManager(true)}
-                        aria-label={`Manage following, ${following.length} address${following.length === 1 ? '' : 'es'}`}
-                      >
-                        {following.length > 0 && (
-                          <span class='corner-chip__addr'>{following.length}</span>
-                        )}
-                        <span class='corner-chip__label'>following</span>
-                      </button>
-                    )}
-
-                  <button
-                    type='button'
-                    class='corner-chip corner-chip--badges'
-                    onClick={() => setShowIssuers(true)}
-                    aria-label='Badges'
-                  >
-                    {installedBadges.length > 0 && (
-                      <span class='issuer-stack__marks'>
-                        {installedBadges.slice(0, 3).map((certificate) => (
-                          <span class='issuer-stack__chip' key={certificate.resolver}>
-                            <CertificateBadge cid={certificate.badgeIconCid} size={20} />
-                          </span>
-                        ))}
-                        {installedBadges.length > 3 && (
-                          <span class='issuer-stack__chip issuer-stack__chip--more'>
-                            <Plus size={14} />
-                          </span>
-                        )}
-                      </span>
-                    )}
-                    <span class='corner-chip__label'>badges</span>
-                  </button>
-                </div>
-              )}
             </div>
 
             <div class='card back' id='card-back'>
@@ -760,14 +812,6 @@ export function App() {
           <div class='footer' />
         </div>
 
-        <FollowingManager
-          following={following}
-          visible={showFollowingManager}
-          onAdd={handleFollow}
-          onRemove={handleUnfollow}
-          onDismiss={() => setShowFollowingManager(false)}
-        />
-
         <CertificateModal
           visible={certificateModalOpen}
           subjectName={certificateView?.subjectName ?? null}
@@ -776,10 +820,102 @@ export function App() {
           onDismiss={() => setCertificateModalOpen(false)}
         />
 
-        <CertificateAuthorityManager
-          visible={showIssuers}
-          onDismiss={() => setShowIssuers(false)}
-        />
+        {menuOpen && anchor && (
+          <>
+            <div class='customize-popover-catcher' onClick={() => setMenuOpen(false)} />
+            <div
+              ref={popoverRef}
+              class='customize-popover'
+              role='dialog'
+              aria-label='Customize'
+              style={{ top: anchor.top, right: anchor.right, height: popoverHeight }}
+            >
+              <div
+                class={`customize-nav-track${view === 'menu' ? '' : ' customize-nav-track--drill'}`}
+              >
+                <div class='customize-pane' aria-hidden={view !== 'menu'}>
+                  <div class='customize-pane__inner' ref={menuInnerRef}>
+                    <button
+                      type='button'
+                      class='customize-nav-row'
+                      onClick={() => setView('following')}
+                    >
+                      <span class='customize-nav-row__label'>Following</span>
+                      <span class='customize-nav-row__count'>{following.length}</span>
+                    </button>
+                    <button
+                      type='button'
+                      class='customize-nav-row'
+                      onClick={() => setView('badges')}
+                    >
+                      <span class='customize-nav-row__label'>Badges</span>
+                      <span class='issuer-stack__marks'>
+                        {enabledCertificateAuthorities.length === 0 ? (
+                          <span class='issuer-stack__chip'>
+                            <CertificateBadge cid={null} size={20} />
+                          </span>
+                        ) : (
+                          <>
+                            {enabledCertificateAuthorities.slice(0, MENU_BADGE_LIMIT).map((ca) => (
+                              <span key={ca.resolver} class='issuer-stack__chip'>
+                                <CertificateBadge cid={ca.badgeIconCid} size={20} />
+                              </span>
+                            ))}
+                            {enabledCertificateAuthorities.length > MENU_BADGE_LIMIT && (
+                              <span class='issuer-stack__chip issuer-stack__chip--more'>
+                                +{enabledCertificateAuthorities.length - MENU_BADGE_LIMIT}
+                              </span>
+                            )}
+                          </>
+                        )}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+                <div class='customize-pane' aria-hidden={view === 'menu'}>
+                  <div
+                    class='customize-pane__inner customize-pane__inner--drill'
+                    ref={drillInnerRef}
+                  >
+                    <div class='customize-drill__header'>
+                      <button
+                        type='button'
+                        class='customize-drill__icon'
+                        aria-label='Back'
+                        onClick={() => setView('menu')}
+                      >
+                        <ArrowLeft size={20} />
+                      </button>
+                      <span class='customize-drill__title'>
+                        {drill === 'following' ? 'Following' : 'Badges'}
+                      </span>
+                      <button
+                        type='button'
+                        class='customize-drill__icon'
+                        aria-label='Close'
+                        onClick={() => setMenuOpen(false)}
+                      >
+                        <X size={20} />
+                      </button>
+                    </div>
+                    {drill === 'following' ? (
+                      <FollowingManager
+                        embedded
+                        visible={menuOpen && view === 'following'}
+                        following={following}
+                        onAdd={handleFollow}
+                        onRemove={handleUnfollow}
+                        onDismiss={() => setMenuOpen(false)}
+                      />
+                    ) : (
+                      <CertificateAuthorityManager embedded />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
 
         <Toast
           message={toastMessage}

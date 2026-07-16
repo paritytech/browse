@@ -196,6 +196,15 @@ input {
   }
 }
 
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 .card {
   position: relative;
   background: var(--color-surface);
@@ -219,24 +228,6 @@ input {
   flex-direction: column;
   gap: var(--space-extra-medium);
   padding: 0 var(--space-small);
-}
-
-.card.front:has(.corner-chip) .app-list {
-  /* Reserve the chip footprint (its 1rem bottom offset plus its height: the
-     title-sm line plus 8px vertical padding) plus one card gap, so the space
-     above the chip matches the tabs-to-first-row gap. */
-  padding-bottom: calc(1rem + var(--type-title-sm-line) + 8px + var(--space-medium-increased));
-}
-
-/* With the manage chip present, float the sync dots in the reserved bottom band
-   so toggling them never changes the card height (which would otherwise shove
-   the absolutely-positioned chip down). */
-.card.front:has(.corner-chip) #loading-dots {
-  position: absolute;
-  left: 50%;
-  bottom: 1rem;
-  transform: translateX(-50%);
-  padding: 0;
 }
 
 .skeleton-pulse {
@@ -415,9 +406,8 @@ input {
   border-color: color-mix(in srgb, var(--bg-status-error) 82%, transparent);
 }
 
-/* Aligns the issuer pill with the category tabs on the same row. */
-/* The selected issuers rendered as an overlapping badge stack, shown inside the
-   Badges corner chip. */
+/* The selected issuers rendered as an overlapping badge stack, shown on the
+   Badges row of the customize menu. */
 .issuer-stack__marks {
   display: inline-flex;
   align-items: center;
@@ -445,69 +435,215 @@ input {
 .issuer-stack__chip--more {
   background: var(--surface-3);
   color: var(--fg-secondary);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
 }
 
 .issuer-stack__marks svg {
   display: block;
 }
 
-/* The manager entries live together in the bottom-left corner. They reveal only
-   after the product cards finish entering so they never appear mid-animation. 
-   `both` keeps them hidden through the delay, and the `key={currentMode}` on 
-   the container replays this on every tab switch. */
-.corner-chips {
-  position: absolute;
-  left: calc(1.5rem + 16px);
-  bottom: 1rem;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  animation: fadeUp 300ms cubic-bezier(0.16, 1, 0.3, 1) 820ms both;
-}
-
-.corner-chip {
+/* The ⋮ trigger at the trailing edge of the category-tabs row. It is styled like
+   the neutral category tabs, transparent and muted with a brighter hover, so the
+   two controls read as one row. `margin-left: auto` pins it to the trailing edge.
+   The 16px right margin lines its right edge up with the tabs 16px inset. */
+.customize-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 4px 0;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin-left: auto;
+  margin-right: 16px;
   border: none;
+  border-radius: 50%;
   background: transparent;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  line-height: 1;
-  color: var(--color-muted);
+  color: rgb(var(--fg-rgb) / 0.48);
   cursor: pointer;
+  transition:
+    color 200ms ease,
+    background 200ms ease;
 }
 
-.corner-chip--manage,
-.corner-chip--badges {
-  font-family: var(--font-sans);
-  font-size: var(--type-title-sm-size);
-  font-weight: var(--type-title-sm-weight);
-  line-height: var(--type-title-sm-line);
+.customize-trigger:hover {
+  color: var(--fg-3);
 }
 
-/* Pointer-only. On touch this brighten sticks after a tap opens the manager. */
-@media (hover: hover) {
-  .corner-chip:hover,
-  .corner-chip:hover .corner-chip__label {
-    color: var(--color-text);
+.customize-trigger:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Keeps the tabs and the trigger on one row, the trigger flush to the trailing
+   edge and vertically centered with the tabs. */
+.tabs-row {
+  display: flex;
+  align-items: center;
+}
+
+/* Transparent full-viewport catcher: an outside click closes the popover. It
+   sits just below the popover so it never covers it. There is no dark scrim
+   because this is a popover, not a modal. */
+.customize-popover-catcher {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+}
+
+/* The customize popover is a small dropdown anchored under the ⋮, right-aligned.
+   Its `top`, `right`, and `height` come inline from the measured trigger and
+   active view. It grows from the top-right, then animates the height as it
+   expands into a manager and collapses back. The whole thing stays one anchored
+   modal. */
+.customize-popover {
+  position: fixed;
+  z-index: 56;
+  width: min(400px, calc(100vw - 24px));
+  max-height: min(640px, 86vh);
+  overflow: hidden;
+  border-radius: var(--radius-large, 16px);
+  background: var(--sheet-bg);
+  transform-origin: top right;
+  /* Layered iOS-style cast: a tight contact shadow over a soft ambient spread. */
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 0.1),
+    0 24px 64px var(--shadow-medium);
+  animation: customizePopoverIn 200ms cubic-bezier(0.32, 0.72, 0, 1);
+  transition: height 240ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@keyframes customizePopoverIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 
-.corner-chip:focus-visible {
-  outline: 2px solid var(--color-border);
-  outline-offset: 2px;
-  border-radius: 4px;
+/* Two panes on one horizontal track. The menu sits at rest. Expanding slides the
+   track left so the manager pane comes in from the right while the height grows. */
+.customize-nav-track {
+  display: flex;
+  width: 200%;
+  height: 100%;
+  transition: transform 240ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-.corner-chip__label {
-  color: var(--color-muted);
+.customize-nav-track--drill {
+  transform: translateX(-50%);
 }
 
-.corner-chip__addr {
+.customize-pane {
+  flex: 0 0 50%;
+  width: 50%;
+  overflow-y: auto;
+}
+
+/* Natural-height content wrapper. This is measured rather than the scrolling
+   pane, so the popover height tracks real content even while the pane is capped
+   and scrolls. */
+.customize-pane__inner {
+  padding: 6px;
+}
+
+/* The drill view expands into a proper modal: a height floor so a near-empty
+   manager still reads as a real panel, not a cramped little box. It grows past
+   this with content, up to the popover max-height, then the pane scrolls. */
+.customize-pane__inner--drill {
+  min-height: min(60vh, 420px);
+}
+
+/* A tappable menu row: the label on the left, the count or badge stack on the right. */
+.customize-nav-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: var(--radius-medium, 12px);
+  background: transparent;
   color: var(--color-heading);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 20px;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.customize-nav-row:hover {
+  background: var(--surface-2);
+}
+
+.customize-nav-row__label {
+  color: var(--color-heading);
+}
+
+.customize-nav-row__count {
+  min-width: 24px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-3);
+  color: var(--fg-secondary);
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* Expanded-view header: back arrow, centered title, close cross. Sticky so it
+   stays put while the embedded manager scrolls under it. The back arrow returns
+   to the menu. The cross closes the whole popover. */
+.customize-drill__header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 32px 1fr 32px;
+  align-items: center;
+  padding: 2px 2px 8px;
+  background: var(--sheet-bg);
+}
+
+.customize-drill__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--fg-secondary);
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    color 120ms ease;
+}
+
+.customize-drill__icon:hover {
+  background: var(--surface-3);
+  color: var(--color-heading);
+}
+
+.customize-drill__title {
+  text-align: center;
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-heading);
+}
+
+/* The reset link above the embedded issuer list. */
+.ca-panel__toolbar {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 4px 8px;
 }
 
 .footer {
@@ -555,12 +691,6 @@ input {
 
   .list-count {
     padding: 0 1rem;
-  }
-
-  /* Card padding collapses to 0 on phones, so align the chips with the app
-     icon: the app-list inset plus the card row padding. */
-  .corner-chips {
-    left: calc(var(--space-small) + var(--space-medium-increased));
   }
 }
 
@@ -623,12 +753,6 @@ input {
 
   .app-list .empty-state {
     grid-column: 1 / -1;
-  }
-
-  /* Align the chips with the app content: the grid sits at the card edge but
-     each row insets its icon by the card padding, so match that inset. */
-  .corner-chips {
-    left: var(--space-medium-increased);
   }
 
   /* Transparent rows. Hover fill tints the whole row. */
