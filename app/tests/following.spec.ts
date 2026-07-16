@@ -57,7 +57,7 @@ test.describe('Following', () => {
     await frame.locator('.empty-state__btn').click()
 
     // Then
-    await expect(frame.locator('.following-modal-overlay--visible')).toBeVisible()
+    await expect(frame.locator('.customize-popover')).toBeVisible()
 
     // When
     const input = frame.locator('.following-modal__input')
@@ -68,10 +68,10 @@ test.describe('Following', () => {
     await expect(frame.locator('.following-modal__row')).toHaveCount(1)
 
     // When
-    await frame.locator('.following-modal__close').click()
+    await frame.locator('.customize-drill__icon[aria-label="Close"]').click()
 
     // Then
-    await expect(frame.locator('.following-modal-overlay--visible')).not.toBeVisible()
+    await expect(frame.locator('.customize-popover')).toHaveCount(0)
     await expect(frame.locator('.product-card').first()).toBeVisible({ timeout: 15_000 })
     const cards = frame.locator('.product-card')
     expect(await cards.count()).toBeGreaterThan(0)
@@ -133,10 +133,10 @@ test.describe('Following', () => {
     await frame.locator('.category-tab', { hasText: 'Following' }).click()
     await frame.waitForTimeout(300)
     await frame.locator('.empty-state__btn').click()
-    await expect(frame.locator('.following-modal-overlay--visible')).toBeVisible()
+    await expect(frame.locator('.customize-popover')).toBeVisible()
     await frame.locator('.following-modal__input').fill(IDENTITY_ADDRESS)
     await frame.locator('.following-modal__option').click()
-    await frame.locator('.following-modal__close').click()
+    await frame.locator('.customize-drill__icon[aria-label="Close"]').click()
 
     // Then
     await expect(frame.locator('.product-card').first()).toBeVisible({ timeout: 20_000 })

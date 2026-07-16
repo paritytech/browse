@@ -20,15 +20,17 @@ const INFO_TEXT =
   'Badges show which trusted organizations have verified an app. Turn one off to hide its badge.'
 
 interface CertificateAuthorityManagerProps {
-  visible: boolean
-  onDismiss: () => void
+  visible?: boolean
+  onDismiss?: () => void
+  embedded?: boolean
 }
 
 const DEFAULT_SET = new Set(DEFAULT_CERTIFICATES)
 
 export function CertificateAuthorityManager({
-  visible,
-  onDismiss
+  visible = false,
+  onDismiss = () => {},
+  embedded = false
 }: CertificateAuthorityManagerProps) {
   const queryClient = useQueryClient()
   const { data: authorities = [], isLoading } = useCertificateAuthorities()
@@ -61,6 +63,66 @@ export function CertificateAuthorityManager({
     await refresh()
   }
 
+  const body = (
+    <div class='ca-modal__body'>
+      {isLoading && authorities.length === 0 ? (
+        <div class='ca-modal__loading'>
+          <span class='loading-dots__dot' />
+          <span class='loading-dots__dot' />
+          <span class='loading-dots__dot' />
+        </div>
+      ) : sorted.length === 0 ? (
+        <p class='ca-modal__state'>No certificate authorities found.</p>
+      ) : (
+        sorted.map((authority) => {
+          const displayName = authority.name ?? 'Certificate authority'
+          const isDefault = DEFAULT_SET.has(authority.resolver)
+          const isSelected = selectedSet.has(authority.resolver)
+          const metaParts = [
+            authority.name === null ? 'Unverified' : null,
+            authority.certifiedCount !== undefined ? `${authority.certifiedCount} certified` : null
+          ].filter(Boolean)
+          return (
+            <div key={authority.resolver} class='ca-modal__row'>
+              <span class='ca-modal__badge'>
+                <BadgeCheck size={24} />
+              </span>
+              <div class='ca-modal__row-text'>
+                <span class='ca-modal__name'>
+                  <span class='ca-modal__name-text'>{displayName}</span>
+                  {isDefault && <span class='ca-modal__default'>Default</span>}
+                </span>
+                {metaParts.length > 0 && (
+                  <span class='ca-modal__meta'>{metaParts.join(' · ')}</span>
+                )}
+              </div>
+              <Switch
+                checked={isSelected}
+                onChange={(next) => void toggle(authority, next)}
+                label={`Enable ${displayName}`}
+              />
+            </div>
+          )
+        })
+      )}
+    </div>
+  )
+
+  if (embedded) {
+    return (
+      <div class='ca-panel'>
+        {divergedFromDefaults && (
+          <div class='ca-panel__toolbar'>
+            <button type='button' class='ca-modal__reset' onClick={reset}>
+              Reset to defaults
+            </button>
+          </div>
+        )}
+        {body}
+      </div>
+    )
+  }
+
   return (
     <div
       class={`ca-modal-overlay${visible ? ' ca-modal-overlay--visible' : ''}`}
@@ -86,51 +148,7 @@ export function CertificateAuthorityManager({
             <X size={22} />
           </button>
         </div>
-
-        <div class='ca-modal__body'>
-          {isLoading && authorities.length === 0 ? (
-            <div class='ca-modal__loading'>
-              <span class='loading-dots__dot' />
-              <span class='loading-dots__dot' />
-              <span class='loading-dots__dot' />
-            </div>
-          ) : sorted.length === 0 ? (
-            <p class='ca-modal__state'>No certificate authorities found.</p>
-          ) : (
-            sorted.map((authority) => {
-              const displayName = authority.name ?? 'Certificate authority'
-              const isDefault = DEFAULT_SET.has(authority.resolver)
-              const isSelected = selectedSet.has(authority.resolver)
-              const metaParts = [
-                authority.name === null ? 'Unverified' : null,
-                authority.certifiedCount !== undefined
-                  ? `${authority.certifiedCount} certified`
-                  : null
-              ].filter(Boolean)
-              return (
-                <div key={authority.resolver} class='ca-modal__row'>
-                  <span class='ca-modal__badge'>
-                    <BadgeCheck size={24} />
-                  </span>
-                  <div class='ca-modal__row-text'>
-                    <span class='ca-modal__name'>
-                      {displayName}
-                      {isDefault && <span class='ca-modal__default'>Default</span>}
-                    </span>
-                    {metaParts.length > 0 && (
-                      <span class='ca-modal__meta'>{metaParts.join(' · ')}</span>
-                    )}
-                  </div>
-                  <Switch
-                    checked={isSelected}
-                    onChange={(next) => void toggle(authority, next)}
-                    label={`Enable ${displayName}`}
-                  />
-                </div>
-              )
-            })
-          )}
-        </div>
+        {body}
       </div>
     </div>
   )
