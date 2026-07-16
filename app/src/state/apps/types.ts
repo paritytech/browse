@@ -28,6 +28,8 @@ export interface AppEntry {
   hasUserAttested: boolean
   /** Active certificates from every trusted authority that certified this product. */
   certificates: AppCertificate[]
+  /** Publish time in unix seconds, from `Publisher.publicationOf`, or null. */
+  publishedAt: number | null
 }
 
 /** Map a persisted {@link LabelEntry} to a live {@link AppEntry}. */
@@ -41,7 +43,8 @@ export function labelToApp(l: LabelEntry): AppEntry {
     isLive: l.contentHash !== null,
     attestationCount: l.attestationCount,
     hasUserAttested: l.hasUserAttested,
-    certificates: l.certificates ?? []
+    certificates: l.certificates ?? [],
+    publishedAt: l.publishedAt ?? null
   }
 }
 
@@ -54,6 +57,34 @@ export function isFilterMode(value: string): value is FilterMode {
 
 export function displayName(app: AppEntry): string {
   return app.name ?? `${app.label}.dot`
+}
+
+// Ranking modifiers. See docs/ranking-algorithm.md.
+const DEMAND_PRIOR = 1
+const CERTIFIED_BOOST = 2.0
+const INCOMPLETE_PENALTY = 0.6
+const NEW_BOOST = 1.0
+const NEW_HALF_LIFE_DAYS = 14
+const DAY_MS = 86_400_000
+
+/** An app is complete when it has an icon, a description, and live content. */
+function isComplete(app: AppEntry): boolean {
+  return app.iconCid !== null && app.description.trim() !== '' && app.isLive
+}
+
+/** Decaying launch boost from the publish time, or 1 when it is unknown. */
+function freshness(app: AppEntry, nowMs: number): number {
+  if (app.publishedAt == null) return 1
+  const ageDays = Math.max(0, (nowMs - app.publishedAt * 1000) / DAY_MS)
+  return 1 + NEW_BOOST * 0.5 ** (ageDays / NEW_HALF_LIFE_DAYS)
+}
+
+/** Composite ranking score for the All and Following tabs. Higher ranks first. */
+export function rankScore(app: AppEntry, nowMs: number = Date.now()): number {
+  const demand = DEMAND_PRIOR + (app.attestationCount ?? 0)
+  const trust = app.certificates.length > 0 ? CERTIFIED_BOOST : 1
+  const quality = isComplete(app) ? 1 : INCOMPLETE_PENALTY
+  return demand * trust * quality * freshness(app, nowMs)
 }
 
 export function filterApps(
@@ -82,13 +113,17 @@ export function filterApps(
     )
   }
 
-  // All and Following rank by recommendation count, then name. Bookmarks stays
-  // alphabetical.
+  // All and Following rank by the composite score, then recommendation count,
+  // then name. Bookmarks stays alphabetical.
   if (mode === 'all' || mode === 'following') {
+    const now = Date.now()
     return filtered.sort((a, b) => {
-      const upvotesA = a.attestationCount ?? 0
-      const upvotesB = b.attestationCount ?? 0
-      if (upvotesA !== upvotesB) return upvotesB - upvotesA
+      const scoreA = rankScore(a, now)
+      const scoreB = rankScore(b, now)
+      if (scoreA !== scoreB) return scoreB - scoreA
+      const countA = a.attestationCount ?? 0
+      const countB = b.attestationCount ?? 0
+      if (countA !== countB) return countB - countA
       return displayName(a).localeCompare(displayName(b))
     })
   }

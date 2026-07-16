@@ -23,7 +23,6 @@ import {
 } from './fixtures/fund'
 import { createRevokedAttestation } from './fixtures/revoke-attestation'
 import {
-  DEV_PHRASE,
   getProductFrame,
   navigateToTestHost,
   startSignedHost,
@@ -47,10 +46,13 @@ test.describe('Recommend works', () => {
     await createRevokedAttestation('host-playground').catch(() => {})
     await createRevokedAttestation('calculator').catch(() => {})
     await createRevokedAttestation('browse-beta00').catch(() => {})
-    host = await startSignedHost({ name: 'smalltava.05', uri: `${DEV_PHRASE}//wallet` })
+    host = await startSignedHost(IDENTITY_ACCOUNT)
     unbound = await createUnboundProductAccount()
     await createRevokedAttestation('calculator', createDevSigner(unbound.tag)).catch(() => {})
-    unboundHost = await startSignedHostWithProductAccounts(IDENTITY_ACCOUNT, unbound.productAccounts)
+    unboundHost = await startSignedHostWithProductAccounts(
+      IDENTITY_ACCOUNT,
+      unbound.productAccounts
+    )
     context = await browser.newContext({ ignoreHTTPSErrors: true })
   })
 
@@ -241,7 +243,7 @@ test.describe('Recommendation fails', () => {
     seed = await createUnboundProductAccount()
     await createRevokedAttestation('calculator', createDevSigner(seed.tag)).catch(() => {})
     await bindIdentityAndAttest(seed.tag, 'calculator')
-    walletHost = await startSignedHost({ name: 'smalltava.05', uri: `${DEV_PHRASE}//wallet` })
+    walletHost = await startSignedHost(IDENTITY_ACCOUNT)
 
     context = await browser.newContext({ ignoreHTTPSErrors: true })
   })

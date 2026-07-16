@@ -79,6 +79,8 @@ jobs:
 
       - name: Run e2e tests
         if: needs.check.outputs.skip != 'true'
+        env:
+          PROXY_PRIVATE_KEY: ${{ secrets.PROXY_PRIVATE_KEY }}
         run: bun run test:e2e --retries=1 --workers=1
 
   mark-passed:

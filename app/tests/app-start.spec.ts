@@ -10,6 +10,7 @@ import { expect, test } from '@playwright/test'
 import { createCachedApps } from './fixtures/cache'
 import { seedIconPreimage } from './fixtures/seed-preimage'
 import { getProductFrame, navigateToTestHost, startSignedHost, startUnsignedHost } from './utils'
+import { filterApps, type AppEntry } from '../src/state/apps/types'
 
 test.describe('App Start', () => {
   test.describe('unsigned user', () => {
@@ -115,7 +116,7 @@ test.describe('App Start', () => {
       await expect(activeTab).toHaveText('All')
     })
 
-    test('As a signed user, when the All tab loads, I see products sorted by recommendation count', async () => {
+    test('As a signed user, when the All tab loads, I see products in ranking-score order', async () => {
       test.setTimeout(30_000)
 
       // When
@@ -124,25 +125,23 @@ test.describe('App Start', () => {
       // Then
       await frame.waitForSelector('.product-card[data-label]', { timeout: 30_000 })
       await expect(frame.locator('.product-card[data-label]').first()).toBeVisible()
-      const cards = frame.locator('.product-card[data-label]')
-      const cardCount = await cards.count()
-      expect(cardCount).toBeGreaterThan(1)
-      const cardData: Array<{ name: string; count: number }> = []
-      for (let i = 0; i < cardCount; i++) {
-        const card = cards.nth(i)
-        const name = (await card.locator('.product-card__name').textContent()) ?? ''
-        const upvoteCount = card.locator('.product-card__upvote-count')
-        const hasCount = (await upvoteCount.count()) > 0
-        const text = hasCount ? ((await upvoteCount.textContent()) ?? '') : ''
-        const count = text === '' ? 0 : text === '999+' ? 1000 : Number(text)
-        cardData.push({ name, count })
-      }
-      const sorted = [...cardData].sort((a, b) => {
-        if (a.count !== b.count) return b.count - a.count
-        return a.name.localeCompare(b.name)
-      })
-      expect(cardData).toEqual(sorted)
       await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
+      const cards = frame.locator('.product-card[data-label]')
+      expect(await cards.count()).toBeGreaterThan(1)
+
+      const domOrder = await cards.evaluateAll((els) =>
+        els.map((el) => el.getAttribute('data-label'))
+      )
+      const apps = await frame.evaluate(() => {
+        const qc = (
+          window as unknown as { __queryClient?: { getQueryData: (key: unknown[]) => unknown } }
+        ).__queryClient
+        return (qc?.getQueryData(['apps', 'all']) as unknown[] | undefined) ?? []
+      })
+      const expectedOrder = filterApps(apps as AppEntry[], '', 'all')
+        .map((app) => app.label)
+        .filter((label) => domOrder.includes(label))
+      expect(domOrder).toEqual(expectedOrder)
 
       // Then
       const labelCount = await frame.page().evaluate(() => {

@@ -3,7 +3,13 @@ import { type Browser, type Frame, expect, test } from '@playwright/test'
 import { createCachedApps } from './fixtures/cache'
 import { createProductSigner, fundWithNative } from './fixtures/fund'
 import { createRevokedAttestation } from './fixtures/revoke-attestation'
-import { DEV_PHRASE, getProductFrame, navigateToTestHost, startSignedHost } from './utils'
+import {
+  identityUsername,
+  getProductFrame,
+  identityUri,
+  navigateToTestHost,
+  startSignedHost
+} from './utils'
 import { SHUFFLE_MAX_MS, SHUFFLE_MIN_MS } from '../src/lib/use-flip'
 import type { AppEntry } from '../src/state/apps/types'
 
@@ -23,7 +29,8 @@ function entry(label: string, name: string, attestationCount: number): AppEntry 
     isLive: true,
     attestationCount,
     hasUserAttested: false,
-    certificates: []
+    certificates: [],
+    publishedAt: null
   }
 }
 
@@ -208,7 +215,7 @@ test.describe('Motion', () => {
     test.setTimeout(60000)
     await fundWithNative(createProductSigner().address)
     await createRevokedAttestation('host-playground').catch(() => {})
-    const host = await startSignedHost({ name: 'smalltava.05', uri: `${DEV_PHRASE}//wallet` })
+    const host = await startSignedHost({ name: identityUsername(), uri: identityUri() })
     const context = await browser.newContext({
       ignoreHTTPSErrors: true,
       reducedMotion: 'no-preference'

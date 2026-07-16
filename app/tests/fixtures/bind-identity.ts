@@ -1,20 +1,13 @@
 import { DEV_PHRASE as STD_DEV_PHRASE } from '@polkadot-labs/hdkd-helpers'
 
 import { LOCALHOST_SELF_DOTNS } from '../../src/lib/config'
-import { DEV_PHRASE as IDENTITY_PHRASE } from '../utils'
-import {
-  createDevSigner,
-  createProductSigner,
-  fundWithNative,
-  fundWithPgas,
-  mapAccount,
-  PGAS_SEED_AMOUNT
-} from './fund'
+import { identityUsername, identityUri } from '../utils'
+import { createDevSigner, fundWithNative, fundWithPgas, mapAccount, PGAS_SEED_AMOUNT } from './fund'
 
 type Account = import('@parity/host-api-test-sdk').Account
 
-/** The connected identity: owns `smalltava.05`, holds the binding key. */
-export const IDENTITY_ACCOUNT: Account = { name: 'smalltava.05', uri: `${IDENTITY_PHRASE}//wallet` }
+/** Pins the connected per-run identity to the run username and its run-unique wallet path. */
+export const IDENTITY_ACCOUNT: Account = { name: identityUsername(), uri: identityUri() }
 
 export interface UnboundProduct {
   /** Host product-account map pinning the app product account (index 0) to the funded, never-bound account. */
@@ -35,8 +28,8 @@ export async function createUnboundProductAccount(): Promise<UnboundProduct> {
   const product = createDevSigner(tag)
   await fundWithNative(product.address)
   await mapAccount(tag)
-  // Seed a minimum PGAS balance from the identity account.
-  await fundWithPgas(tag, PGAS_SEED_AMOUNT, createProductSigner())
+  // Fund the account so it can pay its first-recommend batch fee in PGAS.
+  await fundWithPgas(tag, PGAS_SEED_AMOUNT)
   return {
     tag,
     productAccounts: {

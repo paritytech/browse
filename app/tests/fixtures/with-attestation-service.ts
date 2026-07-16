@@ -2,7 +2,7 @@ import { createClient } from 'polkadot-api'
 import { getWsProvider } from 'polkadot-api/ws'
 import { WebSocket } from 'ws'
 
-import { createProductSigner, ensureFunderPgas } from './fund'
+import { createProductSigner } from './fund'
 import { AttestationService } from '../../src/lib/attestation-service'
 import { NETWORK } from '../../src/lib/config'
 
@@ -14,10 +14,9 @@ export async function withSigner<T>(
   { signer, address, publicKey }: Credentials,
   fn: (service: AttestationService, address: string) => Promise<T>
 ): Promise<T> {
-  // Keep the shared funder in PGAS. Only the funder self-claims. Other signers,
-  // such as a freshly-seeded product account, are funded by transfer and must
-  // not burn the identity daily claim slots.
-  if (address === createProductSigner().address) await ensureFunderPgas()
+  // The per-run identity is funded and bound once up front by fundIdentity in
+  // the globalSetup, and dev signers are funded by their own fixtures, so no
+  // per-call top-up is needed here.
   const client = createClient(
     getWsProvider(RPC_ENDPOINTS, {
       websocketClass: WebSocket as unknown as typeof globalThis.WebSocket
