@@ -26,6 +26,10 @@ export interface NetworkConfig extends NetworkAddresses {
   TRUSTED_ATTESTER_RESOLVER: `0x${string}`;
   TRUSTED_ATTESTER?: `0x${string}`;
   IPFS_GATEWAY: string;
+  /** Production web domain apps are reachable under, e.g. `paseo.li` for `browse.paseo.li`. */
+  primaryWebDomain: string;
+  /** Web domain that routes to a local dev instance, e.g. `paseoli.dev`. Equal to the primary when there is no separate dev host. */
+  secondaryWebDomain: string;
   SCHEMA_ID: readonly bigint[];
   COMPLIANCE_SCHEMA_ID: bigint;
   ASSETHUB_RPCS: readonly string[];
@@ -68,6 +72,8 @@ export const KNOWN_NETWORKS = {
     TRUSTED_ATTESTER_RESOLVER: "0x5abfc89934ee846d12629dfb5b22eecc59bbaed3",
     TRUSTED_ATTESTER: "0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20",
     IPFS_GATEWAY: "https://paseo-bulletin-next-ipfs.polkadot.io",
+    primaryWebDomain: "paseo.li",
+    secondaryWebDomain: "paseoli.dev",
     SCHEMA_ID: [5n, 1n],
     COMPLIANCE_SCHEMA_ID: 6n,
     ASSETHUB_RPCS: ["wss://paseo-asset-hub-next-rpc.polkadot.io"],
@@ -100,6 +106,8 @@ export const KNOWN_NETWORKS = {
     TRUSTED_ATTESTER_RESOLVER: "0xdc713ebf1028544a00225c8741eb698253c49302",
     TRUSTED_ATTESTER: "0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20",
     IPFS_GATEWAY: "https://previewnet.substrate.dev",
+    primaryWebDomain: "testnet.li",
+    secondaryWebDomain: "testnet.li",
     SCHEMA_ID: [6n, 1n],
     COMPLIANCE_SCHEMA_ID: 7n,
     ASSETHUB_RPCS: ["wss://previewnet.substrate.dev/asset-hub"],
@@ -124,6 +132,8 @@ export const KNOWN_NETWORKS = {
     ATTESTATION_INDEX_RESOLVER: ["0xa2ea4ab49bbe73f466f2fa0aeb50b39d34b55218"],
     TRUSTED_ATTESTER_RESOLVER: "0xde4a63079034230d71b5a5071571ed3fd95194e0",
     IPFS_GATEWAY: "https://summit-bulletin-rpc.polkadot.io",
+    primaryWebDomain: "dot.li",
+    secondaryWebDomain: "dot.li",
     SCHEMA_ID: [1n],
     COMPLIANCE_SCHEMA_ID: 0n,
     ASSETHUB_RPCS: ["wss://summit-asset-hub-rpc.polkadot.io"],

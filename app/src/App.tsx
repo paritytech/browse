@@ -15,20 +15,23 @@ import { FollowingManager } from './components/following-manager'
 import { FOLLOW_ICON, SEARCH_ICON } from './components/icons'
 import { ProductCardWithAttestation } from './components/product-card/product-card-with-attestation'
 import { ProductCardSkeleton } from './components/product-card/skeleton'
+import { RecommendPrompt } from './components/recommend-prompt'
 import { SearchBar } from './components/search-bar'
 import { Toast } from './components/toast'
 import { ToastContext } from './components/toast/context'
 import { createBookmark, deleteBookmark, readBookmarks } from './db/bookmarks'
 import { upsertLabel } from './db/labels'
+import { useEvent } from './hooks/use-event'
+import { useFlipReorder } from './hooks/use-flip'
+import { useOverscrollSync } from './hooks/use-overscroll-sync'
 import { resetBrowseSdk } from './lib/client'
 import { SELF_LABEL } from './lib/config'
 import { setupDebugConsole } from './lib/debug'
 import { useDomainSuggestions } from './lib/domains-snapshot'
 import { navigateToDomain } from './lib/navigate'
+import { clearPendingRecommend, readPendingRecommends } from './lib/pending-recommend'
+import { shareLink } from './lib/share-link'
 import { subscribeHostTheme } from './lib/theme'
-import { useEvent } from './lib/use-event'
-import { useFlipReorder } from './lib/use-flip'
-import { useOverscrollSync } from './lib/use-overscroll-sync'
 import {
   ALL_APPS_KEY,
   LABELS_KEY,
@@ -48,6 +51,7 @@ import {
   useSelectedCertificateAuthorities
 } from './state/certificate-authorities/queries'
 import { follow, type FollowedAccount, getFollowing, unfollow } from './state/following/api'
+import { describeError, useAttestProduct } from './state/recommendations/mutations'
 import {
   useGetAttestationsByFollowing,
   useGetMyRecommendations
@@ -81,6 +85,7 @@ function LazyResolvedCard({
 
 export function App() {
   const queryClient = useQueryClient()
+  const attestProduct = useAttestProduct()
 
   const [currentMode, setCurrentMode] = useState<FilterMode>('all')
   const [query, setQuery] = useState('')
@@ -118,6 +123,12 @@ export function App() {
     subjectName: string | null
     subjectDomain: string
     certificate: AppCertificate | null
+  } | null>(null)
+  // A deferred "did you like it?" prompt for an app the user was sent to from a
+  // share link, surfaced on a later visit (see the pending-recommend store).
+  const [recommendPrompt, setRecommendPrompt] = useState<{
+    label: string
+    from?: string
   } | null>(null)
 
   const rootRef = useRef<HTMLDivElement>(null)
@@ -462,25 +473,49 @@ export function App() {
     unfollow(address)
     setFollowing((prev) => prev.filter((account) => account.address !== address))
   })
+  // Sharing copies a single browse link, e.g. `https://browse.paseo.li?app=calculator`.
+  // Opened, it redirects the recipient straight into the app and arms a later
+  // recommend prompt. No username is attached: reading it from the host is
+  // permission-gated, and sharing must never trigger that prompt.
   const handleShare = useEvent(async (app: AppEntry) => {
-    const domain = `${app.label}.dot`
-    const hasDescription = app.description && app.description !== 'No description'
-    const header = [app.name, hasDescription ? app.description : null].filter(Boolean).join(', ')
-    const text = header ? `${header}\n${domain}` : domain
-    if (typeof navigator.share === 'function') {
-      try {
-        await navigator.share({ title: app.name ?? undefined, text })
-        return
-      } catch (err) {
-        if ((err as Error).name === 'AbortError') return
-      }
-    }
     try {
-      await navigator.clipboard.writeText(text)
-      showToast('Copied to clipboard')
+      await navigator.clipboard.writeText(shareLink(app.label))
+      showToast('Link copied')
     } catch {
-      showToast('Could not copy to clipboard')
+      showToast('Could not copy to clipboard', true)
     }
+  })
+  // Yes closes the prompt and recommends. Prefer clicking the app's own upvote
+  // button so it blinks and bubbles exactly as a direct click would. Fall back
+  // to firing the recommend when that card is not currently rendered.
+  const confirmRecommend = useEvent(() => {
+    const prompt = recommendPrompt
+    if (!prompt) return
+    clearPendingRecommend(prompt.label)
+    setRecommendPrompt(null)
+    const upvote = rootRef.current?.querySelector(
+      `[data-label="${prompt.label}"] .product-card__upvote`
+    ) as HTMLElement | null
+    if (upvote) {
+      upvote.click()
+      return
+    }
+    if (!signed) {
+      showToast('Sign in to recommend')
+      return
+    }
+    attestProduct.mutate(
+      { label: prompt.label },
+      {
+        onSuccess: () => showToast('Recommended!'),
+        onError: (err) => showToast(describeError(err))
+      }
+    )
+  })
+  // "Not now" clears the record so we don't nag again.
+  const dismissRecommend = useEvent(() => {
+    if (recommendPrompt) clearPendingRecommend(recommendPrompt.label)
+    setRecommendPrompt(null)
   })
   // Completely re-establish the chain connection: drop the cached SDK (destroys
   // the papi client + chain socket) so the next query rebuilds a fresh
@@ -586,6 +621,26 @@ export function App() {
   useEffect(() => {
     setupDebugConsole()
   }, [])
+  // Surface a deferred recommend prompt for an app the user was sent to from a
+  // share link, once they return to browse. Skip and clear any the user has
+  // already recommended. Re-checked on focus/visibility because inside the host
+  // browse can stay mounted in the background across the app visit.
+  useEffect(() => {
+    const checkPending = () => {
+      for (const entry of readPendingRecommends()) {
+        if (myRecommendations.has(entry.label)) clearPendingRecommend(entry.label)
+      }
+      const next = readPendingRecommends().find((entry) => !myRecommendations.has(entry.label))
+      if (next) setRecommendPrompt((prev) => prev ?? { label: next.label, from: next.from })
+    }
+    checkPending()
+    window.addEventListener('focus', checkPending)
+    document.addEventListener('visibilitychange', checkPending)
+    return () => {
+      window.removeEventListener('focus', checkPending)
+      document.removeEventListener('visibilitychange', checkPending)
+    }
+  }, [myRecommendations])
   useEffect(() => {
     const id = setTimeout(() => setDebouncedQuery(query), 500)
     return () => clearTimeout(id)
@@ -918,6 +973,13 @@ export function App() {
             </div>
           </>
         )}
+
+        <RecommendPrompt
+          visible={!!recommendPrompt}
+          label={recommendPrompt?.label ?? ''}
+          onConfirm={confirmRecommend}
+          onDismiss={dismissRecommend}
+        />
 
         <Toast
           message={toastMessage}

@@ -10,7 +10,7 @@ import {
   navigateToTestHost,
   startSignedHost
 } from './utils'
-import { SHUFFLE_MAX_MS, SHUFFLE_MIN_MS } from '../src/lib/use-flip'
+import { SHUFFLE_MAX_MS, SHUFFLE_MIN_MS } from '../src/hooks/use-flip'
 import type { AppEntry } from '../src/state/apps/types'
 
 type TestQueryClient = {

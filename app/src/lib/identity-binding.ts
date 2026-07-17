@@ -18,6 +18,7 @@ import { getAccountsProvider } from '@parity/product-sdk-host'
 import { hexToBytes } from 'viem'
 
 import { resolveUsernameOwner } from './client'
+import { getPrimaryUsername } from './user-id'
 
 const MESSAGE_PREFIX = 'attestation v1\n'
 
@@ -57,12 +58,7 @@ export async function signIdentityMessage(
     throw new Error('Host accounts provider unavailable (not in a host container?).')
   }
 
-  const username = (
-    await accountsProvider.getUserId().match(
-      (ok) => ok.primaryUsername,
-      () => ''
-    )
-  ).trim()
+  const username = await getPrimaryUsername()
   if (!username) {
     throw new Error('No DotNS username available from the host to sign with.')
   }

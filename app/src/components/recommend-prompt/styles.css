@@ -1,0 +1,91 @@
+/* A non-blocking bottom prompt: fixed to the bottom, no scrim. The container
+   ignores pointer events so the rest of browse stays clickable; only the card
+   captures them. */
+.recommend-prompt {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 90;
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+  padding-bottom: max(env(safe-area-inset-bottom), 12px);
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(16px);
+  transition:
+    opacity 180ms ease,
+    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.recommend-prompt--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.recommend-prompt__body {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 440px;
+  padding: 16px;
+  background: var(--sheet-bg);
+  border: 1px solid var(--stroke-2);
+  border-radius: var(--radius-large);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.4);
+}
+
+.recommend-prompt__text {
+  color: var(--fg-primary);
+  font-family: var(--font-sans);
+  font-size: var(--type-body-lg-size);
+  font-weight: var(--type-body-lg-weight);
+  line-height: var(--type-body-lg-line);
+}
+
+/* Emphasize just the domain, semibold rather than the browser default bold. */
+.recommend-prompt__text strong {
+  font-weight: var(--type-title-sm-weight);
+}
+
+.recommend-prompt__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.recommend-prompt__btn {
+  flex: 1;
+  height: 40px;
+  border: none;
+  border-radius: var(--radius-small-increased);
+  font-family: var(--font-sans);
+  font-size: var(--type-title-sm-size);
+  font-weight: var(--type-title-sm-weight);
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.recommend-prompt__btn--ghost {
+  background: var(--surface-4);
+  color: var(--fg-primary);
+}
+
+@media (hover: hover) {
+  .recommend-prompt__btn--ghost:hover {
+    background: var(--surface-3);
+  }
+}
+
+.recommend-prompt__btn--primary {
+  background: var(--cta-bg);
+  color: var(--cta-fg);
+}
+
+@media (hover: hover) {
+  .recommend-prompt__btn--primary:hover {
+    background: var(--cta-bg-hover);
+  }
+}
