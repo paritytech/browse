@@ -41,12 +41,29 @@ jobs:
             echo "cid=$(cat .snapshot-cid/cid)" >> "$GITHUB_OUTPUT"
           fi
 
+      # Same for the daily username snapshot, cached independently.
+      - name: Restore username snapshot CID
+        uses: actions/cache/restore@v4
+        with:
+          path: .usernames-snapshot-cid
+          key: usernames-snapshot-cid
+          restore-keys: |
+            usernames-snapshot-cid-
+
+      - name: Read username snapshot CID
+        id: usernames-cid
+        working-directory: ${{ github.workspace }}
+        run: |
+          if [ -f .usernames-snapshot-cid/cid ]; then
+            echo "cid=$(cat .usernames-snapshot-cid/cid)" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Cache build output
         id: cache
         uses: actions/cache@v4
         with:
           path: app/dist
-          key: build-${{ hashFiles('app/src/**', 'app/index.html', 'app/widget.html', 'app/package.json', 'app/vite.config.ts', 'app/tsconfig.json', 'bun.lock', 'app/.papi/**') }}-${{ steps.snapshot-cid.outputs.cid }}
+          key: build-${{ hashFiles('app/src/**', 'app/index.html', 'app/widget.html', 'app/package.json', 'app/vite.config.ts', 'app/tsconfig.json', 'bun.lock', 'app/.papi/**') }}-${{ steps.snapshot-cid.outputs.cid }}-${{ steps.usernames-cid.outputs.cid }}
 
       - name: Install dependencies
         if: steps.cache.outputs.cache-hit != 'true'
@@ -56,6 +73,7 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         env:
           APP_DOMAINS_SNAPSHOT_CID: ${{ steps.snapshot-cid.outputs.cid }}
+          APP_USERNAMES_SNAPSHOT_CID: ${{ steps.usernames-cid.outputs.cid }}
         run: bun run build
 
       - name: Upload build artifact

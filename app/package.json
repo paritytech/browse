@@ -15,6 +15,7 @@
     "build:spa": "APP_BUILD_TARGET=spa vite build --outDir dist/spa --emptyOutDir",
     "build:widget": "APP_BUILD_TARGET=widget vite build --outDir dist/widget --emptyOutDir && mv dist/widget/widget.html dist/widget/index.html",
     "snapshot:domains": "bun scripts/snapshot-domains.ts",
+    "snapshot:usernames": "bun scripts/snapshot-usernames.ts",
     "preview": "vite preview",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",

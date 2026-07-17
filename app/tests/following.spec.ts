@@ -11,28 +11,37 @@ import { createAttestation } from './fixtures/attest'
 import { createCachedApps } from './fixtures/cache'
 import { createProductSigner, fundWithPgas } from './fixtures/fund'
 import { createRevokedAttestation } from './fixtures/revoke-attestation'
+import { seedPreimage } from './fixtures/seed-preimage'
+import { SNAPSHOT_USERNAME, USERNAME_SNAPSHOT_BLOCKS } from './fixtures/usernames-snapshot'
 import { getProductFrame, navigateToTestHost, startSignedHost } from './utils'
 
 // The seeded attestations are signed by the `smalltava.05 //wallet` identity
-// account (see createAttestation → createProductSigner), so following that
-// account is what surfaces its recommendations.
+// account that createAttestation derives through createProductSigner, so
+// following that account is what surfaces its recommendations.
 const IDENTITY_ADDRESS = createProductSigner().address
 
 test.describe('Following', () => {
+  test.describe.configure({ timeout: 15_000 })
   let host: Awaited<ReturnType<typeof startSignedHost>>
+  // The follow/reload pair shares one context so a follow persists across a
+  // reload. The recommend pair gets its own so it starts from an empty list.
   let context: BrowserContext
+  let recommendContext: BrowserContext
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(60_000)
+    test.setTimeout(70_000)
     await fundWithPgas('Alice')
     await createRevokedAttestation('calculator').catch(() => {})
+    await createRevokedAttestation('stopwatch').catch(() => {})
     await createAttestation('calculator')
     host = await startSignedHost('bob')
     context = await browser.newContext({ ignoreHTTPSErrors: true })
+    recommendContext = await browser.newContext({ ignoreHTTPSErrors: true })
   })
 
   test.afterAll(async () => {
     await context?.close()
+    await recommendContext?.close()
     await host?.close()
   })
 
@@ -44,6 +53,7 @@ test.describe('Following', () => {
     await createCachedApps(page)
     await navigateToTestHost(page, host.url)
     const frame = await getProductFrame(page, '.category-tab')
+    for (const block of USERNAME_SNAPSHOT_BLOCKS) await seedPreimage(page, block)
 
     // When
     await frame.locator('.category-tab', { hasText: 'Following' }).click()
@@ -61,6 +71,14 @@ test.describe('Following', () => {
 
     // When
     const input = frame.locator('.following-modal__input')
+    await input.fill('zzauto')
+
+    // Then
+    await expect(
+      frame.locator('.following-modal__option', { hasText: SNAPSHOT_USERNAME })
+    ).toBeVisible({ timeout: 15_000 })
+
+    // When
     await input.fill(IDENTITY_ADDRESS)
     await frame.locator('.following-modal__option').click()
 
@@ -98,32 +116,10 @@ test.describe('Following', () => {
 
     await page.close()
   })
-})
-
-test.describe('Following', () => {
-  test.describe.configure({ timeout: 15_000 })
-  let host: Awaited<ReturnType<typeof startSignedHost>>
-  let context: BrowserContext
-
-  test.beforeAll(async ({ browser }) => {
-    test.setTimeout(70_000)
-    await fundWithPgas('Alice')
-    await createRevokedAttestation('calculator').catch(() => {})
-    await createRevokedAttestation('stopwatch').catch(() => {})
-    await createAttestation('calculator')
-
-    host = await startSignedHost('bob')
-    context = await browser.newContext({ ignoreHTTPSErrors: true })
-  })
-
-  test.afterAll(async () => {
-    await context?.close()
-    await host?.close()
-  })
 
   test('As a signed user, when I follow someone, I see their recommended apps in the Following tab', async () => {
     test.setTimeout(40_000)
-    const page = await context.newPage()
+    const page = await recommendContext.newPage()
 
     // Given
     await navigateToTestHost(page, host.url)
@@ -153,7 +149,7 @@ test.describe('Following', () => {
     await createAttestation('stopwatch')
 
     // When
-    const page = await context.newPage()
+    const page = await recommendContext.newPage()
     await createCachedApps(page)
     await navigateToTestHost(page, host.url)
     const frame = await getProductFrame(page, '.category-tab')

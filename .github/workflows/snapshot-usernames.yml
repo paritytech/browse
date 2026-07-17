@@ -1,21 +1,21 @@
-name: Snapshot Domains
+name: Snapshot Usernames
 
 on:
   schedule:
-    # Daily at 03:17 UTC, off the top of the hour to dodge cron congestion.
-    - cron: '17 3 * * *'
+    # Daily at 03:47 UTC, off the top of the hour to dodge cron congestion.
+    - cron: '47 3 * * *'
   workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
-  group: snapshot-domains-${{ github.ref }}
+  group: snapshot-usernames-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  snapshot-domains:
-    name: Publish ${{ matrix.network.name }} domains snapshot
+  snapshot-usernames:
+    name: Publish ${{ matrix.network.name }} username snapshot
     runs-on: ubuntu-latest
     strategy:
       # One network failing must not skip publishing the other.
@@ -24,13 +24,13 @@ jobs:
         network:
           - name: Paseo Next V2
             genesis: '0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f'
-            # build.yml restores this via the `domains-snapshot-cid-` prefix.
-            cache-prefix: domains-snapshot-cid
+            # build.yml restores this via the `usernames-snapshot-cid-` prefix.
+            cache-prefix: usernames-snapshot-cid
           - name: Previewnet
             genesis: '0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb'
             # deploy.yml restores this for the preview build via the
-            # `previewnet-domains-snapshot-cid-` prefix.
-            cache-prefix: previewnet-domains-snapshot-cid
+            # `previewnet-usernames-snapshot-cid-` prefix.
+            cache-prefix: previewnet-usernames-snapshot-cid
     steps:
       - uses: actions/checkout@v4
 
@@ -49,8 +49,8 @@ jobs:
           MNEMONIC: ${{ secrets.MNEMONIC }}
           NETWORK_GENESIS_HASH: ${{ matrix.network.genesis }}
         run: |
-          bun run snapshot:domains | tee snapshot.log
-          cid=$(grep -oE 'APP_DOMAINS_SNAPSHOT_CID=[A-Za-z0-9]+' snapshot.log | tail -1 | cut -d= -f2)
+          bun run snapshot:usernames | tee snapshot.log
+          cid=$(grep -oE 'APP_USERNAMES_SNAPSHOT_CID=[A-Za-z0-9]+' snapshot.log | tail -1 | cut -d= -f2)
           echo "cid=$cid" >> "$GITHUB_OUTPUT"
 
       - name: Stage snapshot CID
@@ -58,8 +58,8 @@ jobs:
         env:
           CID: ${{ steps.snapshot.outputs.cid }}
         run: |
-          mkdir -p .snapshot-cid
-          echo "$CID" > .snapshot-cid/cid
+          mkdir -p .usernames-snapshot-cid
+          echo "$CID" > .usernames-snapshot-cid/cid
 
       # Persist the manifest CID so the next build bakes it in. The key rotates
       # per run because caches are immutable. The consuming build restores the
@@ -68,7 +68,7 @@ jobs:
         if: steps.snapshot.outputs.cid != ''
         uses: actions/cache/save@v4
         with:
-          path: .snapshot-cid
+          path: .usernames-snapshot-cid
           key: ${{ matrix.network.cache-prefix }}-${{ github.run_id }}
 
       - name: Snapshot summary
@@ -77,9 +77,9 @@ jobs:
           NETWORK: ${{ matrix.network.name }}
         run: |
           {
-            echo "### ${NETWORK} .dot domain snapshot"
+            echo "### ${NETWORK} username snapshot"
             echo ""
             echo "Manifest CID &nbsp; \`${CID}\`"
             echo ""
-            echo "Cached as \`APP_DOMAINS_SNAPSHOT_CID\` for the next build."
+            echo "Cached as \`APP_USERNAMES_SNAPSHOT_CID\` for the next build."
           } >> "$GITHUB_STEP_SUMMARY"

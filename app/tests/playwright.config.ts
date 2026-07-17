@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { defineConfig } from '@playwright/test'
 
 import { DOMAINS_SNAPSHOT_CID } from './fixtures/domains-snapshot'
+import { USERNAMES_SNAPSHOT_CID } from './fixtures/usernames-snapshot'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PORT = process.env.PORT ?? '5173'
@@ -34,9 +35,12 @@ export default defineConfig({
     reuseExistingServer: true,
     timeout: 30_000,
     // Vite exposes prefixed shell env as import.meta.env, so the client reads
-    // this as the active snapshot. Only the domain-snapshot test seeds a
-    // matching manifest, so other tests just see an empty snapshot.
-    env: { APP_DOMAINS_SNAPSHOT_CID: DOMAINS_SNAPSHOT_CID }
+    // these as the active snapshots. Only the matching snapshot test seeds the
+    // blocks, so other tests just see an empty snapshot.
+    env: {
+      APP_DOMAINS_SNAPSHOT_CID: DOMAINS_SNAPSHOT_CID,
+      APP_USERNAMES_SNAPSHOT_CID: USERNAMES_SNAPSHOT_CID
+    }
   },
   reporter: [['list'], ['json', { outputFile: resolve(__dirname, 'results/results.json') }]]
 })
