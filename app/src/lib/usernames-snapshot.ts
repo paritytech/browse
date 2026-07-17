@@ -15,8 +15,13 @@ import { preimageManager } from '@novasamatech/host-api-wrapper'
 import { useQuery } from '@tanstack/react-query'
 
 import { ASSETHUB_GENESIS, USERNAMES_SNAPSHOT_CID } from './config'
-import { type UsernameEntry } from './usernames'
 import { cidToBlake2b256DigestHex } from '../state/apps/icon'
+
+/** A username and the SS58 account that owns it, read from the snapshot. */
+export interface UsernameEntry {
+  username: string
+  account: string
+}
 
 interface UsernamesSnapshotManifest {
   version: number
