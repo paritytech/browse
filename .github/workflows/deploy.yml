@@ -71,6 +71,7 @@ jobs:
             genesis: '0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb'
             reuse-artifact: false
             snapshot-cache-prefix: previewnet-domains-snapshot-cid
+            username-snapshot-cache-prefix: previewnet-usernames-snapshot-cid
             required: true
     outputs:
       cid: ${{ steps.final.outputs.cid }}
@@ -135,12 +136,30 @@ jobs:
             echo "cid=$(cat .snapshot-cid/cid)" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Restore username snapshot CID
+        if: matrix.target.reuse-artifact != true && matrix.target.username-snapshot-cache-prefix != ''
+        uses: actions/cache/restore@v4
+        with:
+          path: .usernames-snapshot-cid
+          key: ${{ matrix.target.username-snapshot-cache-prefix }}
+          restore-keys: |
+            ${{ matrix.target.username-snapshot-cache-prefix }}-
+
+      - name: Read username snapshot CID
+        id: usernames-cid
+        if: matrix.target.reuse-artifact != true
+        run: |
+          if [ -f .usernames-snapshot-cid/cid ]; then
+            echo "cid=$(cat .usernames-snapshot-cid/cid)" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Build for ${{ matrix.target.env }}
         if: matrix.target.reuse-artifact != true
         working-directory: app
         env:
           NETWORK_GENESIS_HASH: ${{ matrix.target.genesis }}
           APP_DOMAINS_SNAPSHOT_CID: ${{ steps.snapshot-cid.outputs.cid }}
+          APP_USERNAMES_SNAPSHOT_CID: ${{ steps.usernames-cid.outputs.cid }}
         run: |
           bun install --frozen-lockfile
           bun run build

@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'preact/hooks'
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { X } from 'lucide-preact'
 import { AccountId } from 'polkadot-api'
 
-import { searchUsernames, type UsernameEntry } from '../../lib/usernames'
+import { MIN_PREFIX_LENGTH, useUsernameSuggestions } from '../../lib/usernames-snapshot'
 import { type FollowedAccount } from '../../state/following/api'
 import { avatarBg } from '../identicon'
 import './styles.css'
@@ -44,92 +44,65 @@ export function FollowingManager({
   embedded = false
 }: FollowingManagerProps) {
   const [input, setInput] = useState('')
-  const [result, setResult] = useState<UsernameEntry | null>(null)
-  const [searching, setSearching] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const trimmed = input.trim()
-  const query = trimmed.replace(/^@/, '')
   const ss58 = isValidSS58(trimmed)
+  const query = trimmed.replace(/^@/, '').toLowerCase()
   const isFollowing = (address: string) => following.some((a) => a.address === address)
 
-  // Reset when the modal closes, not when it opens: clearing on open races with
-  // the user (or a test) typing right after it becomes visible and would wipe
-  // the field.
+  // Debounce the suggestion prefix ~150ms behind the query so rapid typing
+  // doesn't spin up a react-query observer and shard scan per keystroke.
+  // `useDeferredValue` is a no-op under Preact, so debounce explicitly, the same
+  // way App.tsx does for the domain suggestions.
+  const [suggestionPrefix, setSuggestionPrefix] = useState('')
   useEffect(() => {
-    console.warn('debug network connection', JSON.stringify({ event: 'modal:visible', visible }))
+    const id = setTimeout(() => setSuggestionPrefix(query), 150)
+    return () => clearTimeout(id)
+  }, [query])
+
+  // Reset when the modal closes, not when it opens: clearing on open races with
+  // someone typing right after it becomes visible and would wipe the field.
+  useEffect(() => {
     if (!visible) {
       setInput('')
-      setResult(null)
-      setSearching(false)
       return
     }
     // Drop the caret into the field once the open transition starts.
     // `preventScroll` stops the browser scrolling an ancestor to reveal the
-    // input — which would shift the customize popover's slide track sideways.
+    // input, which would shift the customize popover slide track sideways.
     const id = setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 50)
     return () => clearTimeout(id)
   }, [visible])
 
-  // Resolve as the user types (debounced). The People-chain lookup is exact, so
-  // a result appears once the full username is typed.
-  useEffect(() => {
-    console.warn(
-      'debug network connection',
-      JSON.stringify({ event: 'modal:searchEffect', query, ss58, visible })
-    )
-    if (!query || ss58) {
-      setResult(null)
-      setSearching(false)
-      return
-    }
-    let cancelled = false
-    setSearching(true)
-    const id = setTimeout(async () => {
-      console.warn(
-        'debug network connection',
-        JSON.stringify({ event: 'modal:searchFiring', query })
-      )
-      try {
-        const [match] = await searchUsernames(query)
-        console.warn(
-          'debug network connection',
-          JSON.stringify({ event: 'modal:searchResolved', match: match ?? null, cancelled })
-        )
-        if (!cancelled) setResult(match ?? null)
-      } catch (err) {
-        console.warn(
-          'debug network connection',
-          JSON.stringify({ event: 'modal:searchThrew', err: String(err), cancelled })
-        )
-        if (!cancelled) setResult(null)
-      } finally {
-        if (!cancelled) setSearching(false)
-      }
-    }, 300)
-    return () => {
-      console.warn(
-        'debug network connection',
-        JSON.stringify({ event: 'modal:searchCleanup', query })
-      )
-      cancelled = true
-      clearTimeout(id)
-    }
-  }, [query, ss58])
+  // Prefix autocomplete from the verifiable username snapshot, mirroring the
+  // domain search bar. A raw SS58 paste is handled directly below instead.
+  const { data: suggestions = [], isFetching } = useUsernameSuggestions(
+    ss58 ? '' : suggestionPrefix
+  )
+  const results = useMemo(
+    () => suggestions.filter((entry) => !isFollowing(entry.account)),
+    [suggestions, following]
+  )
+  // The debounced prefix trailing the query, or a fetch in flight, both mean a
+  // result is still pending, so hold the "No results" state until it settles.
+  const searching = isFetching || suggestionPrefix !== query
 
   function follow(address: string, username?: string) {
     if (isFollowing(address)) return
     onAdd(address, username)
     setInput('')
-    setResult(null)
   }
 
   function commit() {
-    if (result) follow(result.account, result.username)
+    const first = results[0]
+    if (first) follow(first.account, first.username)
     else if (ss58) follow(trimmed)
   }
 
-  const searchMode = trimmed.length > 0
+  // A raw SS58 paste follows directly. A username prefix only resolves once it
+  // reaches the snapshot shard-key length, so shorter input shows the list.
+  const showResults = ss58 || query.length >= MIN_PREFIX_LENGTH
 
   const body = (
     <div class='following-modal__body'>
@@ -163,7 +136,7 @@ export function FollowingManager({
         </div>
       </div>
 
-      {searchMode ? (
+      {showResults ? (
         <div class='following-modal__results'>
           {ss58 ? (
             isFollowing(trimmed) ? (
@@ -179,26 +152,25 @@ export function FollowingManager({
                 <span class='following-modal__row-label'>{truncateAddress(trimmed)}</span>
               </button>
             )
-          ) : searching ? (
-            <p class='following-modal__state'>Searching…</p>
-          ) : result ? (
-            isFollowing(result.account) ? (
-              <p class='following-modal__state'>You already follow @{result.username}</p>
-            ) : (
+          ) : results.length > 0 ? (
+            results.map((entry) => (
               <button
+                key={entry.account}
                 type='button'
                 class='following-modal__option'
-                onClick={() => follow(result.account, result.username)}
+                onClick={() => follow(entry.account, entry.username)}
               >
                 <span
                   class='following-modal__avatar'
-                  style={{ backgroundColor: avatarBg(result.username) }}
+                  style={{ backgroundColor: avatarBg(entry.username) }}
                 >
-                  {result.username.charAt(0).toUpperCase()}
+                  {entry.username.charAt(0).toUpperCase()}
                 </span>
-                <span class='following-modal__row-label'>{result.username}</span>
+                <span class='following-modal__row-label'>{entry.username}</span>
               </button>
-            )
+            ))
+          ) : searching ? (
+            <p class='following-modal__state'>Searching…</p>
           ) : (
             <p class='following-modal__state'>No results for “{query}”</p>
           )}

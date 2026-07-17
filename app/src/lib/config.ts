@@ -63,6 +63,15 @@ export const DOMAINS_SNAPSHOT_CID =
   import.meta.env?.APP_DOMAINS_SNAPSHOT_CID ?? process.env?.APP_DOMAINS_SNAPSHOT_CID ?? undefined
 
 /**
+ * Manifest-block CID of the daily verifiable username snapshot, used to power
+ * the Following search autocomplete. Unset disables the suggestion surface.
+ */
+export const USERNAMES_SNAPSHOT_CID =
+  import.meta.env?.APP_USERNAMES_SNAPSHOT_CID ??
+  process.env?.APP_USERNAMES_SNAPSHOT_CID ??
+  undefined
+
+/**
  * Product identity presented on localhost, where the
  * real product account is not provisionable. The e2e host maps this same id to
  * a funded account, so keep the two in sync.

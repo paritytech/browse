@@ -4,12 +4,6 @@
  *   cd app && MNEMONIC="…" bun scripts/snapshot-domains.ts [paseo|previewnet]
  */
 
-import { gzipSync } from 'node:zlib'
-
-import { blake2b } from '@noble/hashes/blake2.js'
-import { ApiPromise, WsProvider } from '@polkadot/api'
-import { sr25519CreateDerive } from '@polkadot-labs/hdkd'
-import { entropyToMiniSecret, mnemonicToEntropy, ss58Address } from '@polkadot-labs/hdkd-helpers'
 import {
   createBrowseSdk,
   decodeAddress,
@@ -21,21 +15,14 @@ import {
   encodeGetLabels,
   encodeGetLabelStores,
   encodeOwner,
-  isKnownGenesis,
   type MulticallTarget,
   namehash,
-  type NetworkGenesis,
-  PASEO_ASSETHUB_NEXT_V2_GENESIS,
-  PREVIEWNET_ASSETHUB_GENESIS,
   selectNetwork,
-  SUMMIT_ASSETHUB_GENESIS,
   tryDecode
 } from '@parity/browse-sdk'
-import { CID } from 'multiformats/cid'
-import * as Digest from 'multiformats/hashes/digest'
-import { Binary, createClient, Enum } from 'polkadot-api'
-import { getPolkadotSigner } from 'polkadot-api/signer'
 import { getWsProvider } from 'polkadot-api/ws'
+
+import { BULLETIN_RPC_BY_GENESIS, publishSnapshot, resolveGenesis, shardKey } from './lib/snapshot'
 
 const SNAPSHOT_VERSION = 1
 const STORE_FACTORY_PAGE_LIMIT = 1000n
@@ -43,48 +30,6 @@ const LABEL_STORE_PAGE_LIMIT = 1000n
 const CONTENT_CHUNK = 200
 /** SS58 padding-derived dummy origin (H160 zero) for unauthenticated reads. */
 const DUMMY_ORIGIN = '5C4hrfjw9DjXZTzV3MwzrrAr9P1MLDHajjSidz9bR544LEq1'
-
-// Bulletin content addressing: raw codec and blake2b-256, matching the host
-// preimage bridge (icon CIDs use the same shape).
-const RAW_CODEC = 0x55
-const BLAKE2B_256 = 0xb220
-
-// Bulletin RPC per network, keyed by the resolved genesis: paseo publishes to
-// the paseo bulletin, previewnet to the previewnet bulletin.
-const BULLETIN_RPC_BY_GENESIS: Partial<Record<NetworkGenesis, string>> = {
-  [PASEO_ASSETHUB_NEXT_V2_GENESIS]: 'wss://paseo-bulletin-next-rpc.polkadot.io',
-  [PREVIEWNET_ASSETHUB_GENESIS]: 'wss://previewnet.substrate.dev/bulletin'
-}
-const POOL_SIZE = 10
-const POOL_PREFIX = '//deploy'
-
-const GENESIS_BY_ALIAS: Record<string, NetworkGenesis> = {
-  paseo: PASEO_ASSETHUB_NEXT_V2_GENESIS,
-  'paseo-next-v2': PASEO_ASSETHUB_NEXT_V2_GENESIS,
-  previewnet: PREVIEWNET_ASSETHUB_GENESIS,
-  preview: PREVIEWNET_ASSETHUB_GENESIS,
-  summit: SUMMIT_ASSETHUB_GENESIS
-}
-
-function resolveGenesis(): NetworkGenesis {
-  const envGenesis = process.env.NETWORK_GENESIS_HASH
-  if (envGenesis) {
-    if (!isKnownGenesis(envGenesis)) {
-      console.error(`Unknown NETWORK_GENESIS_HASH: ${envGenesis}`)
-      process.exit(1)
-    }
-    return envGenesis
-  }
-  const alias = (process.argv[2] ?? 'paseo').toLowerCase()
-  const genesis = GENESIS_BY_ALIAS[alias]
-  if (!genesis) {
-    console.error(
-      `Unknown network alias '${alias}'. Use: ${Object.keys(GENESIS_BY_ALIAS).join(', ')}`
-    )
-    process.exit(1)
-  }
-  return genesis
-}
 
 /** Strip a trailing `.dot`, lowercase, reject subnames (interior `.`). */
 function normalizeLabel(raw: string): string | null {
@@ -186,104 +131,6 @@ async function filterToLive(
   return live
 }
 
-function shardKey(label: string): string {
-  return label.length >= 2 ? label.slice(0, 2) : '_short'
-}
-
-/** `CIDv1(raw, blake2b-256)` of a block, the shape the host preimage bridge resolves. */
-function blockCid(bytes: Uint8Array): CID {
-  return CID.createV1(RAW_CODEC, Digest.create(BLAKE2B_256, blake2b(bytes, { dkLen: 32 })))
-}
-
-interface Block {
-  cid: CID
-  data: Uint8Array
-}
-
-/**
- * Store every block on Bulletin, draining each pool account sequentially with
- * all accounts in parallel.
- *
- * Each account confirms a nonce by block inclusion before advancing. A stale
- * nonce is retried after re-reading the pool-aware next index.
- */
-async function storeBlocks(
-  mnemonic: string,
-  blocks: Block[],
-  bulletinRpc: string
-): Promise<void> {
-  const client = createClient(getWsProvider(bulletinRpc))
-  const api = client.getUnsafeApi()
-  const derive = sr25519CreateDerive(entropyToMiniSecret(mnemonicToEntropy(mnemonic)))
-
-  // Pool-aware next nonce that accounts for in-flight pool txs. papi reads
-  // finalized, so use the @polkadot/api `system_accountNextIndex` RPC.
-  const pjs = await ApiPromise.create({ provider: new WsProvider(bulletinRpc), noInitWarn: true })
-  const pool = await Promise.all(
-    Array.from({ length: POOL_SIZE }, async (_, i) => {
-      const kp = derive(`${POOL_PREFIX}/${i}`)
-      const address = ss58Address(kp.publicKey)
-      return {
-        signer: getPolkadotSigner(kp.publicKey, 'Sr25519', kp.sign),
-        address,
-        nonce: (await pjs.rpc.system.accountNextIndex(address)).toNumber()
-      }
-    })
-  )
-  console.log(`pool:      ${POOL_SIZE} signers (${pool[0]!.address.slice(0, 8)}…)\n`)
-
-  const submit = (b: Block, signer: ReturnType<typeof getPolkadotSigner>, nonce: number) =>
-    new Promise<void>((resolve, reject) => {
-      const tx = api.tx.TransactionStorage.store_with_cid_config({
-        cid: { codec: BigInt(RAW_CODEC), hashing: Enum('Blake2b256') },
-        data: Binary.fromHex(`0x${Buffer.from(b.data).toString('hex')}`)
-      })
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const sub = tx
-        .signSubmitAndWatch(signer, { mortality: { mortal: true, period: 64 }, nonce })
-        .subscribe({
-          next: (e: any) => {
-            if (e.type === 'txBestBlocksState' && e.found) {
-              sub.unsubscribe()
-              if (e.ok) resolve()
-              else reject(new Error('tx failed in block'))
-            }
-          },
-          error: (err: unknown) => reject(err)
-        })
-    })
-
-  const isStale = (e: unknown) => JSON.stringify((e as Error)?.message ?? e ?? '').includes('Stale')
-
-  let done = 0
-  await Promise.all(
-    pool.map(async (acct, ai) => {
-      let nonce = acct.nonce
-      for (let idx = ai; idx < blocks.length; idx += POOL_SIZE) {
-        for (let attempt = 0; ; attempt++) {
-          try {
-            await submit(blocks[idx]!, acct.signer, nonce)
-            nonce++
-            break
-          } catch (e) {
-            if (isStale(e) && attempt < 8) {
-              nonce = (await pjs.rpc.system.accountNextIndex(acct.address)).toNumber()
-              continue
-            }
-            throw e
-          }
-        }
-        done++
-        if (done % 50 === 0 || done === blocks.length)
-          console.log(`  stored ${done}/${blocks.length}`)
-      }
-    })
-  )
-
-  await pjs.disconnect()
-  client.destroy()
-}
-
 async function main(): Promise<void> {
   const mnemonic = process.env.MNEMONIC
   if (!mnemonic) {
@@ -316,43 +163,17 @@ async function main(): Promise<void> {
   labels = labels.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
   console.log(`\nCollected ${labels.length} live domain(s)`)
 
-  // Shard, gzip, and content-address each shard.
-  const buckets = new Map<string, string[]>()
-  for (const label of labels) {
-    const key = shardKey(label)
-    const bucket = buckets.get(key)
-    if (bucket) bucket.push(label)
-    else buckets.set(key, [label])
-  }
+  const { manifestCid, shardCount } = await publishSnapshot({
+    version: SNAPSHOT_VERSION,
+    genesis,
+    bulletinRpc,
+    mnemonic,
+    lines: labels,
+    shardKeyOf: shardKey
+  })
 
-  const shards: Record<string, { cid: string; count: number }> = {}
-  const blocks: Block[] = []
-  for (const [key, bucketLabels] of buckets) {
-    const gzipped = new Uint8Array(gzipSync(Buffer.from(bucketLabels.join('\n') + '\n', 'utf8')))
-    const cid = blockCid(gzipped)
-    shards[key] = { cid: cid.toString(), count: bucketLabels.length }
-    blocks.push({ cid, data: gzipped })
-  }
-
-  const manifestBytes = new TextEncoder().encode(
-    JSON.stringify({
-      version: SNAPSHOT_VERSION,
-      generatedAt: Date.now(),
-      network: genesis,
-      shardScheme: { prefixLen: 2 as const, count: buckets.size },
-      shards
-    })
-  )
-  const manifestCid = blockCid(manifestBytes)
-  // Store the manifest last so a partial run never publishes a manifest whose
-  // shards aren't all on-chain yet.
-  blocks.push({ cid: manifestCid, data: manifestBytes })
-
-  console.log(`blocks:    ${blocks.length} (${buckets.size} shards + manifest)`)
-  await storeBlocks(mnemonic, blocks, bulletinRpc)
-
-  console.log(`\nPublished ${labels.length} domains in ${buckets.size} shards.`)
-  console.log(`\nAPP_DOMAINS_SNAPSHOT_CID=${manifestCid.toString()}`)
+  console.log(`\nPublished ${labels.length} domains in ${shardCount} shards.`)
+  console.log(`\nAPP_DOMAINS_SNAPSHOT_CID=${manifestCid}`)
 }
 
 await main()
