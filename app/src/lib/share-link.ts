@@ -36,6 +36,32 @@ export function shareLink(label: string): string {
   return `https://${SELF_LABEL}.${NETWORK.primaryWebDomain}${query}`
 }
 
+/**
+ * Extract a `.dot` label from a pasted browse or app link, or null when the
+ * input is not a link so normal search text passes through untouched. Handles
+ * the browse pass-through form (`…?app=<label>`), its localhost dev variant, and
+ * a direct app link (`<label>.<webdomain>`, e.g. `calculator.paseo.li`).
+ */
+export function labelFromLink(raw: string): string | null {
+  const trimmed = raw.trim()
+  // Only treat clear URLs as links, so plain search terms are left alone.
+  if (!/^https?:\/\//i.test(trimmed) && !trimmed.includes('app=')) return null
+  let url: URL
+  try {
+    url = new URL(trimmed.includes('://') ? trimmed : `https://${trimmed}`)
+  } catch {
+    return null
+  }
+  // A pass-through link carries the target as `?app=<label>`; a direct app link
+  // puts it in the leftmost host part (`calculator.paseo.li`, `browse.paseo.li`).
+  const candidate = url.searchParams.get('app') || url.hostname.split('.')[0]
+  const label = candidate
+    .trim()
+    .toLowerCase()
+    .replace(/\.dot$/, '')
+  return label || null
+}
+
 export interface SharedApp {
   label: string
   from?: string

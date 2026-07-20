@@ -30,7 +30,7 @@ import { setupDebugConsole } from './lib/debug'
 import { useDomainSuggestions } from './lib/domains-snapshot'
 import { navigateToDomain } from './lib/navigate'
 import { clearPendingRecommend, readPendingRecommends } from './lib/pending-recommend'
-import { shareLink } from './lib/share-link'
+import { labelFromLink, shareLink } from './lib/share-link'
 import { subscribeHostTheme } from './lib/theme'
 import {
   ALL_APPS_KEY,
@@ -499,6 +499,11 @@ export function App() {
       showToast('Could not copy to clipboard', true)
     }
   })
+  // Pasting a share or app link into search collapses it to the bare label so
+  // the resolver can find the app; plain search text is left untouched.
+  const handleSearchInput = useEvent((value: string) => {
+    setQuery(labelFromLink(value) ?? value)
+  })
   // Yes closes the prompt and recommends. Prefer clicking the app's own upvote
   // button so it blinks and bubbles exactly as a direct click would. Fall back
   // to firing the recommend when that card is not currently rendered.
@@ -757,7 +762,11 @@ export function App() {
           <div class='card-flip' id='card-flip'>
             <div class='card front' id='card-front'>
               <div class='topbar'>
-                <SearchBar value={query} onInput={setQuery} onCancel={() => setQuery('')} />
+                <SearchBar
+                  value={query}
+                  onInput={handleSearchInput}
+                  onCancel={() => setQuery('')}
+                />
               </div>
               {!searchMatches && (
                 <div class='tabs-row'>

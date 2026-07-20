@@ -77,6 +77,22 @@ test.describe('Share', () => {
     )
   })
 
+  test('As a user, when I paste a share link into search it collapses to the domain', async () => {
+    test.setTimeout(45_000)
+    page = await context.newPage()
+
+    // Given
+    await navigateToTestHost(page, host.url)
+    const frame = await getProductFrame(page, '.search-bar__input')
+    const input = frame.locator('.search-bar__input')
+
+    // When
+    await input.fill('https://browse.testnet.li/localhost:3000?app=host-playground')
+
+    // Then
+    await expect(input).toHaveValue('host-playground')
+  })
+
   test('As a returning user, I am asked if I liked a shared app and dismissing clears it', async () => {
     test.setTimeout(45_000)
     page = await context.newPage()
