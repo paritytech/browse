@@ -1,7 +1,7 @@
 import { useState } from 'preact/hooks'
 
 import { ProductCard } from './index'
-import { useEvent } from '../../lib/use-event'
+import { useEvent } from '../../hooks/use-event'
 import { type AppCertificate, type AppEntry } from '../../state/apps/types'
 import {
   describeError,

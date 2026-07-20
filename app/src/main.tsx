@@ -8,6 +8,9 @@ import '@fontsource-variable/martian-mono'
 
 import { App } from './App'
 import { resetBrowseSdk } from './lib/client'
+import { redirectToApp } from './lib/navigate'
+import { addPendingRecommend } from './lib/pending-recommend'
+import { parseSharedApp } from './lib/share-link'
 import { applyInitialTheme } from './lib/theme'
 import { prefetchAllApps } from './state/apps/queries'
 import './styles/tokens.css'
@@ -17,6 +20,21 @@ const queryClient = new QueryClient()
 
 if (import.meta.env.DEV) {
   window.__queryClient = queryClient
+}
+
+// A `?app=<domain>` share link is a pass-through: record the intent so we can
+// ask for a recommendation on a later visit, strip the params so a reload or
+// return never re-fires, then send the user into the app. navigateTo opens the
+// app as a new page and leaves browse mounted behind it, so browse still
+// renders below and shows the deferred prompt when the user comes back.
+const sharedApp = parseSharedApp(window.location.search)
+if (sharedApp) {
+  addPendingRecommend(sharedApp.label, sharedApp.from)
+  const url = new URL(window.location.href)
+  url.searchParams.delete('app')
+  url.searchParams.delete('from')
+  window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
+  redirectToApp(sharedApp.label)
 }
 
 // The host tears the network WebSocket down while the app is backgrounded and
