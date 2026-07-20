@@ -692,6 +692,12 @@ input {
   .list-count {
     padding: 0 1rem;
   }
+
+  /* Keep the popover a compact card anchored under the ⋮ rather than a
+     near-full-width panel. Desktop keeps the wider 400px rule above. */
+  .customize-popover {
+    width: min(320px, calc(100vw - 32px));
+  }
 }
 
 @media (min-width: 768px) {
