@@ -1,10 +1,11 @@
 /**
  * Share end-to-end tests.
  *
- * The share action copies a single browse `?app=` pass-through link. On a later
- * visit browse surfaces a deferred prompt asking whether the user liked an app
- * they were sent to from such a link. Confirming the prompt reuses the attest
- * path already covered by recommend.spec.
+ * The share action hands a single browse `?app=` pass-through link to the native
+ * share sheet, copying to the clipboard where Web Share is unavailable. On a
+ * later visit browse surfaces a deferred prompt asking whether the user liked an
+ * app they were sent to from such a link. Confirming the prompt reuses the
+ * attest path already covered by recommend.spec.
  */
 
 import type { BrowserContext, Frame, Page } from '@playwright/test'
@@ -12,21 +13,26 @@ import { expect, test } from '@playwright/test'
 
 import { getProductFrame, navigateToTestHost, startSignedHost } from './utils'
 
-/** Replace the frame clipboard writer with a capture buffer on `window.__copied`. */
-async function stubClipboard(frame: Frame): Promise<void> {
+/** Capture native-share payloads on `window.__shared` instead of opening the OS sheet. */
+async function stubShare(frame: Frame): Promise<void> {
   await frame.evaluate(() => {
-    const w = window as unknown as { __copied: string[] }
-    w.__copied = []
-    navigator.clipboard.writeText = (text: string) => {
-      w.__copied.push(text)
-      return Promise.resolve()
-    }
+    const w = window as unknown as { __shared: { url?: string }[] }
+    w.__shared = []
+    Object.defineProperty(navigator, 'share', {
+      configurable: true,
+      value: (data: { url?: string }) => {
+        w.__shared.push(data)
+        return Promise.resolve()
+      }
+    })
   })
 }
 
-async function lastCopied(frame: Frame): Promise<string> {
-  const copied = await frame.evaluate(() => (window as unknown as { __copied: string[] }).__copied)
-  return copied[copied.length - 1] ?? ''
+async function lastSharedUrl(frame: Frame): Promise<string> {
+  const shared = await frame.evaluate(
+    () => (window as unknown as { __shared: { url?: string }[] }).__shared
+  )
+  return shared[shared.length - 1]?.url ?? ''
 }
 
 test.describe('Share', () => {
@@ -46,7 +52,7 @@ test.describe('Share', () => {
     await host?.close()
   })
 
-  test('As a user, when I share an app it copies a browse pass-through link', async () => {
+  test('As a user, when I share an app it hands the link to the native share sheet', async () => {
     test.setTimeout(45_000)
     page = await context.newPage()
 
@@ -55,7 +61,7 @@ test.describe('Share', () => {
     // A real card, not a cold-start skeleton. Skeletons share the `.product-card`
     // class but carry no `data-label`.
     const frame = await getProductFrame(page, '.product-card[data-label]')
-    await stubClipboard(frame)
+    await stubShare(frame)
     const card = frame.locator('.product-card[data-label]').first()
     const label = await card.getAttribute('data-label')
     expect(label).toBeTruthy()
@@ -66,8 +72,7 @@ test.describe('Share', () => {
     // Then
     // Running on localhost, the link routes through the network dev host back to
     // this instance rather than to production browse.
-    await expect(frame.locator('.toast--visible')).toContainText('Link copied', { timeout: 10_000 })
-    expect(await lastCopied(frame)).toMatch(
+    expect(await lastSharedUrl(frame)).toMatch(
       new RegExp(`^https://testnet\\.li/localhost:\\d+\\?app=${label}$`)
     )
   })

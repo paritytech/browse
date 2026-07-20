@@ -473,13 +473,27 @@ export function App() {
     unfollow(address)
     setFollowing((prev) => prev.filter((account) => account.address !== address))
   })
-  // Sharing copies a single browse link, e.g. `https://browse.paseo.li?app=calculator`.
+  // Sharing hands off a single browse link, e.g. `https://browse.paseo.li?app=calculator`.
   // Opened, it redirects the recipient straight into the app and arms a later
   // recommend prompt. No username is attached: reading it from the host is
   // permission-gated, and sharing must never trigger that prompt.
+  //
+  // Prefer the native share sheet (iOS/Android: Copy, WhatsApp, …). Fall back to
+  // the clipboard where Web Share is unavailable (most desktop browsers) or the
+  // host blocks it.
   const handleShare = useEvent(async (app: AppEntry) => {
+    const url = shareLink(app.label)
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: app.name ?? `${app.label}.dot`, url })
+        return
+      } catch (err) {
+        // The user dismissed the sheet: leave it, don't fall back to a copy.
+        if ((err as Error).name === 'AbortError') return
+      }
+    }
     try {
-      await navigator.clipboard.writeText(shareLink(app.label))
+      await navigator.clipboard.writeText(url)
       showToast('Link copied')
     } catch {
       showToast('Could not copy to clipboard', true)
