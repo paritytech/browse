@@ -400,12 +400,13 @@ export function App() {
       .map((label) => byLabel.get(label))
       .filter((app): app is AppEntry => app != null)
   }, [orderedLabels, filtered])
+  // Key off what renders, so a search reorder glides under one pass.
   const flipKey = useMemo(() => {
     if (searchMatches) {
-      return `s:${searchMatches.map((app) => app.label).join(',')}:${resolvedApp?.label ?? ''}`
+      return `s:${searchEntries.map(({ app }) => app.label).join(',')}`
     }
     return `f:${currentMode}:${orderedFiltered.map((app) => app.label).join(',')}`
-  }, [searchMatches, resolvedApp, currentMode, orderedFiltered])
+  }, [searchMatches, searchEntries, currentMode, orderedFiltered])
 
   // Snapshot the current AppEntry into the labels DB so the bookmark survives
   // reloads with full metadata.
@@ -830,16 +831,17 @@ export function App() {
                 ) : searchMatches && searchEntries.length > 0 ? (
                   // Search results render as product cards on both form factors.
                   // Snapshot-only labels resolve their name and icon lazily.
-                  // Published entries render directly.
-                  searchEntries.map(({ app, snapshotOnly }, i) =>
+                  // Published entries render directly. Search cards skip the entry
+                  // slide so results do not re-slide while typing.
+                  searchEntries.map(({ app, snapshotOnly }) =>
                     snapshotOnly ? (
                       <LazyResolvedCard
                         key={app.label}
                         app={app}
-                        render={(resolved) => renderCard(resolved, i)}
+                        render={(resolved) => renderCard(resolved, -1)}
                       />
                     ) : (
-                      renderCard(app, i)
+                      renderCard(app, -1)
                     )
                   )
                 ) : searchMatches ? (

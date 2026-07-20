@@ -1,14 +1,17 @@
 import { type Browser, type Frame, expect, test } from '@playwright/test'
 
 import { createCachedApps } from './fixtures/cache'
+import { SNAPSHOT_BLOCKS, SNAPSHOT_ONLY_LABEL } from './fixtures/domains-snapshot'
 import { createProductSigner, fundWithNative } from './fixtures/fund'
 import { createRevokedAttestation } from './fixtures/revoke-attestation'
+import { seedPreimage } from './fixtures/seed-preimage'
 import {
   identityUsername,
   getProductFrame,
   identityUri,
   navigateToTestHost,
-  startSignedHost
+  startSignedHost,
+  startUnsignedHost
 } from './utils'
 import { SHUFFLE_MAX_MS, SHUFFLE_MIN_MS } from '../src/hooks/use-flip'
 import type { AppEntry } from '../src/state/apps/types'
@@ -239,6 +242,61 @@ test.describe('Motion', () => {
 
     // Linger in headed runs so the bubbling is watchable; no-op in CI.
     if (process.env.HEADED === '1') await frame.waitForTimeout(4000)
+
+    await page.close()
+    await context.close()
+    await host.close()
+  })
+
+  test('As a user searching, when the matching apps change as I type, the cards settle in place instead of replaying their entry animation', async ({
+    browser
+  }) => {
+    test.setTimeout(45_000)
+    const host = await startUnsignedHost()
+    const context = await browser.newContext({ ignoreHTTPSErrors: true })
+    const page = await context.newPage()
+    await navigateToTestHost(page, host.url)
+    const frame = await getProductFrame(page, '.category-tab')
+    for (const block of SNAPSHOT_BLOCKS) await seedPreimage(page, block)
+    const input = frame.locator('.search-bar__input')
+
+    // Given
+    await input.fill('zz')
+    await frame.waitForSelector(`.product-card[data-label="${SNAPSHOT_ONLY_LABEL}"]`)
+    // Let the first paint finish so the watch catches replays, not the initial
+    // entry animation.
+    await frame.waitForTimeout(900)
+    // Flag any card that restarts the entry slide from now on.
+    await frame.evaluate(() => {
+      const w = window as unknown as { entryReplayed: boolean; raf: number }
+      w.entryReplayed = false
+      const tick = () => {
+        for (const card of document.querySelectorAll('.product-card[data-label]')) {
+          const sliding = card
+            .getAnimations()
+            .some(
+              (a) =>
+                (a as CSSAnimation).animationName === 'productCardIn' && a.playState === 'running'
+            )
+          if (sliding) w.entryReplayed = true
+        }
+        w.raf = requestAnimationFrame(tick)
+      }
+      tick()
+    })
+
+    // When
+    // "zzs" drops zzautocomplete and leaves zzstopwatch as the first card.
+    await input.pressSequentially('s', { delay: 150 })
+    await frame.waitForTimeout(600)
+
+    // Then
+    const entryReplayed = await frame.evaluate(() => {
+      const w = window as unknown as { entryReplayed: boolean; raf: number }
+      cancelAnimationFrame(w.raf)
+      return w.entryReplayed
+    })
+    expect(entryReplayed).toBe(false)
 
     await page.close()
     await context.close()
