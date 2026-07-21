@@ -130,6 +130,8 @@ export function App() {
     label: string
     from?: string
   } | null>(null)
+  const recommendPromptRef = useRef(recommendPrompt)
+  recommendPromptRef.current = recommendPrompt
 
   const rootRef = useRef<HTMLDivElement>(null)
   const appListRef = useRef<HTMLDivElement>(null)
@@ -517,7 +519,9 @@ export function App() {
       `[data-label="${prompt.label}"] .product-card__upvote`
     ) as HTMLElement | null
     if (upvote) {
-      upvote.click()
+      // Clicking the upvote toggles, so only click when it would add a
+      // recommendation.
+      if (!upvote.classList.contains('product-card__upvote--active')) upvote.click()
       return
     }
     if (!signed) {
@@ -646,10 +650,15 @@ export function App() {
   // already recommended. Re-checked on focus/visibility because inside the host
   // browse can stay mounted in the background across the app visit.
   useEffect(() => {
+    // `myRecommendations` is the same state that flips the upvote button active,
+    // so a label in it is one the user already recommended. Skip and clear those,
+    // and retract an open prompt whose app just became recommended.
     const checkPending = () => {
       for (const entry of readPendingRecommends()) {
         if (myRecommendations.has(entry.label)) clearPendingRecommend(entry.label)
       }
+      setRecommendPrompt((prev) => (prev && myRecommendations.has(prev.label) ? null : prev))
+      if (recommendPromptRef.current) return
       const next = readPendingRecommends().find((entry) => !myRecommendations.has(entry.label))
       if (next) setRecommendPrompt((prev) => prev ?? { label: next.label, from: next.from })
     }
