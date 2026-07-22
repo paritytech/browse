@@ -81,9 +81,9 @@
 }
 
 [data-theme='berlinDay'],
-[data-theme='lisbon'],
-[data-theme='malta'],
-[data-theme='tokyo'] {
+[data-theme='lisbonDay'],
+[data-theme='maltaDay'],
+[data-theme='tokyoDay'] {
   --fg-rgb: 10 10 10;
 
   --card-shadow:
