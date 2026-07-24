@@ -116,7 +116,7 @@ test.describe('App Start', () => {
       await expect(activeTab).toHaveText('All')
     })
 
-    test('As a signed user, when the All tab loads, I see products in ranking-score order', async () => {
+    test('As a signed user, when the All tab loads, I see products ordered by the selected sort', async () => {
       test.setTimeout(30_000)
 
       // When
@@ -138,10 +138,22 @@ test.describe('App Start', () => {
         ).__queryClient
         return (qc?.getQueryData(['apps', 'all']) as unknown[] | undefined) ?? []
       })
-      const expectedOrder = filterApps(apps as AppEntry[], '', 'all')
-        .map((app) => app.label)
-        .filter((label) => domOrder.includes(label))
-      expect(domOrder).toEqual(expectedOrder)
+      const orderBy = (sort: 'relevant' | 'new') =>
+        filterApps(apps as AppEntry[], '', 'all', undefined, undefined, undefined, sort)
+          .map((app) => app.label)
+          .filter((label) => domOrder.includes(label))
+      // The default sort is New.
+      expect(domOrder).toEqual(orderBy('new'))
+
+      // When
+      await frame.locator('.customize-trigger').click()
+      await frame.locator('.customize-nav-row', { hasText: 'Order by' }).click()
+      await frame.locator('.order-panel__option', { hasText: 'Relevant' }).click()
+
+      // Then
+      await expect
+        .poll(() => cards.evaluateAll((els) => els.map((el) => el.getAttribute('data-label'))))
+        .toEqual(orderBy('relevant'))
 
       // Then
       const labelCount = await frame.page().evaluate(() => {

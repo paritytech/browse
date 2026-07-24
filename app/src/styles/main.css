@@ -510,7 +510,16 @@ input {
     0 1px 2px rgb(0 0 0 / 0.1),
     0 24px 64px var(--shadow-medium);
   animation: customizePopoverIn 200ms cubic-bezier(0.32, 0.72, 0, 1);
-  transition: height 240ms cubic-bezier(0.32, 0.72, 0, 1);
+  transition:
+    height 240ms cubic-bezier(0.32, 0.72, 0, 1),
+    width 240ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* The Badges view carries the densest rows (logo, issuer, count, switch), so
+   its pane opens wider than the menu and the other managers, on every form
+   factor. Two classes to outrank the mobile width rule regardless of order. */
+.customize-popover.customize-popover--wide {
+  width: min(520px, calc(100vw - 24px));
 }
 
 @keyframes customizePopoverIn {
@@ -557,6 +566,12 @@ input {
   min-height: min(60vh, 420px);
 }
 
+/* The Order-by view has a fixed pair of short rows, so it drops the floor and
+   sizes to its content instead of padding out to a full panel. */
+.customize-pane__inner--fit {
+  min-height: 0;
+}
+
 /* A tappable menu row: the label on the left, the count or badge stack on the right. */
 .customize-nav-row {
   display: flex;
@@ -594,6 +609,72 @@ input {
   font-size: 14px;
   font-variant-numeric: tabular-nums;
   text-align: center;
+}
+
+/* The current sort shown on the right of the "Order by" menu row, mirroring the
+   Following count and the Badges stack. */
+.customize-nav-row__value {
+  color: var(--fg-secondary);
+  font-size: 14px;
+}
+
+/* The drilled "Order by" view: one selectable row per sort, each with a short
+   description of what it does and a check on the active one. Mirrors the
+   Following and Badges managers. */
+.order-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 2px;
+}
+
+.order-panel__option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  border: none;
+  border-radius: var(--radius-medium, 12px);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.order-panel__option:hover {
+  background: var(--surface-2);
+}
+
+.order-panel__option:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.order-panel__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.order-panel__name {
+  color: var(--color-heading);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 400;
+  line-height: 20px;
+}
+
+.order-panel__desc {
+  color: var(--fg-secondary);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.order-panel__check {
+  flex: none;
+  color: var(--color-accent);
 }
 
 /* Expanded-view header: back arrow, centered title, close cross. Sticky so it
