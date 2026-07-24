@@ -215,9 +215,17 @@
 }
 
 .ca-modal__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   font-family: var(--font-sans);
   font-size: var(--type-body-sm-size, 12px);
   color: var(--fg-4);
+}
+
+.ca-modal__meta-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

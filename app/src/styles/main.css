@@ -510,21 +510,16 @@ input {
     0 1px 2px rgb(0 0 0 / 0.1),
     0 24px 64px var(--shadow-medium);
   animation: customizePopoverIn 200ms cubic-bezier(0.32, 0.72, 0, 1);
-  /* Animate height as views drill in and out. Width grows only after the slide
-     finishes, so the slide runs at the menu width and the wider Badges pane
-     never stretches the menu or reveals its rows mid-slide. */
-  transition:
-    height 240ms cubic-bezier(0.32, 0.72, 0, 1),
-    width 200ms cubic-bezier(0.32, 0.72, 0, 1) 240ms;
+  /* Only height animates as views drill in and out. Width snaps instantly, so
+     the Badges view is at its full width the moment it opens with no lag. */
+  transition: height 240ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-/* Widen the popover for the Badges view, which has the densest rows. Desktop
-   only, because on mobile the popover is a right-anchored dropdown where the
-   extra width skews the margins and stutters the open animation. */
-@media (min-width: 521px) {
-  .customize-popover.customize-popover--wide {
-    width: min(520px, calc(100vw - 24px));
-  }
+/* Widen the popover for the Badges view, which has the densest rows. The
+   100vw minus 32px cap keeps the mobile margins symmetric with the trigger
+   inset, so the sheet is not lopsided. */
+.customize-popover.customize-popover--wide {
+  width: min(520px, calc(100vw - 32px));
 }
 
 @keyframes customizePopoverIn {
@@ -555,6 +550,13 @@ input {
   flex: 0 0 50%;
   width: 50%;
   overflow-y: auto;
+  transition: opacity 120ms ease;
+}
+
+/* Fade the inactive pane out so the menu values do not show through while the
+   wider Badges pane slides in over them. */
+.customize-pane[aria-hidden='true'] {
+  opacity: 0;
 }
 
 /* Natural-height content wrapper. This is measured rather than the scrolling
