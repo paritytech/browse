@@ -121,32 +121,28 @@ export function filterApps(
     )
   }
 
-  // All and Following order by the chosen sort. "Relevant" ranks by the
-  // composite score, then recommendation count, then name. "New" orders by
-  // publish time (newest first, unpublished last), then falls back to relevance.
-  // Bookmarks always stays alphabetical.
-  if (mode === 'all' || mode === 'following') {
-    const now = Date.now()
-    if (sort === 'new') {
-      return filtered.sort((a, b) => {
-        const publishedA = a.publishedAt ?? -Infinity
-        const publishedB = b.publishedAt ?? -Infinity
-        if (publishedA !== publishedB) return publishedB - publishedA
-        const scoreA = rankScore(a, now)
-        const scoreB = rankScore(b, now)
-        if (scoreA !== scoreB) return scoreB - scoreA
-        return displayName(a).localeCompare(displayName(b))
-      })
-    }
+  // Every tab honours the chosen sort. "Relevant" ranks by the composite score,
+  // then recommendation count, then name. "New" orders by publish time (newest
+  // first, unpublished last), then falls back to relevance.
+  const now = Date.now()
+  if (sort === 'new') {
     return filtered.sort((a, b) => {
+      const publishedA = a.publishedAt ?? -Infinity
+      const publishedB = b.publishedAt ?? -Infinity
+      if (publishedA !== publishedB) return publishedB - publishedA
       const scoreA = rankScore(a, now)
       const scoreB = rankScore(b, now)
       if (scoreA !== scoreB) return scoreB - scoreA
-      const countA = a.attestationCount ?? 0
-      const countB = b.attestationCount ?? 0
-      if (countA !== countB) return countB - countA
       return displayName(a).localeCompare(displayName(b))
     })
   }
-  return filtered.sort((a, b) => displayName(a).localeCompare(displayName(b)))
+  return filtered.sort((a, b) => {
+    const scoreA = rankScore(a, now)
+    const scoreB = rankScore(b, now)
+    if (scoreA !== scoreB) return scoreB - scoreA
+    const countA = a.attestationCount ?? 0
+    const countB = b.attestationCount ?? 0
+    if (countA !== countB) return countB - countA
+    return displayName(a).localeCompare(displayName(b))
+  })
 }
