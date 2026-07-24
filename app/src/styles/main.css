@@ -611,14 +611,14 @@ input {
   text-align: center;
 }
 
-/* The current sort shown on the right of the "Order by" menu row, mirroring the
+/* The current sort shown on the right of the Order by menu row, mirroring the
    Following count and the Badges stack. */
 .customize-nav-row__value {
   color: var(--fg-secondary);
   font-size: 14px;
 }
 
-/* The drilled "Order by" view: one selectable row per sort, each with a short
+/* The drilled Order by view: one selectable row per sort, each with a short
    description of what it does and a check on the active one. Mirrors the
    Following and Badges managers. */
 .order-panel {

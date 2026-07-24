@@ -121,8 +121,8 @@ export function filterApps(
     )
   }
 
-  // Every tab honours the chosen sort. "Relevant" ranks by the composite score,
-  // then recommendation count, then name. "New" orders by publish time (newest
+  // Every tab honours the chosen sort. Relevant ranks by the composite score,
+  // then recommendation count, then name. New orders by publish time (newest
   // first, unpublished last), then falls back to relevance.
   const now = Date.now()
   if (sort === 'new') {

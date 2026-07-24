@@ -65,7 +65,7 @@ const SEARCH_GROUP_PRIORITY: FilterMode[] = ['bookmarks', 'following', 'all']
 // collapse into a `+N` chip.
 const MENU_BADGE_LIMIT = 3
 
-// The sort options shown in the drilled "Order by" view, each with a short
+// The sort options shown in the drilled Order by view, each with a short
 // description of what it does.
 const SORT_OPTIONS: { key: SortMode; name: string; description: string }[] = [
   {
