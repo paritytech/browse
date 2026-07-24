@@ -695,9 +695,14 @@ export function App() {
     const id = setTimeout(() => setDebouncedQuery(query), 500)
     return () => clearTimeout(id)
   }, [query])
-  // Always reopen on the menu view.
+  // Reopen on the menu view at its natural height. Clearing the measured height
+  // on close means the next open starts at the menu height instead of animating
+  // down from the taller Badges height.
   useEffect(() => {
-    if (!menuOpen) setView('menu')
+    if (!menuOpen) {
+      setView('menu')
+      setPopoverHeight(undefined)
+    }
   }, [menuOpen])
   // Light-dismiss the popover on Escape, or any scroll or resize so it never
   // floats detached from the trigger. Scroll is captured so a scroll inside the

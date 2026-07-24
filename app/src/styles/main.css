@@ -510,16 +510,21 @@ input {
     0 1px 2px rgb(0 0 0 / 0.1),
     0 24px 64px var(--shadow-medium);
   animation: customizePopoverIn 200ms cubic-bezier(0.32, 0.72, 0, 1);
+  /* Animate height as views drill in and out. Width grows only after the slide
+     finishes, so the slide runs at the menu width and the wider Badges pane
+     never stretches the menu or reveals its rows mid-slide. */
   transition:
     height 240ms cubic-bezier(0.32, 0.72, 0, 1),
-    width 240ms cubic-bezier(0.32, 0.72, 0, 1);
+    width 200ms cubic-bezier(0.32, 0.72, 0, 1) 240ms;
 }
 
-/* The Badges view carries the densest rows (logo, issuer, count, switch), so
-   its pane opens wider than the menu and the other managers, on every form
-   factor. Two classes to outrank the mobile width rule regardless of order. */
-.customize-popover.customize-popover--wide {
-  width: min(520px, calc(100vw - 24px));
+/* Widen the popover for the Badges view, which has the densest rows. Desktop
+   only, because on mobile the popover is a right-anchored dropdown where the
+   extra width skews the margins and stutters the open animation. */
+@media (min-width: 521px) {
+  .customize-popover.customize-popover--wide {
+    width: min(520px, calc(100vw - 24px));
+  }
 }
 
 @keyframes customizePopoverIn {
@@ -557,6 +562,13 @@ input {
    and scrolls. */
 .customize-pane__inner {
   padding: 6px;
+}
+
+/* Keep the menu content at the menu width even when the popover grows for the
+   Badges view, so the rows never stretch and flash mid-slide. Only the drill
+   pane uses the extra width. */
+.customize-pane__inner:not(.customize-pane__inner--drill) {
+  max-width: min(400px, calc(100vw - 24px));
 }
 
 /* The drill view expands into a proper modal: a height floor so a near-empty
