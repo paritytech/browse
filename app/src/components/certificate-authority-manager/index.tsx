@@ -90,10 +90,14 @@ export function CertificateAuthorityManager({
               <div class='ca-modal__row-text'>
                 <span class='ca-modal__name'>
                   <span class='ca-modal__name-text'>{displayName}</span>
-                  {isDefault && <span class='ca-modal__default'>Default</span>}
                 </span>
-                {metaParts.length > 0 && (
-                  <span class='ca-modal__meta'>{metaParts.join(' · ')}</span>
+                {(metaParts.length > 0 || isDefault) && (
+                  <span class='ca-modal__meta'>
+                    {metaParts.length > 0 && (
+                      <span class='ca-modal__meta-text'>{metaParts.join(' · ')}</span>
+                    )}
+                    {isDefault && <span class='ca-modal__default'>Default</span>}
+                  </span>
                 )}
               </div>
               <Switch
