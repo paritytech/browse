@@ -71,3 +71,23 @@ export async function resolveLabel(label: string): Promise<Cid | null> {
 8. Prefer the full word to a truncated one. "certificate", not "cert".
 9. Don't write "on-chain". Omit it or say "network".
 10. Don't repeat the variable name in its own doc. Describe what it holds.
+
+### E2E Test Conventions
+
+#### Given/When/Then markers must be bare
+
+In Playwright test files, the `// Given`, `// When`, `// Then` markers are section headers, nothing else. **No descriptive text after them. Ever.**
+
+```ts
+// ❌ WRONG — never do this
+// Given — seed the cache with stale data
+// When — user clicks the tab
+// Then — sync runs and updates the entry
+
+// ✅ CORRECT
+// Given
+// When
+// Then
+```
+
+This applies to test code and to test snippets in chat, PR descriptions, and review comments. If you are tempted to explain what is happening in that block, the explanation belongs in the test name or on a separate comment line, not inline with the marker.

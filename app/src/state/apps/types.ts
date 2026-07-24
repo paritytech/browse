@@ -55,6 +55,13 @@ export function isFilterMode(value: string): value is FilterMode {
   return (FILTER_MODES as readonly string[]).includes(value)
 }
 
+export const SORT_MODES = ['relevant', 'new'] as const
+export type SortMode = (typeof SORT_MODES)[number]
+
+export function isSortMode(value: string): value is SortMode {
+  return (SORT_MODES as readonly string[]).includes(value)
+}
+
 export function displayName(app: AppEntry): string {
   return app.name ?? `${app.label}.dot`
 }
@@ -93,7 +100,8 @@ export function filterApps(
   mode: FilterMode = 'all',
   bookmarkedApps?: Set<string>,
   followingApps?: Set<string>,
-  publishedApps?: Set<string>
+  publishedApps?: Set<string>,
+  sort: SortMode = 'relevant'
 ): AppEntry[] {
   const filterByMode: Record<FilterMode, (app: AppEntry) => boolean> = {
     all: (app) => publishedApps?.has(app.label) ?? true,
@@ -113,19 +121,28 @@ export function filterApps(
     )
   }
 
-  // All and Following rank by the composite score, then recommendation count,
-  // then name. Bookmarks stays alphabetical.
-  if (mode === 'all' || mode === 'following') {
-    const now = Date.now()
+  // Every tab honours the chosen sort. Relevant ranks by the composite score,
+  // then recommendation count, then name. New orders by publish time (newest
+  // first, unpublished last), then falls back to relevance.
+  const now = Date.now()
+  if (sort === 'new') {
     return filtered.sort((a, b) => {
+      const publishedA = a.publishedAt ?? -Infinity
+      const publishedB = b.publishedAt ?? -Infinity
+      if (publishedA !== publishedB) return publishedB - publishedA
       const scoreA = rankScore(a, now)
       const scoreB = rankScore(b, now)
       if (scoreA !== scoreB) return scoreB - scoreA
-      const countA = a.attestationCount ?? 0
-      const countB = b.attestationCount ?? 0
-      if (countA !== countB) return countB - countA
       return displayName(a).localeCompare(displayName(b))
     })
   }
-  return filtered.sort((a, b) => displayName(a).localeCompare(displayName(b)))
+  return filtered.sort((a, b) => {
+    const scoreA = rankScore(a, now)
+    const scoreB = rankScore(b, now)
+    if (scoreA !== scoreB) return scoreB - scoreA
+    const countA = a.attestationCount ?? 0
+    const countB = b.attestationCount ?? 0
+    if (countA !== countB) return countB - countA
+    return displayName(a).localeCompare(displayName(b))
+  })
 }
