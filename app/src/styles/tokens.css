@@ -272,7 +272,7 @@
   --gradient-nav-overlay-end: rgb(255 255 255 / 0);
 }
 
-:root[data-theme='lisbon'] {
+:root[data-theme='lisbonDay'] {
   --fg-primary: #431407;
   --fg-secondary: #7c2d12;
   --fg-tertiary: #c2410c;
@@ -328,7 +328,7 @@
   --gradient-nav-overlay-end: rgb(255 255 255 / 0);
 }
 
-:root[data-theme='malta'] {
+:root[data-theme='maltaDay'] {
   --fg-primary: #022c22;
   --fg-secondary: #064e3b;
   --fg-tertiary: #059669;
@@ -384,7 +384,7 @@
   --gradient-nav-overlay-end: rgb(255 255 255 / 0);
 }
 
-:root[data-theme='tokyo'] {
+:root[data-theme='tokyoDay'] {
   --fg-primary: #4c0519;
   --fg-secondary: #881337;
   --fg-tertiary: #d14967;
@@ -438,6 +438,174 @@
   --shadow-medium: rgb(0 0 0 / 0.48);
   --gradient-nav-overlay-start: rgb(255 255 255 / 0.8);
   --gradient-nav-overlay-end: rgb(255 255 255 / 0);
+}
+
+:root[data-theme='tokyoNight'] {
+  --fg-primary: #d9d4dd;
+  --fg-secondary: #877f91;
+  --fg-tertiary: #544c5f;
+  --fg-disabled: #544c5f;
+  --fg-static-white: #ffffff;
+  --fg-error: #d9363e;
+  --fg-success: #22c55e;
+  --fg-warning: #f59e0b;
+  --fg-link: #4d8dff;
+  --fg-link-hover: #78a9ff;
+  --fg-primary-inverted: #0b070e;
+  --fg-secondary-inverted: #6a6275;
+  --fg-tertiary-inverted: #877f91;
+  --fg-on-action-primary: #0b070e;
+
+  --bg-surface-main: #0b070e;
+  --bg-surface-container: #18131d;
+  --bg-surface-nested: #2b2533;
+  --bg-surface-overlay: rgb(0 0 0 / 0.48);
+
+  --bg-action-primary: #c5bfcb;
+  --bg-action-primary-hover: #c5bfcb;
+  --bg-action-secondary: #3d3647;
+  --bg-action-secondary-hover: #2b2533;
+  --bg-action-tertiary: #2b2533;
+  --bg-action-tertiary-hover: #3d3647;
+  --bg-action-active: #544c5f;
+  --bg-action-disabled: #2b2533;
+
+  --bg-accent: #4d8dff;
+  --bg-status-error: #d9363e;
+  --bg-status-error-hover: #b4232f;
+  --bg-status-success: #16a34a;
+  --bg-status-success-hover: #12803c;
+  --bg-status-warning: #f59e0b;
+  --bg-status-warning-hover: #ffbb33;
+  --bg-selection-container-hover: #18131d;
+  --bg-selection-container-active: #2b2533;
+
+  --stroke-primary: #2b2533;
+  --stroke-secondary: #3d3647;
+  --stroke-tertiary: #6a6275;
+  --stroke-primary-inverted: #c5bfcb;
+  --stroke-error: #d9363e;
+  --stroke-success: #22c55e;
+  --stroke-warning: #f59e0b;
+
+  --focus-ring: rgb(255 255 255 / 0.16);
+  --focus-error: rgb(217 54 62 / 0.24);
+  --shadow-soft: rgb(0 0 0 / 0.24);
+  --shadow-medium: rgb(0 0 0 / 0.48);
+  --gradient-nav-overlay-start: rgb(0 0 0 / 0.8);
+  --gradient-nav-overlay-end: rgb(0 0 0 / 0);
+}
+
+:root[data-theme='lisbonNight'] {
+  --fg-primary: #ddd8d3;
+  --fg-secondary: #8b857d;
+  --fg-tertiary: #59534b;
+  --fg-disabled: #59534b;
+  --fg-static-white: #ffffff;
+  --fg-error: #d9363e;
+  --fg-success: #22c55e;
+  --fg-warning: #f59e0b;
+  --fg-link: #4d8dff;
+  --fg-link-hover: #78a9ff;
+  --fg-primary-inverted: #0e0907;
+  --fg-secondary-inverted: #6f6961;
+  --fg-tertiary-inverted: #8b857d;
+  --fg-on-action-primary: #0e0907;
+
+  --bg-surface-main: #0e0907;
+  --bg-surface-container: #1d1814;
+  --bg-surface-nested: #302a24;
+  --bg-surface-overlay: rgb(0 0 0 / 0.48);
+
+  --bg-action-primary: #cac5bf;
+  --bg-action-primary-hover: #cac5bf;
+  --bg-action-secondary: #433c35;
+  --bg-action-secondary-hover: #302a24;
+  --bg-action-tertiary: #302a24;
+  --bg-action-tertiary-hover: #433c35;
+  --bg-action-active: #59534b;
+  --bg-action-disabled: #302a24;
+
+  --bg-accent: #4d8dff;
+  --bg-status-error: #d9363e;
+  --bg-status-error-hover: #b4232f;
+  --bg-status-success: #16a34a;
+  --bg-status-success-hover: #12803c;
+  --bg-status-warning: #f59e0b;
+  --bg-status-warning-hover: #ffbb33;
+  --bg-selection-container-hover: #1d1814;
+  --bg-selection-container-active: #302a24;
+
+  --stroke-primary: #302a24;
+  --stroke-secondary: #433c35;
+  --stroke-tertiary: #6f6961;
+  --stroke-primary-inverted: #cac5bf;
+  --stroke-error: #d9363e;
+  --stroke-success: #22c55e;
+  --stroke-warning: #f59e0b;
+
+  --focus-ring: rgb(255 255 255 / 0.16);
+  --focus-error: rgb(217 54 62 / 0.24);
+  --shadow-soft: rgb(0 0 0 / 0.24);
+  --shadow-medium: rgb(0 0 0 / 0.48);
+  --gradient-nav-overlay-start: rgb(0 0 0 / 0.8);
+  --gradient-nav-overlay-end: rgb(0 0 0 / 0);
+}
+
+:root[data-theme='maltaNight'] {
+  --fg-primary: #d7ddd9;
+  --fg-secondary: #858f89;
+  --fg-tertiary: #535c57;
+  --fg-disabled: #535c57;
+  --fg-static-white: #ffffff;
+  --fg-error: #d9363e;
+  --fg-success: #22c55e;
+  --fg-warning: #f59e0b;
+  --fg-link: #4d8dff;
+  --fg-link-hover: #78a9ff;
+  --fg-primary-inverted: #090d0b;
+  --fg-secondary-inverted: #68726c;
+  --fg-tertiary-inverted: #858f89;
+  --fg-on-action-primary: #090d0b;
+
+  --bg-surface-main: #090d0b;
+  --bg-surface-container: #181e1c;
+  --bg-surface-nested: #2a322f;
+  --bg-surface-overlay: rgb(0 0 0 / 0.48);
+
+  --bg-action-primary: #c3cbc7;
+  --bg-action-primary-hover: #c3cbc7;
+  --bg-action-secondary: #3c4541;
+  --bg-action-secondary-hover: #2a322f;
+  --bg-action-tertiary: #2a322f;
+  --bg-action-tertiary-hover: #3c4541;
+  --bg-action-active: #535c57;
+  --bg-action-disabled: #2a322f;
+
+  --bg-accent: #4d8dff;
+  --bg-status-error: #d9363e;
+  --bg-status-error-hover: #b4232f;
+  --bg-status-success: #16a34a;
+  --bg-status-success-hover: #12803c;
+  --bg-status-warning: #f59e0b;
+  --bg-status-warning-hover: #ffbb33;
+  --bg-selection-container-hover: #181e1c;
+  --bg-selection-container-active: #2a322f;
+
+  --stroke-primary: #2a322f;
+  --stroke-secondary: #3c4541;
+  --stroke-tertiary: #68726c;
+  --stroke-primary-inverted: #c3cbc7;
+  --stroke-error: #d9363e;
+  --stroke-success: #22c55e;
+  --stroke-warning: #f59e0b;
+
+  --focus-ring: rgb(255 255 255 / 0.16);
+  --focus-error: rgb(217 54 62 / 0.24);
+  --shadow-soft: rgb(0 0 0 / 0.24);
+  --shadow-medium: rgb(0 0 0 / 0.48);
+  --gradient-nav-overlay-start: rgb(0 0 0 / 0.8);
+  --gradient-nav-overlay-end: rgb(0 0 0 / 0);
 }
 
 /* Standalone fallback. When no host has set [data-theme], pick Berlin Day for

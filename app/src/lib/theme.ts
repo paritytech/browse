@@ -1,16 +1,8 @@
-import { createThemeProvider, type ThemeMode } from '@novasamatech/host-api-wrapper'
+import { createThemeProvider } from '@novasamatech/host-api-wrapper'
 
-const KNOWN_THEMES = new Set(['berlinNight', 'berlinDay', 'lisbon', 'malta', 'tokyo'])
+import { resolveHostTheme } from './theme-resolve'
 
-/**
- * Map the host's theme payload to one of our `data-theme` attribute values.
- */
-export function resolveHostTheme(theme: ThemeMode): string {
-  if (theme.name.tag === 'Custom' && KNOWN_THEMES.has(theme.name.value)) {
-    return theme.name.value
-  }
-  return theme.variant === 'Light' ? 'berlinDay' : 'berlinNight'
-}
+export { resolveHostTheme }
 
 /**
  * Lock in an explicit theme before first paint so the first render uses the
