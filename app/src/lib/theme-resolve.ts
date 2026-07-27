@@ -1,4 +1,4 @@
-import type { ThemeMode } from '@novasamatech/host-api-wrapper'
+import type { ThemeMode } from '@parity/product-sdk/host'
 
 const KNOWN_FAMILIES = new Set(['berlin', 'tokyo', 'lisbon', 'malta'])
 

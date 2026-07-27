@@ -1,4 +1,3 @@
-import { createPapiProvider, hostApi } from '@novasamatech/host-api-wrapper'
 import {
   type BrowseSdk,
   createBrowseSdk,
@@ -6,6 +5,7 @@ import {
   PREVIEWNET_ASSETHUB_GENESIS,
   SUMMIT_ASSETHUB_GENESIS
 } from '@parity/browse-sdk'
+import { getHostProvider, isChainSupported } from '@parity/product-sdk/host'
 import {
   paseohub,
   paseopeople,
@@ -32,14 +32,8 @@ const descriptor = ({
 export type PaseoHubApi = TypedApi<typeof paseohub>
 
 async function networkSupported(): Promise<boolean> {
-  const payload = {
-    tag: 'v1',
-    value: { tag: 'Chain', value: ASSETHUB_GENESIS }
-  } as Parameters<typeof hostApi.featureSupported>[0]
-  return hostApi.featureSupported(payload).match(
-    (ok) => ok.value !== false,
-    () => false
-  )
+  const result = await isChainSupported(ASSETHUB_GENESIS)
+  return result.ok ? result.value : false
 }
 
 // Async singleton
@@ -60,7 +54,11 @@ export function ensureBrowseSdk(): Promise<BrowseSdk> {
       if (!supported) {
         throw new Error(`Host does not support network ${ASSETHUB_GENESIS}`)
       }
-      const sdk = createBrowseSdk(NETWORK, createPapiProvider(ASSETHUB_GENESIS))
+      const provider = await getHostProvider(ASSETHUB_GENESIS)
+      if (!provider) {
+        throw new Error(`Host provider unavailable for network ${ASSETHUB_GENESIS}`)
+      }
+      const sdk = createBrowseSdk(NETWORK, provider)
       console.warn('debug network connection', JSON.stringify({ event: 'ensureBrowseSdk:created' }))
       return sdk
     })().catch((err) => {
@@ -275,7 +273,11 @@ export function ensurePeopleApi(): Promise<PeopleApi> {
       if (!genesis || !descriptor) {
         throw new Error(`No People chain configured for network ${ASSETHUB_GENESIS}`)
       }
-      const client = createClient(createPapiProvider(genesis))
+      const provider = await getHostProvider(genesis)
+      if (!provider) {
+        throw new Error(`Host provider unavailable for People chain ${genesis}`)
+      }
+      const client = createClient(provider)
       console.warn('debug network connection', JSON.stringify({ event: 'ensurePeopleApi:created' }))
       return client.getTypedApi(descriptor) as PeopleApi
     })().catch((err) => {

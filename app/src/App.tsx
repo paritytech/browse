@@ -3,7 +3,7 @@ import { type VNode } from 'preact'
 import { useDeferredValue } from 'preact/compat'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
 
-import { createAccountsProvider } from '@novasamatech/host-api-wrapper'
+import { getAccountsProvider, type HostSubscription } from '@parity/product-sdk/host'
 import { useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ArrowUp, Bookmark, Check, MoreVertical, Package, X } from 'lucide-preact'
 
@@ -620,15 +620,22 @@ export function App() {
   }, [resolvedApp, queryClient])
   // Subscribe to account connection status.
   useEffect(() => {
-    const provider = createAccountsProvider()
-    const sub = provider.subscribeAccountConnectionStatus((status) => {
-      console.warn(
-        'debug network connection',
-        JSON.stringify({ event: 'accountConnectionStatus', status })
-      )
-      setSigned(status === 'connected')
+    let cancelled = false
+    let sub: HostSubscription | undefined
+    void getAccountsProvider().then((provider) => {
+      if (cancelled || !provider) return
+      sub = provider.subscribeAccountConnectionStatus((status) => {
+        console.warn(
+          'debug network connection',
+          JSON.stringify({ event: 'accountConnectionStatus', status })
+        )
+        setSigned(status === 'Connected')
+      })
     })
-    return () => sub.unsubscribe()
+    return () => {
+      cancelled = true
+      sub?.unsubscribe()
+    }
   }, [])
   useEffect(() => subscribeHostTheme(), [])
   useEffect(() => () => clearTimeout(pullFloorTimer.current), [])

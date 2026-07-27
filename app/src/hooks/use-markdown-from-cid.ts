@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
 
-import { preimageManager } from '@novasamatech/host-api-wrapper'
+import { getPreimageManager, type HostSubscription } from '@parity/product-sdk/host'
 
 import { cidToBlake2b256DigestHex } from '../state/apps/icon'
 
@@ -46,17 +46,27 @@ export function useMarkdownFromCid(cid: string | null): UseMarkdownResult {
       return
     }
 
-    const subscription = preimageManager.lookup(key, (bytes) => {
-      if (bytes) finish(new TextDecoder().decode(bytes))
+    let cancelled = false
+    let subscription: HostSubscription | undefined
+    void getPreimageManager().then((preimageManager) => {
+      if (cancelled) return
+      if (!preimageManager) {
+        finish(null)
+        return
+      }
+      subscription = preimageManager.lookup(key, (bytes) => {
+        if (bytes) finish(new TextDecoder().decode(bytes))
+      })
+      subscription.onInterrupt(() => finish(null))
     })
-    subscription.onInterrupt(() => finish(null))
 
     const timer = setTimeout(() => finish(null), PREIMAGE_TIMEOUT_MS)
 
     return () => {
       done = true
+      cancelled = true
       clearTimeout(timer)
-      subscription.unsubscribe()
+      subscription?.unsubscribe()
     }
   }, [cid])
 

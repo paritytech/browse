@@ -14,7 +14,7 @@
  * degrades to `[]` so suggestions close. It never throws into render.
  */
 
-import { preimageManager } from '@novasamatech/host-api-wrapper'
+import { getPreimageManager, type HostSubscription } from '@parity/product-sdk/host'
 import { useQuery } from '@tanstack/react-query'
 
 import { ASSETHUB_GENESIS, DOMAINS_SNAPSHOT_CID } from './config'
@@ -46,20 +46,28 @@ function lookupPreimage(cid: string): Promise<Uint8Array | null> {
   }
   return new Promise((resolve) => {
     let done = false
+    let subscription: HostSubscription | undefined
     const settle = (bytes: Uint8Array | null) => {
       if (done) return
       done = true
       clearTimeout(timer)
-      subscription.unsubscribe()
+      subscription?.unsubscribe()
       resolve(bytes)
     }
     // The host delivers null immediately when it has not yet fetched the bytes,
     // then a later callback once it has them. Ignore that null and wait, exactly
     // like useIconBlob: settle only on real bytes, on interrupt, or on timeout.
-    const subscription = preimageManager.lookup(key, (bytes) => {
-      if (bytes) settle(new Uint8Array(bytes))
+    void getPreimageManager().then((preimageManager) => {
+      if (done) return
+      if (!preimageManager) {
+        settle(null)
+        return
+      }
+      subscription = preimageManager.lookup(key, (bytes) => {
+        if (bytes) settle(new Uint8Array(bytes))
+      })
+      subscription.onInterrupt(() => settle(null))
     })
-    subscription.onInterrupt(() => settle(null))
     const timer = setTimeout(() => settle(null), LOOKUP_TIMEOUT_MS)
   })
 }

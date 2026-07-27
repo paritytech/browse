@@ -1,4 +1,4 @@
-import { hostLocalStorage } from '@novasamatech/host-api-wrapper'
+import { getHostLocalStorage } from '@parity/product-sdk/host'
 
 export function isHosted(): boolean {
   const isIframe = window !== window.top
@@ -10,7 +10,8 @@ export class LocalStorage {
   async readJSON<T>(key: string): Promise<T | null> {
     try {
       if (isHosted()) {
-        return (await hostLocalStorage.readJSON(key)) as T
+        const store = await getHostLocalStorage()
+        if (store) return (await store.readJSON(key)) as T
       }
       const raw = window.localStorage.getItem(key)
       if (!raw) return null
@@ -23,10 +24,13 @@ export class LocalStorage {
   async writeJSON<T>(key: string, value: T): Promise<void> {
     try {
       if (isHosted()) {
-        await hostLocalStorage.writeJSON(key, value)
-      } else {
-        window.localStorage.setItem(key, JSON.stringify(value))
+        const store = await getHostLocalStorage()
+        if (store) {
+          await store.writeJSON(key, value)
+          return
+        }
       }
+      window.localStorage.setItem(key, JSON.stringify(value))
     } catch {
       // silent fail
     }

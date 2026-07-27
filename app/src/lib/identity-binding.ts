@@ -14,7 +14,7 @@
  * verifies both the wrapped and bare forms, so we sign the bare bytes here.
  */
 
-import { getAccountsProvider } from '@parity/product-sdk-host'
+import { getAccountsProvider } from '@parity/product-sdk/host'
 import { hexToBytes } from 'viem'
 
 import { resolveUsernameOwner } from './client'

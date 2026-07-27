@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
 
-import { preimageManager } from '@novasamatech/host-api-wrapper'
+import { getPreimageManager, type HostSubscription } from '@parity/product-sdk/host'
 
 import type { IconFormat } from './manifest'
 
@@ -89,28 +89,37 @@ export function useIconBlob(cid: string | null, format?: IconFormat): UseIconBlo
 
     let currentBlobUrl: string | null = null
     let resolved = false
+    let cancelled = false
+    let subscription: HostSubscription | undefined
     const mime = format ? `image/${format}` : undefined
 
-    const subscription = preimageManager.lookup(key, (bytes) => {
-      if (resolved) return
-      if (!bytes) return
-      resolved = true
-      // Copy into a fresh ArrayBuffer.
-      const buf = new ArrayBuffer(bytes.byteLength)
-      new Uint8Array(buf).set(bytes)
-      const blob = mime ? new Blob([buf], { type: mime }) : new Blob([buf])
-      currentBlobUrl = URL.createObjectURL(blob)
-      setUrl(currentBlobUrl)
-      subscription.unsubscribe()
-    })
-
-    subscription.onInterrupt(() => {
-      if (resolved) return
-      setFailed(true)
+    void getPreimageManager().then((preimageManager) => {
+      if (cancelled) return
+      if (!preimageManager) {
+        setFailed(true)
+        return
+      }
+      subscription = preimageManager.lookup(key, (bytes) => {
+        if (resolved) return
+        if (!bytes) return
+        resolved = true
+        // Copy into a fresh ArrayBuffer.
+        const buf = new ArrayBuffer(bytes.byteLength)
+        new Uint8Array(buf).set(bytes)
+        const blob = mime ? new Blob([buf], { type: mime }) : new Blob([buf])
+        currentBlobUrl = URL.createObjectURL(blob)
+        setUrl(currentBlobUrl)
+        subscription?.unsubscribe()
+      })
+      subscription.onInterrupt(() => {
+        if (resolved) return
+        setFailed(true)
+      })
     })
 
     return () => {
-      subscription.unsubscribe()
+      cancelled = true
+      subscription?.unsubscribe()
       if (currentBlobUrl) URL.revokeObjectURL(currentBlobUrl)
     }
   }, [cid, format])

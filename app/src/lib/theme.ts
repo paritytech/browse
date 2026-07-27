@@ -1,4 +1,4 @@
-import { createThemeProvider } from '@novasamatech/host-api-wrapper'
+import { getThemeProvider, type HostSubscription } from '@parity/product-sdk/host'
 
 import { resolveHostTheme } from './theme-resolve'
 
@@ -28,9 +28,16 @@ export function subscribeHostTheme(): () => void {
     document.documentElement.dataset.theme = override
     return () => {}
   }
-  const provider = createThemeProvider()
-  const sub = provider.subscribeTheme((theme) => {
-    document.documentElement.dataset.theme = resolveHostTheme(theme)
+  let cancelled = false
+  let sub: HostSubscription | undefined
+  void getThemeProvider().then((provider) => {
+    if (cancelled || !provider) return
+    sub = provider.subscribeTheme((theme) => {
+      document.documentElement.dataset.theme = resolveHostTheme(theme)
+    })
   })
-  return () => sub.unsubscribe()
+  return () => {
+    cancelled = true
+    sub?.unsubscribe()
+  }
 }

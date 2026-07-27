@@ -1,10 +1,11 @@
-import { hostApi } from '@novasamatech/host-api-wrapper'
+import { navigateTo } from '@parity/product-sdk/host'
 
+import { isHosted } from './local-storage'
 import { appLink } from './share-link'
 
 export function navigateToDomain(label: string) {
-  if (hostApi?.navigateTo) {
-    hostApi.navigateTo({ tag: 'v1', value: `${label}.dot` })
+  if (isHosted()) {
+    void navigateTo(`${label}.dot`)
   } else {
     window.open(`https://${label}.dot.li`, '_blank', 'noopener')
   }
@@ -17,8 +18,8 @@ export function navigateToDomain(label: string) {
  * redirect is seamless.
  */
 export function redirectToApp(label: string): void {
-  if (hostApi?.navigateTo) {
-    hostApi.navigateTo({ tag: 'v1', value: `${label}.dot` })
+  if (isHosted()) {
+    void navigateTo(`${label}.dot`)
   } else {
     window.location.replace(appLink(label))
   }

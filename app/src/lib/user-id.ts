@@ -1,4 +1,4 @@
-import { getAccountsProvider } from '@parity/product-sdk-host'
+import { getAccountsProvider } from '@parity/product-sdk/host'
 
 /**
  * The connected user's primary DotNS username, or `''` when the host is

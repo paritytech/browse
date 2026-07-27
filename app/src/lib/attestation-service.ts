@@ -1,5 +1,10 @@
-import { createAccountsProvider, hostApi } from '@novasamatech/host-api-wrapper'
 import { attestationVersions } from '@parity/browse-sdk'
+import {
+  formatHostError,
+  getAccountsProvider,
+  requestPermission,
+  requestResourceAllocation
+} from '@parity/product-sdk/host'
 import { contracts } from '@polkadot-api/descriptors'
 import { type AsyncTransaction, createInkSdk, ss58ToEthereum } from '@polkadot-api/sdk-ink'
 import { AccountId, type PolkadotClient, type PolkadotSigner, type SS58String } from 'polkadot-api'
@@ -82,16 +87,21 @@ async function hostSigner(): Promise<{
   origin: string
   publicKey: Uint8Array
 }> {
-  const accountsProvider = createAccountsProvider()
+  const accountsProvider = await getAccountsProvider()
+  if (!accountsProvider) {
+    throw new Error('Host accounts provider unavailable')
+  }
   const accountResult = await accountsProvider.getProductAccount(SELF_DOTNS, 0)
   if (accountResult.isErr()) {
-    throw new Error(accountResult.error.name ?? `getProductAccount failed for ${SELF_DOTNS}`)
+    throw new Error(
+      formatHostError(accountResult.error) || `getProductAccount failed for ${SELF_DOTNS}`
+    )
   }
   const account = accountResult.value
   const publicKey = account.publicKey
   const origin = AccountId().dec(publicKey)
   return {
-    signer: accountsProvider.getProductAccountSigner(account, 'createTransaction'),
+    signer: accountsProvider.getProductAccountSigner(account),
     origin,
     publicKey
   }
@@ -596,11 +606,9 @@ export class AttestationService {
       throw new Error('NotEnoughFunds: account holds no PGAS and host coverage is unavailable.')
     }
     const resources = [{ tag: 'SmartContractAllowance' as const, value: 0 }]
-    const outcomes = await hostApi.requestResourceAllocation({ tag: 'v1', value: resources }).match(
-      (res) => res.value,
-      () => []
-    )
-    const outcome = outcomes[0]?.tag
+    const allocation = await requestResourceAllocation(resources)
+    const outcomes = allocation.ok ? allocation.value : []
+    const outcome = outcomes[0]
     if (outcome !== 'Allocated') {
       throw new Error(
         `NotEnoughFunds: SmartContractAllowance not granted (outcome: ${outcome ?? 'none'})`
@@ -635,12 +643,8 @@ export class AttestationService {
     onBroadcast?: () => void
   ): Promise<TxResult> {
     if (this.truapi) {
-      const permitted = await hostApi
-        .permission({ tag: 'v1', value: { tag: 'ChainSubmit', value: undefined } })
-        .match(
-          (res) => res.value,
-          () => false
-        )
+      const permission = await requestPermission({ tag: 'ChainSubmit', value: undefined })
+      const permitted = permission.ok ? permission.value : false
       if (!permitted) throw new Error('Transaction submit permission denied')
     }
 

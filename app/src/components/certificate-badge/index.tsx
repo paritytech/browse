@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
 
-import { preimageManager } from '@novasamatech/host-api-wrapper'
+import { getPreimageManager, type HostSubscription } from '@parity/product-sdk/host'
 import { BadgeCheck } from 'lucide-preact'
 
 import { cidToBlake2b256DigestHex } from '../../state/apps/icon'
@@ -28,25 +28,33 @@ function loadBadge(cid: string): Promise<string | null> {
       return
     }
     let done = false
+    let subscription: HostSubscription | undefined
     const finish = (url: string | null) => {
       if (done) return
       done = true
-      subscription.unsubscribe()
+      subscription?.unsubscribe()
       badgeUrlCache.set(cid, url)
       badgeInflight.delete(cid)
       resolve(url)
     }
-    const subscription = preimageManager.lookup(key, (bytes) => {
-      if (!bytes) return
-      const buffer = new ArrayBuffer(bytes.byteLength)
-      new Uint8Array(buffer).set(bytes)
-      // A typeless blob won't render as SVG (browsers need the MIME to parse
-      // markup); raster formats sniff fine. Detect a leading '<' for SVG/XML.
-      const isMarkup = bytes[0] === 0x3c
-      const blob = isMarkup ? new Blob([buffer], { type: 'image/svg+xml' }) : new Blob([buffer])
-      finish(URL.createObjectURL(blob))
+    void getPreimageManager().then((preimageManager) => {
+      if (done) return
+      if (!preimageManager) {
+        finish(null)
+        return
+      }
+      subscription = preimageManager.lookup(key, (bytes) => {
+        if (!bytes) return
+        const buffer = new ArrayBuffer(bytes.byteLength)
+        new Uint8Array(buffer).set(bytes)
+        // A typeless blob won't render as SVG (browsers need the MIME to parse
+        // markup); raster formats sniff fine. Detect a leading '<' for SVG/XML.
+        const isMarkup = bytes[0] === 0x3c
+        const blob = isMarkup ? new Blob([buffer], { type: 'image/svg+xml' }) : new Blob([buffer])
+        finish(URL.createObjectURL(blob))
+      })
+      subscription.onInterrupt(() => finish(null))
     })
-    subscription.onInterrupt(() => finish(null))
   })
   badgeInflight.set(cid, promise)
   return promise
