@@ -26,6 +26,9 @@ interface ProductCardProps {
    *
    * Drops the actions row so Open still lines up, and shows a fixed mark instead
    * of a label Identicon, which would redraw on every keystroke.
+   *
+   * Claims no `data-label` either. It names no app yet, so it must not answer a
+   * query for one, and staying unlabelled also keeps it out of `useFlipReorder`.
    */
   isPlaceholder?: boolean
   onClick: (label: string) => void
@@ -87,7 +90,7 @@ export const ProductCard = memo(function ProductCard({
     <div
       class={`product-card${instant ? ' product-card--instant' : ''}${isPlaceholder ? ' product-card--placeholder' : ''}`}
       style={`animation-delay: ${delay}ms`}
-      data-label={app.label}
+      data-label={isPlaceholder ? undefined : app.label}
       title={`Open ${app.label}.dot`}
       tabIndex={0}
       onClick={() => onClick(app.label)}

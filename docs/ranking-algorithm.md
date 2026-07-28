@@ -120,7 +120,7 @@ The score is a per-app reduction over its active recommends plus three cheap mod
 
 The change is to the comparison only. It reuses the existing sticky-order snapshot, so cards do not reshuffle as scores drift: recompute only on a membership change or a `commitOrder` when a recommend settles ([App.tsx:589](../app/src/App.tsx#L589)).
 
-The card for the typed address is outside the ranked set. It renders as the first child of `.app-list`, ahead of the ranked entries and never among them, so no score moves it off the front, and the list never repeats that label. It does sit inside the container, so `useFlipReorder` sees its `data-label` and a reorder elsewhere can animate it even though its position is fixed.
+The card for the typed address is outside the ranked set. It renders as the first child of `.app-list`, ahead of the ranked entries and never among them, so no score moves it off the front, and the list never repeats that label. While it is a placeholder it carries no `data-label`, so `useFlipReorder` does not see it and a reorder elsewhere leaves it alone. Once the address resolves it becomes an ordinary labelled card and joins the animation like any other.
 
 ### What ships now, and what needs the index
 
