@@ -91,7 +91,7 @@ export const ProductCard = memo(function ProductCard({
       class={`product-card${instant ? ' product-card--instant' : ''}${isPlaceholder ? ' product-card--placeholder' : ''}`}
       style={`animation-delay: ${delay}ms`}
       data-label={isPlaceholder ? undefined : app.label}
-      title={`Open ${app.label}.dot`}
+      title={`${isPlaceholder ? 'Go to' : 'Open'} ${app.label}.dot`}
       tabIndex={0}
       onClick={() => onClick(app.label)}
       onKeyDown={(e) => {

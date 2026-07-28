@@ -82,10 +82,6 @@ const SORT_OPTIONS: { key: SortMode; name: string; description: string }[] = [
 // gesture has visible feedback even when the connection reset resolves instantly.
 const PULL_REFRESH_MIN_VISIBLE_MS = 2000
 
-// Shortest address we spend a network read on. Gates the description only, never
-// the card, since `a.dot` is a registerable name.
-const MIN_RESOLVE_LENGTH = 3
-
 /**
  * Render a snapshot-only search result as a product card, lazily resolving its
  * name and icon (the snapshot carries only the `.dot` domain). Published entries
@@ -346,17 +342,20 @@ export function App() {
   // depends on what search or the network returned.
   const destination = destinationFromQuery(query)
   const debouncedDestination = destinationFromQuery(debouncedQuery)
-  // Already published and in the local set, so the card comes straight from it.
-  // Nothing to look up for an app we can render now.
-  const indexedDestination = useMemo(
-    () =>
-      destination
-        ? (appsForFiltering.find((app) => app.label === destination && app.contentHash) ?? null)
-        : null,
-    [destination, appsForFiltering]
-  )
-  const canResolve =
-    destination !== null && destination.length >= MIN_RESOLVE_LENGTH && indexedDestination === null
+  // The local entry for the address, if we hold one at all. `published` is the
+  // finished article and needs no lookup. `cached` may be a bookmarked or followed
+  // label carrying a name and icon but no content, which is still far better than a
+  // placeholder while the resolver runs.
+  const indexed = useMemo(() => {
+    const entry = destination
+      ? (appsForFiltering.find((app) => app.label === destination) ?? null)
+      : null
+    return { published: entry?.contentHash ? entry : null, cached: entry }
+  }, [destination, appsForFiltering])
+  // No length floor. `a.dot` is a registerable name, and gating the lookup would
+  // leave a short address stuck as a placeholder forever. One read per settled
+  // query, cached for a minute, so the cost is bounded by the debounce.
+  const canResolve = destination !== null && indexed.published === null
   const destinationSettled = destination !== null && debouncedDestination === destination
   const { data: resolvedDestination } = useResolveLabel(
     debouncedDestination ?? '',
@@ -368,9 +367,10 @@ export function App() {
     canResolve && destinationSettled && resolvedDestination
       ? scopeToUser(resolvedDestination)
       : null
-  // The card at the front of the list: the indexed app when we already have it,
-  // otherwise whatever the resolver turned up.
-  const frontApp = indexedDestination ?? resolvedApp
+  // Best card we can put at the front, in descending order of what we know. The
+  // cached entry ranks last but still beats a placeholder, and ranking it below the
+  // resolver lets a lookup upgrade it.
+  const frontApp = indexed.published ?? resolvedApp ?? indexed.cached
   // Domain-snapshot suggestion prefix: the raw query (trailing `.dot` stripped,
   // lowercased), debounced ~150ms into suggestionPrefix by an effect below. A
   // local snapshot lookup, independent of the 500ms debouncedQuery.
