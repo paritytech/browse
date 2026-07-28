@@ -1,7 +1,7 @@
 import { type VNode } from 'preact'
 
 import { useDeferredValue } from 'preact/compat'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { getAccountsProvider, type HostSubscription } from '@parity/product-sdk/host'
 import { useQueryClient } from '@tanstack/react-query'
@@ -40,13 +40,11 @@ import {
   LABELS_KEY,
   useGetAllApps,
   useLabelsStorage,
-  useResolveDestination,
   useResolveLabel
 } from './state/apps/queries'
 import {
   type AppCertificate,
   type AppEntry,
-  appOf,
   filterApps,
   type FilterMode,
   isFilterMode,
@@ -241,6 +239,27 @@ export function App() {
     () => certificateAuthorities.filter((ca) => selectedResolvers.has(ca.resolver.toLowerCase())),
     [certificateAuthorities, selectedResolvers]
   )
+  /**
+   * Trim an entry to what this user should see.
+   *
+   * Badges from selected authorities only, since hydration caches them all, plus
+   * the recommend state this identity already holds. Every card goes through this,
+   * including the one built from a resolved address, or a typed address would show
+   * badges the user switched off and a recommend button that forgot itself.
+   */
+  const scopeToUser = useCallback(
+    (app: AppEntry): AppEntry => {
+      const visible = app.certificates.filter((c) =>
+        selectedResolvers.has(c.resolver.toLowerCase())
+      )
+      const scoped =
+        visible.length === app.certificates.length ? app : { ...app, certificates: visible }
+      return myRecommendations.has(scoped.label) && !scoped.hasUserAttested
+        ? { ...scoped, hasUserAttested: true }
+        : scoped
+    },
+    [selectedResolvers, myRecommendations]
+  )
   const appsForFiltering = useMemo(() => {
     const byLabel = new Map<string, AppEntry>()
     for (const app of allApps) byLabel.set(app.label, app)
@@ -264,20 +283,8 @@ export function App() {
     }
     for (const label of followingDisplay) addLabel(label)
     for (const label of bookmarkedApps) addLabel(label)
-    // The recommend button is active when this identity recommended the app,
-    // preserving any optimistic `hasUserAttested` from a just-submitted toggle.
-    return [...byLabel.values()].map((app) => {
-      // Show only badges from selected authorities. Hydration cached them all.
-      const visible = app.certificates.filter((c) =>
-        selectedResolvers.has(c.resolver.toLowerCase())
-      )
-      const scoped =
-        visible.length === app.certificates.length ? app : { ...app, certificates: visible }
-      return myRecommendations.has(scoped.label) && !scoped.hasUserAttested
-        ? { ...scoped, hasUserAttested: true }
-        : scoped
-    })
-  }, [allApps, followingDisplay, bookmarkedApps, labelDb, myRecommendations, selectedResolvers])
+    return [...byLabel.values()].map(scopeToUser)
+  }, [allApps, followingDisplay, bookmarkedApps, labelDb, scopeToUser])
   // Labels from the Publisher set, used to scope the All tab to published apps
   // only (bookmarked/followed entries belong to their own tabs).
   const publishedLabels = useMemo(() => new Set(allApps.map((app) => app.label)), [allApps])
@@ -351,14 +358,16 @@ export function App() {
   const canResolve =
     destination !== null && destination.length >= MIN_RESOLVE_LENGTH && indexedDestination === null
   const destinationSettled = destination !== null && debouncedDestination === destination
-  const { data: destinationResolution } = useResolveDestination(
+  const { data: resolvedDestination } = useResolveLabel(
     debouncedDestination ?? '',
     canResolve && destinationSettled
   )
   // A resolution describes the debounced address, so a card showing a newer one
   // must not wear it.
-  const placeholderResolution = canResolve && destinationSettled ? destinationResolution : undefined
-  const resolvedApp = appOf(placeholderResolution)
+  const resolvedApp =
+    canResolve && destinationSettled && resolvedDestination
+      ? scopeToUser(resolvedDestination)
+      : null
   // The card at the front of the list: the indexed app when we already have it,
   // otherwise whatever the resolver turned up.
   const frontApp = indexedDestination ?? resolvedApp
@@ -426,12 +435,15 @@ export function App() {
   )
   // Apply the sticky order to the live entries, so counts stay optimistic while
   // positions hold until commit.
+  // The card at the front owns the typed address here too. `searchEntries` is
+  // derived from the debounced query, so on the first keystroke this list is what
+  // still renders, and without the filter it would repeat that label for a frame.
   const orderedFiltered = useMemo(() => {
     const byLabel = new Map(filtered.map((app) => [app.label, app]))
     return orderedLabels
       .map((label) => byLabel.get(label))
-      .filter((app): app is AppEntry => app != null)
-  }, [orderedLabels, filtered])
+      .filter((app): app is AppEntry => app != null && app.label !== destination)
+  }, [orderedLabels, filtered, destination])
   // Key off what renders, so a search reorder glides under one pass.
   const flipKey = useMemo(() => {
     if (searchMatches) {
@@ -861,7 +873,6 @@ export function App() {
                     <PlaceholderCard
                       label={typedLabel(query)}
                       target={destination}
-                      resolution={placeholderResolution}
                       onGo={navigateToDomain}
                     />
                   ))}

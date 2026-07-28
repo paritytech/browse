@@ -6,9 +6,9 @@
 import { type QueryClient, queryOptions, useQuery } from '@tanstack/react-query'
 
 import { resolveIdentityH160 } from './identity'
-import { hydrateLabelChunk, isNameRegistered } from './remote'
+import { hydrateLabelChunk } from './remote'
 import { materialize, syncAllApps } from './sync'
-import { type AppEntry, type DestinationResolution, labelToApp } from './types'
+import { type AppEntry, labelToApp } from './types'
 import { readBookmarks } from '../../db/bookmarks'
 import { type LabelEntry, readLabels } from '../../db/labels'
 import { ensureBrowseSdk } from '../../lib/client'
@@ -119,47 +119,6 @@ export function useResolveLabel(label: string, enabled: boolean) {
       Promise.race([
         resolveLabel(label),
         new Promise<null>((resolve) => setTimeout(() => resolve(null), LABEL_RESOLVE_TIMEOUT_MS))
-      ]),
-    enabled: enabled && label.length > 0,
-    staleTime: 60_000
-  })
-}
-
-/**
- * Resolve a typed `.dot` address, keeping the ways it can come back empty apart.
- *
- * Only the empty case pays for the extra registry read. A throw or a timeout
- * reports unreachable, never absent: a slow connection does not free a name.
- */
-async function resolveDestination(name: string): Promise<DestinationResolution> {
-  try {
-    const identityH160 = await resolveIdentityH160()
-    const authorities = await knownCertificateAuthorities()
-    const [entry] = await hydrateLabelChunk([name], identityH160, authorities)
-    if (entry?.contentHash) return { status: 'live', app: labelToApp(entry) }
-    const registered = await isNameRegistered(name)
-    if (registered === null) return { status: 'unreachable' }
-    return { status: registered ? 'registered' : 'unregistered' }
-  } catch {
-    return { status: 'unreachable' }
-  }
-}
-
-/**
- * Subscribe to the resolution of one typed address.
- *
- * Kept apart from {@link useResolveLabel}, which backs the result cards and must
- * not pay for the extra registration read once per card.
- */
-export function useResolveDestination(label: string, enabled: boolean) {
-  return useQuery<DestinationResolution>({
-    queryKey: ['resolveDestination', label],
-    queryFn: () =>
-      Promise.race([
-        resolveDestination(label),
-        new Promise<DestinationResolution>((resolve) =>
-          setTimeout(() => resolve({ status: 'unreachable' }), LABEL_RESOLVE_TIMEOUT_MS)
-        )
       ]),
     enabled: enabled && label.length > 0,
     staleTime: 60_000

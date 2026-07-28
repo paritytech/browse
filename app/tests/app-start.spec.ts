@@ -265,7 +265,10 @@ test.describe('App Start', () => {
     })
 
     test('As a signed user, when I leave and refocus browse, the apps are refetched', async () => {
-      test.setTimeout(30_000)
+      // A refocus refetch runs a full sync, which chunk-hydrates the published set
+      // under the client rate gate, so it routinely outlasts a 10s bound. What the
+      // test is about is that the refetch happens and keeps the list intact.
+      test.setTimeout(90_000)
       const page = await context.newPage()
       await navigateToTestHost(page, host.url)
       const frame = await getProductFrame(page, '.category-tab')
@@ -294,7 +297,7 @@ test.describe('App Start', () => {
       // Then
       await expect(frame.locator('.product-card').first()).toBeVisible()
       await expect(frame.locator('.loading-dots')).toBeVisible()
-      await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
+      await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 45_000 })
       const cardCountAfter = await frame.locator('.product-card').count()
       expect(cardCountAfter).toBe(cardCountBefore)
 

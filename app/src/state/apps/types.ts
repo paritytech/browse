@@ -32,23 +32,6 @@ export interface AppEntry {
   publishedAt: number | null
 }
 
-/**
- * What resolving a typed `.dot` address found, with the negative cases kept apart.
- *
- * Nothing published, never registered, and the read never completing used to
- * collapse into one null. None of them blocks navigating to the address.
- */
-export type DestinationResolution =
-  | { status: 'live'; app: AppEntry }
-  | { status: 'registered' }
-  | { status: 'unregistered' }
-  | { status: 'unreachable' }
-
-/** The app behind a resolution, or null when it did not resolve to one. */
-export function appOf(resolution: DestinationResolution | undefined): AppEntry | null {
-  return resolution?.status === 'live' ? resolution.app : null
-}
-
 /** Map a persisted {@link LabelEntry} to a live {@link AppEntry}. */
 export function labelToApp(l: LabelEntry): AppEntry {
   return {
