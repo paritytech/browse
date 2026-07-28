@@ -488,7 +488,7 @@
   }
 }
 
-/* Desktop overrides. Mobile (max-width 520px) is untouched. */
+/* Desktop overrides. Mobile (max-width 767px) is untouched. */
 @media (min-width: 768px) {
   /* Top-align so icon, title, and Open share the top line. */
   .product-card {

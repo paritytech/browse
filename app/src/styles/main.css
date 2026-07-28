@@ -756,7 +756,9 @@ input {
   }
 }
 
-@media (max-width: 520px) {
+/* Everything below the 768px desktop breakpoint reads as mobile: full-bleed, no
+ * card chrome. */
+@media (max-width: 767px) {
   .card {
     background: transparent;
     border: none;
