@@ -110,17 +110,41 @@ async function resolveLabel(name: string): Promise<AppEntry | null> {
 
   return labelToApp(entry)
 }
-const LABEL_RESOLVE_TIMEOUT_MS = 5_000 // 5s
+/**
+ * Ceiling on one address lookup, above what the lookup actually costs.
+ *
+ * It is a backstop against a hung socket, not a latency budget, so it has to sit
+ * clear of a healthy resolve. Measured cold against previewnet through the host, a
+ * first resolve lands at 8 to 9 seconds: it spends three round trips on the
+ * identity, the authorities, and a two-pass hydrate, and each one queues behind the
+ * client rate gate. Anything under that resolves every uncached address to null and
+ * leaves a real product looking like an empty placeholder.
+ */
+const LABEL_RESOLVE_TIMEOUT_MS = 15_000
 
+/**
+ * Resolve one label, giving up after {@link LABEL_RESOLVE_TIMEOUT_MS}.
+ *
+ * The timeout rejects rather than resolving null. A null is an answer, and
+ * `staleTime` would cache it, so a single slow read used to claim for a whole
+ * minute that nothing is published under a name that is. Rejecting keeps it a
+ * failure, which retries and never becomes the cached truth.
+ */
 export function useResolveLabel(label: string, enabled: boolean) {
   return useQuery<AppEntry | null>({
     queryKey: ['resolveLabel', label],
     queryFn: () =>
       Promise.race([
         resolveLabel(label),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), LABEL_RESOLVE_TIMEOUT_MS))
+        new Promise<never>((_, reject) =>
+          setTimeout(
+            () => reject(new Error(`resolve timed out: ${label}`)),
+            LABEL_RESOLVE_TIMEOUT_MS
+          )
+        )
       ]),
     enabled: enabled && label.length > 0,
+    retry: 2,
     staleTime: 60_000
   })
 }

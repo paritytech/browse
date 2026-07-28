@@ -82,6 +82,9 @@ const SORT_OPTIONS: { key: SortMode; name: string; description: string }[] = [
 // gesture has visible feedback even when the connection reset resolves instantly.
 const PULL_REFRESH_MIN_VISIBLE_MS = 2000
 
+// Longest the loading dots stay up, whatever the sync is still doing.
+const SYNC_DOTS_MAX_VISIBLE_MS = 3000
+
 /**
  * Render a snapshot-only search result as a product card, lazily resolving its
  * name and icon (the snapshot carries only the `.dot` domain). Published entries
@@ -129,6 +132,8 @@ export function App() {
   const [suggestionPrefix, setSuggestionPrefix] = useState('')
   // Touch devices get a minimum-visible hold on the dots after a pull-refresh.
   const [pullRefreshFloor, setPullRefreshFloor] = useState(false)
+  // True once the dots have been up for their whole allowance.
+  const [syncDotsExpired, setSyncDotsExpired] = useState(false)
   // Nonce that commits the current display order into a sticky snapshot.
   const [orderNonce, setOrderNonce] = useState(0)
   const [certificateModalOpen, setCertificateModalOpen] = useState(false)
@@ -418,7 +423,9 @@ export function App() {
         : allFetching
   // Loading dots track the live sync. A mobile pull-refresh additionally holds
   // them for a minimum window so the gesture doesn't flash.
-  const showSyncDots = (isLoading && !query && filtered.length > 0) || pullRefreshFloor
+  const syncDotsWanted = (isLoading && !query && filtered.length > 0) || pullRefreshFloor
+  // Capped, so they never outstay {@link SYNC_DOTS_MAX_VISIBLE_MS}.
+  const showSyncDots = syncDotsWanted && !syncDotsExpired
   // Showing skeletons.
   const coldStart = isLoading && filtered.length === 0 && !query
   const membershipKey = useMemo(
@@ -617,6 +624,17 @@ export function App() {
     setView(next)
     setMenuOpen(true)
   }
+
+  // Start the dots allowance when they go up, and reset it when they come down so
+  // the next refresh gets a full window of its own.
+  useEffect(() => {
+    if (!syncDotsWanted) {
+      setSyncDotsExpired(false)
+      return
+    }
+    const id = setTimeout(() => setSyncDotsExpired(true), SYNC_DOTS_MAX_VISIBLE_MS)
+    return () => clearTimeout(id)
+  }, [syncDotsWanted])
 
   // Debounce the snapshot-suggestion prefix ~150ms behind the raw query.
   useEffect(() => {
