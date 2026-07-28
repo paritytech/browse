@@ -1,3 +1,7 @@
+/**
+ * Synchronization end-to-end tests.
+ */
+
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 

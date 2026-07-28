@@ -1,11 +1,5 @@
 /**
  * Share end-to-end tests.
- *
- * The share action hands a single browse `?app=` pass-through link to the native
- * share sheet, copying to the clipboard where Web Share is unavailable. On a
- * later visit browse surfaces a deferred prompt asking whether the user liked an
- * app they were sent to from such a link. Confirming the prompt reuses the
- * attest path already covered by recommend.spec.
  */
 
 import type { BrowserContext, Frame, Page } from '@playwright/test'
