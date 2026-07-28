@@ -13,6 +13,7 @@ import { parseRootManifest } from './manifest'
 import type { AppCertificate } from './types'
 import type { LabelEntry } from '../../db/labels'
 import {
+  decodeAddress,
   decodeAttestation,
   decodeBool,
   decodeBytes,
@@ -26,6 +27,7 @@ import {
   encodeGetPublished,
   encodeIdentityHasAttested,
   encodeLabelOf,
+  encodeNodeOwner,
   encodeText,
   labelhashToTokenId,
   type MulticallTarget,
@@ -99,6 +101,23 @@ export function labelhashOf(label: string): `0x${string}` {
   let out = '0x'
   for (let i = 0; i < hash.length; i++) out += hash[i].toString(16).padStart(2, '0')
   return out as `0x${string}`
+}
+
+/** The address a dotNS name owns when nobody has registered it. */
+const UNOWNED = '0x0000000000000000000000000000000000000000'
+
+/**
+ * Whether a `.dot` name is registered, or null when the read failed.
+ *
+ * Separates a registered name publishing nothing from one never registered, which
+ * the content hash cannot tell apart. A failed read reports unknown, not free.
+ */
+export async function isNameRegistered(label: string): Promise<boolean | null> {
+  const [result] = await multicall([
+    { target: NETWORK.REGISTRY, callData: encodeNodeOwner(namehash(`${label}.dot`)) }
+  ])
+  const owner = tryDecode(result, decodeAddress)
+  return owner === null ? null : owner.toLowerCase() !== UNOWNED
 }
 
 /**

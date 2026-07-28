@@ -9,6 +9,9 @@ import { CertificateBadge } from '../certificate-badge'
 import { Identicon } from '../identicon'
 import './styles.css'
 
+/** Identicon seed for a placeholder. Fixed, so the mark holds still while the name is typed. */
+const PLACEHOLDER_SEED = 'dot'
+
 interface ProductCardProps {
   app: AppEntry
   index: number
@@ -18,6 +21,13 @@ interface ProductCardProps {
   provisioning?: boolean
   recommending?: boolean
   showMenu?: boolean
+  /**
+   * Stand-in for an app we have not confirmed exists, carrying only a name.
+   *
+   * Drops the actions row so Open still lines up, and shows a fixed mark instead
+   * of a label Identicon, which would redraw on every keystroke.
+   */
+  isPlaceholder?: boolean
   onClick: (label: string) => void
   onBookmark?: (label: string) => void
   onShare?: (app: AppEntry) => void
@@ -34,6 +44,7 @@ export const ProductCard = memo(function ProductCard({
   provisioning = false,
   recommending = false,
   showMenu = true,
+  isPlaceholder = false,
   onClick,
   onBookmark,
   onShare,
@@ -74,7 +85,7 @@ export const ProductCard = memo(function ProductCard({
 
   return (
     <div
-      class={`product-card${instant ? ' product-card--instant' : ''}`}
+      class={`product-card${instant ? ' product-card--instant' : ''}${isPlaceholder ? ' product-card--placeholder' : ''}`}
       style={`animation-delay: ${delay}ms`}
       data-label={app.label}
       title={`Open ${app.label}.dot`}
@@ -102,7 +113,7 @@ export const ProductCard = memo(function ProductCard({
             )}
           </>
         ) : (
-          <Identicon seed={app.label} size={42} />
+          <Identicon seed={isPlaceholder ? PLACEHOLDER_SEED : app.label} size={42} />
         )}
       </div>
       <div class='product-card__body'>

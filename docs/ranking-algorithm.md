@@ -118,7 +118,9 @@ The score is a per-app reduction over its active recommends plus three cheap mod
 
 ### Compatibility
 
-The change is to the comparison only. It reuses the existing sticky-order snapshot, so cards do not reshuffle as scores drift: recompute only on a membership change or a `commitOrder` when a recommend settles ([App.tsx:450](../app/src/App.tsx#L450)).
+The change is to the comparison only. It reuses the existing sticky-order snapshot, so cards do not reshuffle as scores drift: recompute only on a membership change or a `commitOrder` when a recommend settles ([App.tsx:589](../app/src/App.tsx#L589)).
+
+The card for the typed address is outside the ranked set. It renders as the first child of `.app-list`, ahead of the ranked entries and never among them, so no score moves it off the front, and the list never repeats that label. It does sit inside the container, so `useFlipReorder` sees its `data-label` and a reorder elsewhere can animate it even though its position is fixed.
 
 ### What ships now, and what needs the index
 

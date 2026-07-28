@@ -3,11 +3,12 @@ import { navigateTo } from '@parity/product-sdk/host'
 import { isHosted } from './local-storage'
 import { appLink } from './share-link'
 
+/** Open an app by `.dot` label. Standalone goes through {@link appLink}, which knows the network. */
 export function navigateToDomain(label: string) {
   if (isHosted()) {
     void navigateTo(`${label}.dot`)
   } else {
-    window.open(`https://${label}.dot.li`, '_blank', 'noopener')
+    window.open(appLink(label), '_blank', 'noopener')
   }
 }
 

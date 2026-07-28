@@ -13,6 +13,7 @@ import { CertificateBadge } from './components/certificate-badge'
 import { CertificateModal } from './components/certificate-modal'
 import { FollowingManager } from './components/following-manager'
 import { FOLLOW_ICON, SEARCH_ICON } from './components/icons'
+import { PlaceholderCard } from './components/placeholder-card'
 import { ProductCardWithAttestation } from './components/product-card/product-card-with-attestation'
 import { ProductCardSkeleton } from './components/product-card/skeleton'
 import { RecommendPrompt } from './components/recommend-prompt'
@@ -28,6 +29,7 @@ import { useOverscrollSync } from './hooks/use-overscroll-sync'
 import { resetBrowseSdk } from './lib/client'
 import { SELF_LABEL } from './lib/config'
 import { setupDebugConsole } from './lib/debug'
+import { destinationFromQuery, typedLabel } from './lib/destination'
 import { useDomainSuggestions } from './lib/domains-snapshot'
 import { navigateToDomain } from './lib/navigate'
 import { clearPendingRecommend, readPendingRecommends } from './lib/pending-recommend'
@@ -38,11 +40,13 @@ import {
   LABELS_KEY,
   useGetAllApps,
   useLabelsStorage,
+  useResolveDestination,
   useResolveLabel
 } from './state/apps/queries'
 import {
   type AppCertificate,
   type AppEntry,
+  appOf,
   filterApps,
   type FilterMode,
   isFilterMode,
@@ -79,6 +83,10 @@ const SORT_OPTIONS: { key: SortMode; name: string; description: string }[] = [
 // Minimum time the loading dots stay up after a mobile pull-refresh, so the
 // gesture has visible feedback even when the connection reset resolves instantly.
 const PULL_REFRESH_MIN_VISIBLE_MS = 2000
+
+// Shortest address we spend a network read on. Gates the description only, never
+// the card, since `a.dot` is a registerable name.
+const MIN_RESOLVE_LENGTH = 3
 
 /**
  * Render a snapshot-only search result as a product card, lazily resolving its
@@ -327,19 +335,33 @@ export function App() {
     const exactSelf = normalizedQuery === SELF_LABEL
     return exactSelf ? matches : matches.filter((app) => app.label !== SELF_LABEL)
   }, [deferredQuery, appsForFiltering, bookmarkedApps, followingDisplay, publishedLabels])
-  const tryLabel = query
-    .trim()
-    .toLowerCase()
-    .replace(/\.dot$/, '')
-  const resolverLabel = debouncedQuery
-    .trim()
-    .toLowerCase()
-    .replace(/\.dot$/, '')
-  const shouldResolve = debouncedQuery === query && resolverLabel.length >= 3
-  const { data: resolvedApp, isFetching: resolverFetching } = useResolveLabel(
-    resolverLabel,
-    shouldResolve
+  // Non-null is the whole condition for showing a card, so navigating never
+  // depends on what search or the network returned.
+  const destination = destinationFromQuery(query)
+  const debouncedDestination = destinationFromQuery(debouncedQuery)
+  // Already published and in the local set, so the card comes straight from it.
+  // Nothing to look up for an app we can render now.
+  const indexedDestination = useMemo(
+    () =>
+      destination
+        ? (appsForFiltering.find((app) => app.label === destination && app.contentHash) ?? null)
+        : null,
+    [destination, appsForFiltering]
   )
+  const canResolve =
+    destination !== null && destination.length >= MIN_RESOLVE_LENGTH && indexedDestination === null
+  const destinationSettled = destination !== null && debouncedDestination === destination
+  const { data: destinationResolution } = useResolveDestination(
+    debouncedDestination ?? '',
+    canResolve && destinationSettled
+  )
+  // A resolution describes the debounced address, so a card showing a newer one
+  // must not wear it.
+  const placeholderResolution = canResolve && destinationSettled ? destinationResolution : undefined
+  const resolvedApp = appOf(placeholderResolution)
+  // The card at the front of the list: the indexed app when we already have it,
+  // otherwise whatever the resolver turned up.
+  const frontApp = indexedDestination ?? resolvedApp
   // Domain-snapshot suggestion prefix: the raw query (trailing `.dot` stripped,
   // lowercased), debounced ~150ms into suggestionPrefix by an effect below. A
   // local snapshot lookup, independent of the 500ms debouncedQuery.
@@ -351,16 +373,15 @@ export function App() {
   // Merge the search results shown while typing: published matches (with real
   // metadata and icons) first, then every other `.dot` name from the snapshot
   // as a minimal entry (Identicon and `<label>.dot`). Deduped by label.
+  //
+  // The card at the front owns the typed address, so the list never repeats it,
+  // whichever of the three sources it arrived from.
   const searchEntries = useMemo<{ app: AppEntry; snapshotOnly: boolean }[]>(() => {
     if (!searchMatches) return []
-    const published = [
-      ...searchMatches,
-      ...(resolvedApp && !searchMatches.some((app) => app.label === resolvedApp.label)
-        ? [resolvedApp]
-        : [])
-    ]
+    const published = searchMatches.filter((app) => app.label !== destination)
     const known = new Set(published.map((app) => app.label))
     known.add(SELF_LABEL)
+    if (destination) known.add(destination)
     const snapshotOnly = domainSuggestions
       .filter((label) => !known.has(label))
       .map((label) => ({
@@ -379,14 +400,7 @@ export function App() {
         snapshotOnly: true
       }))
     return [...published.map((app) => ({ app, snapshotOnly: false })), ...snapshotOnly]
-  }, [searchMatches, resolvedApp, domainSuggestions])
-  // True while a search is in flight: typing hasn't settled (debounce or
-  // useDeferredValue), or the on-chain resolver is fetching.
-  const isSearching =
-    query.length > 0 &&
-    (deferredQuery !== query ||
-      debouncedQuery !== query ||
-      (resolverLabel.length >= 3 && resolverFetching))
+  }, [searchMatches, destination, domainSuggestions])
   const isLoading =
     currentMode === 'bookmarks'
       ? false
@@ -809,6 +823,7 @@ export function App() {
                   value={query}
                   onInput={handleSearchInput}
                   onCancel={() => setQuery('')}
+                  onSubmit={destination ? () => navigateToDomain(destination) : null}
                 />
               </div>
               {!searchMatches && (
@@ -836,6 +851,20 @@ export function App() {
               )}
 
               <div class='app-list' id='app-list' ref={appListRef}>
+                {/* The typed address, first in the list and otherwise an ordinary
+                    card. A placeholder until it resolves to something published.
+                    Never conditional on the search result. */}
+                {destination &&
+                  (frontApp ? (
+                    renderCard(frontApp, -1)
+                  ) : (
+                    <PlaceholderCard
+                      label={typedLabel(query)}
+                      target={destination}
+                      resolution={placeholderResolution}
+                      onGo={navigateToDomain}
+                    />
+                  ))}
                 {coldStart ? (
                   Array.from({ length: 6 }, (_, i) => <ProductCardSkeleton key={`sk-${i}`} />)
                 ) : emptyAll ? (
@@ -886,29 +915,18 @@ export function App() {
                       renderCard(app, -1)
                     )
                   )
-                ) : searchMatches ? (
-                  isSearching ? (
-                    <div class='empty-state'>
-                      <p class='empty-state__text'>Searching for "{query}"…</p>
-                      <div class='loading-dots loading-dots--inline'>
-                        <span class='loading-dots__dot' />
-                        <span class='loading-dots__dot' />
-                        <span class='loading-dots__dot' />
-                      </div>
-                    </div>
-                  ) : (
-                    <div class='empty-state'>
-                      <div class='empty-state__icon'>{SEARCH_ICON}</div>
-                      <p class='empty-state__text'>No products matching "{query}"</p>
-                      <button
-                        class='empty-state__btn-ghost'
-                        onClick={() => navigateToDomain(tryLabel)}
-                      >
-                        Try {tryLabel}.dot anyway
-                      </button>
-                    </div>
-                  )
-                ) : (
+                ) : searchMatches && !destination ? (
+                  // Only when the text names no address, since a card above already
+                  // answers. No in-flight variant either: swapping the list for a
+                  // progress message read as the results being taken away.
+                  <div class='empty-state'>
+                    <div class='empty-state__icon'>{SEARCH_ICON}</div>
+                    <p class='empty-state__text'>
+                      No results for
+                      <span class='empty-state__query'>"{query}"</span>
+                    </p>
+                  </div>
+                ) : searchMatches ? null : (
                   orderedFiltered.map((app, i) => renderCard(app, i))
                 )}
               </div>

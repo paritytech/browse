@@ -574,6 +574,14 @@
     padding: 0 var(--space-medium-increased);
   }
 
+  /* Drop the empty actions row, which would otherwise drag Open down to straddle
+     it, and stretch the body so Open centres against the card rather than the
+     text. The title is untouched, so it stays level with neighbouring titles. */
+  .product-card--placeholder .product-card__body {
+    grid-template-areas: 'text open';
+    align-self: stretch;
+  }
+
   .product-card__upvote {
     height: 32px;
   }
