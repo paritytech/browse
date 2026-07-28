@@ -94,12 +94,6 @@ export function FollowingManager({
     setInput('')
   }
 
-  function commit() {
-    const first = results[0]
-    if (first) follow(first.account, first.username)
-    else if (ss58) follow(trimmed)
-  }
-
   // A raw SS58 paste follows directly. A username prefix only resolves once it
   // reaches the snapshot shard-key length, so shorter input shows the list.
   const showResults = ss58 || query.length >= MIN_PREFIX_LENGTH
@@ -119,10 +113,7 @@ export function FollowingManager({
             value={input}
             onInput={(e) => setInput((e.target as HTMLInputElement).value)}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                commit()
-              } else if (e.key === 'Backspace' && input === '' && following.length > 0) {
+              if (e.key === 'Backspace' && input === '' && following.length > 0) {
                 // Pull the last-followed username back into the field so it can
                 // be edited rather than dropped outright.
                 const last = following[following.length - 1]

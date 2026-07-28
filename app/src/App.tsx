@@ -862,7 +862,6 @@ export function App() {
                   value={query}
                   onInput={handleSearchInput}
                   onCancel={() => setQuery('')}
-                  onSubmit={destination ? () => navigateToDomain(destination) : null}
                 />
               </div>
               {!searchMatches && (
