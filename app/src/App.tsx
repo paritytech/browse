@@ -583,11 +583,17 @@ export function App() {
     heroLabelRef.current = label
     setOrderNonce((n) => n + 1)
   })
-  // Open the popover, anchoring it right-aligned under the ⋮ by measuring the
-  // trigger. `next` lets the empty-state button expand straight into Following.
-  const openMenu = (next: 'menu' | 'following' = 'menu') => {
+  // Right-align the popover under the ⋮ by measuring the trigger. These are
+  // viewport coordinates on a fixed element, so anything that moves the trigger
+  // has to measure again or the popover floats detached.
+  const anchorToTrigger = () => {
     const rect = triggerRef.current?.getBoundingClientRect()
     if (rect) setAnchor({ top: rect.bottom + 8, right: window.innerWidth - rect.right })
+  }
+  // Open the popover under the ⋮. `next` lets the empty-state button expand
+  // straight into Following.
+  const openMenu = (next: 'menu' | 'following' = 'menu') => {
+    anchorToTrigger()
     setView(next)
     setMenuOpen(true)
   }
@@ -711,19 +717,22 @@ export function App() {
       setPopoverHeight(undefined)
     }
   }, [menuOpen])
-  // Light-dismiss the popover on Escape, or any scroll or resize so it never
-  // floats detached from the trigger. Scroll is captured so a scroll inside the
-  // app list, not just the window, also closes it. Outside clicks close via the
-  // transparent catcher rendered under the popover.
+  // Light-dismiss the popover on Escape or on a page scroll, which is what a
+  // dropdown anchored to a scrolling page should do. Scroll is captured so a
+  // scroll inside the app list, not just the window, also closes it. A resize
+  // re-measures instead of closing, because on a phone the resize is the
+  // on-screen keyboard opening for a field in the popover itself. Outside clicks
+  // close via the transparent catcher rendered under the popover.
   useEffect(() => {
     if (!menuOpen) return
-    const close = () => setMenuOpen(false)
     const onScroll = (e: Event) => {
       // Ignore scrolling inside the popover itself, and the scroll a focused
       // embedded input triggers as it settles. Only the page scrolling out from
       // under the trigger should close it.
       const target = e.target
       if (target instanceof Node && popoverRef.current?.contains(target)) return
+      const active = document.activeElement
+      if (active instanceof Node && popoverRef.current?.contains(active)) return
       setMenuOpen(false)
     }
     const onKey = (e: KeyboardEvent) => {
@@ -731,11 +740,11 @@ export function App() {
     }
     window.addEventListener('keydown', onKey)
     window.addEventListener('scroll', onScroll, true)
-    window.addEventListener('resize', close)
+    window.addEventListener('resize', anchorToTrigger)
     return () => {
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('scroll', onScroll, true)
-      window.removeEventListener('resize', close)
+      window.removeEventListener('resize', anchorToTrigger)
     }
   }, [menuOpen])
   // Animate the popover height to the natural content height of the active view,

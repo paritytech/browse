@@ -70,6 +70,15 @@ test.describe('Following', () => {
     await expect(frame.locator('.customize-popover')).toBeVisible()
 
     // When
+    await frame.locator('.following-modal__input').click()
+    await page.setViewportSize({ width: 1280, height: 420 })
+    await frame.waitForTimeout(500)
+
+    // Then
+    await expect(frame.locator('.following-modal__input')).toBeVisible()
+
+    // When
+    await page.setViewportSize({ width: 1280, height: 720 })
     const input = frame.locator('.following-modal__input')
     await input.fill('zzauto')
 
