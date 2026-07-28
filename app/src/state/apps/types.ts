@@ -94,6 +94,23 @@ export function rankScore(app: AppEntry, nowMs: number = Date.now()): number {
   return demand * trust * quality * freshness(app, nowMs)
 }
 
+/**
+ * Where the query matched, lowest first, or null when it did not match at all.
+ *
+ * The score measures popularity, so ordering by it alone let a hit buried in a
+ * description outrank the app whose domain is the query itself. The tier sets the
+ * broad order and the score decides within a tier.
+ */
+function matchTier(app: AppEntry, needle: string): number | null {
+  const label = app.label.toLowerCase()
+  if (label === needle || `${label}.dot` === needle) return 0
+  if (label.startsWith(needle)) return 1
+  if (label.includes(needle) || `${label}.dot`.includes(needle)) return 2
+  if (app.name?.toLowerCase().includes(needle)) return 3
+  if (app.description.toLowerCase().includes(needle)) return 4
+  return null
+}
+
 export function filterApps(
   apps: AppEntry[],
   query: string,
@@ -111,15 +128,18 @@ export function filterApps(
   let filtered = apps.filter(filterByMode[mode])
 
   const needle = query.toLowerCase().trim()
+  const tiers = new Map<string, number>()
   if (needle) {
-    filtered = filtered.filter(
-      (app) =>
-        app.label.toLowerCase().includes(needle) ||
-        `${app.label}.dot`.includes(needle) ||
-        (app.name?.toLowerCase().includes(needle) ?? false) ||
-        app.description.toLowerCase().includes(needle)
-    )
+    for (const app of filtered) {
+      const tier = matchTier(app, needle)
+      if (tier !== null) tiers.set(app.label, tier)
+    }
+    filtered = filtered.filter((app) => tiers.has(app.label))
   }
+
+  // A closer match always outranks a looser one, whatever the sort, because a
+  // score cannot make a description hit mean more than the domain the user typed.
+  const byTier = (a: AppEntry, b: AppEntry) => (tiers.get(a.label) ?? 0) - (tiers.get(b.label) ?? 0)
 
   // Every tab honours the chosen sort. Relevant ranks by the composite score,
   // then recommendation count, then name. New orders by publish time (newest
@@ -127,6 +147,8 @@ export function filterApps(
   const now = Date.now()
   if (sort === 'new') {
     return filtered.sort((a, b) => {
+      const tier = byTier(a, b)
+      if (tier !== 0) return tier
       const publishedA = a.publishedAt ?? -Infinity
       const publishedB = b.publishedAt ?? -Infinity
       if (publishedA !== publishedB) return publishedB - publishedA
@@ -137,6 +159,8 @@ export function filterApps(
     })
   }
   return filtered.sort((a, b) => {
+    const tier = byTier(a, b)
+    if (tier !== 0) return tier
     const scoreA = rankScore(a, now)
     const scoreB = rankScore(b, now)
     if (scoreA !== scoreB) return scoreB - scoreA
