@@ -109,11 +109,20 @@ export function FollowingManager({
             type='text'
             autocomplete='off'
             spellcheck={false}
+            enterkeyhint='done'
             placeholder='username'
             value={input}
             onInput={(e) => setInput((e.target as HTMLInputElement).value)}
             onKeyDown={(e) => {
-              if (e.key === 'Backspace' && input === '' && following.length > 0) {
+              if (e.key === 'Enter') {
+                // Done typing, and nothing more. Return used to follow the first
+                // result, which arrives asynchronously, so pressing it early
+                // followed whoever happened to be there. Choosing an account is a
+                // choice, so it takes a tap. Blurring is what puts a phone
+                // keyboard away.
+                e.preventDefault()
+                e.currentTarget.blur()
+              } else if (e.key === 'Backspace' && input === '' && following.length > 0) {
                 // Pull the last-followed username back into the field so it can
                 // be edited rather than dropped outright.
                 const last = following[following.length - 1]
