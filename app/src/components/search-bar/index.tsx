@@ -50,8 +50,17 @@ export function SearchBar({ value, onInput, placeholder = 'Search', onCancel }: 
           type='text'
           autocomplete='off'
           spellcheck={false}
+          enterkeyhint='done'
           value={value}
           onInput={(e) => onInput((e.target as HTMLInputElement).value)}
+          onKeyDown={(e) => {
+            // Return means done typing, nothing more. Results already follow every
+            // keystroke, so the only thing left to want is the keyboard out of the
+            // way, and blurring is what closes it on a phone.
+            if (e.key !== 'Enter') return
+            e.preventDefault()
+            e.currentTarget.blur()
+          }}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
         />
