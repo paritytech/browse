@@ -87,33 +87,66 @@
   min-height: 96px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  /* Tight, so the stack still fits the icon once the domain has a line. */
+  gap: var(--space-tiny);
 }
 
-/* Title and description, stacked. Keeps the body's 6px gap so mobile is
-   unchanged. */
+/* No row gap. The domain hugs the name as one identity block, and the description
+   sets its own space below them. */
 .product-card__text {
   display: flex;
   flex-direction: column;
-  gap: var(--space-extra-small);
+  gap: 0;
 }
 
 .product-card__title-row {
   display: flex;
   align-items: center;
-  min-height: 24px;
+  /* Clears the bookmark pinned in the corner, so a long title cannot run under it. */
+  padding-right: 28px;
+  /* The title line box, so the row never grows taller than its own contents. */
+  min-height: 20px;
 }
 
+/* One scale at every width. 15px is off-token, since our steps are 18/16/14. */
 .product-card__name {
   font-family: var(--font-sans);
-  font-weight: var(--type-title-lg-weight);
-  font-size: var(--type-title-lg-size);
-  line-height: var(--type-title-lg-line);
+  font-weight: var(--type-title-md-weight);
+  font-size: 15px;
+  line-height: 20px;
   letter-spacing: -0.01em;
   color: var(--fg-primary);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* Open, with room for the caption that hangs under it from 768px up. */
+.product-card__open-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-extra-tiny);
+  min-width: 0;
+}
+
+/* A step below the description, told apart by size. The 1.3 line is off-token, since
+   our 10px step pairs with 14px. */
+.product-card__domain {
+  font-family: var(--font-sans);
+  font-weight: var(--type-body-sm-weight);
+  font-size: var(--type-label-sm-size);
+  line-height: 1.3;
+  color: var(--fg-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Two slots, one shown at a time. Phones stack the domain under the name, where a
+   caption column would eat into the title. Desktop hangs it under Open instead. */
+.product-card__domain--caption {
+  display: none;
 }
 
 .product-card__certified {
@@ -137,15 +170,19 @@
   stroke: var(--fg-primary-inverted);
 }
 
+/* The card corner on phones, where it fills a mostly empty row. Beside the name from
+   768px, since a wide card strands it far from the title. Smaller than the title line
+   box so it never sets the row height, with the tap area restored by the ::after. */
 .product-card__bookmark {
+  position: absolute;
+  top: var(--space-medium-increased);
+  right: var(--space-medium-increased);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
   padding: 0;
-  /* Separated from the title/status as an action (status hugs at --space-tiny). */
-  margin-left: var(--space-small);
   flex-shrink: 0;
   border: none;
   border-radius: 6px;
@@ -164,16 +201,24 @@
   }
 }
 
+/* Widens the tap target past the visual button. */
+.product-card__bookmark::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+
 .product-card__bookmark--active {
   color: rgb(var(--fg-rgb) / 0.95);
 }
 
 .product-card__desc {
-  margin: 0;
+  /* Owns the space below the name and domain, since __text has no row gap. */
+  margin: var(--space-tiny) 0 0;
   font-family: var(--font-sans);
-  font-weight: var(--type-body-md-weight);
-  font-size: var(--type-body-md-size);
-  line-height: var(--type-body-md-line);
+  font-weight: var(--type-body-sm-weight);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
   letter-spacing: 0;
   color: var(--fg-secondary);
   display: -webkit-box;
@@ -182,6 +227,13 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* No stacked domain leaves a line going spare, so spend it on the description. Keyed
+   on that slot, since the desktop caption always renders. */
+.product-card:not(:has(.product-card__domain--stacked)) .product-card__desc {
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .product-card__footer {
@@ -526,32 +578,43 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: var(--space-extra-tiny);
+    gap: 0;
+  }
+
+  .product-card__desc {
+    margin-top: var(--space-extra-tiny);
   }
 
   .product-card__title-row {
     min-height: 0;
+    padding-right: 0;
   }
 
-  /* Smaller title. min-width 0 lets it truncate. */
+  /* Back beside the name, and back in the row flow. */
+  .product-card__bookmark {
+    position: relative;
+    top: auto;
+    right: auto;
+    margin-left: var(--space-small);
+    border-radius: var(--radius-small);
+  }
+
+  /* Lets a long title truncate. No type step-down, since the base scale is the
+     lockup scale already. */
   .product-card__name {
     min-width: 0;
-    font-size: var(--type-title-md-size);
-    line-height: var(--type-title-md-line);
-    font-weight: var(--type-title-md-weight);
   }
 
-  .product-card__desc {
-    font-size: var(--type-body-sm-size);
-    line-height: var(--type-body-sm-line);
+  /* Swap the slots, which also leaves the title the whole text column. */
+  .product-card__domain--stacked {
+    display: none;
   }
 
-  /* Smaller bookmark on desktop. */
-  .product-card__title-row .product-card__bookmark {
-    width: 28px;
-    height: 28px;
-    margin-left: var(--space-tiny);
-    border-radius: var(--radius-small);
+  .product-card__domain--caption {
+    display: block;
+    /* May outrun the button, but not far enough to squeeze the description. */
+    max-width: 140px;
+    text-align: center;
   }
 
   /* Unwrap so Open and the buttons place into the grid independently. */
@@ -566,10 +629,14 @@
     gap: var(--space-extra-small);
   }
 
-  /* Open on the right, vertically centered. */
-  .product-card__open {
+  /* Open on the right, vertically centered. The group takes the grid area, since the
+     caption travels with the button. */
+  .product-card__open-group {
     grid-area: open;
     align-self: center;
+  }
+
+  .product-card__open {
     height: 36px;
     padding: 0 var(--space-medium-increased);
   }

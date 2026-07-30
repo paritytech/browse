@@ -12,6 +12,24 @@ import './styles.css'
 /** Identicon seed for a placeholder. Fixed, so the mark holds still while the name is typed. */
 const PLACEHOLDER_SEED = 'dot'
 
+/**
+ * The `.dot` domain of a product, or null when its title already is that domain.
+ *
+ * Only the phone layout asks. It gives the domain a line of its own, and a title
+ * that already is the domain would fill that line with the same string twice.
+ * `displayName` falls back to `<label>.dot` for a product carrying no name, and a
+ * product whose name was set to its own domain string comes to the same thing.
+ * Skipping the line hands it to a second line of description instead.
+ *
+ * The desktop caption asks nothing. It carries the domain on every card.
+ */
+function stackedDomain(app: AppEntry): string | null {
+  const domain = `${app.label}.dot`
+  if (app.name === null) return null
+  if (app.name.trim().toLowerCase() === domain.toLowerCase()) return null
+  return domain
+}
+
 interface ProductCardProps {
   app: AppEntry
   index: number
@@ -57,6 +75,8 @@ export const ProductCard = memo(function ProductCard({
   const instant = index < 0
   const delay = instant ? 0 : Math.min(index * 100, 700)
   const name = displayName(app)
+  const domain = `${app.label}.dot`
+  const stacked = stackedDomain(app)
   const displayCount = app.attestationCount ?? 0
   const { url: iconBlobUrl, failed: iconFailed, markFailed } = useIconBlob(app.iconCid)
   const [iconLoaded, setIconLoaded] = useState(false)
@@ -150,19 +170,30 @@ export const ProductCard = memo(function ProductCard({
               </button>
             )}
           </div>
+          {stacked && (
+            <span class='product-card__domain product-card__domain--stacked' title={stacked}>
+              {stacked}
+            </span>
+          )}
           <p class='product-card__desc'>{app.description}</p>
         </div>
         <div class='product-card__footer'>
-          <button
-            class='product-card__open'
-            onClick={(e) => {
-              e.stopPropagation()
-              onClick(app.label)
-            }}
-          >
-            <span>Open</span>
-            <ArrowUpRight size={14} />
-          </button>
+          {/* Open, with the domain hung underneath it from 768px up. */}
+          <span class='product-card__open-group'>
+            <button
+              class='product-card__open'
+              onClick={(e) => {
+                e.stopPropagation()
+                onClick(app.label)
+              }}
+            >
+              <span>Open</span>
+              <ArrowUpRight size={14} />
+            </button>
+            <span class='product-card__domain product-card__domain--caption' title={domain}>
+              {domain}
+            </span>
+          </span>
           {showActions && (
             <div class='product-card__footer-end'>
               {onClickAttestation && (
