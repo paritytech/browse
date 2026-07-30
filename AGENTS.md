@@ -72,6 +72,11 @@ Prefer invoking a skill over reimplementing from source:
 - `review-pr`. Read-only PR review.
 - `babysit`. Drive an open PR to green.
 - `commit-push-pr`. Stage, commit, push, open a PR.
+- `variants`. Stand up several design options side by side, each on its own port.
+
+To see the app at all it needs a Host around it: `bun scripts/mock-host.ts` wraps a
+running dev server and prints a URL to open. `localhost:<port>` on its own only shows
+"Not Running Inside Host".
 
 Agents: `code-architect`, `staff-reviewer`, `verify-app`, `code-simplifier`, and the design set (`design-director`, `design-system-steward`, `visual-designer`).
 
