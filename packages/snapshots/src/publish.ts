@@ -24,7 +24,7 @@
  */
 
 import { ApiPromise, WsProvider } from '@polkadot/api'
-import { encodeSetText, namehash, type NetworkGenesis } from '@parity/browse-sdk'
+import { encodeTextWrite } from './pointer.js'
 import { sr25519CreateDerive } from '@polkadot-labs/hdkd'
 import { entropyToMiniSecret, mnemonicToEntropy, ss58Address } from '@polkadot-labs/hdkd-helpers'
 import { Binary, createClient, Enum } from 'polkadot-api'
@@ -32,7 +32,6 @@ import { getPolkadotSigner } from 'polkadot-api/signer'
 import { getWsProvider } from 'polkadot-api/ws'
 
 import { buildSnapshotBlocks, type SnapshotBlock } from './blocks.js'
-import type { CrawlProgress } from './crawl.js'
 import { RAW_CODEC } from './format.js'
 
 const POOL_SIZE = 10
@@ -45,7 +44,10 @@ const UNLIMITED_WEIGHT = {
 } as const
 const UNLIMITED_DEPOSIT = 18_446_744_073_709_551_615n
 
-const noop: CrawlProgress = () => {}
+/** Progress callback, so a caller can report without this module owning output. */
+export type PublishProgress = (message: string) => void
+
+const noop: PublishProgress = () => {}
 
 /** Watchable transaction, the shape `signSubmitAndWatch` returns events for. */
 interface SubmittableTx {
@@ -86,7 +88,7 @@ async function storeBlocks(
   mnemonic: string,
   blocks: SnapshotBlock[],
   bulletinRpc: string,
-  progress: CrawlProgress
+  progress: PublishProgress
 ): Promise<void> {
   const client = createClient(getWsProvider(bulletinRpc))
   const api = client.getUnsafeApi() as unknown as BulletinApi
@@ -184,13 +186,13 @@ export interface PublishResult {
  */
 export async function publishSnapshot(options: {
   version: number
-  genesis: NetworkGenesis
+  genesis: string
   bulletinRpc: string
   mnemonic: string
   lines: string[]
   shardKeyOf: (line: string) => string
   generatedAt?: number
-  progress?: CrawlProgress
+  progress?: PublishProgress
 }): Promise<PublishResult> {
   const { version, genesis, bulletinRpc, mnemonic, lines, shardKeyOf } = options
   const progress = options.progress ?? noop
@@ -260,7 +262,7 @@ export async function writeSnapshotPointer(options: {
   cid: string
   mnemonic: string
   derivation?: string
-  progress?: CrawlProgress
+  progress?: PublishProgress
 }): Promise<void> {
   const progress = options.progress ?? noop
   const client = createClient(getWsProvider(options.assetHubRpc))
@@ -270,7 +272,7 @@ export async function writeSnapshotPointer(options: {
     const keypair = derive(options.derivation ?? '')
     const signer = getPolkadotSigner(keypair.publicKey, 'Sr25519', keypair.sign)
     const origin = ss58Address(keypair.publicKey)
-    const data = Binary.fromHex(encodeSetText(namehash(options.domain), options.key, options.cid))
+    const data = Binary.fromHex(encodeTextWrite(options.domain, options.key, options.cid))
 
     progress(`pointer:   ${options.domain} ${options.key} as ${origin.slice(0, 8)}…`)
 

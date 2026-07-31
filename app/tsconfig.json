@@ -18,8 +18,8 @@
     "jsxImportSource": "preact",
     "paths": {
       "@parity/browse-sdk": ["../packages/browse-sdk/src/index.ts"],
-      "@parity/browse-snapshots": ["../packages/snapshots/src/index.ts"],
-      "@parity/browse-snapshots/host": ["../packages/snapshots/src/host.ts"]
+      "@parity/browse-sdk/snapshots": ["../packages/snapshots/src/index.ts"],
+      "@parity/browse-sdk/snapshots/host": ["../packages/snapshots/src/host.ts"]
     }
   },
   "include": ["src", "tests"],

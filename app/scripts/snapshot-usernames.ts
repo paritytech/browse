@@ -4,9 +4,9 @@
  *   cd app && MNEMONIC="…" APP_DOTNS_DOMAIN="…" bun run snapshot:usernames:paseo
  */
 
-import { shardKey, USERNAMES_POINTER_KEY } from '@parity/browse-snapshots'
-import { crawlUsernames } from '@parity/browse-snapshots/crawl'
-import { publishSnapshot, writeSnapshotPointer } from '@parity/browse-snapshots/publish'
+import { shardKey, USERNAMES_POINTER_KEY } from '@parity/browse-sdk/snapshots'
+import { crawlUsernames } from '@parity/browse-sdk/crawl'
+import { publishSnapshot, writeSnapshotPointer } from '@parity/browse-sdk/snapshots/publish'
 import { isKnownGenesis, selectNetwork } from '@parity/browse-sdk'
 import { createClient } from 'polkadot-api'
 import { getWsProvider } from 'polkadot-api/ws'

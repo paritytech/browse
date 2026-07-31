@@ -27,7 +27,33 @@
  * key already owns. Callers supply it, since only they know where they deployed.
  */
 
-import { decodeString, encodeText, namehash } from '@parity/browse-sdk'
+import { decodeAbiParameters, encodeFunctionData, namehash, parseAbi } from 'viem'
+
+// Narrow to the two record calls a pointer needs. Encoding them here rather than
+// borrowing from browse-sdk is what keeps this package free of it, so browse-sdk
+// can depend on this one instead of the other way around.
+const CONTENT_RESOLVER_ABI = parseAbi([
+  'function text(bytes32 node, string key) view returns (string)',
+  'function setText(bytes32 node, string key, string value)'
+])
+
+/** Call data for reading a text record. */
+export function encodeTextRead(domain: string, key: string): `0x${string}` {
+  return encodeFunctionData({
+    abi: CONTENT_RESOLVER_ABI,
+    functionName: 'text',
+    args: [namehash(domain), key]
+  })
+}
+
+/** Call data for writing a text record, callable only by the name owner. */
+export function encodeTextWrite(domain: string, key: string, value: string): `0x${string}` {
+  return encodeFunctionData({
+    abi: CONTENT_RESOLVER_ABI,
+    functionName: 'setText',
+    args: [namehash(domain), key, value]
+  })
+}
 
 /** Text-record key holding the manifest CID of the `.dot` domain snapshot. */
 export const DOMAINS_POINTER_KEY = 'snapshot.domains'
@@ -66,7 +92,7 @@ export async function readSnapshotPointer(
   domain: string,
   key: string
 ): Promise<string | null> {
-  const raw = await read(contentResolver, encodeText(namehash(domain), key))
-  const cid = decodeString(raw).trim()
-  return cid.length > 0 ? cid : null
+  const raw = await read(contentResolver, encodeTextRead(domain, key))
+  const [cid] = decodeAbiParameters([{ type: 'string' }], raw)
+  return cid.trim().length > 0 ? cid.trim() : null
 }

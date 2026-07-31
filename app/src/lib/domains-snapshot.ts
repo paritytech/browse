@@ -5,7 +5,7 @@
  * re-render and a stale keystroke aborts instead of racing the one after it.
  */
 
-import { MIN_PREFIX_LENGTH } from '@parity/browse-snapshots'
+import { MIN_PREFIX_LENGTH } from '@parity/browse-sdk/snapshots'
 import { useQuery } from '@tanstack/react-query'
 
 import { domainService } from './snapshot-services'

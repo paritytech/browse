@@ -26,11 +26,11 @@ export default defineConfig({
   plugins: [preact(), nodePolyfills()],
   resolve: {
     alias: {
-      '@parity/browse-sdk': resolve(__dirname, '../packages/browse-sdk/src/index.ts'),
-      // The subpath must precede the bare entry. Alias keys match by prefix, so
-      // the bare one would otherwise swallow `/host` and resolve it to nothing.
-      '@parity/browse-snapshots/host': resolve(__dirname, '../packages/snapshots/src/host.ts'),
-      '@parity/browse-snapshots': resolve(__dirname, '../packages/snapshots/src/index.ts')
+      // Subpaths must precede the bare entry. Alias keys match by prefix, so the
+      // bare one would otherwise swallow them and resolve to nothing.
+      '@parity/browse-sdk/snapshots/host': resolve(__dirname, '../packages/snapshots/src/host.ts'),
+      '@parity/browse-sdk/snapshots': resolve(__dirname, '../packages/snapshots/src/index.ts'),
+      '@parity/browse-sdk': resolve(__dirname, '../packages/browse-sdk/src/index.ts')
     }
   },
   build: {

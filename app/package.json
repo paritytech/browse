@@ -43,7 +43,6 @@
     "@fontsource-variable/manrope": "^5.2.8",
     "@fontsource-variable/martian-mono": "^5.2.7",
     "@noble/hashes": "^2.0.1",
-    "@parity/browse-snapshots": "*",
     "@parity/browse-sdk": "*",
     "@parity/product-sdk": "^0.19.1",
     "@polkadot-api/descriptors": "file:.papi/descriptors",

@@ -4,9 +4,9 @@
  *   cd app && MNEMONIC="…" APP_DOTNS_DOMAIN="…" bun run snapshot:domains:paseo
  */
 
-import { DOMAINS_POINTER_KEY, shardKey } from '@parity/browse-snapshots'
-import { crawlDomains } from '@parity/browse-snapshots/crawl'
-import { publishSnapshot, writeSnapshotPointer } from '@parity/browse-snapshots/publish'
+import { DOMAINS_POINTER_KEY, shardKey } from '@parity/browse-sdk/snapshots'
+import { crawlDomains } from '@parity/browse-sdk/crawl'
+import { publishSnapshot, writeSnapshotPointer } from '@parity/browse-sdk/snapshots/publish'
 import { createBrowseSdk, isKnownGenesis, selectNetwork } from '@parity/browse-sdk'
 import { getWsProvider } from 'polkadot-api/ws'
 

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
 
-import { cidToBlake2b256DigestHex } from '@parity/browse-snapshots'
+import { cidToBlake2b256DigestHex } from '@parity/browse-sdk/snapshots'
 import { getPreimageManager, type HostSubscription } from '@parity/product-sdk/host'
 
 import type { IconFormat } from './manifest'

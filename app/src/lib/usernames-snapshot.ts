@@ -5,7 +5,7 @@
  * suggestion follows that account with no further lookup.
  */
 
-import { MIN_PREFIX_LENGTH, type UsernameEntry } from '@parity/browse-snapshots'
+import { MIN_PREFIX_LENGTH, type UsernameEntry } from '@parity/browse-sdk/snapshots'
 import { useQuery } from '@tanstack/react-query'
 
 import { usernameService } from './snapshot-services'

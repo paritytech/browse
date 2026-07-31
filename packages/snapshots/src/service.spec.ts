@@ -1,10 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { encodeText, namehash } from '@parity/browse-sdk'
-
 import { buildSnapshotBlocks } from './blocks.js'
 import { cidToBlake2b256DigestHex, shardKey } from './format.js'
-import { DOMAINS_POINTER_KEY, USERNAMES_POINTER_KEY } from './pointer.js'
+import { DOMAINS_POINTER_KEY, encodeTextRead, USERNAMES_POINTER_KEY } from './pointer.js'
 import {
   type BlockReader,
   DomainSnapshotService,
@@ -505,8 +503,8 @@ describe('pointer record selection works', () => {
     }).suggest('al')
 
     // Then
-    expect(domains.calls).toEqual([encodeText(namehash(POINTER_NAME), DOMAINS_POINTER_KEY)])
-    expect(usernames.calls).toEqual([encodeText(namehash(POINTER_NAME), USERNAMES_POINTER_KEY)])
+    expect(domains.calls).toEqual([encodeTextRead(POINTER_NAME, DOMAINS_POINTER_KEY)])
+    expect(usernames.calls).toEqual([encodeTextRead(POINTER_NAME, USERNAMES_POINTER_KEY)])
   })
 })
 

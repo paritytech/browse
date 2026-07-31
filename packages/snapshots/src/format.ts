@@ -151,10 +151,13 @@ export function shardKey(sortKey: string): string {
 
 /** Decompress gzip bytes to UTF-8 text. */
 export async function gunzip(bytes: Uint8Array): Promise<string> {
-  const stream = new Response(
-    new Blob([bytes as BufferSource]).stream().pipeThrough(new DecompressionStream('gzip'))
-  )
-  return stream.text()
+  // Copy into a standalone ArrayBuffer. A Uint8Array can be a view into a larger
+  // buffer, and naming the DOM-only BufferSource type here would force every
+  // consumer of this package to compile with the DOM lib.
+  const buffer = new ArrayBuffer(bytes.byteLength)
+  new Uint8Array(buffer).set(bytes)
+  const stream = new Blob([buffer]).stream().pipeThrough(new DecompressionStream('gzip'))
+  return new Response(stream).text()
 }
 
 /**
