@@ -4,10 +4,10 @@ on:
   workflow_call:
   push:
     branches: [main]
-    paths: ['app/**']
+    paths: ['app/**', 'packages/**']
   pull_request:
     branches: [main]
-    paths: ['app/**']
+    paths: ['app/**', 'packages/**']
 
 jobs:
   build:

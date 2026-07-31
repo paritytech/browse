@@ -3,10 +3,10 @@ name: Lint
 on:
   push:
     branches: [main]
-    paths: ['app/**']
+    paths: ['app/**', 'packages/**']
   pull_request:
     branches: [main]
-    paths: ['app/**']
+    paths: ['app/**', 'packages/**']
 
 concurrency:
   group: lint-${{ github.ref }}
