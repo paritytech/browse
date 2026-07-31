@@ -10,6 +10,7 @@ Bun workspace monorepo (`workspaces: ["app", "packages/*"]`, `packageManager: bu
 |------|---------|
 | `app/` | The web client (`@parity/browse-client`). Preact, Vite, TanStack Query, polkadot-api. Builds two targets: SPA and embeddable widget. All client source in `app/src`. |
 | `packages/browse-sdk/` | `@parity/browse-sdk`. Network truth: genesis constants, contract addresses, RPCs, and schema IDs per network, in `src/config.ts`. Vite-aliased to its `src`. |
+| `packages/snapshots/` | `@parity/browse-snapshots`. Domain and username prefix autocomplete: the snapshot format, the client reader, and the crawler and publisher behind the `./crawl` and `./publish` subpaths. Depends on browse-sdk. Vite-aliased to its `src`. |
 | `evm/` | Solidity (Foundry and Hardhat): the Publisher registry and attestation-index resolvers. Uses its own npm lockfile, not bun. OpenZeppelin is a submodule under `evm/lib/`. |
 | `docs/` | Design docs: `one-deployment.md`, `publishing-registry.md`, `ranking-algorithm.md`, `local-storage.md`. |
 | `scripts/deploy.ts` | Root deploy pipeline (see the `deploy` skill). |
@@ -30,7 +31,7 @@ bun run format:check            # prettier check
 bun run test:e2e                # Playwright, already sets NETWORK_GENESIS_HASH=previewnet
 ```
 
-There is no single `verify` script yet. Before calling work done, run `typecheck`, `lint`, and `test:e2e`. A few unit specs exist (`app/src/lib/theme.test.ts`, `packages/browse-sdk/src/manifest.spec.ts`) and run via `bun test`.
+There is no single `verify` script yet. Before calling work done, run `typecheck`, `lint`, and `test:e2e`. `app/src/lib/theme.test.ts` runs via `bun test`. The packages carry vitest suites, run with `bun run test` from `packages/browse-sdk` or `packages/snapshots`, and gated in CI by `unit-tests.yml`.
 
 Contracts run from `evm/` (forge): `forge build`, `forge test`. Deploy the app with `bun run deploy` at the repo root, or the `deploy` skill.
 
@@ -45,6 +46,7 @@ Paths under `app/src` unless noted.
 | Client-side cache | `db/*.ts` (`stores`, `labels`, `bookmarks`, `addresses`, `certificate-authorities`), `state/recommendations/cache.ts` |
 | Attestations (read/write) | `lib/attestation-service.ts` (`attestationService` singleton). Mutations `state/recommendations/mutations.ts`, queries `state/recommendations/queries.ts` |
 | Search | `components/search-bar/`, `filterApps` in `state/apps/types.ts`, driven from `App.tsx` |
+| Domain / username autocomplete | `packages/snapshots/`. App bindings `lib/snapshot-services.ts`, `lib/domains-snapshot.ts`, `lib/usernames-snapshot.ts` |
 | Bookmarks | `db/bookmarks.ts` (key `browse:bookmarks`) |
 | Badges / certificate authorities | `components/certificate-*`, `state/certificate-authorities/`, `db/certificate-authorities.ts` |
 | Standalone-vs-hosted storage | `lib/local-storage.ts`, the `localStorage` singleton whose `isHosted()` routes to the host bridge |

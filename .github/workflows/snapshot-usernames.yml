@@ -49,12 +49,19 @@ jobs:
           MNEMONIC: ${{ secrets.MNEMONIC }}
           NETWORK_GENESIS_HASH: ${{ matrix.network.genesis }}
         run: |
-          bun run snapshot:usernames | tee snapshot.log
-          cid=$(grep -oE 'APP_USERNAMES_SNAPSHOT_CID=[A-Za-z0-9]+' snapshot.log | tail -1 | cut -d= -f2)
+          # Capture the CID even on failure. The script prints it once the blocks
+          # are stored, before the pointer write, so a failed record write must
+          # still surrender a CID that is already published and paid for.
+          # Without pipefail the exit code of tee would win and hide the failure.
+          set -o pipefail
+          status=0
+          bun run snapshot:usernames | tee snapshot.log || status=$?
+          cid=$(grep -oE 'APP_USERNAMES_SNAPSHOT_CID=[A-Za-z0-9]+' snapshot.log | tail -1 | cut -d= -f2 || true)
           echo "cid=$cid" >> "$GITHUB_OUTPUT"
+          exit $status
 
       - name: Stage snapshot CID
-        if: steps.snapshot.outputs.cid != ''
+        if: always() && steps.snapshot.outputs.cid != ''
         env:
           CID: ${{ steps.snapshot.outputs.cid }}
         run: |
@@ -65,7 +72,7 @@ jobs:
       # per run because caches are immutable. The consuming build restores the
       # most recent one via the network `cache-prefix`.
       - name: Cache snapshot CID
-        if: steps.snapshot.outputs.cid != ''
+        if: always() && steps.snapshot.outputs.cid != ''
         uses: actions/cache/save@v4
         with:
           path: .usernames-snapshot-cid

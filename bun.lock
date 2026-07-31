@@ -22,6 +22,7 @@
         "@fontsource-variable/martian-mono": "^5.2.7",
         "@noble/hashes": "^2.0.1",
         "@parity/browse-sdk": "*",
+        "@parity/browse-snapshots": "*",
         "@parity/product-sdk": "^0.19.1",
         "@polkadot-api/descriptors": "file:.papi/descriptors",
         "@polkadot-api/sdk-ink": "^0.7.0",
@@ -67,7 +68,7 @@
     },
     "packages/browse-sdk": {
       "name": "@parity/browse-sdk",
-      "version": "0.1.0-rc.1",
+      "version": "0.1.0-rc.2",
       "dependencies": {
         "@ensdomains/content-hash": "^3.0.0",
         "@noble/hashes": "^2.0.1",
@@ -80,6 +81,30 @@
         "typescript": "^5.4.0",
         "vitest": "^4.1.0",
       },
+    },
+    "packages/snapshots": {
+      "name": "@parity/browse-snapshots",
+      "version": "0.1.0-rc.1",
+      "dependencies": {
+        "@noble/hashes": "^2.0.1",
+        "@parity/browse-sdk": "*",
+        "@polkadot-labs/hdkd": "^0.0.27",
+        "@polkadot-labs/hdkd-helpers": "^0.0.28",
+        "@polkadot/api": "^16.5.4",
+        "polkadot-api": "^2.1.4",
+      },
+      "devDependencies": {
+        "@parity/product-sdk": "^0.19.1",
+        "multiformats": "^14.0.2",
+        "typescript": "^5.4.0",
+        "vitest": "^4.1.0",
+      },
+      "peerDependencies": {
+        "@parity/product-sdk": "^0.19.1",
+      },
+      "optionalPeers": [
+        "@parity/product-sdk",
+      ],
     },
   },
   "patchedDependencies": {
@@ -262,6 +287,8 @@
     "@parity/browse-client": ["@parity/browse-client@workspace:app"],
 
     "@parity/browse-sdk": ["@parity/browse-sdk@workspace:packages/browse-sdk"],
+
+    "@parity/browse-snapshots": ["@parity/browse-snapshots@workspace:packages/snapshots"],
 
     "@parity/bulletin-sdk": ["@parity/bulletin-sdk@0.3.0", "", { "dependencies": { "@ipld/dag-pb": "^4.1.3", "@noble/hashes": "^2.2.0", "@polkadot-labs/hdkd-helpers": "^0.0.29", "ipfs-unixfs": "^12.0.0" }, "peerDependencies": { "multiformats": "^13.4.1", "polkadot-api": "^2.1.2" } }, "sha512-sxVwBzyH/egXze1muPXbaGwQuOkP8efVB4Lxunshixf18gJ6WT2tedgUy08QOfQ1848BDQS4wVpRRQfPfb09/g=="],
 

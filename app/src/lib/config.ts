@@ -56,15 +56,18 @@ const APP_DOTNS_DOMAIN =
 export const SELF_LABEL = APP_DOTNS_DOMAIN.toLowerCase().replace(/\.dot$/, '')
 
 /**
- * Manifest-block CID of the daily verifiable `.dot` domain snapshot, used to
- * power the search suggestions. Unset disables the snapshot surface entirely.
+ * Pins the `.dot` domain suggestions to one snapshot instead of the current one.
+ *
+ * Snapshot CIDs rotate daily, so a baked value goes stale. Leave it unset and
+ * the client reads the current CID from the `snapshot.domains` text record on
+ * the name in `BROWSE_POINTER_DOMAIN`. The e2e suite sets it to a fixture.
  */
 export const DOMAINS_SNAPSHOT_CID =
   import.meta.env?.APP_DOMAINS_SNAPSHOT_CID ?? process.env?.APP_DOMAINS_SNAPSHOT_CID ?? undefined
 
 /**
- * Manifest-block CID of the daily verifiable username snapshot, used to power
- * the Following search autocomplete. Unset disables the suggestion surface.
+ * Pins the username suggestions to one snapshot, the counterpart to
+ * {@link DOMAINS_SNAPSHOT_CID}. Unset reads the `snapshot.usernames` record.
  */
 export const USERNAMES_SNAPSHOT_CID =
   import.meta.env?.APP_USERNAMES_SNAPSHOT_CID ??

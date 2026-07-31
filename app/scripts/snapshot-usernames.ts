@@ -2,71 +2,35 @@
  * Build and publish the daily username snapshot.
  *
  *   cd app && MNEMONIC="…" bun scripts/snapshot-usernames.ts [paseo|previewnet]
- *
- * Usernames live in the People chain DotNS `Resources.UsernameOwnerOf` map,
- * which maps username bytes to an owner SS58. This enumerates the whole map once
- * so the Following search bar can prefix-autocomplete from the snapshot with no
- * live chain read, exactly like the domains snapshot powers domain search. Each
- * shard line is `username\taccount`, so selecting a suggestion follows the owner
- * without another lookup.
  */
 
-import { paseopeople, previewnetpeople } from '@polkadot-api/descriptors'
-import {
-  type NetworkGenesis,
-  PASEO_ASSETHUB_NEXT_V2_GENESIS,
-  PREVIEWNET_ASSETHUB_GENESIS,
-  selectNetwork
-} from '@parity/browse-sdk'
-import { createClient, type TypedApi } from 'polkadot-api'
+import { BROWSE_POINTER_DOMAIN, shardKey, USERNAMES_POINTER_KEY } from '@parity/browse-snapshots'
+import { crawlUsernames } from '@parity/browse-snapshots/crawl'
+import { publishSnapshot, writeSnapshotPointer } from '@parity/browse-snapshots/publish'
+import { selectNetwork } from '@parity/browse-sdk'
+import { createClient } from 'polkadot-api'
 import { getWsProvider } from 'polkadot-api/ws'
 
-import { BULLETIN_RPC_BY_GENESIS, publishSnapshot, resolveGenesis, shardKey } from './lib/snapshot'
+import { pointerDomain, requireEnv, resolveGenesis } from './lib/snapshot'
 
 const SNAPSHOT_VERSION = 1
 
-const PEOPLE_DESCRIPTOR_BY_GENESIS: Partial<
-  Record<NetworkGenesis, typeof paseopeople | typeof previewnetpeople>
-> = {
-  [PASEO_ASSETHUB_NEXT_V2_GENESIS]: paseopeople,
-  [PREVIEWNET_ASSETHUB_GENESIS]: previewnetpeople
-}
-
-type PeopleApi = TypedApi<typeof previewnetpeople>
-
-/** Enumerate `Resources.UsernameOwnerOf` into sorted `username\taccount` lines. */
-async function crawlUsernames(peopleApi: PeopleApi): Promise<string[]> {
-  const entries = await peopleApi.query.Resources.UsernameOwnerOf.getEntries()
-  const decoder = new TextDecoder()
-  const lines: string[] = []
-  for (const { keyArgs, value } of entries) {
-    const username = decoder.decode(keyArgs[0]).toLowerCase()
-    // Tabs/newlines would corrupt the `username\taccount` line framing.
-    if (!username || username.includes('\t') || username.includes('\n')) continue
-    lines.push(`${username}\t${value}`)
-  }
-  return lines
-}
-
 async function main(): Promise<void> {
-  const mnemonic = process.env.MNEMONIC
-  if (!mnemonic) {
-    console.error('MNEMONIC env is required to publish the snapshot')
-    process.exit(1)
-  }
+  const mnemonic = requireEnv('MNEMONIC')
   const genesis = resolveGenesis()
   const network = selectNetwork(genesis)
-  const bulletinRpc = BULLETIN_RPC_BY_GENESIS[genesis]
-  const descriptor = PEOPLE_DESCRIPTOR_BY_GENESIS[genesis]
+  const bulletinRpc = network.BULLETIN_RPCS?.[0]
   const peopleRpc = network.PEOPLE_RPCS?.[0]
   if (!bulletinRpc) {
     console.error(`No Bulletin RPC configured for network ${genesis}`)
     process.exit(1)
   }
-  if (!descriptor || !peopleRpc) {
+  if (!peopleRpc) {
     console.error(`No People chain configured for network ${genesis}`)
     process.exit(1)
   }
+  const assetHubRpc = network.ASSETHUB_RPCS[0]!
+  const pointer = pointerDomain(BROWSE_POINTER_DOMAIN)
 
   console.log(`network:   ${genesis}`)
   console.log(`people:    ${peopleRpc}`)
@@ -75,14 +39,10 @@ async function main(): Promise<void> {
   const client = createClient(getWsProvider(peopleRpc))
   let lines: string[]
   try {
-    lines = await crawlUsernames(client.getTypedApi(descriptor) as PeopleApi)
+    lines = await crawlUsernames(client)
   } finally {
     client.destroy()
   }
-
-  // Sort by line. Because `\t` is below every username character, this orders
-  // entries by username, which the client prefix search relies on.
-  lines = lines.sort((a, b) => (a < b ? -1 : a > b ? 1 : 0))
   console.log(`\nCollected ${lines.length} username(s)`)
 
   const { manifestCid, shardCount } = await publishSnapshot({
@@ -91,11 +51,26 @@ async function main(): Promise<void> {
     bulletinRpc,
     mnemonic,
     lines,
-    shardKeyOf: (line) => shardKey(line.slice(0, line.indexOf('\t')))
+    shardKeyOf: (line) => shardKey(line.slice(0, line.indexOf('\t'))),
+    progress: (message) => console.log(message)
   })
-
   console.log(`\nPublished ${lines.length} usernames in ${shardCount} shards.`)
+  // Emit the CID before the pointer write, for the reason in snapshot-domains.ts.
   console.log(`\nAPP_USERNAMES_SNAPSHOT_CID=${manifestCid}`)
+
+  if (pointer) {
+    await writeSnapshotPointer({
+      assetHubRpc,
+      contentResolver: network.CONTENT_RESOLVER,
+      domain: pointer,
+      key: USERNAMES_POINTER_KEY,
+      cid: manifestCid,
+      mnemonic,
+      progress: (message) => console.log(message)
+    })
+  } else {
+    console.log(`\nSkipped the ${USERNAMES_POINTER_KEY} record.`)
+  }
 }
 
 await main()

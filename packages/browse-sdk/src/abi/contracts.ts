@@ -48,7 +48,8 @@ export function encodeLabelOf(tokenId: bigint): Hex {
 
 const CONTENT_RESOLVER_ABI = parseAbi([
   'function contenthash(bytes32 node) view returns (bytes)',
-  'function text(bytes32 node, string key) view returns (string)'
+  'function text(bytes32 node, string key) view returns (string)',
+  'function setText(bytes32 node, string key, string value)'
 ])
 
 export function encodeContenthash(node: Hex): Hex {
@@ -64,6 +65,15 @@ export function encodeText(node: Hex, key: string): Hex {
     abi: CONTENT_RESOLVER_ABI,
     functionName: 'text',
     args: [node, key]
+  })
+}
+
+/** Write side of {@link encodeText}, callable only by the node owner. */
+export function encodeSetText(node: Hex, key: string, value: string): Hex {
+  return encodeFunctionData({
+    abi: CONTENT_RESOLVER_ABI,
+    functionName: 'setText',
+    args: [node, key, value]
   })
 }
 

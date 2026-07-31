@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'preact/hooks'
 
+import { cidToBlake2b256DigestHex } from '@parity/browse-snapshots'
 import { getPreimageManager, type HostSubscription } from '@parity/product-sdk/host'
 import { BadgeCheck } from 'lucide-preact'
 
-import { cidToBlake2b256DigestHex } from '../../state/apps/icon'
 import './styles.css'
 
 // One authority badge image repeats across every certified card, the badge pill,

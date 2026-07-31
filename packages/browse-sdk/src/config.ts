@@ -25,16 +25,17 @@ export interface NetworkConfig extends NetworkAddresses {
   ATTESTATION_INDEX_RESOLVER: readonly `0x${string}`[];
   TRUSTED_ATTESTER_RESOLVER: `0x${string}`;
   TRUSTED_ATTESTER?: `0x${string}`;
-  IPFS_GATEWAY: string;
-  /** Production web domain apps are reachable under, e.g. `paseo.li` for `browse.paseo.li`. */
-  primaryWebDomain: string;
-  /** Web domain that routes to a local dev instance, e.g. `paseoli.dev`. Equal to the primary when there is no separate dev host. */
-  secondaryWebDomain: string;
   SCHEMA_ID: readonly bigint[];
   COMPLIANCE_SCHEMA_ID: bigint;
+  // Hosts
+  primaryWebDomain: string;
+  secondaryWebDomain: string;
+  // Network
+  IPFS_GATEWAY: string;
   ASSETHUB_RPCS: readonly string[];
   PEOPLE_GENESIS?: `0x${string}`;
   PEOPLE_RPCS?: readonly string[];
+  BULLETIN_RPCS?: readonly string[];
 }
 
 export const PASEO_ASSETHUB_NEXT_V2_GENESIS =
@@ -80,6 +81,7 @@ export const KNOWN_NETWORKS = {
     PEOPLE_GENESIS:
       "0xc5af1826b31493f08b7e2a823842f98575b806a784126f28da9608c68665afa5",
     PEOPLE_RPCS: ["wss://paseo-people-next-system-rpc.polkadot.io"],
+    BULLETIN_RPCS: ["wss://paseo-bulletin-next-rpc.polkadot.io"],
   },
   [PREVIEWNET_ASSETHUB_GENESIS]: {
     MULTICALL3: "0x758F88C7761FCD4742f9471448c2209a7e859280",
@@ -114,6 +116,7 @@ export const KNOWN_NETWORKS = {
     PEOPLE_GENESIS:
       "0x3389bc9179d3be32568c67278bd080d05631ac71982d28a3fe545421147b311e",
     PEOPLE_RPCS: ["wss://previewnet.substrate.dev/people"],
+    BULLETIN_RPCS: ["wss://previewnet.substrate.dev/bulletin"],
   },
   [SUMMIT_ASSETHUB_GENESIS]: {
     MULTICALL3: "0x1C1044BEa5bDe0F435436bB52A8340fBE1D59847",

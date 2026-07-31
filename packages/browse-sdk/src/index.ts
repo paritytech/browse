@@ -76,6 +76,7 @@ export {
   encodeOwner,
   encodePublishedCount,
   encodeSchemaCount,
+  encodeSetText,
   encodeText,
   encodeTrustedAttester,
   labelhashToTokenId,

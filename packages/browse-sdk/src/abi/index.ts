@@ -49,6 +49,7 @@ export {
   encodeOwner,
   encodePublishedCount,
   encodeSchemaCount,
+  encodeSetText,
   encodeText,
   encodeTrustedAttester
 } from './contracts.js'

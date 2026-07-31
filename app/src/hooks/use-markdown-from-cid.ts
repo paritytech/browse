@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 
+import { cidToBlake2b256DigestHex } from '@parity/browse-snapshots'
 import { getPreimageManager, type HostSubscription } from '@parity/product-sdk/host'
-
-import { cidToBlake2b256DigestHex } from '../state/apps/icon'
 
 export interface UseMarkdownResult {
   text: string | null

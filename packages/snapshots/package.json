@@ -1,0 +1,87 @@
+{
+  "name": "@parity/browse-snapshots",
+  "version": "0.1.0-rc.1",
+  "description": "Prefix autocomplete for `.dot` domains and usernames, read from verifiable content-addressed snapshots.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "sideEffects": false,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/paritytech/browse.git",
+    "directory": "packages/snapshots"
+  },
+  "homepage": "https://github.com/paritytech/browse/tree/main/packages/snapshots#readme",
+  "bugs": {
+    "url": "https://github.com/paritytech/browse/issues"
+  },
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    "./package.json": "./package.json",
+    ".": {
+      "#/source": "./src/index.ts",
+      "bun": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./host": {
+      "#/source": "./src/host.ts",
+      "bun": "./src/host.ts",
+      "types": "./dist/host.d.ts",
+      "default": "./dist/host.js"
+    },
+    "./crawl": {
+      "#/source": "./src/crawl.ts",
+      "bun": "./src/crawl.ts",
+      "types": "./dist/crawl.d.ts",
+      "default": "./dist/crawl.js"
+    },
+    "./publish": {
+      "#/source": "./src/publish.ts",
+      "bun": "./src/publish.ts",
+      "types": "./dist/publish.d.ts",
+      "default": "./dist/publish.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "!src/**/*.spec.ts",
+    "LICENSE",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org"
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@noble/hashes": "^2.0.1",
+    "@parity/browse-sdk": "^0.1.0-rc.2",
+    "@polkadot-labs/hdkd": "^0.0.27",
+    "@polkadot-labs/hdkd-helpers": "^0.0.28",
+    "@polkadot/api": "^16.5.4",
+    "polkadot-api": "^2.1.4"
+  },
+  "peerDependencies": {
+    "@parity/product-sdk": "^0.19.1"
+  },
+  "peerDependenciesMeta": {
+    "@parity/product-sdk": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@parity/product-sdk": "^0.19.1",
+    "multiformats": "^14.0.2",
+    "typescript": "^5.4.0",
+    "vitest": "^4.1.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
