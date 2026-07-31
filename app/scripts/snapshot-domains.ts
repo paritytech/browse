@@ -1,29 +1,32 @@
 /**
  * Build and publish the daily Dotns domains snapshot.
  *
- *   cd app && MNEMONIC="…" bun scripts/snapshot-domains.ts [paseo|previewnet]
+ *   cd app && MNEMONIC="…" APP_DOTNS_DOMAIN="…" bun run snapshot:domains:paseo
  */
 
 import { DOMAINS_POINTER_KEY, shardKey } from '@parity/browse-snapshots'
 import { crawlDomains } from '@parity/browse-snapshots/crawl'
 import { publishSnapshot, writeSnapshotPointer } from '@parity/browse-snapshots/publish'
-import { createBrowseSdk, selectNetwork } from '@parity/browse-sdk'
+import { createBrowseSdk, isKnownGenesis, selectNetwork } from '@parity/browse-sdk'
 import { getWsProvider } from 'polkadot-api/ws'
-
-import { requireMnemonic, requirePointerDomain, resolveGenesis } from './lib/cli'
 
 const SNAPSHOT_VERSION = 1
 
 async function main(): Promise<void> {
-  const mnemonic = requireMnemonic()
-  const pointerDomain = requirePointerDomain()
-  const genesis = resolveGenesis()
+  const mnemonic = process.env.MNEMONIC
+  if (!mnemonic) throw new Error('MNEMONIC is required to pay for Bulletin storage')
+
+  const pointerDomain = process.env.APP_DOTNS_DOMAIN
+  if (!pointerDomain) throw new Error('APP_DOTNS_DOMAIN is required to record the pointer')
+
+  const genesis = process.env.NETWORK_GENESIS_HASH
+  if (!genesis || !isKnownGenesis(genesis)) {
+    throw new Error(`NETWORK_GENESIS_HASH must be a known genesis, got ${genesis ?? 'nothing'}`)
+  }
+
   const network = selectNetwork(genesis)
   const bulletinRpc = network.BULLETIN_RPCS?.[0]
-  if (!bulletinRpc) {
-    console.error(`No Bulletin RPC configured for network ${genesis}`)
-    process.exit(1)
-  }
+  if (!bulletinRpc) throw new Error(`No Bulletin RPC configured for network ${genesis}`)
   const assetHubRpc = network.ASSETHUB_RPCS[0]!
 
   console.log(`network:   ${genesis}`)
