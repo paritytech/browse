@@ -72,11 +72,31 @@ export async function resolveLabel(label: string): Promise<Cid | null> {
 9. Don't write "on-chain". Omit it or say "network".
 10. Don't repeat the variable name in its own doc. Describe what it holds.
 
-### E2E Test Conventions
+### Test Conventions
+
+#### A describe block states an outcome
+
+Every `describe` name ends in **`works`** or **`fails`**. The subject comes first, the outcome last. This applies to every test file, unit and E2E alike.
+
+```ts
+// ❌ WRONG — names the subject but not what is asserted about it
+describe('content addressing', ...)
+describe('parseManifest', ...)
+describe('block caching', ...)
+
+// ✅ CORRECT
+describe('content addressing works', ...)
+describe('content addressing fails', ...)
+describe('manifest parsing works', ...)
+```
+
+Split the happy path and the failure path into two blocks rather than mixing them under one name. A bare subject invites a grab-bag of unrelated cases. Naming the outcome forces the question of which half a new case belongs to, and makes a failing run say what broke.
+
+Prefer a singular subject so the verb agrees without thought. `domain suggestion works`, not `domain suggestions work`.
 
 #### Given/When/Then markers must be bare
 
-In Playwright test files, the `// Given`, `// When`, `// Then` markers are section headers, nothing else. **No descriptive text after them. Ever.**
+Every test body is split by `// Given`, `// When`, `// Then`, in unit specs as much as in Playwright. They are section headers, nothing else. **No descriptive text after them. Ever.**
 
 ```ts
 // ❌ WRONG — never do this
@@ -90,4 +110,4 @@ In Playwright test files, the `// Given`, `// When`, `// Then` markers are secti
 // Then
 ```
 
-This applies to test code and to test snippets in chat, PR descriptions, and review comments. If you are tempted to explain what is happening in that block, the explanation belongs in the test name or on a separate comment line, not inline with the marker.
+This applies to test code and to test snippets in chat, PR descriptions, and review comments. If you are tempted to explain what is happening in that block, the explanation belongs in the test name, or in a comment above the `it(` line where it cannot be mistaken for part of a marker.
