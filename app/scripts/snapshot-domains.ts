@@ -4,18 +4,19 @@
  *   cd app && MNEMONIC="…" bun scripts/snapshot-domains.ts [paseo|previewnet]
  */
 
-import { BROWSE_POINTER_DOMAIN, DOMAINS_POINTER_KEY, shardKey } from '@parity/browse-snapshots'
+import { DOMAINS_POINTER_KEY, shardKey } from '@parity/browse-snapshots'
 import { crawlDomains } from '@parity/browse-snapshots/crawl'
 import { publishSnapshot, writeSnapshotPointer } from '@parity/browse-snapshots/publish'
 import { createBrowseSdk, selectNetwork } from '@parity/browse-sdk'
 import { getWsProvider } from 'polkadot-api/ws'
 
-import { pointerDomain, requireEnv, resolveGenesis } from './lib/snapshot'
+import { requireMnemonic, requirePointerDomain, resolveGenesis } from './lib/cli'
 
 const SNAPSHOT_VERSION = 1
 
 async function main(): Promise<void> {
-  const mnemonic = requireEnv('MNEMONIC')
+  const mnemonic = requireMnemonic()
+  const pointerDomain = requirePointerDomain()
   const genesis = resolveGenesis()
   const network = selectNetwork(genesis)
   const bulletinRpc = network.BULLETIN_RPCS?.[0]
@@ -24,7 +25,6 @@ async function main(): Promise<void> {
     process.exit(1)
   }
   const assetHubRpc = network.ASSETHUB_RPCS[0]!
-  const pointer = pointerDomain(BROWSE_POINTER_DOMAIN)
 
   console.log(`network:   ${genesis}`)
   console.log(`rpc:       ${assetHubRpc}`)
@@ -54,19 +54,15 @@ async function main(): Promise<void> {
   // failed record write cannot be reproduced without a full re-crawl.
   console.log(`\nAPP_DOMAINS_SNAPSHOT_CID=${manifestCid}`)
 
-  if (pointer) {
-    await writeSnapshotPointer({
-      assetHubRpc,
-      contentResolver: network.CONTENT_RESOLVER,
-      domain: pointer,
-      key: DOMAINS_POINTER_KEY,
-      cid: manifestCid,
-      mnemonic,
-      progress: (message) => console.log(message)
-    })
-  } else {
-    console.log(`\nSkipped the ${DOMAINS_POINTER_KEY} record.`)
-  }
+  await writeSnapshotPointer({
+    assetHubRpc,
+    contentResolver: network.CONTENT_RESOLVER,
+    domain: pointerDomain,
+    key: DOMAINS_POINTER_KEY,
+    cid: manifestCid,
+    mnemonic,
+    progress: (message) => console.log(message)
+  })
 }
 
 await main()

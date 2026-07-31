@@ -8,7 +8,6 @@
  */
 
 import {
-  BROWSE_POINTER_DOMAIN,
   DomainSnapshotService,
   type SnapshotServiceOptions,
   UsernameSnapshotService
@@ -16,7 +15,13 @@ import {
 import { createHostBlockReader } from '@parity/browse-snapshots/host'
 
 import { reviveCall } from './client'
-import { ASSETHUB_GENESIS, DOMAINS_SNAPSHOT_CID, NETWORK, USERNAMES_SNAPSHOT_CID } from './config'
+import {
+  ASSETHUB_GENESIS,
+  DOMAINS_SNAPSHOT_CID,
+  NETWORK,
+  SELF_DOTNS,
+  USERNAMES_SNAPSHOT_CID
+} from './config'
 
 const source: SnapshotServiceOptions = {
   readBlock: createHostBlockReader(),
@@ -28,7 +33,7 @@ const source: SnapshotServiceOptions = {
   pointer: {
     read: reviveCall,
     contentResolver: NETWORK.CONTENT_RESOLVER,
-    domain: BROWSE_POINTER_DOMAIN
+    domain: SELF_DOTNS
   }
 }
 

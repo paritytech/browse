@@ -60,7 +60,7 @@ export const SELF_LABEL = APP_DOTNS_DOMAIN.toLowerCase().replace(/\.dot$/, '')
  *
  * Snapshot CIDs rotate daily, so a baked value goes stale. Leave it unset and
  * the client reads the current CID from the `snapshot.domains` text record on
- * the name in `BROWSE_POINTER_DOMAIN`. The e2e suite sets it to a fixture.
+ * the name this deployment lives at. The e2e suite sets it to a fixture.
  */
 export const DOMAINS_SNAPSHOT_CID =
   import.meta.env?.APP_DOMAINS_SNAPSHOT_CID ?? process.env?.APP_DOMAINS_SNAPSHOT_CID ?? undefined

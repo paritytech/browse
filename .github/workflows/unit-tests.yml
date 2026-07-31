@@ -32,9 +32,6 @@ jobs:
 
       - run: bun install --frozen-lockfile
 
-      # browse-sdk `dist` is gitignored, and vitest honours neither the `bun`
-      # nor the `#/source` export condition, so a dependent package resolves it
-      # through `default` to a file a clean checkout does not have.
       - name: Build browse-sdk
         working-directory: packages/browse-sdk
         run: bun run build

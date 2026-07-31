@@ -19,9 +19,12 @@
  * Snapshot blocks are immutable, so their CIDs change every time the crawler
  * runs. Baking a CID into a client at build time pins it to whatever was current
  * the day it shipped. Instead the publisher records the manifest CID in a text
- * record on a fixed name, and clients read that record. The pointer is the only
- * mutable part of the system, and anyone can resolve it without knowing anything
- * about how the snapshot was produced.
+ * record, and clients read that record. The pointer is the only mutable part of
+ * the system, and anyone can resolve it without knowing anything about how the
+ * snapshot was produced.
+ *
+ * The record lives on the name the publisher deployed to, which is the name its
+ * key already owns. Callers supply it, since only they know where they deployed.
  */
 
 import { decodeString, encodeText, namehash } from '@parity/browse-sdk'
@@ -31,16 +34,6 @@ export const DOMAINS_POINTER_KEY = 'snapshot.domains'
 
 /** Text-record key holding the manifest CID of the username snapshot. */
 export const USERNAMES_POINTER_KEY = 'snapshot.usernames'
-
-/**
- * Name the browse snapshot records live on, the same on every network.
- *
- * This is a property of the publisher rather than of the network, which is why
- * it lives here and not in the network config. A different publisher runs its
- * own name and passes it explicitly. The account writing the records has to own
- * this name on whichever network it publishes to.
- */
-export const BROWSE_POINTER_DOMAIN = 'browse.dot'
 
 /**
  * Dry-runs a contract read and returns the raw return data.

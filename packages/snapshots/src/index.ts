@@ -32,10 +32,5 @@ export type {
   UsernameEntry
 } from './service.js'
 
-export {
-  BROWSE_POINTER_DOMAIN,
-  DOMAINS_POINTER_KEY,
-  readSnapshotPointer,
-  USERNAMES_POINTER_KEY
-} from './pointer.js'
+export { DOMAINS_POINTER_KEY, readSnapshotPointer, USERNAMES_POINTER_KEY } from './pointer.js'
 export type { ContractReader } from './pointer.js'
