@@ -21,4 +21,4 @@
  * contract encoding, and lets this package depend on it rather than the reverse.
  */
 
-export * from '@parity/browse-snapshots'
+export * from '../../snapshots/src/index.js'

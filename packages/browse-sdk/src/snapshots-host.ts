@@ -15,4 +15,4 @@
 
 /** The `host` half of `@parity/browse-snapshots`, re-exported so one install covers it. */
 
-export * from '@parity/browse-snapshots/host'
+export * from '../../snapshots/src/host.js'

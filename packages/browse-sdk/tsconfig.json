@@ -1,10 +1,14 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022"],
+    "lib": [
+      "ES2022"
+    ],
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-    "customConditions": ["#/source"],
+    "customConditions": [
+      "#/source"
+    ],
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "moduleDetection": "force",
@@ -14,13 +18,23 @@
     "declarationMap": true,
     "sourceMap": true,
     "outDir": "dist",
-    "rootDir": "src",
+    "rootDir": "..",
     "strict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noUncheckedIndexedAccess": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"],
-  "exclude": ["dist", "examples", "src/**/*.spec.ts", "src/**/*.test.ts"]
+  "include": [
+    "src",
+    "../snapshots/src"
+  ],
+  "exclude": [
+    "dist",
+    "examples",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "../snapshots/src/**/*.spec.ts",
+    "../snapshots/src/**/*.test.ts"
+  ]
 }

@@ -15,4 +15,4 @@
 
 /** The `publish` half of `@parity/browse-snapshots`, re-exported so one install covers it. */
 
-export * from '@parity/browse-snapshots/publish'
+export * from '../../snapshots/src/publish.js'

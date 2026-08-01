@@ -1,7 +1,7 @@
 {
   "name": "@parity/browse-snapshots",
   "version": "0.1.0-rc.1",
-  "description": "Prefix autocomplete for `.dot` domains and usernames, read from verifiable content-addressed snapshots.",
+  "description": "Internal. Compiled into @parity/browse-sdk, never published on its own.",
   "license": "Apache-2.0",
   "type": "module",
   "sideEffects": false,
@@ -37,17 +37,6 @@
       "default": "./dist/publish.js"
     }
   },
-  "files": [
-    "dist",
-    "src",
-    "!src/**/*.spec.ts",
-    "LICENSE",
-    "README.md"
-  ],
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org"
-  },
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",
@@ -77,5 +66,6 @@
   },
   "engines": {
     "node": ">=22"
-  }
+  },
+  "private": true
 }

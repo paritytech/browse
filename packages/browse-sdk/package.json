@@ -14,45 +14,38 @@
   "bugs": {
     "url": "https://github.com/paritytech/browse/issues"
   },
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "./dist/browse-sdk/src/index.js",
+  "types": "./dist/browse-sdk/src/index.d.ts",
   "exports": {
     "./package.json": "./package.json",
     ".": {
       "#/source": "./src/index.ts",
-      "bun": "./src/index.ts",
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
+      "types": "./dist/browse-sdk/src/index.d.ts",
+      "default": "./dist/browse-sdk/src/index.js"
     },
     "./snapshots": {
       "#/source": "./src/snapshots.ts",
-      "bun": "./src/snapshots.ts",
-      "types": "./dist/snapshots.d.ts",
-      "default": "./dist/snapshots.js"
+      "types": "./dist/browse-sdk/src/snapshots.d.ts",
+      "default": "./dist/browse-sdk/src/snapshots.js"
     },
     "./snapshots/host": {
       "#/source": "./src/snapshots-host.ts",
-      "bun": "./src/snapshots-host.ts",
-      "types": "./dist/snapshots-host.d.ts",
-      "default": "./dist/snapshots-host.js"
+      "types": "./dist/browse-sdk/src/snapshots-host.d.ts",
+      "default": "./dist/browse-sdk/src/snapshots-host.js"
     },
     "./snapshots/publish": {
       "#/source": "./src/snapshots-publish.ts",
-      "bun": "./src/snapshots-publish.ts",
-      "types": "./dist/snapshots-publish.d.ts",
-      "default": "./dist/snapshots-publish.js"
+      "types": "./dist/browse-sdk/src/snapshots-publish.d.ts",
+      "default": "./dist/browse-sdk/src/snapshots-publish.js"
     },
     "./crawl": {
       "#/source": "./src/crawl.ts",
-      "bun": "./src/crawl.ts",
-      "types": "./dist/crawl.d.ts",
-      "default": "./dist/crawl.js"
+      "types": "./dist/browse-sdk/src/crawl.d.ts",
+      "default": "./dist/browse-sdk/src/crawl.js"
     }
   },
   "files": [
     "dist",
-    "src",
-    "!src/**/*.spec.ts",
     "LICENSE",
     "README.md"
   ],
@@ -68,17 +61,40 @@
   "dependencies": {
     "@ensdomains/content-hash": "^3.0.0",
     "@noble/hashes": "^2.0.1",
-    "@parity/browse-snapshots": "^0.1.0-rc.1",
     "@polkadot-api/json-rpc-provider": "^0.2.0",
     "polkadot-api": "^2.1.4",
     "viem": "^2.50.4"
   },
   "devDependencies": {
+    "@parity/product-sdk": "^0.19.1",
     "@polkadot-api/ws-provider": "^0.9.0",
+    "@polkadot-labs/hdkd": "^0.0.27",
+    "@polkadot-labs/hdkd-helpers": "^0.0.28",
+    "@polkadot/api": "^16.5.4",
     "typescript": "^5.4.0",
     "vitest": "^4.1.0"
   },
   "engines": {
     "node": ">=22"
+  },
+  "peerDependencies": {
+    "@parity/product-sdk": "^0.19.1",
+    "@polkadot-labs/hdkd": "^0.0.27",
+    "@polkadot-labs/hdkd-helpers": "^0.0.28",
+    "@polkadot/api": "^16.5.4"
+  },
+  "peerDependenciesMeta": {
+    "@parity/product-sdk": {
+      "optional": true
+    },
+    "@polkadot-labs/hdkd": {
+      "optional": true
+    },
+    "@polkadot-labs/hdkd-helpers": {
+      "optional": true
+    },
+    "@polkadot/api": {
+      "optional": true
+    }
   }
 }
