@@ -18,9 +18,10 @@ import * as Digest from 'multiformats/hashes/digest'
 const RAW_CODEC = 0x55
 const BLAKE2B_256 = 0xb220
 
-// Previewnet genesis the e2e suite runs against. The manifest `network` field
-// must match the active genesis or the snapshot is rejected.
-const PREVIEWNET_GENESIS = '0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb'
+// The manifest `network` must match the genesis the client is running against,
+// or the snapshot is rejected. Read it from the same env the suite sets so these
+// fixtures work on whichever network the run targets.
+const GENESIS = process.env.NETWORK_GENESIS_HASH
 
 /** A username present only in the snapshot, unregistered on the People chain. */
 export const SNAPSHOT_USERNAME = 'zzautoname'
@@ -41,7 +42,7 @@ const manifestBytes = new TextEncoder().encode(
   JSON.stringify({
     version: 1,
     generatedAt: 0,
-    network: PREVIEWNET_GENESIS,
+    network: GENESIS,
     shardScheme: { prefixLen: 2, count: 1 },
     shards: { zz: { cid: shardCid, count: shardLines.length } }
   })
