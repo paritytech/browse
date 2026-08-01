@@ -29,6 +29,19 @@ function flag(name: string, fallback: string): string {
   return at === -1 ? fallback : (process.argv[at + 1] ?? fallback)
 }
 
+/** Dev accounts the test host can impersonate. */
+const DEV_ACCOUNTS = ['alice', 'bob', 'charlie', 'dave', 'eve', 'ferdie'] as const
+
+function accountFlag(): (typeof DEV_ACCOUNTS)[number] {
+  const value = flag('account', 'alice')
+  const account = DEV_ACCOUNTS.find((name) => name === value)
+  if (!account) {
+    console.error(`--account must be one of: ${DEV_ACCOUNTS.join(', ')}`)
+    process.exit(1)
+  }
+  return account
+}
+
 const port = flag('port', '3000')
 const onPreviewnet = flag('network', 'paseo') === 'previewnet'
 const genesis = onPreviewnet ? PREVIEWNET_ASSETHUB_GENESIS : PASEO_ASSETHUB_NEXT_V2_GENESIS
@@ -39,7 +52,7 @@ const token = onPreviewnet
 
 const host = await createTestHostServer({
   productUrl: `http://localhost:${port}/`,
-  accounts: [flag('account', 'alice')],
+  accounts: [accountFlag()],
   networks: [
     {
       id: 'asset-hub',

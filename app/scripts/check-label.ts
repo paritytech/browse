@@ -26,7 +26,7 @@ import {
   selectNetwork
 } from '@parity/browse-sdk'
 import { keccak_256 } from '@noble/hashes/sha3.js'
-import { getWsProvider } from '@polkadot-api/ws-provider'
+import { getWsProvider } from 'polkadot-api/ws'
 
 const label = process.argv[2] ?? 'host-playground33'
 const genesis =

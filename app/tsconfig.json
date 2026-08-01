@@ -19,9 +19,11 @@
     "paths": {
       "@parity/browse-sdk": ["../packages/browse-sdk/src/index.ts"],
       "@parity/browse-sdk/snapshots": ["../packages/snapshots/src/index.ts"],
-      "@parity/browse-sdk/snapshots/host": ["../packages/snapshots/src/host.ts"]
+      "@parity/browse-sdk/snapshots/host": ["../packages/snapshots/src/host.ts"],
+      "@parity/browse-sdk/snapshots/publish": ["../packages/snapshots/src/publish.ts"],
+      "@parity/browse-sdk/crawl": ["../packages/browse-sdk/src/crawl.ts"]
     }
   },
-  "include": ["src", "tests"],
+  "include": ["src", "tests", "scripts"],
   "exclude": ["src/**/*.test.ts"]
 }

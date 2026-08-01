@@ -14,7 +14,7 @@ import {
   PREVIEWNET_ASSETHUB_GENESIS,
   selectNetwork
 } from '@parity/browse-sdk'
-import { getWsProvider } from '@polkadot-api/ws-provider'
+import { getWsProvider } from 'polkadot-api/ws'
 
 const arg = (process.argv[2] ?? 'paseo').toLowerCase()
 const genesis =
