@@ -14,29 +14,6 @@
   "bugs": {
     "url": "https://github.com/paritytech/browse/issues"
   },
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "exports": {
-    "./package.json": "./package.json",
-    ".": {
-      "#/source": "./src/index.ts",
-      "bun": "./src/index.ts",
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    },
-    "./host": {
-      "#/source": "./src/host.ts",
-      "bun": "./src/host.ts",
-      "types": "./dist/host.d.ts",
-      "default": "./dist/host.js"
-    },
-    "./publish": {
-      "#/source": "./src/publish.ts",
-      "bun": "./src/publish.ts",
-      "types": "./dist/publish.d.ts",
-      "default": "./dist/publish.js"
-    }
-  },
   "scripts": {
     "build": "tsc",
     "typecheck": "tsc --noEmit",

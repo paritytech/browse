@@ -25,21 +25,17 @@
  * metadata at runtime, so this package ships no chain descriptors.
  */
 
+import { decodeAddress, decodeAddressArray, decodeBytes, decodeStringArray } from './abi/codec.js'
+import { decodeIpfsContenthash } from './abi/contenthash.js'
 import {
-  type BrowseSdk,
-  decodeAddress,
-  decodeAddressArray,
-  decodeBytes,
-  decodeIpfsContenthash,
-  decodeStringArray,
   encodeContenthash,
   encodeGetLabels,
   encodeGetLabelStores,
-  encodeOwner,
-  type MulticallTarget,
-  namehash,
-  tryDecode
-} from '@parity/browse-sdk'
+  encodeOwner
+} from './abi/contracts.js'
+import { type MulticallTarget, tryDecode } from './abi/multicall.js'
+import { namehash } from './abi/namehash.js'
+import type { BrowseSdk } from './sdk.js'
 import type { PolkadotClient } from 'polkadot-api'
 
 const STORE_FACTORY_PAGE_LIMIT = 1000n
