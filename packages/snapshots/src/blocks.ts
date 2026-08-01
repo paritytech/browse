@@ -55,7 +55,7 @@ export function buildSnapshotBlocks(options: {
   version: number
   network: string
   lines: string[]
-  shardKeyOf: (line: string) => string
+  shardKeyOf: (line: string) => string | null
   generatedAt: number
 }): BuiltSnapshot {
   const { version, network, lines, shardKeyOf, generatedAt } = options
@@ -63,6 +63,7 @@ export function buildSnapshotBlocks(options: {
   const buckets = new Map<string, string[]>()
   for (const line of lines) {
     const key = shardKeyOf(line)
+    if (key === null) continue
     const bucket = buckets.get(key)
     if (bucket) bucket.push(line)
     else buckets.set(key, [line])

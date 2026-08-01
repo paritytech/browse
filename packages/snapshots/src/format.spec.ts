@@ -16,7 +16,6 @@ import {
   parseManifest,
   RAW_CODEC,
   shardKey,
-  SHORT_SHARD_KEY,
   type SnapshotManifest
 } from './format.js'
 
@@ -129,7 +128,7 @@ describe('shard keying works', () => {
     expect(shards).toEqual(['al', 'ab'])
   })
 
-  it('buckets anything shorter than the prefix length together', () => {
+  it('has no shard for a key too short to be searched for', () => {
     // Given
     const keys = ['a', '']
 
@@ -137,7 +136,7 @@ describe('shard keying works', () => {
     const shards = keys.map(shardKey)
 
     // Then
-    expect(shards).toEqual([SHORT_SHARD_KEY, SHORT_SHARD_KEY])
+    expect(shards).toEqual([null, null])
   })
 })
 

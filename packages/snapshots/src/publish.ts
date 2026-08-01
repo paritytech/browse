@@ -49,6 +49,10 @@ export type PublishProgress = (message: string) => void
 
 const noop: PublishProgress = () => {}
 
+/** How many times to submit the pointer record before giving up. */
+const POINTER_ATTEMPTS = 3
+const POINTER_RETRY_MS = 2_000
+
 /** Watchable transaction, the shape `signSubmitAndWatch` returns events for. */
 interface SubmittableTx {
   signSubmitAndWatch: (
@@ -190,7 +194,7 @@ export async function publishSnapshot(options: {
   bulletinRpc: string
   mnemonic: string
   lines: string[]
-  shardKeyOf: (line: string) => string
+  shardKeyOf: (line: string) => string | null
   generatedAt?: number
   progress?: PublishProgress
 }): Promise<PublishResult> {
@@ -294,20 +298,34 @@ export async function writeSnapshotPointer(options: {
       throw new Error(`setText dry-run reverted, is ${origin} the owner of ${options.domain}?`)
     }
 
-    const result = await api.tx.Revive.call({
-      dest: options.contentResolver,
-      value: 0n,
-      // Double the measured weight. The dry-run runs against the current best
-      // block and the real call lands a block or two later.
-      gas_limit: {
-        ref_time: dryRun.gas_required.ref_time * 2n,
-        proof_size: dryRun.gas_required.proof_size * 2n
-      },
-      storage_deposit_limit: dryRun.storage_deposit.value * 2n,
-      data
-    }).signAndSubmit(signer)
+    const submit = () =>
+      api.tx.Revive.call({
+        dest: options.contentResolver,
+        value: 0n,
+        // Double the measured weight. The dry-run runs against the current best
+        // block and the real call lands a block or two later.
+        gas_limit: {
+          ref_time: dryRun.gas_required.ref_time * 2n,
+          proof_size: dryRun.gas_required.proof_size * 2n
+        },
+        storage_deposit_limit: dryRun.storage_deposit.value * 2n,
+        data
+      }).signAndSubmit(signer)
 
-    if (!result.ok) throw new Error('setText transaction failed in block')
+    // The publish that precedes this leaves a burst of our own transactions in
+    // flight, so the account nonce is a moving target. Retry the same way the
+    // block storage does rather than lose a snapshot that is already paid for.
+    for (let attempt = 1; ; attempt++) {
+      try {
+        const result = await submit()
+        if (!result.ok) throw new Error('setText transaction failed in block')
+        break
+      } catch (error) {
+        if (attempt >= POINTER_ATTEMPTS) throw error
+        progress(`pointer:   attempt ${attempt} failed (${String(error)}), retrying`)
+        await new Promise((resolve) => setTimeout(resolve, attempt * POINTER_RETRY_MS))
+      }
+    }
     progress(`pointer:   recorded ${options.cid}`)
   } finally {
     client.destroy()

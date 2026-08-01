@@ -52,9 +52,6 @@ const BASE32_ALPHABET = 'abcdefghijklmnopqrstuvwxyz234567'
  */
 export const MIN_PREFIX_LENGTH = 2
 
-/** Shard holding every entry too short to have a {@link MIN_PREFIX_LENGTH} prefix. */
-export const SHORT_SHARD_KEY = '_short'
-
 /** Manifest block contents, the contract between the publisher and the reader. */
 export interface SnapshotManifest {
   version: number
@@ -144,9 +141,15 @@ export function blockCid(bytes: Uint8Array): string {
   return digestToCid(blake2b(bytes, { dkLen: DIGEST_BYTES }))
 }
 
-/** Shard a sort key belongs to. */
-export function shardKey(sortKey: string): string {
-  return sortKey.length >= MIN_PREFIX_LENGTH ? sortKey.slice(0, MIN_PREFIX_LENGTH) : SHORT_SHARD_KEY
+/**
+ * Shard a sort key belongs to, or `null` when it is too short to have one.
+ *
+ * A reader cannot ask for a prefix shorter than {@link MIN_PREFIX_LENGTH}, so a
+ * shorter key has no shard that could ever be selected. The publisher drops
+ * those lines rather than paying to store a block nothing can read.
+ */
+export function shardKey(sortKey: string): string | null {
+  return sortKey.length >= MIN_PREFIX_LENGTH ? sortKey.slice(0, MIN_PREFIX_LENGTH) : null
 }
 
 /** Decompress gzip bytes to UTF-8 text. */
