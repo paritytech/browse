@@ -258,7 +258,7 @@ interface ReviveWriteApi {
  * rejects anyone else. Gas comes from a dry-run rather than a fixed ceiling, so
  * a runtime weight change does not silently start failing.
  */
-export async function writeSnapshotPointer(options: {
+export async function updateSnapshotPointer(options: {
   assetHubRpc: string
   contentResolver: `0x${string}`
   domain: string

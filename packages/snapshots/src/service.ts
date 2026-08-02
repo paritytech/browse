@@ -40,7 +40,7 @@ import {
 import {
   type ContractReader,
   DOMAINS_POINTER_KEY,
-  readSnapshotPointer,
+  getSnapshotPointer,
   USERNAMES_POINTER_KEY
 } from './pointer.js'
 
@@ -172,7 +172,7 @@ export abstract class SnapshotService<T> {
     if (resolveManifestCid) return resolveManifestCid
     if (!pointer) return null
     return () =>
-      readSnapshotPointer(pointer.read, pointer.contentResolver, pointer.domain, this.pointerKey)
+      getSnapshotPointer(pointer.read, pointer.contentResolver, pointer.domain, this.pointerKey)
   }
 
   /**

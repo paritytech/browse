@@ -72,7 +72,8 @@ export function buildSnapshotBlocks(options: {
   const shards: SnapshotManifest['shards'] = {}
   const blocks: SnapshotBlock[] = []
   for (const [key, bucketLines] of buckets) {
-    const gzipped = new Uint8Array(gzipSync(Buffer.from(bucketLines.join('\n') + '\n', 'utf8')))
+    const utf8 = new TextEncoder().encode(bucketLines.join('\n') + '\n')
+    const gzipped = new Uint8Array(gzipSync(utf8))
     const cid = blockCid(gzipped)
     shards[key] = { cid, count: bucketLines.length }
     blocks.push({ cid, data: gzipped })

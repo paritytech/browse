@@ -4,9 +4,13 @@
  *   cd app && MNEMONIC="…" APP_DOTNS_DOMAIN="…" bun run snapshot:usernames:paseo
  */
 
-import { shardKey, USERNAMES_POINTER_KEY } from '@parity/browse-sdk/snapshots'
-import { crawlUsernames } from '@parity/browse-sdk/crawl'
-import { publishSnapshot, writeSnapshotPointer } from '@parity/browse-sdk/snapshots/publish'
+import {
+  crawlUsernames,
+  publishSnapshot,
+  shardKey,
+  updateSnapshotPointer,
+  USERNAMES_POINTER_KEY
+} from '@parity/browse-sdk/snapshots'
 import { isKnownGenesis, selectNetwork } from '@parity/browse-sdk'
 import { createClient } from 'polkadot-api'
 import { getWsProvider } from 'polkadot-api/ws'
@@ -58,7 +62,7 @@ async function main(): Promise<void> {
   // Emit the CID before the pointer write, for the reason in snapshot-domains.ts.
   console.log(`\nAPP_USERNAMES_SNAPSHOT_CID=${manifestCid}`)
 
-  await writeSnapshotPointer({
+  await updateSnapshotPointer({
     assetHubRpc,
     contentResolver: network.CONTENT_RESOLVER,
     domain: pointerDomain,

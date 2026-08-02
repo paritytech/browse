@@ -4,9 +4,13 @@
  *   cd app && MNEMONIC="…" APP_DOTNS_DOMAIN="…" bun run snapshot:domains:paseo
  */
 
-import { DOMAINS_POINTER_KEY, shardKey } from '@parity/browse-sdk/snapshots'
-import { crawlDomains } from '@parity/browse-sdk/crawl'
-import { publishSnapshot, writeSnapshotPointer } from '@parity/browse-sdk/snapshots/publish'
+import {
+  crawlDomains,
+  DOMAINS_POINTER_KEY,
+  publishSnapshot,
+  shardKey,
+  updateSnapshotPointer
+} from '@parity/browse-sdk/snapshots'
 import { createBrowseSdk, isKnownGenesis, selectNetwork } from '@parity/browse-sdk'
 import { getWsProvider } from 'polkadot-api/ws'
 
@@ -57,7 +61,7 @@ async function main(): Promise<void> {
   // failed record write cannot be reproduced without a full re-crawl.
   console.log(`\nAPP_DOMAINS_SNAPSHOT_CID=${manifestCid}`)
 
-  await writeSnapshotPointer({
+  await updateSnapshotPointer({
     assetHubRpc,
     contentResolver: network.CONTENT_RESOLVER,
     domain: pointerDomain,

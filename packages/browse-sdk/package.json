@@ -27,21 +27,6 @@
       "#/source": "./src/snapshots.ts",
       "types": "./dist/browse-sdk/src/snapshots.d.ts",
       "default": "./dist/browse-sdk/src/snapshots.js"
-    },
-    "./snapshots/host": {
-      "#/source": "./src/snapshots-host.ts",
-      "types": "./dist/browse-sdk/src/snapshots-host.d.ts",
-      "default": "./dist/browse-sdk/src/snapshots-host.js"
-    },
-    "./snapshots/publish": {
-      "#/source": "./src/snapshots-publish.ts",
-      "types": "./dist/browse-sdk/src/snapshots-publish.d.ts",
-      "default": "./dist/browse-sdk/src/snapshots-publish.js"
-    },
-    "./crawl": {
-      "#/source": "./src/crawl.ts",
-      "types": "./dist/browse-sdk/src/crawl.d.ts",
-      "default": "./dist/browse-sdk/src/crawl.js"
     }
   },
   "files": [

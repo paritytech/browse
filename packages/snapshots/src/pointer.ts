@@ -70,7 +70,7 @@ export const USERNAMES_POINTER_KEY = 'snapshot.usernames'
 export type ContractReader = (target: `0x${string}`, data: `0x${string}`) => Promise<`0x${string}`>
 
 /**
- * Read a snapshot manifest CID from a text record, or `null` when the read
+ * Fetch a snapshot manifest CID from a text record, or `null` when the read
  * succeeded and the record is empty.
  *
  * A failed read throws rather than reporting an empty record. The two mean
@@ -78,7 +78,7 @@ export type ContractReader = (target: `0x${string}`, data: `0x${string}`) => Pro
  * is worth remembering, while a failed read is worth trying again.
  *
  * ```ts
- * const cid = await readSnapshotPointer(
+ * const cid = await getSnapshotPointer(
  *   (target, data) => sdk.reviveCall(target, data),
  *   network.CONTENT_RESOLVER,
  *   'browse.dot',
@@ -86,7 +86,7 @@ export type ContractReader = (target: `0x${string}`, data: `0x${string}`) => Pro
  * )
  * ```
  */
-export async function readSnapshotPointer(
+export async function getSnapshotPointer(
   read: ContractReader,
   contentResolver: `0x${string}`,
   domain: string,

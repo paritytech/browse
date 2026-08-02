@@ -102,12 +102,12 @@ The producer side lives behind two node-only subpaths, so transaction signing ne
 
 ```ts
 import { crawlUsernames } from '@parity/browse-snapshots/crawl'
-import { publishSnapshot, writeSnapshotPointer } from '@parity/browse-snapshots/publish'
+import { publishSnapshot, updateSnapshotPointer } from '@parity/browse-snapshots/publish'
 ```
 
 `crawlDomains` and `crawlUsernames` return sorted lines. Sorting is load-bearing: the reader binary-searches each shard and stops at the first non-matching entry, so unsorted input silently truncates results.
 
-`publishSnapshot` shards the lines by two-character prefix, gzips each shard, and stores every block on Bulletin. The manifest block goes last, so a run that dies partway never advertises shards it did not store. `writeSnapshotPointer` then records the manifest CID, and must be signed by the account that owns the name.
+`publishSnapshot` shards the lines by two-character prefix, gzips each shard, and stores every block on Bulletin. The manifest block goes last, so a run that dies partway never advertises shards it did not store. `updateSnapshotPointer` then records the manifest CID, and must be signed by the account that owns the name.
 
 ## Format
 

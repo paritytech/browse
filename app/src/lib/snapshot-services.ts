@@ -8,11 +8,11 @@
  */
 
 import {
+  createHostBlockReader,
   DomainSnapshotService,
   type SnapshotServiceOptions,
   UsernameSnapshotService
 } from '@parity/browse-sdk/snapshots'
-import { createHostBlockReader } from '@parity/browse-sdk/snapshots/host'
 
 import { reviveCall } from './client'
 import {

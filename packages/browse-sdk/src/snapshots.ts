@@ -14,11 +14,19 @@
 // limitations under the License.
 
 /**
- * Name autocomplete, re-exported so one install covers it.
+ * Name autocomplete, whole. Reading, crawling, and publishing all arrive here.
  *
  * The implementation lives in `@parity/browse-snapshots`, which knows nothing
  * about this package. Keeping it separate is what lets the reader stay free of
  * contract encoding, and lets this package depend on it rather than the reverse.
+ *
+ * The producer halves reach node built-ins and transaction signing, so a browser
+ * must not actually call them. Every export is side-effect free and the package
+ * is marked `sideEffects: false`, so a bundler drops whatever the client does not
+ * reference.
  */
 
 export * from '../../snapshots/src/index.js'
+export * from '../../snapshots/src/host.js'
+export * from '../../snapshots/src/publish.js'
+export * from './crawl.js'
