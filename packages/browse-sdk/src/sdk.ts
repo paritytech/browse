@@ -83,10 +83,10 @@ interface ReviveApi {
 /**
  * High-level entry point for browse queries against a configured network.
  *
- * Accepts any papi-compatible {@link JsonRpcProvider}: host-sdk's
- * `createPapiProvider`, polkadot-api's `getWsProvider`, a smoldot light-client
- * provider, etc. The underlying client is created lazily on the first query
- * and torn down via {@link destroy}.
+ * Accepts any papi-compatible {@link JsonRpcProvider}: polkadot-api's
+ * `getWsProvider`, a smoldot light-client provider, or one a container hands
+ * over. The underlying client is created lazily on the first query and torn
+ * down via {@link destroy}.
  */
 export class BrowseSdk {
   #client: PolkadotClient | null = null

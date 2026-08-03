@@ -27,7 +27,14 @@
  * key already owns. Callers supply it, since only they know where they deployed.
  */
 
-import { decodeAbiParameters, encodeFunctionData, namehash, parseAbi } from 'viem'
+import {
+  bytesToHex,
+  decodeAbiParameters,
+  encodeFunctionData,
+  hexToBytes,
+  namehash,
+  parseAbi
+} from 'viem'
 
 // Narrow to the two record calls a pointer needs. Encoding them here rather than
 // borrowing from browse-sdk is what keeps this package free of it, so browse-sdk
@@ -62,12 +69,46 @@ export const DOMAINS_POINTER_KEY = 'snapshot.domains'
 export const USERNAMES_POINTER_KEY = 'snapshot.usernames'
 
 /**
- * Dry-runs a contract read and returns the raw return data.
- *
- * `BrowseSdk.reviveCall` is one. An implementation may open its connection on
- * first call, since nothing here is invoked until a suggestion is asked for.
+ * Origin for a read that needs a caller but not an authenticated one. This is
+ * the SS58 form of the H160 zero address under the pallet-revive mapping.
  */
-export type ContractReader = (target: `0x${string}`, data: `0x${string}`) => Promise<`0x${string}`>
+const DRY_RUN_ORIGIN = '5C4hrfjw9DjXZTzV3MwzrrAr9P1MLDHajjSidz9bR544LEq1'
+
+/**
+ * The one runtime call a pointer read makes.
+ *
+ * A papi api satisfies this, so callers hand over the instance they already
+ * have rather than wrapping it. Field names match what pallet-revive declares,
+ * which is what lets a caller passing generated descriptors fail the build
+ * instead of the lookup.
+ */
+export interface NetworkProvider {
+  apis: {
+    ReviveApi: {
+      call: (
+        origin: string,
+        dest: `0x${string}`,
+        value: bigint,
+        weightLimit: { ref_time: bigint; proof_size: bigint } | undefined,
+        storageDepositLimit: bigint | undefined,
+        inputData: Uint8Array
+      ) => Promise<{
+        result:
+          | { success: true; value: { flags: unknown; data: Uint8Array } }
+          | { success: false; value: unknown }
+      }>
+    }
+  }
+}
+
+/**
+ * Supplies the network api, either directly or through an accessor.
+ *
+ * Mirrors the preimage side, so a caller holding an instance passes it and one
+ * still connecting passes the accessor it already has.
+ */
+export type NetworkProviderSource =
+  NetworkProvider | (() => NetworkProvider | null | Promise<NetworkProvider | null>)
 
 /**
  * Fetch a snapshot manifest CID from a text record, or `null` when the read
@@ -79,7 +120,7 @@ export type ContractReader = (target: `0x${string}`, data: `0x${string}`) => Pro
  *
  * ```ts
  * const cid = await getSnapshotPointer(
- *   (target, data) => sdk.reviveCall(target, data),
+ *   client.getTypedApi(paseohub),
  *   network.CONTENT_RESOLVER,
  *   'browse.dot',
  *   DOMAINS_POINTER_KEY
@@ -87,12 +128,25 @@ export type ContractReader = (target: `0x${string}`, data: `0x${string}`) => Pro
  * ```
  */
 export async function getSnapshotPointer(
-  read: ContractReader,
+  chain: NetworkProvider,
   contentResolver: `0x${string}`,
   domain: string,
   key: string
 ): Promise<string | null> {
-  const raw = await read(contentResolver, encodeTextRead(domain, key))
-  const [cid] = decodeAbiParameters([{ type: 'string' }], raw)
+  const { result } = await chain.apis.ReviveApi.call(
+    DRY_RUN_ORIGIN,
+    contentResolver,
+    0n,
+    undefined,
+    undefined,
+    hexToBytes(encodeTextRead(domain, key))
+  )
+  if (!result.success) throw new Error(`Pointer read failed to dispatch for ${domain}`)
+  // A reverting contract reports success and sets the low flag, the same shape
+  // browse-sdk checks after its own dry-runs.
+  if ((Number(result.value.flags) & 1) === 1) {
+    throw new Error(`Pointer read reverted for ${domain}`)
+  }
+  const [cid] = decodeAbiParameters([{ type: 'string' }], bytesToHex(result.value.data))
   return cid.trim().length > 0 ? cid.trim() : null
 }

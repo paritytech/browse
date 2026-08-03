@@ -19,9 +19,9 @@
  * A snapshot is a set of gzipped blocks. One block per shard holds the sorted
  * lines whose sort key starts with that shard prefix. One manifest block lists
  * every shard block by CID. Every block is addressed as
- * `CIDv1(raw, blake2b-256)`, the shape the host preimage bridge resolves, so the
- * CID is also the integrity check. A reader that gets bytes back for a CID knows
- * they hash to it.
+ * `CIDv1(raw, blake2b-256)`, which is how Bulletin stores it, so the CID is also
+ * the integrity check. A reader that gets bytes back for a CID knows they hash
+ * to it.
  *
  * Keeping both directions in one module is deliberate. The publisher and the
  * reader have to agree byte for byte on sharding, compression, and content
@@ -98,8 +98,8 @@ function base32Encode(bytes: Uint8Array): string {
 }
 
 /**
- * Decode a base32 CIDv1 to its blake2b-256 digest, the key the host preimage
- * bridge looks blocks up by.
+ * Decode a base32 CIDv1 to its blake2b-256 digest, the key a block is looked up
+ * by.
  *
  * Throws when the CID is not `CIDv1(raw, blake2b-256, 32-byte digest)`. A legacy
  * sha-256 CID lands here, so callers that accept untrusted CIDs should catch.

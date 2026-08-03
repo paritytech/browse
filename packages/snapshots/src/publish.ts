@@ -27,7 +27,7 @@ import { ApiPromise, WsProvider } from '@polkadot/api'
 import { encodeTextWrite } from './pointer.js'
 import { sr25519CreateDerive } from '@polkadot-labs/hdkd'
 import { entropyToMiniSecret, mnemonicToEntropy, ss58Address } from '@polkadot-labs/hdkd-helpers'
-import { Binary, createClient, Enum } from 'polkadot-api'
+import { Binary, createClient, Enum, type PolkadotSigner, type SS58String } from 'polkadot-api'
 import { getPolkadotSigner } from 'polkadot-api/signer'
 import { getWsProvider } from 'polkadot-api/ws'
 
@@ -46,6 +46,9 @@ const UNLIMITED_DEPOSIT = 18_446_744_073_709_551_615n
 
 /** Progress callback, so a caller can report without this module owning output. */
 export type PublishProgress = (message: string) => void
+
+/** The papi wrapper for raw bytes, which has no exported type of its own. */
+type EncodedBytes = ReturnType<typeof Binary.fromHex>
 
 const noop: PublishProgress = () => {}
 
@@ -215,37 +218,43 @@ export async function publishSnapshot(options: {
   return { manifestCid, shardCount }
 }
 
-/** Minimum shape of the runtime call and extrinsic a pointer write needs. */
-interface ReviveWriteApi {
+/**
+ * The pallet-revive surface a pointer write uses.
+ *
+ * Callers pass a `getTypedApi` result, so these names are checked against the
+ * generated descriptors at the call site rather than asserted here. Getting
+ * `weight_limit` wrong stops the build instead of the job.
+ */
+export interface RevivePointerApi {
   apis: {
     ReviveApi: {
       call: (
-        origin: string,
-        target: `0x${string}`,
+        origin: SS58String,
+        dest: `0x${string}`,
         value: bigint,
-        gasLimit: { ref_time: bigint; proof_size: bigint },
-        storageDepositLimit: bigint,
-        data: ReturnType<typeof Binary.fromHex>
+        weightLimit: { ref_time: bigint; proof_size: bigint } | undefined,
+        storageDepositLimit: bigint | undefined,
+        inputData: EncodedBytes
       ) => Promise<{
-        gas_required: { ref_time: bigint; proof_size: bigint }
-        storage_deposit: { type: string; value: bigint }
-        result: { success: boolean }
+        weight_required: { ref_time: bigint; proof_size: bigint }
+        storage_deposit: { value: bigint }
+        result: { success: true; value: { flags: unknown } } | { success: false; value: unknown }
       }>
     }
   }
   tx: {
     Revive: {
       map_account: () => {
-        signAndSubmit: (signer: ReturnType<typeof getPolkadotSigner>) => Promise<{ ok: boolean }>
+        signAndSubmit: (signer: PolkadotSigner) => Promise<{ ok: boolean }>
       }
       call: (args: {
         dest: `0x${string}`
         value: bigint
-        gas_limit: { ref_time: bigint; proof_size: bigint }
+        weight_limit: { ref_time: bigint; proof_size: bigint }
         storage_deposit_limit: bigint
-        data: ReturnType<typeof Binary.fromHex>
+        data: EncodedBytes
       }) => {
-        signAndSubmit: (signer: ReturnType<typeof getPolkadotSigner>) => Promise<{ ok: boolean }>
+        signAndSubmit: (signer: PolkadotSigner) => Promise<{ ok: boolean }>
       }
     }
   }
@@ -255,58 +264,74 @@ interface ReviveWriteApi {
  * Record a manifest CID in the text record clients read it from.
  *
  * Must be signed by the account that owns `domain`, since the content resolver
- * rejects anyone else. Gas comes from a dry-run rather than a fixed ceiling, so
- * a runtime weight change does not silently start failing.
+ * rejects anyone else. Weight comes from a dry-run rather than a fixed ceiling,
+ * so a runtime weight change does not silently start failing.
+ *
+ * Set `dryRun` to stop once the call is known to succeed. That check is the one
+ * worth running before trusting a key, and it costs nothing.
  */
 export async function updateSnapshotPointer(options: {
-  assetHubRpc: string
+  api: RevivePointerApi
   contentResolver: `0x${string}`
   domain: string
   key: string
   cid: string
   mnemonic: string
   derivation?: string
+  dryRun?: boolean
   progress?: PublishProgress
 }): Promise<void> {
   const progress = options.progress ?? noop
-  const client = createClient(getWsProvider(options.assetHubRpc))
-  try {
-    const api = client.getUnsafeApi() as unknown as ReviveWriteApi
+  const { api } = options
+  {
     const derive = sr25519CreateDerive(entropyToMiniSecret(mnemonicToEntropy(options.mnemonic)))
     const keypair = derive(options.derivation ?? '')
     const signer = getPolkadotSigner(keypair.publicKey, 'Sr25519', keypair.sign)
     const origin = ss58Address(keypair.publicKey)
+    const dest = options.contentResolver
     const data = Binary.fromHex(encodeTextWrite(options.domain, options.key, options.cid))
 
     progress(`pointer:   ${options.domain} ${options.key} as ${origin.slice(0, 8)}…`)
 
     // Contract calls need the caller mapped to an H160. Mapping twice is an
-    // error, so a failure here is expected on every run after the first.
-    await api.tx.Revive.map_account()
-      .signAndSubmit(signer)
-      .catch(() => undefined)
+    // error, so a failure here is expected on every run after the first. A dry
+    // run skips it to keep its promise of submitting nothing, which means an
+    // unmapped account reports a failed dispatch rather than an ownership answer.
+    if (!options.dryRun) {
+      await api.tx.Revive.map_account()
+        .signAndSubmit(signer)
+        .catch(() => undefined)
+    }
 
     const dryRun = await api.apis.ReviveApi.call(
       origin,
-      options.contentResolver,
+      dest,
       0n,
       UNLIMITED_WEIGHT,
       UNLIMITED_DEPOSIT,
       data
     )
+    // A rejected dispatch and a reverting contract are different failures. The
+    // resolver rejecting a non-owner is the second, which surfaces as a
+    // successful dispatch carrying the revert bit rather than as an error.
     if (!dryRun.result.success) {
+      throw new Error(`setText dry-run failed to dispatch for ${origin}`)
+    }
+    if ((Number(dryRun.result.value.flags) & 1) === 1) {
       throw new Error(`setText dry-run reverted, is ${origin} the owner of ${options.domain}?`)
     }
+    progress(`pointer:   dry-run passed, ${dryRun.weight_required.ref_time} ref_time`)
+    if (options.dryRun) return
 
     const submit = () =>
       api.tx.Revive.call({
-        dest: options.contentResolver,
+        dest,
         value: 0n,
         // Double the measured weight. The dry-run runs against the current best
         // block and the real call lands a block or two later.
-        gas_limit: {
-          ref_time: dryRun.gas_required.ref_time * 2n,
-          proof_size: dryRun.gas_required.proof_size * 2n
+        weight_limit: {
+          ref_time: dryRun.weight_required.ref_time * 2n,
+          proof_size: dryRun.weight_required.proof_size * 2n
         },
         storage_deposit_limit: dryRun.storage_deposit.value * 2n,
         data
@@ -327,7 +352,5 @@ export async function updateSnapshotPointer(options: {
       }
     }
     progress(`pointer:   recorded ${options.cid}`)
-  } finally {
-    client.destroy()
   }
 }

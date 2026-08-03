@@ -1,11 +1,17 @@
+import { bytesToHex } from 'viem'
 import { describe, expect, it, vi } from 'vitest'
 
 import { buildSnapshotBlocks } from './blocks.js'
 import { cidToBlake2b256DigestHex, shardKey } from './format.js'
-import { DOMAINS_POINTER_KEY, encodeTextRead, USERNAMES_POINTER_KEY } from './pointer.js'
 import {
-  type BlockReader,
+  DOMAINS_POINTER_KEY,
+  encodeTextRead,
+  type NetworkProvider,
+  USERNAMES_POINTER_KEY
+} from './pointer.js'
+import {
   DomainSnapshotService,
+  type PreimageProvider,
   type SnapshotServiceOptions,
   UsernameSnapshotService
 } from './service.js'
@@ -35,11 +41,35 @@ function buildSnapshot(lines: string[], sortKeyOf: (line: string) => string): Sn
   }
 }
 
-/** Serve a snapshot by digest, the way the host preimage bridge would. */
-function readerFor(snapshot: Snapshot): BlockReader {
+/**
+ * Serve a snapshot by digest, the way a preimage bridge would.
+ *
+ * `lookup` reports a miss the way a bridge does, by handing back `null` and then
+ * interrupting, rather than by never calling back at all.
+ */
+function readerFor(
+  snapshot: Snapshot,
+  onLookup?: (digest: `0x${string}`) => void
+): PreimageProvider {
   const byDigest = new Map<string, Uint8Array>()
   for (const [cid, bytes] of snapshot.blocks) byDigest.set(cidToBlake2b256DigestHex(cid), bytes)
-  return (digest) => Promise.resolve(byDigest.get(digest) ?? null)
+  return {
+    lookup: (digest, onBytes) => {
+      onLookup?.(digest)
+      const bytes = byDigest.get(digest)
+      const interrupt: { handler?: () => void } = {}
+      queueMicrotask(() => {
+        if (bytes) onBytes(bytes)
+        else interrupt.handler?.()
+      })
+      return {
+        unsubscribe: () => {},
+        onInterrupt: (handler) => {
+          interrupt.handler = handler
+        }
+      }
+    }
+  }
 }
 
 const DOMAINS = ['alpha', 'alpine', 'altitude', 'beta', 'zzautocomplete', 'zzstopwatch', 'a']
@@ -55,7 +85,7 @@ const usernameSnapshot = buildSnapshot(USERNAMES, (line) => line.slice(0, line.i
 
 const openDomains = (overrides: Partial<SnapshotServiceOptions> = {}) =>
   new DomainSnapshotService({
-    readBlock: readerFor(domainSnapshot),
+    preimageProvider: readerFor(domainSnapshot),
     network: NETWORK,
     manifestCid: domainSnapshot.manifestCid,
     ...overrides
@@ -156,7 +186,7 @@ describe('domain suggestion fails', () => {
 
   it('yields nothing when the manifest block is unavailable', async () => {
     // Given
-    const service = openDomains({ readBlock: () => Promise.resolve(null) })
+    const service = openDomains({ preimageProvider: () => null })
 
     // When
     const results = await service.suggest('al')
@@ -167,10 +197,13 @@ describe('domain suggestion fails', () => {
 
   it('yields nothing when a shard block is unavailable', async () => {
     // Given
-    const full = readerFor(domainSnapshot)
-    const manifestDigest = cidToBlake2b256DigestHex(domainSnapshot.manifestCid)
+    const manifestOnly = buildSnapshot(DOMAINS, (line) => line)
+    for (const cid of manifestOnly.blocks.keys()) {
+      if (cid !== manifestOnly.manifestCid) manifestOnly.blocks.delete(cid)
+    }
     const service = openDomains({
-      readBlock: (digest) => (digest === manifestDigest ? full(digest) : Promise.resolve(null))
+      preimageProvider: readerFor(manifestOnly),
+      manifestCid: manifestOnly.manifestCid
     })
 
     // When
@@ -206,8 +239,8 @@ describe('domain suggestion fails', () => {
 describe('block caching works', () => {
   it('reads the manifest and each shard once across many queries', async () => {
     // Given
-    const readBlock = vi.fn(readerFor(domainSnapshot))
-    const service = openDomains({ readBlock })
+    const onLookup = vi.fn()
+    const service = openDomains({ preimageProvider: readerFor(domainSnapshot, onLookup) })
 
     // When
     await service.suggest('al')
@@ -215,19 +248,19 @@ describe('block caching works', () => {
     await service.suggest('alt')
 
     // Then
-    expect(readBlock).toHaveBeenCalledTimes(2)
+    expect(onLookup).toHaveBeenCalledTimes(2)
   })
 
   it('shares one read between concurrent queries on the same shard', async () => {
     // Given
-    const readBlock = vi.fn(readerFor(domainSnapshot))
-    const service = openDomains({ readBlock })
+    const onLookup = vi.fn()
+    const service = openDomains({ preimageProvider: readerFor(domainSnapshot, onLookup) })
 
     // When
     await Promise.all([service.suggest('al'), service.suggest('alp'), service.suggest('alt')])
 
     // Then
-    expect(readBlock).toHaveBeenCalledTimes(2)
+    expect(onLookup).toHaveBeenCalledTimes(2)
   })
 
   it('retries a manifest that failed transiently rather than going dark', async () => {
@@ -235,12 +268,12 @@ describe('block caching works', () => {
     const full = readerFor(domainSnapshot)
     let failNext = true
     const service = openDomains({
-      readBlock: (digest) => {
+      preimageProvider: () => {
         if (failNext) {
           failNext = false
-          return Promise.resolve(null)
+          return null
         }
-        return full(digest)
+        return full
       }
     })
 
@@ -253,17 +286,17 @@ describe('block caching works', () => {
     expect(second).toEqual(['alpha', 'alpine', 'altitude'])
   })
 
-  it('retries a manifest whose reader rejected rather than resolved null', async () => {
+  it('retries a manifest whose source rejected rather than resolved null', async () => {
     // Given
     const full = readerFor(domainSnapshot)
     let failNext = true
     const service = openDomains({
-      readBlock: (digest) => {
+      preimageProvider: () => {
         if (failNext) {
           failNext = false
           return Promise.reject(new Error('bridge blew up'))
         }
-        return full(digest)
+        return full
       }
     })
 
@@ -282,10 +315,10 @@ describe('block caching works', () => {
     // Given
     const rotated = buildSnapshot(['alpaca', 'alpha'], (line) => line)
     const blocks = new Map([...domainSnapshot.blocks, ...rotated.blocks])
-    const readBlock = vi.fn(readerFor({ manifestCid: '', blocks }))
+    const onLookup = vi.fn()
     let current = domainSnapshot.manifestCid
     const options = {
-      readBlock,
+      preimageProvider: readerFor({ manifestCid: '', blocks }, onLookup),
       network: NETWORK,
       resolveManifestCid: () => Promise.resolve(current)
     }
@@ -308,7 +341,7 @@ describe('pointer resolution works', () => {
   it('resolves the manifest CID when none is pinned', async () => {
     // Given
     const service = new DomainSnapshotService({
-      readBlock: readerFor(domainSnapshot),
+      preimageProvider: readerFor(domainSnapshot),
       network: NETWORK,
       resolveManifestCid: () => Promise.resolve(domainSnapshot.manifestCid)
     })
@@ -324,7 +357,7 @@ describe('pointer resolution works', () => {
     // Given
     const resolveManifestCid = vi.fn(() => Promise.resolve(domainSnapshot.manifestCid))
     const service = new DomainSnapshotService({
-      readBlock: readerFor(domainSnapshot),
+      preimageProvider: readerFor(domainSnapshot),
       network: NETWORK,
       resolveManifestCid
     })
@@ -358,7 +391,7 @@ describe('pointer resolution fails', () => {
     // Given
     const resolveManifestCid = vi.fn(() => Promise.resolve(null))
     const service = new DomainSnapshotService({
-      readBlock: readerFor(domainSnapshot),
+      preimageProvider: readerFor(domainSnapshot),
       network: NETWORK,
       resolveManifestCid
     })
@@ -379,7 +412,7 @@ describe('pointer resolution fails', () => {
       .mockRejectedValueOnce(new Error('rpc down'))
       .mockResolvedValue(domainSnapshot.manifestCid)
     const service = new DomainSnapshotService({
-      readBlock: readerFor(domainSnapshot),
+      preimageProvider: readerFor(domainSnapshot),
       network: NETWORK,
       resolveManifestCid
     })
@@ -396,7 +429,7 @@ describe('pointer resolution fails', () => {
   it('yields nothing when the resolver throws', async () => {
     // Given
     const service = new DomainSnapshotService({
-      readBlock: readerFor(domainSnapshot),
+      preimageProvider: readerFor(domainSnapshot),
       network: NETWORK,
       resolveManifestCid: () => Promise.reject(new Error('rpc down'))
     })
@@ -411,7 +444,7 @@ describe('pointer resolution fails', () => {
 
 const openUsernames = () =>
   new UsernameSnapshotService({
-    readBlock: readerFor(usernameSnapshot),
+    preimageProvider: readerFor(usernameSnapshot),
     network: NETWORK,
     manifestCid: usernameSnapshot.manifestCid
   })
@@ -451,7 +484,7 @@ describe('username suggestion works', () => {
       return tab > 0 ? line.slice(0, tab) : line
     })
     const service = new UsernameSnapshotService({
-      readBlock: readerFor(malformed),
+      preimageProvider: readerFor(malformed),
       network: NETWORK,
       manifestCid: malformed.manifestCid
     })
@@ -469,13 +502,20 @@ const POINTER_NAME = 'browse.dot'
 /** Capture the calldata each service asks the content resolver for. */
 function recordingPointer() {
   const calls: string[] = []
+  const networkProvider: NetworkProvider = {
+    apis: {
+      ReviveApi: {
+        call: (_origin, _dest, _value, _weight, _deposit, inputData) => {
+          calls.push(bytesToHex(inputData))
+          return Promise.reject(new Error('no record set'))
+        }
+      }
+    }
+  }
   return {
     calls,
+    networkProvider,
     pointer: {
-      read: (_target: `0x${string}`, data: `0x${string}`) => {
-        calls.push(data)
-        return Promise.reject(new Error('no record set'))
-      },
       contentResolver: '0x0000000000000000000000000000000000000001' as const,
       domain: POINTER_NAME
     }
@@ -492,13 +532,15 @@ describe('pointer record selection works', () => {
 
     // When
     await new DomainSnapshotService({
-      readBlock: () => Promise.resolve(null),
+      preimageProvider: () => null,
       network: NETWORK,
+      networkProvider: domains.networkProvider,
       pointer: domains.pointer
     }).suggest('al')
     await new UsernameSnapshotService({
-      readBlock: () => Promise.resolve(null),
+      preimageProvider: () => null,
       network: NETWORK,
+      networkProvider: usernames.networkProvider,
       pointer: usernames.pointer
     }).suggest('al')
 
@@ -511,10 +553,11 @@ describe('pointer record selection works', () => {
 describe('pointer record selection fails', () => {
   it('yields nothing when the record is unreadable', async () => {
     // Given
-    const { pointer } = recordingPointer()
+    const { networkProvider, pointer } = recordingPointer()
     const service = new DomainSnapshotService({
-      readBlock: readerFor(domainSnapshot),
+      preimageProvider: readerFor(domainSnapshot),
       network: NETWORK,
+      networkProvider,
       pointer
     })
 

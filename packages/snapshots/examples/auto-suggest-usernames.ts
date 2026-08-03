@@ -31,10 +31,15 @@ const snapshot = buildSnapshotBlocks({
 const blocks = new Map(
   snapshot.blocks.map((block) => [cidToBlake2b256DigestHex(block.cid), block.data])
 )
-const readBlock = async (digest: `0x${string}`) => blocks.get(digest) ?? null
+const preimageProvider = {
+  lookup: (digest: `0x${string}`, onBytes: (bytes: Uint8Array | null) => void) => {
+    onBytes(blocks.get(digest) ?? null)
+    return { unsubscribe: () => {}, onInterrupt: () => {} }
+  }
+}
 
 const usernames = new UsernameSnapshotService({
-  readBlock,
+  preimageProvider,
   network: NETWORK,
   manifestCid: snapshot.manifestCid
 })

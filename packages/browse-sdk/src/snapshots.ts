@@ -27,6 +27,5 @@
  */
 
 export * from '../../snapshots/src/index.js'
-export * from '../../snapshots/src/host.js'
 export * from '../../snapshots/src/publish.js'
 export * from './crawl.js'

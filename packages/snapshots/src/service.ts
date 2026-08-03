@@ -38,37 +38,61 @@ import {
   type SnapshotManifest
 } from './format.js'
 import {
-  type ContractReader,
   DOMAINS_POINTER_KEY,
   getSnapshotPointer,
+  type NetworkProviderSource,
   USERNAMES_POINTER_KEY
 } from './pointer.js'
 
+/** Cancellable lookup, the shape `PreimageProvider.lookup` returns. */
+export interface PreimageSubscription {
+  unsubscribe: () => void
+  onInterrupt: (handler: () => void) => void
+}
+
 /**
- * Resolves a block by its blake2b-256 digest, or `null` when it is unavailable.
+ * Serves a block by the blake2b-256 digest its CID carries.
  *
- * In a hosted client this wraps the host preimage bridge. Elsewhere it can read
- * Bulletin directly. Timeouts belong here, not in the service.
+ * Anything that reaches Bulletin satisfies it, whether over a preimage bridge or
+ * a direct connection. Whatever provides it must only return bytes that hash to
+ * the requested digest, because that is what makes the CID the integrity check.
  */
-export type BlockReader = (digest: `0x${string}`) => Promise<Uint8Array | null>
+export interface PreimageProvider {
+  lookup: (key: `0x${string}`, onBytes: (bytes: Uint8Array | null) => void) => PreimageSubscription
+}
+
+/**
+ * Supplies the preimage provider, either directly or through an accessor.
+ *
+ * The accessor exists because a client that has to negotiate for one resolves it
+ * asynchronously and may not get it. A `null` result means no source is
+ * available, and suggestions close rather than throw.
+ */
+export type PreimageProviderSource =
+  PreimageProvider | (() => PreimageProvider | null | Promise<PreimageProvider | null>)
 
 const DEFAULT_MAX_RESULTS = 8
+const DEFAULT_LOOKUP_TIMEOUT_MS = 8_000
 
 /** Where to read the manifest CID when it is not pinned. */
 export interface SnapshotPointer {
-  read: ContractReader
   contentResolver: `0x${string}`
   /** Name carrying the record, for instance `browse.dot`. */
   domain: string
 }
 
 export interface SnapshotServiceOptions {
-  readBlock: BlockReader
+  /** Where blocks come from. */
+  preimageProvider: PreimageProviderSource
   /** Genesis hash to accept. A snapshot crawled against another network is ignored. */
   network: string
+  /** How long to wait for one block before giving up. Defaults to 8 seconds. */
+  lookupTimeoutMs?: number | undefined
   /** Manifest CID to pin, which beats both ways of resolving one. */
   manifestCid?: string | undefined
   /** Reads the manifest CID from the text record this dataset publishes to. */
+  networkProvider?: NetworkProviderSource | undefined
+  /** Which record to read, needed alongside {@link networkProvider}. */
   pointer?: SnapshotPointer | undefined
   /**
    * Resolves the manifest CID some other way, for a client that distributes it
@@ -168,11 +192,15 @@ export abstract class SnapshotService<T> {
 
   /** The configured way to find the current CID, if there is one. */
   #cidResolver(): (() => Promise<string | null>) | null {
-    const { resolveManifestCid, pointer } = this.options
+    const { resolveManifestCid, networkProvider, pointer } = this.options
     if (resolveManifestCid) return resolveManifestCid
-    if (!pointer) return null
-    return () =>
-      getSnapshotPointer(pointer.read, pointer.contentResolver, pointer.domain, this.pointerKey)
+    if (!networkProvider || !pointer) return null
+    return async () => {
+      const chain =
+        typeof networkProvider === 'function' ? await networkProvider() : networkProvider
+      if (!chain) return null
+      return getSnapshotPointer(chain, pointer.contentResolver, pointer.domain, this.pointerKey)
+    }
   }
 
   /**
@@ -195,7 +223,7 @@ export abstract class SnapshotService<T> {
         return bytes ? parseManifest(bytes, this.options.network) : null
       })()
       // Forget anything that did not yield a manifest, a rejection included. A
-      // BlockReader is free to reject rather than resolve null, and memoizing
+      // A block read is free to reject rather than resolve null, and memoizing
       // that would leave the instance returning nothing for the rest of the
       // session. Swallow the rejection here so it never surfaces unhandled.
       this.#manifest = pending.catch(() => null)
@@ -232,7 +260,46 @@ export abstract class SnapshotService<T> {
     } catch {
       return null
     }
-    return this.options.readBlock(digest)
+    return this.#readBlock(digest)
+  }
+
+  /**
+   * Read one block, or `null` when no source can produce it in time.
+   *
+   * A preimage manager answers immediately with `null` while it is still
+   * fetching, then calls back again with the bytes. Only real bytes, an
+   * interrupt, or the timeout settle the lookup.
+   */
+  #readBlock(digest: `0x${string}`): Promise<Uint8Array | null> {
+    const timeoutMs = this.options.lookupTimeoutMs ?? DEFAULT_LOOKUP_TIMEOUT_MS
+    const { preimageProvider } = this.options
+    return new Promise((resolve) => {
+      let done = false
+      let subscription: PreimageSubscription | undefined
+      const settle = (bytes: Uint8Array | null) => {
+        if (done) return
+        done = true
+        clearTimeout(timer)
+        subscription?.unsubscribe()
+        resolve(bytes)
+      }
+      void Promise.resolve(
+        typeof preimageProvider === 'function' ? preimageProvider() : preimageProvider
+      )
+        .then((manager) => {
+          if (done) return
+          if (!manager) {
+            settle(null)
+            return
+          }
+          subscription = manager.lookup(digest, (bytes) => {
+            if (bytes) settle(new Uint8Array(bytes))
+          })
+          subscription.onInterrupt(() => settle(null))
+        })
+        .catch(() => settle(null))
+      const timer = setTimeout(() => settle(null), timeoutMs)
+    })
   }
 }
 

@@ -26,11 +26,13 @@ export type { SnapshotManifest } from './format.js'
 
 export { DomainSnapshotService, SnapshotService, UsernameSnapshotService } from './service.js'
 export type {
-  BlockReader,
+  PreimageProvider,
+  PreimageProviderSource,
+  PreimageSubscription,
   SnapshotPointer,
   SnapshotServiceOptions,
   UsernameEntry
 } from './service.js'
 
 export { DOMAINS_POINTER_KEY, getSnapshotPointer, USERNAMES_POINTER_KEY } from './pointer.js'
-export type { ContractReader } from './pointer.js'
+export type { NetworkProvider, NetworkProviderSource } from './pointer.js'

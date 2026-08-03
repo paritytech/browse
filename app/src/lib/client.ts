@@ -23,11 +23,14 @@ import {
 
 import { ASSETHUB_GENESIS, DUMMY_ORIGIN, NETWORK } from './config'
 
-const descriptor = ({
+/** Generated Asset Hub bindings, keyed by genesis. */
+export const ASSETHUB_DESCRIPTOR_BY_GENESIS = {
   [PASEO_ASSETHUB_NEXT_V2_GENESIS]: paseohub,
   [PREVIEWNET_ASSETHUB_GENESIS]: previewnethub,
   [SUMMIT_ASSETHUB_GENESIS]: summithub
-}[ASSETHUB_GENESIS] ?? paseohub) as typeof paseohub
+} as const
+
+const descriptor = (ASSETHUB_DESCRIPTOR_BY_GENESIS[ASSETHUB_GENESIS] ?? paseohub) as typeof paseohub
 
 export type PaseoHubApi = TypedApi<typeof paseohub>
 

@@ -18,16 +18,20 @@ const snapshot = buildSnapshotBlocks({
   generatedAt: Date.now()
 })
 
-// Stand in for the host preimage bridge, which serves a block by the digest its
-// CID carries. Returning null for an unknown digest is what a real reader does
-// when the host cannot produce the bytes.
+// Stand in for a real block source, which serves a block by the digest its CID
+// carries. Anything reaching Bulletin goes here instead.
 const blocks = new Map(
   snapshot.blocks.map((block) => [cidToBlake2b256DigestHex(block.cid), block.data])
 )
-const readBlock = async (digest: `0x${string}`) => blocks.get(digest) ?? null
+const preimageProvider = {
+  lookup: (digest: `0x${string}`, onBytes: (bytes: Uint8Array | null) => void) => {
+    onBytes(blocks.get(digest) ?? null)
+    return { unsubscribe: () => {}, onInterrupt: () => {} }
+  }
+}
 
 const domains = new DomainSnapshotService({
-  readBlock,
+  preimageProvider,
   network: NETWORK,
   manifestCid: snapshot.manifestCid
 })

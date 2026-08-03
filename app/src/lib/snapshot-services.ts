@@ -8,13 +8,13 @@
  */
 
 import {
-  createHostBlockReader,
   DomainSnapshotService,
   type SnapshotServiceOptions,
   UsernameSnapshotService
 } from '@parity/browse-sdk/snapshots'
+import { getPreimageManager } from '@parity/product-sdk/host'
 
-import { reviveCall } from './client'
+import { ensureApi } from './client'
 import {
   ASSETHUB_GENESIS,
   DOMAINS_SNAPSHOT_CID,
@@ -24,14 +24,14 @@ import {
 } from './config'
 
 const source: SnapshotServiceOptions = {
-  readBlock: createHostBlockReader(),
+  // Both providers arrive asynchronously and can decline, which the service
+  // already treats as no suggestions.
+  preimageProvider: getPreimageManager,
+  networkProvider: ensureApi,
   network: ASSETHUB_GENESIS,
-  // Read the record through the shared gated caller rather than the raw sdk.
-  // It is the only chain read in the suggestion path, and the service leaves
-  // timeouts to its caller, so going direct would leave it unbounded. This
-  // inherits the rate gate, the 8s timeout, and the reset-and-retry.
+  // One record read per session, memoized, so it skips the rate gate that paces
+  // the bulk chain reads without adding meaningful load.
   pointer: {
-    read: reviveCall,
     contentResolver: NETWORK.CONTENT_RESOLVER,
     domain: SELF_DOTNS
   }

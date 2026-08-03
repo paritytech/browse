@@ -61,13 +61,13 @@ One service per dataset, both over the same base:
 
 ```ts
 import { DomainSnapshotService, UsernameSnapshotService } from '@parity/browse-snapshots'
-import { createHostBlockReader } from '@parity/browse-snapshots/host'
 
 const source = {
-  readBlock: createHostBlockReader(),
+  // Anything that resolves a Bulletin block by digest.
+  preimageProvider: myBlockSource,
+  networkProvider: () => client.getTypedApi(paseohub),
   network: genesis,
   pointer: {
-    read: async (target, data) => (await ensureSdk()).reviveCall(target, data),
     contentResolver: network.CONTENT_RESOLVER,
     domain: deployedDotnsName
   }
@@ -84,7 +84,11 @@ Each service knows the one thing that makes its dataset different: which text re
 
 A username entry carries the account that owns the name, so selecting a suggestion needs no further lookup.
 
-`readBlock` resolves a block by its blake2b-256 digest. In a hosted client that wraps the host preimage bridge. Elsewhere it can read Bulletin directly. Nothing else in the package knows how bytes are fetched.
+Two dependencies go in, and neither is a wrapper the package invents. `preimageProvider` serves a block by the blake2b-256 digest its CID carries. `networkProvider` is a papi api, used for the one contract read that resolves the pointer record. Both accept either the instance or an accessor returning it, since a client that negotiates for them resolves them asynchronously.
+
+Nothing else in the package knows where bytes or network reads come from. A client reading Bulletin directly, or a test serving blocks from a `Map`, passes its own `{ lookup }`.
+
+Whatever supplies the bytes must only return ones that hash to the digest asked for. That is what makes the CID the integrity check, and it is why these blocks must never be read over an IPFS gateway.
 
 `suggest` never throws. Any failure to resolve, decompress, or parse yields no suggestions, because autocomplete that disappears is recoverable and autocomplete that throws into render is not.
 
@@ -107,11 +111,11 @@ import { publishSnapshot, updateSnapshotPointer } from '@parity/browse-snapshots
 
 `crawlDomains` and `crawlUsernames` return sorted lines. Sorting is load-bearing: the reader binary-searches each shard and stops at the first non-matching entry, so unsorted input silently truncates results.
 
-`publishSnapshot` shards the lines by two-character prefix, gzips each shard, and stores every block on Bulletin. The manifest block goes last, so a run that dies partway never advertises shards it did not store. `updateSnapshotPointer` then records the manifest CID, and must be signed by the account that owns the name.
+`publishSnapshot` shards the lines by two-character prefix, gzips each shard, and stores every block on Bulletin. The manifest block goes last, so a run that dies partway never advertises shards it did not store. `updateSnapshotPointer` then records the manifest CID, signed by an account the resolver accepts as a writer on that name. It dry-runs first, so a key without that right fails before it spends anything.
 
 ## Format
 
-Every block is a `CIDv1(raw, blake2b-256)`, which is what the host preimage bridge resolves. The bridge only returns bytes whose hash matches the key it was given, so the CID is the integrity check and these blocks must never be read over an IPFS gateway instead.
+Every block is a `CIDv1(raw, blake2b-256)`, which is how Bulletin stores it. A source only returns bytes whose hash matches the key it was given, so the CID is the integrity check and these blocks must never be read over an IPFS gateway instead.
 
 `src/format.ts` holds both directions of that agreement. The publisher and the reader have to match byte for byte on sharding, compression, and content addressing, and two copies of that agreement drift.
 

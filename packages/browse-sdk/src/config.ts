@@ -27,7 +27,7 @@ export interface NetworkConfig extends NetworkAddresses {
   TRUSTED_ATTESTER?: `0x${string}`;
   SCHEMA_ID: readonly bigint[];
   COMPLIANCE_SCHEMA_ID: bigint;
-  // Hosts
+  // Web domains
   primaryWebDomain: string;
   secondaryWebDomain: string;
   // Network
