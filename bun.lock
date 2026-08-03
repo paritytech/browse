@@ -65,6 +65,39 @@
         "ws": "^8.20.0",
       },
     },
+    "apps/developer-portal": {
+      "name": "@parity/browse-developer-portal",
+      "version": "0.1.0",
+      "dependencies": {
+        "@fontsource-variable/inter": "^5.2.8",
+        "@fontsource-variable/manrope": "^5.2.8",
+        "@parity/browse-sdk": "*",
+        "@parity/product-sdk": "^0.19.1",
+        "polkadot-api": "^2.1.2",
+        "preact": "^10.29.1",
+        "viem": "^2.50.4",
+      },
+      "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "@noble/hashes": "^1.8.0",
+        "@parity/host-api-test-sdk": "^0.10.0",
+        "@playwright/test": "^1.59.1",
+        "@polkadot-labs/hdkd": "^0.0.27",
+        "@polkadot-labs/hdkd-helpers": "^0.0.28",
+        "@preact/preset-vite": "^2.10.5",
+        "@typescript-eslint/eslint-plugin": "^8.58.0",
+        "@typescript-eslint/parser": "^8.58.0",
+        "eslint": "^10.2.0",
+        "eslint-config-prettier": "^10.1.8",
+        "eslint-plugin-import-x": "^4.16.2",
+        "eslint-plugin-prettier": "^5.5.5",
+        "prettier": "^3.8.1",
+        "typescript": "^5.4.0",
+        "typescript-eslint": "^8.58.0",
+        "vite": "^6.0.0",
+        "vite-plugin-node-polyfills": "^0.25.0",
+      },
+    },
     "packages/browse-sdk": {
       "name": "@parity/browse-sdk",
       "version": "0.1.0-rc.2",
@@ -300,6 +333,8 @@
     "@package-json/types": ["@package-json/types@0.0.12", "", {}, "sha512-uu43FGU34B5VM9mCNjXCwLaGHYjXdNincqKLaraaCW+7S2+SmiBg1Nv8bPnmschrIfZmfKNY9f3fC376MRrObw=="],
 
     "@parity/browse-client": ["@parity/browse-client@workspace:app"],
+
+    "@parity/browse-developer-portal": ["@parity/browse-developer-portal@workspace:apps/developer-portal"],
 
     "@parity/browse-sdk": ["@parity/browse-sdk@workspace:packages/browse-sdk"],
 
@@ -1336,6 +1371,8 @@
     "@noble/curves/@noble/hashes": ["@noble/hashes@2.0.1", "", {}, "sha512-XlOlEbQcE9fmuXxrVTXCTlG2nlRXa9Rj3rr5Ue/+tX+nmkgbX720YHh0VR3hBF9xDvwnb8D2shVGOwNx+ulArw=="],
 
     "@parity/browse-client/@polkadot-api/descriptors": ["@polkadot-api/descriptors@file:app/.papi/descriptors", { "peerDependencies": { "polkadot-api": ">=2.0.0" } }],
+
+    "@parity/browse-developer-portal/@noble/hashes": ["@noble/hashes@1.8.0", "", {}, "sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A=="],
 
     "@parity/bulletin-sdk/@polkadot-labs/hdkd-helpers": ["@polkadot-labs/hdkd-helpers@0.0.29", "", { "dependencies": { "@noble/curves": "^2.2.0", "@noble/hashes": "^2.2.0", "@scure/base": "^2.0.0", "@scure/sr25519": "^1.0.0", "scale-ts": "^1.6.1" } }, "sha512-yiLm1Gj3j5NrQV+VFMlFzkBgcRBNfq2Sd/U3S8iau2bzhDwgsn4gy6FDt94TRPD5xLxOzi1I3wSLOrgOs2eLVw=="],
 
