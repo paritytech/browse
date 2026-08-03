@@ -14,7 +14,7 @@
     "@polkadot-labs/hdkd": "^0.0.25",
     "@polkadot-labs/hdkd-helpers": "^0.0.26",
     "polkadot-api": "^1.23.1",
-    "viem": "^2.43.4"
+    "viem": "^2.55.2"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-ignition": "^0.15.0",
@@ -22,7 +22,7 @@
     "@nomicfoundation/hardhat-toolbox": "^7.0.0",
     "@parity/hardhat-polkadot": "^0.2.0",
     "@types/node": "^22.12.0",
-    "ethers": "^6.11.0",
+    "ethers": "^6.17.0",
     "hardhat": "^2.22.0",
     "ts-node": "^10.9.0",
     "tsx": "^4.19.0",
