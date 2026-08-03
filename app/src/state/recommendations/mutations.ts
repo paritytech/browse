@@ -170,22 +170,55 @@ export async function attestLabel(label: string, onPermitted?: () => void) {
       )
 }
 
+const ATTESTATION_PAGE_SIZE = 100n
+const ATTESTATION_PAGE_SIZE_NUM = Number(ATTESTATION_PAGE_SIZE)
+
 async function getAttesterH160(): Promise<string> {
   const { publicKey } = await attestationService.getSigner()
   const ss58 = AccountId().dec(publicKey) as SS58String
   return (ss58ToEthereum(ss58) as `0x${string}`).toLowerCase()
 }
 
+/**
+ * Find this product account's live recommendations without enumerating every
+ * recommendation for a popular product. Recipient-first lookup can fan out
+ * into hundreds of light-client reads as revoked records accumulate.
+ */
+async function getLiveAttestationsByCurrentAttester(
+  recipient: `0x${string}`
+): Promise<Array<{ id: bigint; schema: bigint }>> {
+  const attester = await getAttesterH160()
+  const count = await attestationService.countByAttester(attester as `0x${string}`)
+  if (count === 0n) return []
+
+  const ids: bigint[] = []
+  for (let offset = 0n; offset < count; offset += ATTESTATION_PAGE_SIZE) {
+    const remaining = count - offset
+    const limit = remaining < ATTESTATION_PAGE_SIZE ? remaining : ATTESTATION_PAGE_SIZE
+    ids.push(...(await attestationService.listByAttester(attester as `0x${string}`, offset, limit)))
+  }
+
+  const recipientLower = recipient.toLowerCase()
+  const now = BigInt(Math.floor(Date.now() / 1000))
+  const live: Array<{ id: bigint; schema: bigint }> = []
+  for (let i = 0; i < ids.length; i += ATTESTATION_PAGE_SIZE_NUM) {
+    const records = await attestationService.getAttestationByIds(
+      ids.slice(i, i + ATTESTATION_PAGE_SIZE_NUM)
+    )
+    for (const record of records) {
+      if (record.recipient.toLowerCase() !== recipientLower) continue
+      if (record.attester.toLowerCase() !== attester) continue
+      if (record.revocationTime !== 0n) continue
+      if (record.expirationTime !== 0n && record.expirationTime <= now) continue
+      live.push({ id: record.id, schema: record.schema })
+    }
+  }
+  return live
+}
+
 export async function revokeLabel(label: string, onPermitted?: () => void) {
   const recipient = nodeToSubject(namehash(`${label}.dot`))
-  const ids = await attestationService.listByRecipientAndSchema(recipient, 0n, 100n)
-  if (ids.length === 0) throw new Error('No attestation to revoke')
-
-  const attesterH160 = await getAttesterH160()
-  const attestations = await Promise.all(ids.map((id) => attestationService.getAttestationById(id)))
-  const mine = attestations
-    .map((a, i) => ({ schema: a.schema, id: ids[i], attester: a.attester }))
-    .filter((a) => a.attester.toLowerCase() === attesterH160)
+  const mine = await getLiveAttestationsByCurrentAttester(recipient)
   if (mine.length === 0) {
     // The button is active because this identity recommended the app, but the
     // attestation was signed by a different product account of the same
@@ -206,13 +239,9 @@ export async function revokeLabel(label: string, onPermitted?: () => void) {
 
 export async function getAttestationId(label: string): Promise<bigint | null> {
   const recipient = nodeToSubject(namehash(`${label}.dot`))
-  const ids = await attestationService.listByRecipientAndSchema(recipient, 0n, 100n)
-  if (ids.length === 0) return null
-
-  const attesterH160 = await getAttesterH160()
-  const attestations = await Promise.all(ids.map((id) => attestationService.getAttestationById(id)))
-  const idx = ids.findIndex((_, i) => attestations[i].attester.toLowerCase() === attesterH160)
-  return idx === -1 ? null : ids[idx]
+  const mine = await getLiveAttestationsByCurrentAttester(recipient)
+  const chosen = mine.find((attestation) => attestation.schema === ACTIVE_SCHEMA_ID) ?? mine[0]
+  return chosen?.id ?? null
 }
 
 export function useAttestProduct() {
