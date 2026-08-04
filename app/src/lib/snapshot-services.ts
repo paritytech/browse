@@ -15,13 +15,7 @@ import {
 import { getPreimageManager } from '@parity/product-sdk/host'
 
 import { ensureApi } from './client'
-import {
-  ASSETHUB_GENESIS,
-  DOMAINS_SNAPSHOT_CID,
-  NETWORK,
-  SELF_DOTNS,
-  USERNAMES_SNAPSHOT_CID
-} from './config'
+import { ASSETHUB_GENESIS, DOMAINS_SNAPSHOT_CID, NETWORK, USERNAMES_SNAPSHOT_CID } from './config'
 
 const source: SnapshotServiceOptions = {
   // Both providers arrive asynchronously and can decline, which the service
@@ -33,7 +27,7 @@ const source: SnapshotServiceOptions = {
   // the bulk chain reads without adding meaningful load.
   pointer: {
     contentResolver: NETWORK.CONTENT_RESOLVER,
-    domain: SELF_DOTNS
+    domain: NETWORK.SNAPSHOT_POINTER_DOMAIN
   }
 }
 

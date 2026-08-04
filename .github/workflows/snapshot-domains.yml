@@ -24,12 +24,10 @@ jobs:
         network:
           - name: Paseo Next V2
             genesis: '0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f'
-            domain: '{0}-beta00.dot'
             # build.yml restores this via the `domains-snapshot-cid-` prefix.
             cache-prefix: domains-snapshot-cid
           - name: Previewnet
             genesis: '0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb'
-            domain: '{0}.dot'
             # deploy.yml restores this for the preview build via the
             # `previewnet-domains-snapshot-cid-` prefix.
             cache-prefix: previewnet-domains-snapshot-cid
@@ -49,7 +47,7 @@ jobs:
         working-directory: app
         env:
           MNEMONIC: ${{ secrets.MNEMONIC }}
-          APP_DOTNS_DOMAIN: ${{ format(matrix.network.domain, secrets.APP_DOTNS_DOMAIN) }}
+          APP_DOTNS_DOMAIN: ${{ secrets.APP_DOTNS_DOMAIN }}.dot
           NETWORK_GENESIS_HASH: ${{ matrix.network.genesis }}
         run: |
           # Capture the CID even on failure. The script prints it once the blocks

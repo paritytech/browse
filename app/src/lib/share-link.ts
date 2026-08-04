@@ -14,7 +14,7 @@ function isLocalhost(): boolean {
 
 /** Direct public URL that opens an app straight away, e.g. `https://calculator.paseo.li`. */
 export function appLink(label: string): string {
-  return `https://${label}.${NETWORK.primaryWebDomain}`
+  return `https://${label}.${NETWORK.PRIMARY_WEB_DOMAIN}`
 }
 
 /**
@@ -31,9 +31,9 @@ export function shareLink(label: string): string {
   const query = `?${APP_PARAM}=${encodeURIComponent(label)}`
   if (isLocalhost()) {
     const authority = window.location.port ? `localhost:${window.location.port}` : 'localhost'
-    return `https://${NETWORK.secondaryWebDomain}/${authority}${query}`
+    return `https://${NETWORK.SECONDARY_WEB_DOMAIN}/${authority}${query}`
   }
-  return `https://${SELF_LABEL}.${NETWORK.primaryWebDomain}${query}`
+  return `https://${SELF_LABEL}.${NETWORK.PRIMARY_WEB_DOMAIN}${query}`
 }
 
 /**

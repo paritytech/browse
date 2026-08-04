@@ -28,8 +28,17 @@ export interface NetworkConfig extends NetworkAddresses {
   SCHEMA_ID: readonly bigint[];
   COMPLIANCE_SCHEMA_ID: bigint;
   // Web domains
-  primaryWebDomain: string;
-  secondaryWebDomain: string;
+  PRIMARY_WEB_DOMAIN: string;
+  SECONDARY_WEB_DOMAIN: string;
+  // Autosuggest snapshots
+  /**
+   * Dotns name whose text records point at the current snapshots.
+   *
+   * One name per network, independent of where any client is deployed, so a
+   * preview or branch build reads the same records as production and a third
+   * party needs no build-time CID.
+   */
+  SNAPSHOT_POINTER_DOMAIN: string;
   // Network
   IPFS_GATEWAY: string;
   ASSETHUB_RPCS: readonly string[];
@@ -73,8 +82,9 @@ export const KNOWN_NETWORKS = {
     TRUSTED_ATTESTER_RESOLVER: "0x5abfc89934ee846d12629dfb5b22eecc59bbaed3",
     TRUSTED_ATTESTER: "0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20",
     IPFS_GATEWAY: "https://paseo-bulletin-next-ipfs.polkadot.io",
-    primaryWebDomain: "paseo.li",
-    secondaryWebDomain: "paseoli.dev",
+    PRIMARY_WEB_DOMAIN: "paseo.li",
+    SECONDARY_WEB_DOMAIN: "paseoli.dev",
+    SNAPSHOT_POINTER_DOMAIN: "browse.dot",
     SCHEMA_ID: [5n, 1n],
     COMPLIANCE_SCHEMA_ID: 6n,
     ASSETHUB_RPCS: ["wss://paseo-asset-hub-next-rpc.polkadot.io"],
@@ -108,8 +118,9 @@ export const KNOWN_NETWORKS = {
     TRUSTED_ATTESTER_RESOLVER: "0xdc713ebf1028544a00225c8741eb698253c49302",
     TRUSTED_ATTESTER: "0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20",
     IPFS_GATEWAY: "https://previewnet.substrate.dev",
-    primaryWebDomain: "testnet.li",
-    secondaryWebDomain: "testnet.li",
+    PRIMARY_WEB_DOMAIN: "testnet.li",
+    SECONDARY_WEB_DOMAIN: "testnet.li",
+    SNAPSHOT_POINTER_DOMAIN: "browse.dot",
     SCHEMA_ID: [6n, 1n],
     COMPLIANCE_SCHEMA_ID: 7n,
     ASSETHUB_RPCS: ["wss://previewnet.substrate.dev/asset-hub"],
@@ -135,8 +146,9 @@ export const KNOWN_NETWORKS = {
     ATTESTATION_INDEX_RESOLVER: ["0xa2ea4ab49bbe73f466f2fa0aeb50b39d34b55218"],
     TRUSTED_ATTESTER_RESOLVER: "0xde4a63079034230d71b5a5071571ed3fd95194e0",
     IPFS_GATEWAY: "https://summit-bulletin-rpc.polkadot.io",
-    primaryWebDomain: "dot.li",
-    secondaryWebDomain: "dot.li",
+    PRIMARY_WEB_DOMAIN: "dot.li",
+    SECONDARY_WEB_DOMAIN: "dot.li",
+    SNAPSHOT_POINTER_DOMAIN: "browse.dot",
     SCHEMA_ID: [1n],
     COMPLIANCE_SCHEMA_ID: 0n,
     ASSETHUB_RPCS: ["wss://summit-asset-hub-rpc.polkadot.io"],
