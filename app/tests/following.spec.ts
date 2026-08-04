@@ -15,7 +15,7 @@ import { seedPreimage } from './fixtures/seed-preimage'
 import { SNAPSHOT_USERNAME, USERNAME_SNAPSHOT_BLOCKS } from './fixtures/usernames-snapshot'
 import { getProductFrame, navigateToTestHost, startSignedHost } from './utils'
 
-// The seeded attestations are signed by the `smalltava.05 //wallet` identity
+// The seeded attestations are signed by the `smalltava.08 //wallet` identity
 // account that createAttestation derives through createProductSigner, so
 // following that account is what surfaces its recommendations.
 const IDENTITY_ADDRESS = createProductSigner().address

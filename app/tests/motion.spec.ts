@@ -217,7 +217,7 @@ test.describe('Motion', () => {
   test('Recommending an app bubbles when the network confirms', async ({ browser }) => {
     test.setTimeout(60000)
     await fundWithNative(createProductSigner().address)
-    await createRevokedAttestation('host-playground').catch(() => {})
+    await createRevokedAttestation('host-playground44').catch(() => {})
     const host = await startSignedHost({ name: identityUsername(), uri: identityUri() })
     const context = await browser.newContext({
       ignoreHTTPSErrors: true,
@@ -227,9 +227,9 @@ test.describe('Motion', () => {
 
     // Given
     await navigateToTestHost(page, host.url)
-    const frame = await getProductFrame(page, '.category-tab')
-    await frame.locator('.category-tab', { hasText: 'All' }).click()
-    const card = frame.locator('.product-card[data-label="host-playground"]')
+    const frame = await getProductFrame(page, '.search-bar__input')
+    await frame.locator('.search-bar__input').fill('host-playground44')
+    const card = frame.locator('.product-card[data-label="host-playground44"]')
     await expect(card).toBeVisible({ timeout: 15000 })
     const upvote = card.locator('.product-card__upvote')
 
@@ -237,8 +237,10 @@ test.describe('Motion', () => {
     await upvote.click()
 
     // Then
-    await expect(card.locator('.product-card__bubble').first()).toBeVisible({ timeout: 15000 })
-    await expect(frame.locator('.toast--visible')).toContainText('Recommended!', { timeout: 15000 })
+    await Promise.all([
+      expect(card.locator('.product-card__bubble').first()).toBeVisible({ timeout: 15000 }),
+      expect(frame.locator('.toast--visible')).toContainText('Recommended!', { timeout: 15000 })
+    ])
 
     // Linger in headed runs so the bubbling is watchable; no-op in CI.
     if (process.env.HEADED === '1') await frame.waitForTimeout(4000)

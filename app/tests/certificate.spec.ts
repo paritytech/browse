@@ -33,7 +33,7 @@ test.describe('Certificate', () => {
         calculator: {
           certificates: [
             {
-              resolver: '0xdc713ebf1028544a00225c8741eb698253c49302',
+              resolver: '0x956834cd15bf02d3d9bb427e86d7115f5b062927',
               attester: '0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20',
               name: CERTIFICATE_NAME,
               contentCid: null,

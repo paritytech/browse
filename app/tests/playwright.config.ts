@@ -15,6 +15,7 @@ export default defineConfig({
   globalTeardown: './global-teardown.ts',
   timeout: 10_000,
   retries: 0,
+  workers: 2,
   use: {
     browserName: 'chromium',
     headless: process.env.HEADED !== '1',
