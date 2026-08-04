@@ -24,7 +24,7 @@ function buildBindingMessage(resolver: `0x${string}`, account: `0x${string}`): U
 /**
  * Bind the `tag` product account to the connected identity, then attest `label`
  * as that account. This is the fixture twin of the app first recommendation, but
- * driven from Node: the identity key (`//wallet`, which owns smalltava.05 and
+ * driven from Node: the identity key (`//wallet`, which owns smalltava.08 and
  * holds the binding key) signs the binding message directly instead of going
  * through the host. Use it to seed an attestation from a freshly bound account so
  * a second product account of the same identity is then refused on the same app.

@@ -114,7 +114,7 @@ async function submitAsSudo(
 
 /**
  * Writes the username mapping, once per run via globalSetup. A no-op locally,
- * where the identity is the master that already owns `smalltava.05`, and when
+ * where the identity is the master that already owns `smalltava.08`, and when
  * the proxy secret is absent.
  */
 export async function createUsername(): Promise<void> {

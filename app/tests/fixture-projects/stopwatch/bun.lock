@@ -5,10 +5,10 @@
     "": {
       "name": "stopwatch",
       "dependencies": {
-        "@preact/preset-vite": "^2.10.5",
         "preact": "^10.29.1",
       },
       "devDependencies": {
+        "@preact/preset-vite": "^2.10.5",
         "typescript": "^5.4.0",
         "vite": "^6.0.0",
       },

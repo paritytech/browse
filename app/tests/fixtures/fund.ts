@@ -100,7 +100,7 @@ export function createDevSigner(name: string) {
 
 /**
  * The per-run identity the app attests with and that tests follow. Derived off
- * `smalltava.05` at a run-unique path so a stuck one-per-identity lock left by a
+ * `smalltava.08` at a run-unique path so a stuck one-per-identity lock left by a
  * dead account on one run never blocks another, and concurrent runs never
  * contend on the same identity. Funded and self-bound by {@link fundIdentity}.
  */
@@ -109,7 +109,7 @@ export function createProductSigner() {
 }
 
 /**
- * The shared master: `smalltava.05` `//wallet`, the ring member that can claim
+ * The shared master: `smalltava.08` `//wallet`, the ring member that can claim
  * PGAS from the personhood faucet. It funds every per-run identity and dev
  * account and is the sink reclaims recycle to. It only ever moves funds, never
  * attests, so concurrent runs sharing it hit only nonce contention, which the

@@ -20,7 +20,7 @@ function runId(): string | undefined {
 }
 
 /**
- * Derives the wallet path for the per-run identity, off `smalltava.05`. Each CI
+ * Derives the wallet path for the per-run identity, off `smalltava.08`. Each CI
  * run gets a unique identity so a dead account leaving a stuck one-per-identity
  * lock on one run never blocks another, and concurrent runs never contend on the
  * same identity. Locally it falls back to the bare wallet, where a single actor

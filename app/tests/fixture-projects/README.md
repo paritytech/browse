@@ -17,5 +17,6 @@ bulletin-deploy dist calculator.dot --env preview --publish
 ```
 
 The suite also expects `browse-beta00.dot` and `host-playground.dot`
-(published) and `host-playground44.dot` (registered but unpublished, as the
-search-only fixture); those deploy from their own repos.
+(published) plus `host-playground44.dot` and
+`browse-trusted-attester-resolver00.dot` (registered but unpublished, the
+search-only fixtures). Those deploy from their own repos.
