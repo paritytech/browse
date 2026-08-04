@@ -46,11 +46,13 @@ async function flushLabelBatch(
   identityH160: `0x${string}` | null,
   authorities: CertificateAuthority[],
   publishedNames: ReadonlySet<string>,
-  onProgress?: (apps: AppEntry[]) => void
+  onProgress?: (apps: AppEntry[]) => void,
+  signal?: AbortSignal
 ): Promise<void> {
   for (let i = 0; i < batch.length; i += HYDRATE_CHUNK_SIZE) {
+    signal?.throwIfAborted()
     const chunk = batch.slice(i, i + HYDRATE_CHUNK_SIZE)
-    const entries = await hydrateLabelChunk(chunk, identityH160, authorities)
+    const entries = await hydrateLabelChunk(chunk, identityH160, authorities, signal)
     // `published` is derived from the current Publisher set, not from hydration:
     // bookmarked labels are refreshed too but stay out of the All list.
     for (const entry of entries) {
@@ -60,9 +62,11 @@ async function flushLabelBatch(
 
     // Persist after the first chunk so cards-on-screen are durably backed
     // within seconds, not at the end of a long batch.
+    signal?.throwIfAborted()
     if (i === 0) await createOrUpdateLabels([...labels.values()])
   }
   // Final persist captures all labels resolved across remaining chunks.
+  signal?.throwIfAborted()
   await createOrUpdateLabels([...labels.values()])
 }
 
@@ -76,22 +80,27 @@ async function flushLabelBatch(
 export async function syncAllApps(
   cachedLabels: LabelEntry[],
   onProgress?: (apps: AppEntry[]) => void,
-  protectedLabels: ReadonlySet<string> = new Set()
+  protectedLabels: ReadonlySet<string> = new Set(),
+  signal?: AbortSignal
 ): Promise<AppEntry[]> {
+  signal?.throwIfAborted()
   const t0 = performance.now()
   hiddenLog(`Starting synchronization - cache holds ${cachedLabels.length} labels`)
   const labels = new Map(cachedLabels.map((entry) => [entry.label, entry]))
 
   let published: `0x${string}`[]
   try {
-    published = await readPublishedLabelhashes()
+    published = await readPublishedLabelhashes(signal)
+    signal?.throwIfAborted()
   } catch (err) {
+    if (signal?.aborted) signal.throwIfAborted()
     hiddenLog(`Failed to fetch published set: ${err}`, 'error')
     return materialize(labels)
   }
 
   // Resolve labelhashes to label strings (cache hit avoids the labelOf call).
-  const labelByHash = await resolveLabels(published, labels)
+  const labelByHash = await resolveLabels(published, labels, signal)
+  signal?.throwIfAborted()
   const publishedNames = new Set<string>(labelByHash.values())
 
   // Drop cached labels no longer in the published set, except bookmarked/followed
@@ -123,6 +132,7 @@ export async function syncAllApps(
 
   const toRefresh = [...staleLabels, ...newLabels]
   if (toRefresh.length > 0) {
+    signal?.throwIfAborted()
     const identityH160 = await resolveIdentityH160()
     // Hydrate certificates for every known authority, not only the enabled ones,
     // so a badge is already cached when its authority is enabled. Trust is a
@@ -136,7 +146,15 @@ export async function syncAllApps(
         `Hydrating ${newLabels.length} new label(s)${identityH160 ? ' (including your attestations)' : ''}`
       )
     }
-    await flushLabelBatch(labels, toRefresh, identityH160, authorities, publishedNames, onProgress)
+    await flushLabelBatch(
+      labels,
+      toRefresh,
+      identityH160,
+      authorities,
+      publishedNames,
+      onProgress,
+      signal
+    )
   }
 
   const apps = materialize(labels)

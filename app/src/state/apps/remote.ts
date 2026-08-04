@@ -108,31 +108,40 @@ export function labelhashOf(label: string): `0x${string}` {
  * callers should reduce by labelhash. Retries once with a 1s backoff. Empty
  * array when no Publisher is configured for the active network.
  */
-export async function readPublishedLabelhashes(): Promise<`0x${string}`[]> {
+export async function readPublishedLabelhashes(signal?: AbortSignal): Promise<`0x${string}`[]> {
   const publishers = publisherReadAddresses(NETWORK)
   if (publishers.length === 0) {
     hiddenLog('Publisher not deployed on this network; returning empty set', 'error')
     return []
   }
+  signal?.throwIfAborted()
   for (let attempt = 0; attempt < 2; attempt++) {
+    signal?.throwIfAborted()
     try {
-      return await readPublishedLabelhashesOnce(publishers)
+      return await readPublishedLabelhashesOnce(publishers, signal)
     } catch (err) {
       if (attempt === 1) throw err
       hiddenLog(`getPublished failed (attempt ${attempt + 1}/2): ${err}`, 'error')
       await sleep(1_000)
+      signal?.throwIfAborted()
     }
   }
   return []
 }
 
-async function readPublishedLabelhashesOnce(publishers: `0x${string}`[]): Promise<`0x${string}`[]> {
+async function readPublishedLabelhashesOnce(
+  publishers: `0x${string}`[],
+  signal?: AbortSignal
+): Promise<`0x${string}`[]> {
   const seen = new Set<string>()
   const all: `0x${string}`[] = []
   for (const publisher of publishers) {
+    signal?.throwIfAborted()
     let offset = 0n
     for (;;) {
+      signal?.throwIfAborted()
       const raw = await reviveCall(publisher, encodeGetPublished(offset, PUBLISHER_PAGE_LIMIT))
+      signal?.throwIfAborted()
       const page = decodeBytes32Array(raw)
       for (const labelhash of page) {
         if (seen.has(labelhash)) continue
@@ -154,8 +163,10 @@ async function readPublishedLabelhashesOnce(publishers: `0x${string}`[]): Promis
  */
 export async function resolveLabels(
   labelhashes: `0x${string}`[],
-  cached: ReadonlyMap<string, LabelEntry>
+  cached: ReadonlyMap<string, LabelEntry>,
+  signal?: AbortSignal
 ): Promise<Map<`0x${string}`, string>> {
+  signal?.throwIfAborted()
   const result = new Map<`0x${string}`, string>()
   const cachedByHash = new Map<`0x${string}`, string>()
   for (const entry of cached.values()) cachedByHash.set(labelhashOf(entry.label), entry.label)
@@ -175,7 +186,9 @@ export async function resolveLabels(
     target: NETWORK.REGISTRAR,
     callData: encodeLabelOf(labelhashToTokenId(lh))
   }))
-  const results = await multicall(calls)
+  signal?.throwIfAborted()
+  const results = await multicall(calls, undefined, signal)
+  signal?.throwIfAborted()
   for (let i = 0; i < toResolve.length; i++) {
     const name = tryDecode(results[i], decodeString)
     if (name) result.set(toResolve[i], name)
@@ -195,8 +208,10 @@ export async function resolveLabels(
 export async function hydrateLabelChunk(
   chunk: string[],
   identityH160: `0x${string}` | null,
-  authorities: CertificateAuthority[]
+  authorities: CertificateAuthority[],
+  signal?: AbortSignal
 ): Promise<LabelEntry[]> {
+  signal?.throwIfAborted()
   const chCalls: MulticallTarget[] = chunk.map((label) => ({
     target: NETWORK.CONTENT_RESOLVER,
     callData: encodeContenthash(namehash(`${label}.dot`))
@@ -204,7 +219,9 @@ export async function hydrateLabelChunk(
   hiddenLog(
     `Fetching content hashes: multicall(${NETWORK.MULTICALL3}, [contenthash×${chunk.length}])`
   )
-  const chResults = await multicall(chCalls)
+  signal?.throwIfAborted()
+  const chResults = await multicall(chCalls, undefined, signal)
+  signal?.throwIfAborted()
 
   const contentHashes: (string | null)[] = chunk.map((_, chunkIndex) =>
     tryDecode(chResults[chunkIndex], (data) => decodeIpfsContenthash(decodeBytes(data)))
@@ -255,7 +272,9 @@ export async function hydrateLabelChunk(
     hiddenLog(
       `Fetching metadata for ${liveIndexes.length} live labels: multicall(${NETWORK.MULTICALL3}, [${metaCalls.length} calls])`
     )
-    metaResults = await multicall(metaCalls)
+    signal?.throwIfAborted()
+    metaResults = await multicall(metaCalls, undefined, signal)
+    signal?.throwIfAborted()
   }
 
   // Publish time drives the freshness rank. A record for a label can live on any
@@ -271,7 +290,9 @@ export async function hydrateLabelChunk(
         pubCalls.push({ target: publisher, callData: encodePublicationOf(labelhash) })
       }
     }
-    const pubResults = await multicall(pubCalls)
+    signal?.throwIfAborted()
+    const pubResults = await multicall(pubCalls, undefined, signal)
+    signal?.throwIfAborted()
     let p = 0
     for (const chunkIndex of liveIndexes) {
       let latest: number | null = null

@@ -59,7 +59,8 @@ export function getAllAppsOptions(queryClient: QueryClient) {
   }
   return queryOptions<AppEntry[]>({
     queryKey: ALL_APPS_KEY,
-    queryFn: async () => {
+    queryFn: async ({ signal }) => {
+      signal.throwIfAborted()
       // Probe network reachability up front
       await ensureBrowseSdk()
       const cachedLabels = await readLabels()
@@ -71,8 +72,10 @@ export function getAllAppsOptions(queryClient: QueryClient) {
         (progressApps) => {
           queryClient.setQueryData<AppEntry[]>(ALL_APPS_KEY, (prev) => merge(prev, progressApps))
         },
-        protectedLabels
+        protectedLabels,
+        signal
       )
+      signal.throwIfAborted()
       // Sync has rewritten the labels DB.
       await queryClient.invalidateQueries({ queryKey: LABELS_KEY })
       return merge(queryClient.getQueryData<AppEntry[]>(ALL_APPS_KEY), finalApps)
