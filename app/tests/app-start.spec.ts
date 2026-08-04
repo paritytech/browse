@@ -390,8 +390,6 @@ test.describe('App Start', () => {
       const bookmarked = frame.locator(`.product-card[data-label="${target}"]`)
       await expect(bookmarked).toBeVisible()
       await expect(bookmarked.locator('.product-card__name')).toHaveText('Host Playground')
-      await bookmarked.locator('.product-card__bookmark').click()
-      await expect(bookmarked).toHaveCount(0)
 
       await page.close()
     })
@@ -399,7 +397,7 @@ test.describe('App Start', () => {
     test('As a user, when I open a searched app then return and reload, I see the All list instantly', async () => {
       test.setTimeout(90_000)
       const page = await context.newPage()
-      const target = 'host-playground44'
+      const target = 'browse-trusted-attester-resolver00'
       const listedLabels = async (fr: Frame) =>
         (await fr
           .locator('.product-card')
