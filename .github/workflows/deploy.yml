@@ -214,7 +214,7 @@ jobs:
       - name: Install bulletin-deploy
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
-          npm install -g bulletin-deploy@0.10.1-dev.0
+          npm install -g bulletin-deploy@0.14.1
           mkdir -p app/node_modules
           ln -sfn "$(npm root -g)/bulletin-deploy" app/node_modules/bulletin-deploy
 
