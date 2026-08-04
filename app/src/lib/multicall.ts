@@ -19,12 +19,15 @@ const MULTICALL_CHUNK_SIZE = 30
  */
 export async function multicall(
   calls: MulticallTarget[],
-  api?: PaseoHubApi
+  api?: PaseoHubApi,
+  signal?: AbortSignal
 ): Promise<AggregateResult[]> {
   const out: AggregateResult[] = []
+  signal?.throwIfAborted()
   for (let i = 0; i < calls.length; i += MULTICALL_CHUNK_SIZE) {
     const batch = calls.slice(i, i + MULTICALL_CHUNK_SIZE)
     const returnData = await reviveCall(NETWORK.MULTICALL3, encodeAggregate3(batch), undefined, api)
+    signal?.throwIfAborted()
     out.push(...decodeAggregate3Result(returnData))
   }
   return out

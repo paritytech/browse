@@ -1,5 +1,5 @@
 import { ss58ToEthereum } from '@polkadot-api/sdk-ink'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { type QueryClient, useMutation, useQueryClient } from '@tanstack/react-query'
 import { AccountId, type SS58String } from 'polkadot-api'
 
 import { type LabelEntry, updateAttestationCount } from '../../db/labels'
@@ -53,7 +53,7 @@ type MutationCtx = {
   resolved: AppEntry | null | undefined
 }
 
-function snapshot(queryClient: ReturnType<typeof useQueryClient>, label: string): MutationCtx {
+function snapshot(queryClient: QueryClient, label: string): MutationCtx {
   return {
     all: queryClient.getQueryData<AppEntry[]>(ALL_KEY),
     attestation: queryClient.getQueryData<AttestationQueryData>(attestationKey(label)),
@@ -61,12 +61,18 @@ function snapshot(queryClient: ReturnType<typeof useQueryClient>, label: string)
     resolved: queryClient.getQueryData<AppEntry | null>(resolveLabelKey(label))
   }
 }
+async function cancelSyncAndSnapshot(
+  queryClient: QueryClient,
+  label: string
+): Promise<MutationCtx> {
+  // A full Publisher refresh can occupy the light-client contract-read path for
+  // minutes. Abort it before a user-initiated write so Recommend/Revoke cannot
+  // sit behind background catalogue hydration.
+  await queryClient.cancelQueries({ queryKey: ALL_KEY, exact: true })
+  return snapshot(queryClient, label)
+}
 
-function rollback(
-  queryClient: ReturnType<typeof useQueryClient>,
-  label: string,
-  ctx: MutationCtx
-): void {
+function rollback(queryClient: QueryClient, label: string, ctx: MutationCtx): void {
   if (ctx.all !== undefined) queryClient.setQueryData(ALL_KEY, ctx.all)
   if (ctx.attestation !== undefined)
     queryClient.setQueryData(attestationKey(label), ctx.attestation)
@@ -76,7 +82,7 @@ function rollback(
 
 /** Optimistically patch the resolved-search-result cache for one label. */
 function patchResolved(
-  queryClient: ReturnType<typeof useQueryClient>,
+  queryClient: QueryClient,
   label: string,
   patch: (app: AppEntry) => AppEntry
 ): void {
@@ -87,7 +93,7 @@ function patchResolved(
 
 /** Optimistically patch the labels-DB query cache for one label. */
 function patchLabels(
-  queryClient: ReturnType<typeof useQueryClient>,
+  queryClient: QueryClient,
   label: string,
   delta: 1 | -1,
   hasUserAttested: boolean
@@ -112,11 +118,7 @@ function patchLabels(
  * Matches every `['attestations', 'mine']` query so the recommend button toggles
  * at once instead of waiting for the enumeration to refetch.
  */
-function patchMine(
-  queryClient: ReturnType<typeof useQueryClient>,
-  label: string,
-  add: boolean
-): void {
+function patchMine(queryClient: QueryClient, label: string, add: boolean): void {
   queryClient.setQueriesData<Set<string>>({ queryKey: ['attestations', 'mine'] }, (prev) => {
     if (!prev) return prev
     const next = new Set(prev)
@@ -247,7 +249,7 @@ export async function getAttestationId(label: string): Promise<bigint | null> {
 export function useAttestProduct() {
   const queryClient = useQueryClient()
   return useMutation<unknown, Error, { label: string; onBroadcast?: () => void }, MutationCtx>({
-    onMutate: ({ label }) => snapshot(queryClient, label),
+    onMutate: ({ label }) => cancelSyncAndSnapshot(queryClient, label),
     mutationFn: ({ label, onBroadcast }) =>
       attestLabel(label, () => {
         queryClient.setQueryData<AppEntry[]>(ALL_KEY, (prev) => updateApp(prev, label, attestPatch))
@@ -274,7 +276,7 @@ export function useAttestProduct() {
 export function useRevokeApp() {
   const queryClient = useQueryClient()
   return useMutation<unknown, Error, { label: string; onBroadcast?: () => void }, MutationCtx>({
-    onMutate: ({ label }) => snapshot(queryClient, label),
+    onMutate: ({ label }) => cancelSyncAndSnapshot(queryClient, label),
     mutationFn: ({ label, onBroadcast }) =>
       revokeLabel(label, () => {
         queryClient.setQueryData<AppEntry[]>(ALL_KEY, (prev) => updateApp(prev, label, revokePatch))
