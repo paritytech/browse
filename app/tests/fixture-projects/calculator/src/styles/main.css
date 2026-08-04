@@ -1,0 +1,365 @@
+:root {
+  /* Backgrounds */
+  --color-bg: #050505;
+  --color-surface: #0e0e0e;
+  --color-surface-deep: #080808;
+
+  /* Borders */
+  --color-border: #252525;
+  --color-border-subtle: #1a1a1a;
+
+  /* Text */
+  --color-heading: #ffffff;
+  --color-text: #d0d0d0;
+  --color-secondary: #777777;
+  --color-tertiary: #555555;
+  --color-muted: #444444;
+
+  /* Accent */
+  --color-accent: #ffffff;
+  --color-accent-glow: rgba(255, 255, 255, 0.18);
+  --color-accent-bg: rgba(255, 255, 255, 0.07);
+
+  /* Typography */
+  --font-heading: 'DM Serif Display', Georgia, serif;
+  --font-body: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', ui-monospace, monospace;
+
+  /* Radius */
+  --radius-card: 12px;
+  --radius-btn: 14px;
+  --radius-pill: 20px;
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-med: 250ms ease;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--color-bg);
+  color: var(--color-heading);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-image: radial-gradient(
+    ellipse 500px 350px at 50% 15%,
+    rgba(255, 255, 255, 0.025) 0%,
+    transparent 100%
+  );
+}
+
+#app {
+  display: contents;
+}
+
+.calculator {
+  width: 100%;
+  max-width: 380px;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  padding: env(safe-area-inset-top) 12px env(safe-area-inset-bottom) 12px;
+  animation: fadeUp 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Display ───────────────────────────────── */
+
+.display {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-end;
+  padding: 20px 16px 16px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.expression {
+  font-family: var(--font-body);
+  font-size: 1rem;
+  font-weight: 400;
+  color: var(--color-secondary);
+  min-height: 1.4rem;
+  word-break: break-all;
+  text-align: right;
+  letter-spacing: 0.02em;
+  transition: color var(--transition-fast);
+}
+
+.result {
+  font-family: var(--font-heading);
+  font-size: 3.8rem;
+  font-weight: 400;
+  line-height: 1.1;
+  word-break: break-all;
+  text-align: right;
+  letter-spacing: -0.01em;
+  color: var(--color-heading);
+  transition: font-size var(--transition-fast);
+}
+
+.result.shrink {
+  font-size: 2.4rem;
+}
+
+.result.error {
+  color: #ff6b6b;
+  font-size: 2.8rem;
+}
+
+/* ── Button Grid ───────────────────────────── */
+
+.buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  padding: 8px 0 20px;
+}
+
+button {
+  aspect-ratio: 1;
+  border: none;
+  border-radius: var(--radius-btn);
+  font-family: var(--font-body);
+  font-size: 1.35rem;
+  font-weight: 400;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast),
+    transform 80ms ease,
+    box-shadow var(--transition-med);
+  position: relative;
+  overflow: hidden;
+}
+
+button:active {
+  transform: scale(0.94);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* ── Number Buttons ──────────────────────── */
+
+.btn-number {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--color-text);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.btn-number:hover {
+  background: rgba(255, 255, 255, 0.11);
+  color: var(--color-heading);
+}
+
+.btn-number:active {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* ── Operator Buttons ────────────────────── */
+
+.btn-op {
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--color-heading);
+  border: 1px solid var(--color-border);
+  font-size: 1.5rem;
+}
+
+.btn-op:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.btn-op.active {
+  background: var(--color-heading);
+  color: var(--color-bg);
+  border-color: var(--color-heading);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
+}
+
+.btn-equals {
+  background: var(--color-heading);
+  color: var(--color-bg);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  font-weight: 500;
+}
+
+.btn-equals:hover {
+  box-shadow: 0 0 24px rgba(255, 255, 255, 0.15);
+}
+
+.btn-equals:active {
+  background: #e0e0e0;
+}
+
+/* ── Function Buttons ────────────────────── */
+
+.btn-func {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-secondary);
+  border: 1px solid var(--color-border-subtle);
+  font-size: 1.05rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.btn-func:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-text);
+  border-color: var(--color-border);
+}
+
+.btn-func:active {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+/* ── Zero Button ─────────────────────────── */
+
+.btn-zero {
+  border-radius: var(--radius-pill);
+  aspect-ratio: auto;
+  grid-column: span 2;
+  justify-content: flex-start;
+  padding-left: 26px;
+}
+
+/* ── Stagger Animation ───────────────────── */
+
+.buttons button {
+  opacity: 0;
+  animation: btnIn 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes btnIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.buttons button:nth-child(1) {
+  animation-delay: 60ms;
+}
+.buttons button:nth-child(2) {
+  animation-delay: 80ms;
+}
+.buttons button:nth-child(3) {
+  animation-delay: 100ms;
+}
+.buttons button:nth-child(4) {
+  animation-delay: 120ms;
+}
+.buttons button:nth-child(5) {
+  animation-delay: 140ms;
+}
+.buttons button:nth-child(6) {
+  animation-delay: 160ms;
+}
+.buttons button:nth-child(7) {
+  animation-delay: 180ms;
+}
+.buttons button:nth-child(8) {
+  animation-delay: 200ms;
+}
+.buttons button:nth-child(9) {
+  animation-delay: 220ms;
+}
+.buttons button:nth-child(10) {
+  animation-delay: 240ms;
+}
+.buttons button:nth-child(11) {
+  animation-delay: 260ms;
+}
+.buttons button:nth-child(12) {
+  animation-delay: 280ms;
+}
+.buttons button:nth-child(13) {
+  animation-delay: 300ms;
+}
+.buttons button:nth-child(14) {
+  animation-delay: 320ms;
+}
+.buttons button:nth-child(15) {
+  animation-delay: 340ms;
+}
+.buttons button:nth-child(16) {
+  animation-delay: 360ms;
+}
+.buttons button:nth-child(17) {
+  animation-delay: 380ms;
+}
+.buttons button:nth-child(18) {
+  animation-delay: 400ms;
+}
+.buttons button:nth-child(19) {
+  animation-delay: 420ms;
+}
+
+/* ── Responsive ──────────────────────────── */
+
+@media (min-width: 420px) {
+  .buttons {
+    gap: 12px;
+  }
+  button {
+    border-radius: 16px;
+  }
+  .btn-zero {
+    border-radius: 24px;
+  }
+}
+
+@media (max-width: 360px) {
+  .result {
+    font-size: 3rem;
+  }
+  .result.shrink {
+    font-size: 2rem;
+  }
+  button {
+    font-size: 1.2rem;
+  }
+  .btn-op {
+    font-size: 1.3rem;
+  }
+  .btn-func {
+    font-size: 0.95rem;
+  }
+}

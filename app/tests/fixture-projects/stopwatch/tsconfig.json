@@ -15,12 +15,7 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "jsx": "react-jsx",
-    "jsxImportSource": "preact",
-    "paths": {
-      "@parity/browse-sdk": ["../packages/browse-sdk/src/index.ts"],
-      "@parity/browse-sdk/snapshots": ["../packages/browse-sdk/src/snapshots.ts"]
-    }
+    "jsxImportSource": "preact"
   },
-  "include": ["src", "tests", "scripts"],
-  "exclude": ["src/**/*.test.ts", "tests/fixture-projects"]
+  "include": ["src"]
 }
