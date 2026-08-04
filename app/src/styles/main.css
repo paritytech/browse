@@ -298,23 +298,6 @@ input {
   color: var(--color-heading);
 }
 
-.empty-state__btn {
-  margin-top: 4px;
-  padding: 8px 20px;
-  background: var(--surface-4);
-  border: none;
-  border-radius: 10px;
-  color: var(--color-heading);
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 150ms ease;
-}
-
-.empty-state__btn:hover {
-  background: var(--surface-6);
-}
-
 .loading-dots {
   display: none;
   justify-content: center;
@@ -600,19 +583,8 @@ input {
   color: var(--color-heading);
 }
 
-.customize-nav-row__count {
-  min-width: 24px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--surface-3);
-  color: var(--fg-secondary);
-  font-size: 14px;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-
 /* The current sort shown on the right of the Order by menu row, mirroring the
-   Following count and the Badges stack. */
+   Badges stack. */
 .customize-nav-row__value {
   color: var(--fg-secondary);
   font-size: 14px;
@@ -620,7 +592,7 @@ input {
 
 /* The drilled Order by view: one selectable row per sort, each with a short
    description of what it does and a check on the active one. Mirrors the
-   Following and Badges managers. */
+   Badges manager. */
 .order-panel {
   display: flex;
   flex-direction: column;

@@ -66,44 +66,23 @@ test.describe('Following', () => {
 
     // Then
     await expect(frame.locator('.empty-state')).toBeVisible()
-    await expect(frame.locator('.empty-state__btn')).toBeVisible()
+    await expect(frame.locator('.following-panel__input')).toBeVisible()
 
     // When
-    await frame.locator('.empty-state__btn').click()
-
-    // Then
-    await expect(frame.locator('.customize-popover')).toBeVisible()
-
-    // When
-    await frame.locator('.following-modal__input').click()
-    await page.setViewportSize({ width: 1280, height: 420 })
-    await frame.waitForTimeout(500)
-
-    // Then
-    await expect(frame.locator('.following-modal__input')).toBeVisible()
-
-    // When
-    await page.setViewportSize({ width: 1280, height: 720 })
-    const input = frame.locator('.following-modal__input')
+    const input = frame.locator('.following-panel__input')
     await input.fill('zzauto')
 
     // Then
     await expect(
-      frame.locator('.following-modal__option', { hasText: SNAPSHOT_USERNAME })
+      frame.locator('.following-panel__option', { hasText: SNAPSHOT_USERNAME })
     ).toBeVisible({ timeout: 15_000 })
 
     // When
     await input.fill(IDENTITY_ADDRESS)
-    await frame.locator('.following-modal__option').click()
+    await frame.locator('.following-panel__option').click()
 
     // Then
-    await expect(frame.locator('.following-modal__row')).toHaveCount(1)
-
-    // When
-    await frame.locator('.customize-drill__icon[aria-label="Close"]').click()
-
-    // Then
-    await expect(frame.locator('.customize-popover')).toHaveCount(0)
+    await expect(frame.locator('.following-panel__chip')).toHaveCount(1)
     await expect(frame.locator(CARD).first()).toBeVisible({ timeout: 15_000 })
     const cards = frame.locator(CARD)
     expect(await cards.count()).toBeGreaterThan(0)
@@ -147,11 +126,8 @@ test.describe('Following', () => {
     // When
     await frame.locator('.category-tab', { hasText: 'Following' }).click()
     await frame.waitForTimeout(300)
-    await frame.locator('.empty-state__btn').click()
-    await expect(frame.locator('.customize-popover')).toBeVisible()
-    await frame.locator('.following-modal__input').fill(IDENTITY_ADDRESS)
-    await frame.locator('.following-modal__option').click()
-    await frame.locator('.customize-drill__icon[aria-label="Close"]').click()
+    await frame.locator('.following-panel__input').fill(IDENTITY_ADDRESS)
+    await frame.locator('.following-panel__option').click()
 
     // Then
     await expect(frame.locator(CARD).first()).toBeVisible({ timeout: 20_000 })

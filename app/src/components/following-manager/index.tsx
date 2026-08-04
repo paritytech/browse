@@ -19,12 +19,8 @@ function isValidSS58(addr: string): boolean {
 
 interface FollowingManagerProps {
   following: FollowedAccount[]
-  visible: boolean
   onAdd: (address: string, username?: string) => void
   onRemove: (address: string) => void
-  onDismiss: () => void
-  /** Render just the body, for embedding inside the settings modal tab. */
-  embedded?: boolean
 }
 
 function truncateAddress(addr: string): string {
@@ -35,14 +31,12 @@ function accountLabel(account: FollowedAccount): string {
   return account.username ? `@${account.username}` : truncateAddress(account.address)
 }
 
-export function FollowingManager({
-  following,
-  visible,
-  onAdd,
-  onRemove,
-  onDismiss,
-  embedded = false
-}: FollowingManagerProps) {
+/**
+ * The follow panel inlined under the category tabs on the Following tab: an
+ * @username input with snapshot autocomplete, and the accounts already
+ * followed as removable chips while the input is empty.
+ */
+export function FollowingManager({ following, onAdd, onRemove }: FollowingManagerProps) {
   const [input, setInput] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -60,20 +54,6 @@ export function FollowingManager({
     const id = setTimeout(() => setSuggestionPrefix(query), 150)
     return () => clearTimeout(id)
   }, [query])
-
-  // Reset when the modal closes, not when it opens: clearing on open races with
-  // someone typing right after it becomes visible and would wipe the field.
-  useEffect(() => {
-    if (!visible) {
-      setInput('')
-      return
-    }
-    // Drop the caret into the field once the open transition starts.
-    // `preventScroll` stops the browser scrolling an ancestor to reveal the
-    // input, which would shift the customize popover slide track sideways.
-    const id = setTimeout(() => inputRef.current?.focus({ preventScroll: true }), 50)
-    return () => clearTimeout(id)
-  }, [visible])
 
   // Prefix autocomplete from the verifiable username snapshot, mirroring the
   // domain search bar. A raw SS58 paste is handled directly below instead.
@@ -95,61 +75,60 @@ export function FollowingManager({
   }
 
   // A raw SS58 paste follows directly. A username prefix only resolves once it
-  // reaches the snapshot shard-key length, so shorter input shows the list.
+  // reaches the snapshot shard-key length, so shorter input shows the chips.
   const showResults = ss58 || query.length >= MIN_PREFIX_LENGTH
 
-  const body = (
-    <div class='following-modal__body'>
-      <div class='following-modal__input-row'>
-        <div class='following-modal__field'>
-          <span class='following-modal__at'>@</span>
-          <input
-            ref={inputRef}
-            class='following-modal__input'
-            type='text'
-            autocomplete='off'
-            spellcheck={false}
-            enterkeyhint='done'
-            placeholder='username'
-            value={input}
-            onInput={(e) => setInput((e.target as HTMLInputElement).value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                // Done typing, and nothing more. Return used to follow the first
-                // result, which arrives asynchronously, so pressing it early
-                // followed whoever happened to be there. Choosing an account is a
-                // choice, so it takes a tap. Blurring is what puts a phone
-                // keyboard away.
-                e.preventDefault()
-                e.currentTarget.blur()
-              } else if (e.key === 'Backspace' && input === '' && following.length > 0) {
-                // Pull the last-followed username back into the field so it can
-                // be edited rather than dropped outright.
-                const last = following[following.length - 1]
-                onRemove(last.address)
-                setInput(last.username ?? last.address)
-              } else if (e.key === 'Escape') {
-                onDismiss()
-              }
-            }}
-          />
-        </div>
+  return (
+    <div class='following-panel'>
+      <div class='following-panel__field'>
+        <span class='following-panel__at'>@</span>
+        <input
+          ref={inputRef}
+          class='following-panel__input'
+          type='text'
+          autocomplete='off'
+          spellcheck={false}
+          enterkeyhint='done'
+          placeholder='username'
+          value={input}
+          onInput={(e) => setInput((e.target as HTMLInputElement).value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              // Done typing, and nothing more. Return used to follow the first
+              // result, which arrives asynchronously, so pressing it early
+              // followed whoever happened to be there. Choosing an account is a
+              // choice, so it takes a tap. Blurring is what puts a phone
+              // keyboard away.
+              e.preventDefault()
+              e.currentTarget.blur()
+            } else if (e.key === 'Backspace' && input === '' && following.length > 0) {
+              // Pull the last-followed username back into the field so it can
+              // be edited rather than dropped outright.
+              const last = following[following.length - 1]
+              onRemove(last.address)
+              setInput(last.username ?? last.address)
+            } else if (e.key === 'Escape') {
+              setInput('')
+              e.currentTarget.blur()
+            }
+          }}
+        />
       </div>
 
       {showResults ? (
-        <div class='following-modal__results'>
+        <div class='following-panel__results'>
           {ss58 ? (
             isFollowing(trimmed) ? (
-              <p class='following-modal__state'>You already follow this address</p>
+              <p class='following-panel__state'>You already follow this address</p>
             ) : (
-              <button type='button' class='following-modal__option' onClick={() => follow(trimmed)}>
+              <button type='button' class='following-panel__option' onClick={() => follow(trimmed)}>
                 <span
-                  class='following-modal__avatar'
+                  class='following-panel__avatar'
                   style={{ backgroundColor: avatarBg(trimmed) }}
                 >
                   {trimmed.charAt(0).toUpperCase()}
                 </span>
-                <span class='following-modal__row-label'>{truncateAddress(trimmed)}</span>
+                <span class='following-panel__row-label'>{truncateAddress(trimmed)}</span>
               </button>
             )
           ) : results.length > 0 ? (
@@ -157,67 +136,49 @@ export function FollowingManager({
               <button
                 key={entry.account}
                 type='button'
-                class='following-modal__option'
+                class='following-panel__option'
                 onClick={() => follow(entry.account, entry.username)}
               >
                 <span
-                  class='following-modal__avatar'
+                  class='following-panel__avatar'
                   style={{ backgroundColor: avatarBg(entry.username) }}
                 >
                   {entry.username.charAt(0).toUpperCase()}
                 </span>
-                <span class='following-modal__row-label'>{entry.username}</span>
+                <span class='following-panel__row-label'>{entry.username}</span>
               </button>
             ))
           ) : searching ? (
-            <p class='following-modal__state'>Searching…</p>
+            <p class='following-panel__state'>Searching…</p>
           ) : (
-            <p class='following-modal__state'>No results for “{query}”</p>
+            <p class='following-panel__state'>No results for “{query}”</p>
           )}
         </div>
       ) : (
         following.length > 0 && (
-          <div class='following-modal__following'>
+          <div class='following-panel__chips'>
             {following.map((account) => (
-              <div key={account.address} class='following-modal__row'>
+              <span key={account.address} class='following-panel__chip'>
                 <span
-                  class='following-modal__avatar'
+                  class='following-panel__chip-avatar'
                   style={{ backgroundColor: avatarBg(account.username ?? account.address) }}
                 >
                   {(account.username ?? account.address).charAt(0).toUpperCase()}
                 </span>
-                <span class='following-modal__row-label'>{accountLabel(account)}</span>
+                <span class='following-panel__chip-label'>{accountLabel(account)}</span>
                 <button
                   type='button'
-                  class='following-modal__unfollow'
+                  class='following-panel__chip-remove'
+                  aria-label={`Unfollow ${accountLabel(account)}`}
                   onClick={() => onRemove(account.address)}
                 >
-                  Unfollow
+                  <X size={14} />
                 </button>
-              </div>
+              </span>
             ))}
           </div>
         )
       )}
-    </div>
-  )
-
-  if (embedded) return body
-
-  return (
-    <div
-      class={`following-modal-overlay${visible ? ' following-modal-overlay--visible' : ''}`}
-      onClick={onDismiss}
-    >
-      <div class='following-modal' onClick={(e) => e.stopPropagation()}>
-        <div class='following-modal__header'>
-          <span class='following-modal__title'>Following</span>
-          <button class='following-modal__close' onClick={onDismiss} aria-label='Close'>
-            <X size={22} />
-          </button>
-        </div>
-        {body}
-      </div>
     </div>
   )
 }
