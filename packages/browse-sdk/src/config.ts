@@ -30,14 +30,7 @@ export interface NetworkConfig extends NetworkAddresses {
   // Web domains
   PRIMARY_WEB_DOMAIN: string;
   SECONDARY_WEB_DOMAIN: string;
-  // Autosuggest snapshots
-  /**
-   * Dotns name whose text records point at the current snapshots.
-   *
-   * One name per network, independent of where any client is deployed, so a
-   * preview or branch build reads the same records as production and a third
-   * party needs no build-time CID.
-   */
+  // Snapshots
   SNAPSHOT_POINTER_DOMAIN: string;
   // Network
   IPFS_GATEWAY: string;
