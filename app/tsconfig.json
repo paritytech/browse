@@ -22,5 +22,5 @@
     }
   },
   "include": ["src", "tests", "scripts"],
-  "exclude": ["src/**/*.test.ts", "tests/fixture-projects"]
+  "exclude": ["src/**/*.test.ts"]
 }

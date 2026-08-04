@@ -12,6 +12,7 @@ Bun workspace monorepo (`workspaces: ["app", "packages/*"]`, `packageManager: bu
 | `packages/browse-sdk/` | `@parity/browse-sdk`. Network truth: genesis constants, contract addresses, RPCs, and schema IDs per network, in `src/config.ts`. Vite-aliased to its `src`. |
 | `packages/snapshots/` | `@parity/browse-snapshots`. Domain and username prefix autocomplete: the snapshot format, the client reader, and the crawler and publisher behind the `./crawl` and `./publish` subpaths. Depends on browse-sdk. Vite-aliased to its `src`. |
 | `evm/` | Solidity (Foundry and Hardhat): the Publisher registry and attestation-index resolvers. Uses its own npm lockfile, not bun. OpenZeppelin is a submodule under `evm/lib/`. |
+| `mock-apps/` | The `calculator` and `stopwatch` apps the E2E suite expects deployed on the network. Standalone Vite projects with their own lockfiles, outside the workspace. See `mock-apps/README.md` to redeploy them. |
 | `docs/` | Design docs: `one-deployment.md`, `publishing-registry.md`, `ranking-algorithm.md`, `local-storage.md`. |
 | `scripts/deploy.ts` | Root deploy pipeline (see the `deploy` skill). |
 

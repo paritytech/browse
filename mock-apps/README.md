@@ -1,13 +1,13 @@
-# E2E fixture projects
+# Mock apps
 
 The standalone apps the e2e suite expects to find deployed on the network:
 `calculator.dot` and `stopwatch.dot`. They are versioned here so a network
 reset never depends on a local checkout to rebuild the fixture world.
 
-Each project is a self-contained Vite app, deliberately outside the bun
-workspace and excluded from the app typecheck sweep. Its
-`bulletin-deploy.config.ts` pins the domain and display name the tests assert
-on, so deploy from the project directory without overriding either:
+Each project is a self-contained Vite app with its own lockfile, deliberately
+outside the bun workspace. Its `bulletin-deploy.config.ts` pins the domain and
+display name the tests assert on, so deploy from the project directory without
+overriding either:
 
 ```bash
 cd calculator   # or stopwatch
