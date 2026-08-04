@@ -59,7 +59,7 @@
         "prettier": "^3.8.1",
         "typescript": "^5.4.0",
         "typescript-eslint": "^8.58.0",
-        "verifiablejs": "1.3.0",
+        "verifiablejs": "1.5.0",
         "vite": "^6.0.0",
         "vite-plugin-node-polyfills": "^0.25.0",
         "ws": "^8.20.0",
@@ -1281,7 +1281,7 @@
 
     "validate-npm-package-license": ["validate-npm-package-license@3.0.4", "", { "dependencies": { "spdx-correct": "^3.0.0", "spdx-expression-parse": "^3.0.0" } }, "sha512-DpKm2Ui/xN7/HQKCtpZxoRWBhZ9Z0kqtygG8XCgNQ8ZlDnxuQmWhj566j8fN4Cu3/JmbhsDo7fcAJq4s9h27Ew=="],
 
-    "verifiablejs": ["verifiablejs@1.3.0", "", {}, "sha512-krSKBgngqU4pHYsxnpNLvLAseI7Yn8ONw1ONp/i/CRZbRAAHw/0PIET7VAcGpgrMK/1hXmtPR4Zg1tjn/Mq7aA=="],
+    "verifiablejs": ["verifiablejs@1.5.0", "", {}, "sha512-QMoTn7ARoTIKzOTjfHQzUjw4Cg9szeNzbHWF/R8umvzu8JowyaIvxvSMtYZ8940wxchbqjxNSTmN9q/5qFTDjA=="],
 
     "viem": ["viem@2.55.10", "", { "dependencies": { "@noble/curves": "1.9.1", "@noble/hashes": "1.8.0", "@scure/bip32": "1.7.0", "@scure/bip39": "1.6.0", "abitype": "1.2.3", "isows": "1.0.7", "ox": "0.14.33", "ws": "8.21.0" }, "peerDependencies": { "typescript": ">=5.0.4" }, "optionalPeers": ["typescript"] }, "sha512-Q9Ba+/ma81U2M5o5P2AQ7Ux8rTIwmCZvUcr8rKdQ22bV0IBFHllM2m5gWDP8hFaUN2nH2oW3QG44amRazflYNQ=="],
 

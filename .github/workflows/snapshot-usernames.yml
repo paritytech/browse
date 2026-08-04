@@ -27,7 +27,7 @@ jobs:
             # build.yml restores this via the `usernames-snapshot-cid-` prefix.
             cache-prefix: usernames-snapshot-cid
           - name: Previewnet
-            genesis: '0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb'
+            genesis: '0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210'
             # deploy.yml restores this for the preview build via the
             # `previewnet-usernames-snapshot-cid-` prefix.
             cache-prefix: previewnet-usernames-snapshot-cid

@@ -1,15 +1,15 @@
 {
   "publisher": {
     "previewnet": {
-      "address": "0xcea6551761b9ea035b1f2be5cddd9dd85148437d",
+      "address": "0x5a3c111278ec98f327466c9ab7a5e0e0f5047acc",
       "version": "2.1.0",
-      "registrar": "0x061273AeF34e8ab9Ca08E199d7440E2639Fc2088",
+      "registrar": "0x4f06E818Ba3d987704fd91cf3d868E4b019106Ab",
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
       "network": "previewnet-asset-hub",
-      "genesisHash": "0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb",
+      "genesisHash": "0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210",
       "substrateRpc": "wss://previewnet.substrate.dev/asset-hub",
       "ethRpc": "https://previewnet.substrate.dev/eth-rpc",
-      "deployedAt": "2026-06-05T13:45:21Z"
+      "deployedAt": "2026-08-03T21:00:00Z"
     },
     "paseo-asset-hub-next-v2": {
       "address": "0x0d30645f1d2c7dfa11926190e456a45db440581f",
@@ -24,15 +24,15 @@
   },
   "trustedAttesterIndexResolver": {
     "previewnet": {
-      "address": "0xdc713ebf1028544a00225c8741eb698253c49302",
-      "attestationService": "0x24af868f14605460f6385aae166986cee9800514",
+      "address": "0x956834cd15bf02d3d9bb427e86d7115f5b062927",
+      "attestationService": "0xb6493705c8280e2200ed799e1b47040fa8753d05",
       "trustedAttester": "0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20",
       "schema": "bool compliant,string contentCid,string badgeIconCid,string name",
-      "schemaId": 7,
+      "schemaId": 2,
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
       "network": "previewnet-asset-hub",
-      "genesisHash": "0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb",
-      "deployedAt": "2026-06-08T14:35:14Z"
+      "genesisHash": "0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210",
+      "deployedAt": "2026-08-03T21:00:00Z"
     },
     "paseo-asset-hub-next-v2": {
       "address": "0x5abfc89934ee846d12629dfb5b22eecc59bbaed3",
@@ -48,17 +48,17 @@
   },
   "recipientAndAttesterIndexResolver": {
     "previewnet": {
-      "address": "0x3b34b05eb4b761bbc7f284f90bb4f9bbafd16570",
-      "previousAddress": "0x2870c80ce3a18e1f1ffb9da2747347036355bd9a",
-      "attestationService": "0x24af868f14605460f6385aae166986cee9800514",
+      "address": "0x1563d8f5beab796529d1135d1600a3e75476a1da",
+      "previousAddress": "0x3b34b05eb4b761bbc7f284f90bb4f9bbafd16570",
+      "attestationService": "0xb6493705c8280e2200ed799e1b47040fa8753d05",
       "schema": "string label",
-      "schemaId": 6,
+      "schemaId": 3,
       "personhoodGated": false,
       "identityGated": true,
-      "deployer": "5D5KbdjgNB9awjjnPrcKYWmz1bjkZXgkcTZCPtVSz6zpskhD",
+      "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
       "network": "previewnet-asset-hub",
-      "genesisHash": "0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb",
-      "deployedAt": "2026-06-28"
+      "genesisHash": "0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210",
+      "deployedAt": "2026-08-03"
     },
     "paseo-asset-hub-next-v2": {
       "address": "0x1fa4627395455ec42cfb574c895b5bc5e9e40c4f",

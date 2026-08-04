@@ -58,18 +58,18 @@ Version 2.1.0:
 
 #### Previewnet Asset Hub
 
-Genesis `0x29f7b15e6227f86b90bf5199b5c872c28649a30e5f15fae6dd8fa9d5d48d6fbb`.
+Genesis `0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210`.
 
 Version 2.1.0:
 
 * **Publisher**:
-  * Contract: `0xcea6551761b9ea035b1f2be5cddd9dd85148437d`
+  * Contract: `0x5a3c111278ec98f327466c9ab7a5e0e0f5047acc`
   * Deployment and ABI: [Publisher.sol](src/Publisher.sol)
 * **RecipientAndAttesterIndexResolver**:
-  * Contract: `0x2870c80ce3a18e1f1ffb9da2747347036355bd9a`
+  * Contract: `0x1563d8f5beab796529d1135d1600a3e75476a1da`
   * Deployment and ABI: [RecipientAndAttesterIndexResolver.sol](src/RecipientAndAttesterIndexResolver.sol)
 * **TrustedAttesterIndexResolver**:
-  * Contract: `0xdc713ebf1028544a00225c8741eb698253c49302`
+  * Contract: `0x956834cd15bf02d3d9bb427e86d7115f5b062927`
   * Trusted attester: `0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20`
   * Deployment and ABI: [TrustedAttesterIndexResolver.sol](src/TrustedAttesterIndexResolver.sol)
 
