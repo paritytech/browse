@@ -44,7 +44,7 @@
     "@fontsource-variable/martian-mono": "^5.2.7",
     "@noble/hashes": "^2.0.1",
     "@parity/browse-sdk": "*",
-    "@parity/product-sdk": "^0.19.1",
+    "@parity/product-sdk": "^0.20.1",
     "@polkadot-api/descriptors": "file:.papi/descriptors",
     "@polkadot-api/sdk-ink": "^0.7.0",
     "@polkadot-api/signers-common": "^0.2.2",
@@ -62,7 +62,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@parity/host-api-test-sdk": "^0.10.0",
+    "@parity/host-api-test-sdk": "^0.12.0",
     "@playwright/test": "^1.59.1",
     "@polkadot-labs/hdkd": "^0.0.27",
     "@polkadot-labs/hdkd-helpers": "^0.0.28",
