@@ -127,6 +127,9 @@ export function App() {
   const [signed, setSigned] = useState(false)
   const [following, setFollowing] = useState<FollowedAccount[]>([])
   const [followingLoaded, setFollowingLoaded] = useState(false)
+  // Whether the inline follow input under the tabs is expanded. Held here so
+  // the app list can hide while someone is being added.
+  const [followInputOpen, setFollowInputOpen] = useState(false)
   // The ⋮ trigger at the trailing edge of the category tabs opens a small
   // anchored popover. The back arrow returns to the menu.
   // The cross closes the whole popover.
@@ -907,6 +910,7 @@ export function App() {
                       onSwitch={(mode) => {
                         setCurrentMode(mode)
                         setMenuOpen(false)
+                        setFollowInputOpen(false)
                       }}
                     />
                     <button
@@ -924,6 +928,8 @@ export function App() {
                   {currentMode === 'following' && !coldStart && (
                     <FollowingManager
                       following={following}
+                      open={followInputOpen}
+                      onOpenChange={setFollowInputOpen}
                       onAdd={handleFollow}
                       onRemove={handleUnfollow}
                     />
@@ -931,7 +937,19 @@ export function App() {
                 </>
               )}
 
-              <div class='app-list' id='app-list' ref={appListRef}>
+              {/* Hidden while a follow is being typed, so the username results
+                  never push the cards around. */}
+              <div
+                class='app-list'
+                id='app-list'
+                ref={appListRef}
+                style={{
+                  display:
+                    followInputOpen && currentMode === 'following' && !searchMatches && !coldStart
+                      ? 'none'
+                      : undefined
+                }}
+              >
                 {/* The typed address, first in the list and otherwise an ordinary
                     card. A placeholder until it resolves to something published.
                     Never conditional on the search result. */}

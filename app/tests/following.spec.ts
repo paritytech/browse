@@ -66,9 +66,10 @@ test.describe('Following', () => {
 
     // Then
     await expect(frame.locator('.empty-state')).toBeVisible()
-    await expect(frame.locator('.following-panel__input')).toBeVisible()
+    await expect(frame.locator('.following-panel__add')).toBeVisible()
 
     // When
+    await frame.locator('.following-panel__add').click()
     const input = frame.locator('.following-panel__input')
     await input.fill('zzauto')
 
@@ -126,6 +127,7 @@ test.describe('Following', () => {
     // When
     await frame.locator('.category-tab', { hasText: 'Following' }).click()
     await frame.waitForTimeout(300)
+    await frame.locator('.following-panel__add').click()
     await frame.locator('.following-panel__input').fill(IDENTITY_ADDRESS)
     await frame.locator('.following-panel__option').click()
 

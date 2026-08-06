@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
-import { X } from 'lucide-preact'
+import { Plus, X } from 'lucide-preact'
 import { AccountId } from 'polkadot-api'
 
 import { MIN_PREFIX_LENGTH, useUsernameSuggestions } from '../../lib/usernames-snapshot'
@@ -19,6 +19,10 @@ function isValidSS58(addr: string): boolean {
 
 interface FollowingManagerProps {
   following: FollowedAccount[]
+  /** Whether the @username input is expanded. Owned by the parent so it can
+      hide the app list while someone is being added. */
+  open: boolean
+  onOpenChange: (open: boolean) => void
   onAdd: (address: string, username?: string) => void
   onRemove: (address: string) => void
 }
@@ -32,11 +36,21 @@ function accountLabel(account: FollowedAccount): string {
 }
 
 /**
- * The follow panel inlined under the category tabs on the Following tab: an
- * @username input with snapshot autocomplete, and the accounts already
- * followed as removable chips while the input is empty.
+ * The follow panel inlined under the category tabs on the Following tab. At
+ * rest it is one compact row: the followed accounts as a stack of avatars with
+ * a + button tucked on as the next slot. An avatar expands to its name and an
+ * unfollow cross on hover (desktop) or tap (touch). The + swaps into the
+ * @username input, right of the stack, with snapshot autocomplete.
  */
-export function FollowingManager({ following, onAdd, onRemove }: FollowingManagerProps) {
+export function FollowingManager({
+  following,
+  open,
+  onOpenChange,
+  onAdd,
+  onRemove
+}: FollowingManagerProps) {
+  // The avatar expanded by tap. Hover expansion is pure CSS on top of this.
+  const [expandedAddress, setExpandedAddress] = useState<string | null>(null)
   const [input, setInput] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -55,6 +69,13 @@ export function FollowingManager({ following, onAdd, onRemove }: FollowingManage
     return () => clearTimeout(id)
   }, [query])
 
+  // Drop the caret into the field as it expands from the + button, and reset
+  // the draft whenever the field closes, including a close from the parent.
+  useEffect(() => {
+    if (open) inputRef.current?.focus()
+    else setInput('')
+  }, [open])
+
   // Prefix autocomplete from the verifiable username snapshot, mirroring the
   // domain search bar. A raw SS58 paste is handled directly below instead.
   const { data: suggestions = [], isFetching } = useUsernameSuggestions(
@@ -68,54 +89,119 @@ export function FollowingManager({ following, onAdd, onRemove }: FollowingManage
   // result is still pending, so hold the "No results" state until it settles.
   const searching = isFetching || suggestionPrefix !== query
 
+  // Collapse back to the stack on follow: the new avatar appearing there is the
+  // confirmation, and following more people is one tap away.
   function follow(address: string, username?: string) {
     if (isFollowing(address)) return
     onAdd(address, username)
-    setInput('')
+    onOpenChange(false)
   }
 
   // A raw SS58 paste follows directly. A username prefix only resolves once it
-  // reaches the snapshot shard-key length, so shorter input shows the chips.
+  // reaches the snapshot shard-key length, so shorter input shows nothing yet.
   const showResults = ss58 || query.length >= MIN_PREFIX_LENGTH
+
+  const stack = following.length > 0 && (
+    <div class='following-panel__stack'>
+      {following.map((account) => (
+        <div
+          key={account.address}
+          class={`following-panel__chip${
+            expandedAddress === account.address ? ' following-panel__chip--expanded' : ''
+          }`}
+          onClick={() =>
+            setExpandedAddress(expandedAddress === account.address ? null : account.address)
+          }
+        >
+          <span
+            class='following-panel__chip-avatar'
+            style={{ backgroundColor: avatarBg(account.username ?? account.address) }}
+          >
+            {(account.username ?? account.address).charAt(0).toUpperCase()}
+          </span>
+          <span class='following-panel__chip-label'>{accountLabel(account)}</span>
+          <button
+            type='button'
+            class='following-panel__chip-remove'
+            aria-label={`Unfollow ${accountLabel(account)}`}
+            onClick={(e) => {
+              e.stopPropagation()
+              onRemove(account.address)
+            }}
+          >
+            <X size={14} />
+          </button>
+        </div>
+      ))}
+    </div>
+  )
+
+  if (!open) {
+    return (
+      <div class='following-panel'>
+        <div class='following-panel__row'>
+          {stack}
+          <button
+            type='button'
+            class='following-panel__add'
+            aria-label='Follow someone'
+            onClick={() => onOpenChange(true)}
+          >
+            <Plus size={16} />
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div class='following-panel'>
-      <div class='following-panel__field'>
-        <span class='following-panel__at'>@</span>
-        <input
-          ref={inputRef}
-          class='following-panel__input'
-          type='text'
-          autocomplete='off'
-          spellcheck={false}
-          enterkeyhint='done'
-          placeholder='username'
-          value={input}
-          onInput={(e) => setInput((e.target as HTMLInputElement).value)}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') {
-              // Done typing, and nothing more. Return used to follow the first
-              // result, which arrives asynchronously, so pressing it early
-              // followed whoever happened to be there. Choosing an account is a
-              // choice, so it takes a tap. Blurring is what puts a phone
-              // keyboard away.
-              e.preventDefault()
-              e.currentTarget.blur()
-            } else if (e.key === 'Backspace' && input === '' && following.length > 0) {
-              // Pull the last-followed username back into the field so it can
-              // be edited rather than dropped outright.
-              const last = following[following.length - 1]
-              onRemove(last.address)
-              setInput(last.username ?? last.address)
-            } else if (e.key === 'Escape') {
-              setInput('')
-              e.currentTarget.blur()
-            }
-          }}
-        />
+      <div class='following-panel__row'>
+        {stack}
+        <div class='following-panel__field'>
+          <span class='following-panel__at'>@</span>
+          <input
+            ref={inputRef}
+            class='following-panel__input'
+            type='text'
+            autocomplete='off'
+            spellcheck={false}
+            enterkeyhint='done'
+            placeholder='username'
+            value={input}
+            onInput={(e) => setInput((e.target as HTMLInputElement).value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                // Done typing, and nothing more. Return used to follow the first
+                // result, which arrives asynchronously, so pressing it early
+                // followed whoever happened to be there. Choosing an account is
+                // a choice, so it takes a tap. Blurring is what puts a phone
+                // keyboard away.
+                e.preventDefault()
+                e.currentTarget.blur()
+              } else if (e.key === 'Backspace' && input === '' && following.length > 0) {
+                // Pull the last-followed username back into the field so it can
+                // be edited rather than dropped outright.
+                const last = following[following.length - 1]
+                onRemove(last.address)
+                setInput(last.username ?? last.address)
+              } else if (e.key === 'Escape') {
+                onOpenChange(false)
+              }
+            }}
+          />
+          <button
+            type='button'
+            class='following-panel__close'
+            aria-label='Close'
+            onClick={() => onOpenChange(false)}
+          >
+            <X size={16} />
+          </button>
+        </div>
       </div>
 
-      {showResults ? (
+      {showResults && (
         <div class='following-panel__results'>
           {ss58 ? (
             isFollowing(trimmed) ? (
@@ -154,30 +240,6 @@ export function FollowingManager({ following, onAdd, onRemove }: FollowingManage
             <p class='following-panel__state'>No results for “{query}”</p>
           )}
         </div>
-      ) : (
-        following.length > 0 && (
-          <div class='following-panel__chips'>
-            {following.map((account) => (
-              <span key={account.address} class='following-panel__chip'>
-                <span
-                  class='following-panel__chip-avatar'
-                  style={{ backgroundColor: avatarBg(account.username ?? account.address) }}
-                >
-                  {(account.username ?? account.address).charAt(0).toUpperCase()}
-                </span>
-                <span class='following-panel__chip-label'>{accountLabel(account)}</span>
-                <button
-                  type='button'
-                  class='following-panel__chip-remove'
-                  aria-label={`Unfollow ${accountLabel(account)}`}
-                  onClick={() => onRemove(account.address)}
-                >
-                  <X size={14} />
-                </button>
-              </span>
-            ))}
-          </div>
-        )
       )}
     </div>
   )

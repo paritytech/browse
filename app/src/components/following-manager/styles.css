@@ -3,12 +3,181 @@
 .following-panel {
   display: flex;
   flex-direction: column;
-  margin: 12px 16px 4px;
+  margin: 6px 16px 4px;
+}
+
+/* The resting state: the followed avatars as one row, the + button tucked on
+   at the trailing edge as the next slot in the stack. */
+.following-panel__row {
+  display: flex;
+  align-items: center;
+  min-height: 32px;
+}
+
+.following-panel__add {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: var(--surface-3);
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--bg-surface-main);
+  color: var(--fg-3);
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    color 150ms ease;
+}
+
+.following-panel__stack + .following-panel__add {
+  margin-left: -8px;
+}
+
+@media (hover: hover) {
+  .following-panel__add:hover {
+    background: var(--surface-4);
+    color: var(--fg-primary);
+  }
+}
+
+/* Each avatar tucks under the one before it, with a ring in the page background
+   so the overlap reads as a stack (mirrors the badge issuer stack). */
+.following-panel__stack {
+  display: flex;
+  align-items: center;
+}
+
+.following-panel__chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    margin-left 200ms ease,
+    padding-right 200ms ease;
+}
+
+.following-panel__chip + .following-panel__chip {
+  margin-left: -8px;
+}
+
+/* Expanded (tap, or hover below): the chip grows into a pill with the name and
+   an unfollow cross, and leaves the overlap so it reads on its own. */
+.following-panel__chip--expanded {
+  background: var(--surface-3);
+  padding-right: 6px;
+}
+
+.following-panel__chip + .following-panel__chip--expanded {
+  margin-left: 2px;
+}
+
+.following-panel__chip-avatar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--bg-surface-main);
+  /* Background is set inline, seeded by the name (see avatarBg). */
+  background: var(--surface-4);
+  /* Always white, seeded colored disc below. Constant across themes, not fg. */
+  color: #fff;
+  font-family: var(--font-sans);
+  font-size: var(--type-body-sm-size);
+  font-weight: var(--type-title-sm-weight);
+  user-select: none;
+}
+
+/* The name and the cross are collapsed to nothing at rest and revealed by the
+   expanded state, so the stack stays a row of plain avatars. */
+.following-panel__chip-label {
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  white-space: nowrap;
+  color: var(--fg-primary);
+  font-family: var(--font-sans);
+  font-size: var(--type-title-sm-size);
+  font-weight: var(--type-title-sm-weight);
+  line-height: var(--type-title-sm-line);
+  transition:
+    max-width 200ms ease,
+    margin-left 200ms ease,
+    opacity 150ms ease;
+}
+
+.following-panel__chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 0;
+  overflow: hidden;
+  opacity: 0;
+  padding: 2px 0;
+  background: none;
+  border: none;
+  border-radius: 50%;
+  color: var(--fg-5);
+  cursor: pointer;
+  transition:
+    max-width 200ms ease,
+    margin-left 200ms ease,
+    opacity 150ms ease,
+    color 150ms ease;
+}
+
+.following-panel__chip--expanded .following-panel__chip-label {
+  max-width: 160px;
+  margin-left: 8px;
+  opacity: 1;
+}
+
+.following-panel__chip--expanded .following-panel__chip-remove {
+  max-width: 18px;
+  margin-left: 4px;
+  opacity: 1;
+}
+
+@media (hover: hover) {
+  .following-panel__chip:hover {
+    background: var(--surface-3);
+    padding-right: 6px;
+  }
+
+  .following-panel__chip + .following-panel__chip:hover {
+    margin-left: 2px;
+  }
+
+  .following-panel__chip:hover .following-panel__chip-label {
+    max-width: 160px;
+    margin-left: 8px;
+    opacity: 1;
+  }
+
+  .following-panel__chip:hover .following-panel__chip-remove {
+    max-width: 18px;
+    margin-left: 4px;
+    opacity: 1;
+  }
+
+  .following-panel__chip-remove:hover {
+    color: var(--fg-primary);
+  }
 }
 
 /* Mirror the domain search bar: subtle surface-container fill, faint border,
-   pill radius, not a heavy solid-gray box. */
+   pill radius, not a heavy solid-gray box. It takes the room right of the
+   stack rather than the whole row. */
 .following-panel__field {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   height: 40px;
@@ -17,6 +186,10 @@
   border: 1px solid rgb(var(--fg-rgb) / 0.12);
   border-radius: var(--radius-full);
   transition: border-color 150ms ease;
+}
+
+.following-panel__stack + .following-panel__field {
+  margin-left: 12px;
 }
 
 .following-panel__field:focus-within {
@@ -46,6 +219,27 @@
 
 .following-panel__input::placeholder {
   color: var(--fg-5);
+}
+
+/* Collapses the field back to the resting row. */
+.following-panel__close {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  margin-right: -6px;
+  background: none;
+  border: none;
+  color: var(--fg-5);
+  cursor: pointer;
+  transition: color 150ms ease;
+}
+
+@media (hover: hover) {
+  .following-panel__close:hover {
+    color: var(--fg-primary);
+  }
 }
 
 .following-panel__results {
@@ -113,67 +307,4 @@
   font-size: var(--type-title-sm-size);
   font-weight: var(--type-title-sm-weight);
   line-height: var(--type-title-sm-line);
-}
-
-/* Followed accounts as removable chips, wrapping so every account stays
-   reachable for an unfollow rather than hiding behind a horizontal scroll. */
-.following-panel__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 10px;
-}
-
-.following-panel__chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 8px 3px 3px;
-  background: var(--surface-3);
-  border-radius: var(--radius-full);
-}
-
-.following-panel__chip-avatar {
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  /* Background is set inline, seeded by the name (see avatarBg). */
-  background: var(--surface-4);
-  /* Always white, seeded colored disc below. Constant across themes, not fg. */
-  color: #fff;
-  font-family: var(--font-sans);
-  font-size: var(--type-body-sm-size);
-  font-weight: var(--type-title-sm-weight);
-  user-select: none;
-}
-
-.following-panel__chip-label {
-  color: var(--fg-primary);
-  font-family: var(--font-sans);
-  font-size: var(--type-title-sm-size);
-  font-weight: var(--type-title-sm-weight);
-  line-height: var(--type-title-sm-line);
-}
-
-.following-panel__chip-remove {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2px;
-  background: none;
-  border: none;
-  border-radius: 50%;
-  color: var(--fg-5);
-  cursor: pointer;
-  transition: color 150ms ease;
-}
-
-@media (hover: hover) {
-  .following-panel__chip-remove:hover {
-    color: var(--fg-primary);
-  }
 }
