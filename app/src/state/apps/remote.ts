@@ -127,20 +127,29 @@ export async function readPublishedLabelhashes(): Promise<`0x${string}`[]> {
 }
 
 async function readPublishedLabelhashesOnce(publishers: `0x${string}`[]): Promise<`0x${string}`[]> {
+  // All publishers page concurrently. The rate gate spaces the sends while the
+  // network waits overlap. Deduplicate afterwards in publisher order.
+  const pages = await Promise.all(
+    publishers.map(async (publisher) => {
+      const hashes: `0x${string}`[] = []
+      let offset = 0n
+      for (;;) {
+        const raw = await reviveCall(publisher, encodeGetPublished(offset, PUBLISHER_PAGE_LIMIT))
+        const page = decodeBytes32Array(raw)
+        hashes.push(...page)
+        if (page.length < Number(PUBLISHER_PAGE_LIMIT)) break
+        offset += PUBLISHER_PAGE_LIMIT
+      }
+      return hashes
+    })
+  )
   const seen = new Set<string>()
   const all: `0x${string}`[] = []
-  for (const publisher of publishers) {
-    let offset = 0n
-    for (;;) {
-      const raw = await reviveCall(publisher, encodeGetPublished(offset, PUBLISHER_PAGE_LIMIT))
-      const page = decodeBytes32Array(raw)
-      for (const labelhash of page) {
-        if (seen.has(labelhash)) continue
-        seen.add(labelhash)
-        all.push(labelhash)
-      }
-      if (page.length < Number(PUBLISHER_PAGE_LIMIT)) break
-      offset += PUBLISHER_PAGE_LIMIT
+  for (const hashes of pages) {
+    for (const labelhash of hashes) {
+      if (seen.has(labelhash)) continue
+      seen.add(labelhash)
+      all.push(labelhash)
     }
   }
   return all
@@ -187,7 +196,7 @@ export async function resolveLabels(
  * Hydrate a chunk of labels with content and attestation metadata.
  *
  * Two-pass: first batch fetches `contenthash` to identify live labels, the
- * second batch fetches `name`/`description`/attestation count. When
+ * second batch fetches `name`/`description`/attestation count/publish time. When
  * `identityH160` is provided, it also runs a per-user "have I attested?" probe.
  * Non-live labels come back with `contentHash: null`. Caller chunks input to
  * {@link HYDRATE_CHUNK_SIZE}.
@@ -219,7 +228,13 @@ export async function hydrateLabelChunk(
   // record that is neither revoked nor expired marks the app certified by that
   // authority, so no separate `isActive` call is needed.
   const perLive = 1 + versions.length + authorities.length + (identityH160 ? versions.length : 0)
+  // Publish time drives the freshness rank. A record for a label can live on any
+  // deployed Publisher, since older records stay put across redeployments, so
+  // probe each and keep the latest timestamp found. The probes ride the same
+  // batch as the metadata so a chunk costs one multicall round trip.
+  const publishers = publisherReadAddresses(NETWORK)
   let metaResults: Awaited<ReturnType<typeof multicall>> = []
+  let publicationResults: Awaited<ReturnType<typeof multicall>> = []
   if (liveIndexes.length > 0) {
     const metaCalls: MulticallTarget[] = []
     for (const chunkIndex of liveIndexes) {
@@ -252,31 +267,28 @@ export async function hydrateLabelChunk(
         }
       }
     }
-    hiddenLog(
-      `Fetching metadata for ${liveIndexes.length} live labels: multicall(${NETWORK.MULTICALL3}, [${metaCalls.length} calls])`
-    )
-    metaResults = await multicall(metaCalls)
-  }
-
-  // Publish time drives the freshness rank. A record for a label can live on any
-  // deployed Publisher, since older records stay put across redeployments, so
-  // probe each and keep the latest timestamp found.
-  const publishedAtByIndex = new Map<number, number>()
-  const publishers = publisherReadAddresses(NETWORK)
-  if (liveIndexes.length > 0 && publishers.length > 0) {
-    const pubCalls: MulticallTarget[] = []
+    const publicationCalls: MulticallTarget[] = []
     for (const chunkIndex of liveIndexes) {
       const labelhash = labelhashOf(chunk[chunkIndex])
       for (const publisher of publishers) {
-        pubCalls.push({ target: publisher, callData: encodePublicationOf(labelhash) })
+        publicationCalls.push({ target: publisher, callData: encodePublicationOf(labelhash) })
       }
     }
-    const pubResults = await multicall(pubCalls)
+    hiddenLog(
+      `Fetching metadata for ${liveIndexes.length} live labels: multicall(${NETWORK.MULTICALL3}, [${metaCalls.length + publicationCalls.length} calls])`
+    )
+    const results = await multicall([...metaCalls, ...publicationCalls])
+    metaResults = results.slice(0, metaCalls.length)
+    publicationResults = results.slice(metaCalls.length)
+  }
+
+  const publishedAtByIndex = new Map<number, number>()
+  if (publicationResults.length > 0) {
     let p = 0
     for (const chunkIndex of liveIndexes) {
       let latest: number | null = null
       for (let i = 0; i < publishers.length; i++) {
-        const ts = tryDecode(pubResults[p++], decodePublishedAt)
+        const ts = tryDecode(publicationResults[p++], decodePublishedAt)
         if (ts !== null && (latest === null || ts > latest)) latest = ts
       }
       if (latest !== null) publishedAtByIndex.set(chunkIndex, latest)

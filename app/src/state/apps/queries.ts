@@ -103,8 +103,10 @@ export async function prefetchAllApps(queryClient: QueryClient) {
  * Resolve a single `.dot` label to an {@link AppEntry} with live state.
  */
 async function resolveLabel(name: string): Promise<AppEntry | null> {
-  const identityH160 = await resolveIdentityH160()
-  const authorities = await knownCertificateAuthorities()
+  const [identityH160, authorities] = await Promise.all([
+    resolveIdentityH160(),
+    knownCertificateAuthorities()
+  ])
   const [entry] = await hydrateLabelChunk([name], identityH160, authorities)
   if (!entry?.contentHash) return null
 

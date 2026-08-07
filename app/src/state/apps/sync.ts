@@ -82,6 +82,16 @@ export async function syncAllApps(
   hiddenLog(`Starting synchronization - cache holds ${cachedLabels.length} labels`)
   const labels = new Map(cachedLabels.map((entry) => [entry.label, entry]))
 
+  // Kicked off up front so both settle while the published set loads. The
+  // identity resolution caps its own wait: it needs the host product account,
+  // which can hang forever on a disconnected host, and cards must never wait
+  // on it.
+  const identityPromise = resolveIdentityH160()
+  // Hydrate certificates for every known authority, not only the enabled ones,
+  // so a badge is already cached when its authority is enabled. Trust is a
+  // display filter, not a fetch gate.
+  const authoritiesPromise = knownCertificateAuthorities()
+
   let published: `0x${string}`[]
   try {
     published = await readPublishedLabelhashes()
@@ -123,11 +133,8 @@ export async function syncAllApps(
 
   const toRefresh = [...staleLabels, ...newLabels]
   if (toRefresh.length > 0) {
-    const identityH160 = await resolveIdentityH160()
-    // Hydrate certificates for every known authority, not only the enabled ones,
-    // so a badge is already cached when its authority is enabled. Trust is a
-    // display filter, not a fetch gate.
-    const authorities = await knownCertificateAuthorities()
+    const identityH160 = await identityPromise
+    const authorities = await authoritiesPromise
     if (staleLabels.length > 0) {
       hiddenLog(`Refreshing ${staleLabels.length} stale label(s) (TTL ${METADATA_TTL_MS / 1000}s)`)
     }

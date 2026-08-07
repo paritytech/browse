@@ -15,9 +15,28 @@ import { attestationService } from '../../lib/attestation-service'
 
 let cachedIdentityH160: `0x${string}` | null = null
 
-/** The bound identity account for the caller, or `null` when unbound/unavailable. */
-export async function resolveIdentityH160(): Promise<`0x${string}` | null> {
-  if (cachedIdentityH160) return cachedIdentityH160
+/**
+ * Ceiling on how long a caller waits for the identity. The host account
+ * request behind the lookup can sit pending indefinitely on a host whose
+ * account is disconnected, and identity only decorates reads with "you
+ * recommended this", so no caller may block on it.
+ */
+const IDENTITY_RESOLVE_TIMEOUT_MS = 3_000
+
+/**
+ * The bound identity account for the caller, or `null` when unbound,
+ * unavailable, or not resolved within the timeout. A late resolution still
+ * lands in the session cache, so the next call answers instantly.
+ */
+export function resolveIdentityH160(): Promise<`0x${string}` | null> {
+  if (cachedIdentityH160) return Promise.resolve(cachedIdentityH160)
+  return Promise.race([
+    lookupIdentityH160(),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), IDENTITY_RESOLVE_TIMEOUT_MS))
+  ])
+}
+
+async function lookupIdentityH160(): Promise<`0x${string}` | null> {
   try {
     const product = await attestationService.productH160()
     const identityH160 = (await attestationService.identityOf(product)).toLowerCase()

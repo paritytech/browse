@@ -21,6 +21,21 @@ test.describe('App Start', () => {
     test.beforeAll(async ({ browser }) => {
       host = await startUnsignedHost()
       context = await browser.newContext({ ignoreHTTPSErrors: true })
+      // The host of an unsigned user may never answer getProductAccount, like
+      // a desktop host with its account disconnected, so this whole suite runs
+      // against a host page rewritten to leave that request pending forever.
+      const hostOrigin = new URL(host.url).origin
+      await context.route(
+        (url) => url.origin === hostOrigin,
+        async (route) => {
+          const response = await route.fetch()
+          const body = (await response.text()).replace(
+            /handleAccountGet\((\([^)]*\))=>\{/,
+            'handleAccountGet($1=>{return;'
+          )
+          await route.fulfill({ response, body })
+        }
+      )
       const page = await context.newPage()
       await navigateToTestHost(page, host.url)
       frame = await getProductFrame(page, '.category-tab')
@@ -49,6 +64,7 @@ test.describe('App Start', () => {
       const cards = frame.locator('.product-card[data-label]')
       await expect(cards.first()).toBeVisible({ timeout: 20_000 })
       expect(await cards.count()).toBeGreaterThan(0)
+      await expect(cards.first().locator('.product-card__name')).not.toBeEmpty()
       await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
       // The test host has no IPFS backend, so seed calculator's icon bytes for its lookup.
       await seedIconPreimage(frame.page(), 'calculator')
