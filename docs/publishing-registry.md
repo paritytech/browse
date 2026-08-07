@@ -1,69 +1,73 @@
 ---
-summary: "How a .dot label becomes a discoverable browse app via Personhood-gated, rolling-24h rate-limited Publisher events with paginated on-chain enumeration"
-title: "Publishing Registry v2.0"
+summary: "How a .dot label becomes a discoverable browse app via proof-of-personhood-gated, rolling-24h rate-limited Publisher events with paginated enumeration"
+title: "Publishing Registry v3.0"
 read_when:
   - You are adding a publish or unpublish call from the app or a script
   - You are debugging why a label is or is not appearing in browse
   - You are changing the personhood tier rules or daily caps
-  - You are indexing `Published` / `Unpublished` events off-chain
+  - You are generating or verifying the ring-membership proof a publish requires
+  - You are indexing `Published` / `PublishedByPerson` / `Unpublished` events off-chain
   - You are reading the published-app set on-chain or via paginated multicall
   - You need to reason about trust assumptions (registrar upgrade, log immutability, personhood lag)
 ---
 
 The browse registry is a single contract, [Publisher](../evm/src/Publisher.sol), that maintains the canonical set of currently-discoverable `.dot` apps.
 
-`publish(label)` adds a label to the set. `unpublish(label)` removes it. Content lives elsewhere (dotNS content resolver, store contracts) and is joined off-chain by `labelhash`.
+`publish(label, request)` adds a label to the set, where `request` is a ring-membership proof of personhood. `unpublish(label)` removes it. Content lives elsewhere (dotNS content resolver, store contracts) and is joined off-chain by `labelhash`.
 
-The registry is intentionally minimal. No on-chain content, no admin, no upgrade path, no per-publisher index. The published array, the per-label [`Publication`](../evm/src/interfaces/IPublisher.sol#L15) record, and the rate-limit ring are the only state. Clients reading "apps by Alice" page the global feed and filter on the `publisher` field client-side.
+The registry is intentionally minimal. No stored content, no admin, no upgrade path, no per-publisher index. The published array, the per-label [`Publication`](../evm/src/interfaces/IPublisher.sol#L16) record, and the rate-limit ring are the only state. Clients reading "apps by Alice" page the global feed and filter on the `publisher` field client-side.
 
-`Publisher` inherits [`Semver(2, 0, 0)`](../evm/src/Semver.sol) so `version()` returns `"2.0.0"`. See [versioning](#versioning).
+`Publisher` inherits [`Semver(3, 0, 0)`](../evm/src/Semver.sol) so `version()` returns `"3.0.0"`. See [versioning](#versioning).
 
 ## Quick reference
 
 | Symbol | Source | Notes |
 |---|---|---|
-| `DOT_NODE` | [Publisher.sol:17](../evm/src/Publisher.sol#L17) | Precomputed namehash of `.dot` TLD |
-| `event Published(publisher, labelNode, labelhash, timestamp)` | [IPublisher.sol:22](../evm/src/interfaces/IPublisher.sol#L22) | All three address/bytes32 args are `indexed` |
-| `event Unpublished(publisher, labelNode, labelhash, timestamp)` | [IPublisher.sol:30](../evm/src/interfaces/IPublisher.sol#L30) | Same shape as `Published` for symmetric indexer reduce |
-| `FULL_DAILY_LIMIT` | [Publisher.sol:33](../evm/src/Publisher.sol#L33) | 5 publishes per rolling `RATE_WINDOW` for status ≥ 2 |
-| `LITE_DAILY_LIMIT` | [Publisher.sol:30](../evm/src/Publisher.sol#L30) | 3 publishes per rolling `RATE_WINDOW` for status == 1 |
-| `PERSONHOOD` precompile | [Publisher.sol:13](../evm/src/Publisher.sol#L13) | `0x…0a010000`. Reads alias-accounts pallet |
-| `PERSONHOOD_CONTEXT` | [Publisher.sol:24](../evm/src/Publisher.sol#L24) | `bytes32("dotns")`. Reuses the dotns ring root |
-| `Publication` struct | [IPublisher.sol:15](../evm/src/interfaces/IPublisher.sol#L15) | `(publisher, timestamp, indexPlusOne)`. Also the storage row |
-| `Publisher.getPublished(offset, limit)` | [Publisher.sol:143](../evm/src/Publisher.sol#L143) | Paginated read of labelhashes from the global feed |
-| `Publisher.getPublishedAt(index)` | [Publisher.sol:138](../evm/src/Publisher.sol#L138) | Single labelhash by enumeration index |
-| `Publisher.isPublished(labelhash)` | [Publisher.sol:128](../evm/src/Publisher.sol#L128) | O(1) "is this label live?" predicate |
-| `Publisher.publicationOf(labelhash)` | [Publisher.sol:159](../evm/src/Publisher.sol#L159) | Direct lookup. Zero-valued struct when absent |
-| `Publisher.publish(label)` | [Publisher.sol:69](../evm/src/Publisher.sol#L69) | Personhood-gated, rolling-window rate-limited |
-| `Publisher.publishedCount()` | [Publisher.sol:133](../evm/src/Publisher.sol#L133) | Total live entries |
-| `Publisher.registrar()` | [Publisher.sol:49](../evm/src/Publisher.sol#L49) | The configured `IDotnsRegistrar` |
-| `Publisher.unpublish(label)` | [Publisher.sol:102](../evm/src/Publisher.sol#L102) | Ownership-only. No personhood gate. No rate-slot touch |
-| `Publisher.version()` | [Semver.sol](../evm/src/Semver.sol) | Inherited via `Semver(2, 0, 0)` |
-| `RATE_WINDOW` | [Publisher.sol:27](../evm/src/Publisher.sol#L27) | `1 days`. The rolling window for the per-publisher rate limit |
+| `DOT_NODE` | [Publisher.sol:20](../evm/src/Publisher.sol#L20) | Precomputed namehash of `.dot` TLD |
+| `event Published(publisher, labelNode, labelhash, timestamp)` | [IPublisher.sol:23](../evm/src/interfaces/IPublisher.sol#L23) | All three address/bytes32 args are `indexed` |
+| `event PublishedByPerson(publisher, personAlias, labelhash, status)` | [IPublisher.sol:35](../evm/src/interfaces/IPublisher.sol#L35) | Emitted alongside `Published` on the gated path only |
+| `event Unpublished(publisher, labelNode, labelhash, timestamp)` | [IPublisher.sol:43](../evm/src/interfaces/IPublisher.sol#L43) | Same shape as `Published` for symmetric indexer reduce |
+| `FULL_DAILY_LIMIT` | [Publisher.sol:38](../evm/src/Publisher.sol#L38) | 5 publishes per rolling `RATE_WINDOW` for status ≥ 2 |
+| `LITE_DAILY_LIMIT` | [Publisher.sol:35](../evm/src/Publisher.sol#L35) | 1 publish per rolling `RATE_WINDOW` for status == 1 |
+| `PERSONHOOD` precompile | [Publisher.sol:16](../evm/src/Publisher.sol#L16) | `0x…0a010000`. Verifies ring-membership proofs |
+| `PERSONHOOD_CONTEXT` | [Publisher.sol:29](../evm/src/Publisher.sol#L29) | `bytes32("dotns")`. Reuses the dotns ring root |
+| `ProofVerificationRequest` struct | [IPersonhood.sol:30](../evm/src/interfaces/IPersonhood.sol#L30) | The proof bundle a publisher submits |
+| `Publication` struct | [IPublisher.sol:16](../evm/src/interfaces/IPublisher.sol#L16) | `(publisher, timestamp, indexPlusOne)`. Also the storage row |
+| `Publisher.getPublished(offset, limit)` | [Publisher.sol:166](../evm/src/Publisher.sol#L166) | Paginated read of labelhashes from the global feed |
+| `Publisher.getPublishedAt(index)` | [Publisher.sol:161](../evm/src/Publisher.sol#L161) | Single labelhash by enumeration index |
+| `Publisher.isPublished(labelhash)` | [Publisher.sol:151](../evm/src/Publisher.sol#L151) | O(1) "is this label live?" predicate |
+| `Publisher.publicationOf(labelhash)` | [Publisher.sol:182](../evm/src/Publisher.sol#L182) | Direct lookup. Zero-valued struct when absent |
+| `Publisher.publish(label, request)` | [Publisher.sol:78](../evm/src/Publisher.sol#L78) | Proof-gated, rolling-window rate-limited |
+| `Publisher.publishedCount()` | [Publisher.sol:156](../evm/src/Publisher.sol#L156) | Total live entries |
+| `Publisher.registrar()` | [Publisher.sol:55](../evm/src/Publisher.sol#L55) | The configured `IDotnsRegistrar` |
+| `Publisher.unpublish(label)` | [Publisher.sol:125](../evm/src/Publisher.sol#L125) | Ownership-only. No personhood gate. No rate-slot touch |
+| `Publisher.version()` | [Semver.sol](../evm/src/Semver.sol) | Inherited via `Semver(3, 0, 0)` |
+| `RATE_WINDOW` | [Publisher.sol:32](../evm/src/Publisher.sol#L32) | `1 days`. The rolling window for the per-person rate limit |
 
 ## Storage layout
 
 Three pieces of state, plus the immutable registrar pointer.
 
 - **`bytes32[] _published`**. Insertion-order list of labelhashes whose publications are currently live. One slot per live label.
-- **`mapping(bytes32 => Publication) _publications`**. Per-label record. [`Publication`](../evm/src/interfaces/IPublisher.sol#L15) packs `address publisher (20) + uint64 timestamp (8) + uint32 indexPlusOne (4) = 32 bytes` into one slot. `indexPlusOne` is the 1-indexed position in `_published`, doubling as the "is published" flag and as the swap-and-pop pointer on removal. `indexPlusOne == 0` means the label is absent.
-- **`mapping(address => PublishWindow) _windows`**. Per-publisher rate-limit ring. [`PublishWindow`](../evm/src/Publisher.sol#L40) packs five `uint48` timestamps into one slot (5 × 6 = 30 bytes). `uint48` overflows around year 8.9M, comfortably past contract lifetime.
+- **`mapping(bytes32 => Publication) _publications`**. Per-label record. [`Publication`](../evm/src/interfaces/IPublisher.sol#L16) packs `address publisher (20) + uint64 timestamp (8) + uint32 indexPlusOne (4) = 32 bytes` into one slot. `indexPlusOne` is the 1-indexed position in `_published`, doubling as the "is published" flag and as the swap-and-pop pointer on removal. `indexPlusOne == 0` means the label is absent.
+- **`mapping(bytes32 => PublishWindow) _windows`**. Per-person rate-limit ring, keyed by the context alias the proof derives, not by the caller address. [`PublishWindow`](../evm/src/Publisher.sol#L45) packs five `uint48` timestamps into one slot (5 × 6 = 30 bytes). `uint48` overflows around year 8.9M, comfortably past contract lifetime.
 
 One fresh publish writes two storage slots (`_published.push` and `_publications[lh]`) and rotates the ring. A republish writes one slot for the data refresh and rotates the ring.
 
 ## Publish flow
 
-`publish(label)` performs four checks in order. Any failure reverts. No partial state.
+`publish(label, request)` performs four checks in order. Any failure reverts. No partial state.
 
-1. **Non-empty label.** Empty string reverts with [`EmptyLabel`](../evm/src/interfaces/IPublisher.sol#L37).
-2. **Ownership.** The label's `tokenId` (the `uint256` of `namehash(<label>.dot)`) is queried via [`IDotnsRegistrar.ownerOf`](../evm/src/interfaces/IDotnsRegistrar.sol#L14). A revert from the registrar (unminted token) and a wrong owner both surface as one error, [`NotOwner`](../evm/src/interfaces/IPublisher.sol#L39). One error for "doesn't exist" and "exists but not yours" keeps the caller contract simple.
-3. **Personhood tier.** [`IPersonhood.personhoodStatus(msg.sender, "dotns")`](../evm/src/interfaces/IPersonhood.sol#L22) returns a tier.
-   - `0` (None) reverts with [`NoPersonhood`](../evm/src/interfaces/IPublisher.sol#L38).
-   - `1` (Lite) has a daily cap of `LITE_DAILY_LIMIT` (3).
-   - `>= 2` (Full and any higher future tier) has a daily cap of `FULL_DAILY_LIMIT` (5). Treating unknown future tiers as Full is intentional so precompile upgrades cannot accidentally lock the contract down.
-4. **Rate limit.** A fixed-size ring of the caller's last 5 publish timestamps lives in `_windows[msg.sender]`. The check counts entries strictly newer than `block.timestamp - RATE_WINDOW` and reverts with [`RateLimitExceeded(nextAvailableAt)`](../evm/src/interfaces/IPublisher.sol#L40) if the active count is already at the tier's cap. `nextAvailableAt` is the oldest active timestamp plus `RATE_WINDOW`. That value is the wall-clock when the next slot frees up. On pass, the ring is rotated (oldest dropped) and the current timestamp becomes the new `t0`.
+1. **Non-empty label.** Empty string reverts with [`EmptyLabel`](../evm/src/interfaces/IPublisher.sol#L50).
+2. **Ownership.** The label's `tokenId` (the `uint256` of `namehash(<label>.dot)`) is queried via [`IDotnsRegistrar.ownerOf`](../evm/src/interfaces/IDotnsRegistrar.sol#L14). A revert from the registrar (unminted token) and a wrong owner both surface as one error, [`NotOwner`](../evm/src/interfaces/IPublisher.sol#L52). One error for "doesn't exist" and "exists but not yours" keeps the caller contract simple.
+3. **Personhood proof.** [`IPersonhood.personhoodInfoByProof(request)`](../evm/src/interfaces/IPersonhood.sol#L54) verifies the submitted ring-membership proof. See [Personhood proof](#personhood-proof) for what the contract rewrites before calling. A rejected proof, or one deriving a zero alias, reverts with [`NoPersonhood`](../evm/src/interfaces/IPublisher.sol#L51). The tier claimed in `request.expectedStatus` sets the cap.
+   - `1` (Lite) has a daily cap of `LITE_DAILY_LIMIT` (1).
+   - Anything else has a daily cap of `FULL_DAILY_LIMIT` (5). Only `2` reaches that branch in practice, because the precompile rejects any `expectedStatus` outside `{1, 2}` and the call has already reverted. Treating unknown future tiers as Full is intentional so precompile upgrades cannot accidentally lock the contract down.
+4. **Rate limit.** A fixed-size ring of the last 5 publish timestamps for that person lives in `_windows[personAlias]`. The check counts entries strictly newer than `block.timestamp - RATE_WINDOW` and reverts with [`RateLimitExceeded(nextAvailableAt)`](../evm/src/interfaces/IPublisher.sol#L53) if the active count is already at the cap for that tier. `nextAvailableAt` is the oldest active timestamp plus `RATE_WINDOW`. That value is the wall-clock when the next slot frees up. On pass, the ring is rotated (oldest dropped) and the current timestamp becomes the new `t0`.
 
-On success, the publication is recorded (see [Recording semantics](#recording-semantics)) and [`Published(publisher, labelNode, labelhash, timestamp)`](../evm/src/interfaces/IPublisher.sol#L22) is emitted. All three address/bytes32 fields are indexed. `labelNode` is for namehash joins, `labelhash` for label-key joins against dotNS content resolver records.
+The registry owner skips steps 3 and 4 so it can seed and operate the registry, and may pass an empty `request`.
+
+On success, the publication is recorded (see [Recording semantics](#recording-semantics)) and [`Published(publisher, labelNode, labelhash, timestamp)`](../evm/src/interfaces/IPublisher.sol#L23) is emitted. All three address/bytes32 fields are indexed. `labelNode` is for namehash joins, `labelhash` for label-key joins against dotNS content resolver records. The gated path also emits [`PublishedByPerson(publisher, personAlias, labelhash, status)`](../evm/src/interfaces/IPublisher.sol#L35), which is how an indexer groups publishes by person across the several addresses one person may publish from.
 
 ### Recording semantics
 
@@ -74,23 +78,27 @@ After the gate, `publish` distinguishes two cases on `_publications[labelhash]`.
 
 The single global feed is intentional. The previous design also maintained a per-publisher list for cheap "show Alice's apps" reads. That was dropped because (a) the duplication tripled storage cost per publish, (b) `browse` reads the global feed via Multicall anyway, and (c) per-publisher filtering on a list capped by daily-publish throughput is trivial client-side.
 
-### Why per-sender rate limits, not per-(sender, label)
+### Why per-person rate limits, not per-address or per-(sender, label)
 
-An earlier draft considered keying the limit on `(msg.sender, labelhash)` to let multi-app developers publish all their apps without daily friction. That was rejected. `PopRules._priceValidatedName` returns `0` for any tier above `NoStatus`, so Lite users mint labels for gas only. A per-label limit collapses the spam ceiling to "labels owned," which is unbounded for verified users. It also opens a 2-account transfer shuttle. Alice publishes from `alice.dot`, transfers the token to Bob, Bob's `(bob, alice.dot)` slot is fresh and he publishes immediately. The per-sender ring denies both attacks. The cost is friction for legitimate multi-app developers. They trickle out at 3/day (Lite) or 5/day (Full). That trade-off is accepted. The Full tier exists precisely so verified developers feel less of the squeeze.
+An earlier draft considered keying the limit on `(msg.sender, labelhash)` to let multi-app developers publish all their apps without daily friction. That was rejected. `PopRules._priceValidatedName` returns `0` for any tier above `NoStatus`, so Lite users mint labels for gas only. A per-label limit collapses the spam ceiling to "labels owned," which is unbounded for verified users. It also opens a 2-account transfer shuttle. Alice publishes from `alice.dot`, transfers the token to Bob, Bob's `(bob, alice.dot)` slot is fresh and he publishes immediately.
+
+Keying on `msg.sender` alone fails for a related reason once the gate takes a proof. A proof binds to whichever account presents it, so one person can generate a fresh proof for every key they control and each new address would arrive with an untouched window. Keying on the context alias closes that. The alias is fixed per person per context, and [the contract pins the context](#personhood-proof), so a person gets exactly one window no matter how many addresses they publish from.
+
+The cost is friction for legitimate multi-app developers. They trickle out at 1/day (Lite) or 5/day (Full). That trade-off is accepted. The Full tier exists precisely so verified developers feel less of the squeeze.
 
 ## Unpublish flow
 
 `unpublish(label)` performs two checks. No personhood gate, no rate-limit read or write.
 
-1. **Non-empty label.** Empty string reverts with [`EmptyLabel`](../evm/src/interfaces/IPublisher.sol#L37).
-2. **Ownership.** Same `IDotnsRegistrar.ownerOf` check and same [`NotOwner`](../evm/src/interfaces/IPublisher.sol#L39) error as `publish`.
+1. **Non-empty label.** Empty string reverts with [`EmptyLabel`](../evm/src/interfaces/IPublisher.sol#L50).
+2. **Ownership.** Same `IDotnsRegistrar.ownerOf` check and same [`NotOwner`](../evm/src/interfaces/IPublisher.sol#L52) error as `publish`.
 
-On success, the entry is removed from `_published` via swap-and-pop and the `_publications[labelhash]` record is deleted. Then [`Unpublished(publisher, labelNode, labelhash, timestamp)`](../evm/src/interfaces/IPublisher.sol#L30) is emitted with `msg.sender` as the publisher field. Calling `unpublish` on a label that was never published succeeds as a no-op against state and emits the event anyway. The live answer is still "not published."
+On success, the entry is removed from `_published` via swap-and-pop and the `_publications[labelhash]` record is deleted. Then [`Unpublished(publisher, labelNode, labelhash, timestamp)`](../evm/src/interfaces/IPublisher.sol#L43) is emitted with `msg.sender` as the publisher field. Calling `unpublish` on a label that was never published succeeds as a no-op against state and emits the event anyway. The live answer is still "not published."
 
 ### Why unpublish skips personhood and the rate limit
 
 - **No personhood gate.** A publisher whose verification was revoked still needs to remove their own listings. Self-removal is not a spam vector because the only way to have a listing in the first place was to have passed the publish gate.
-- **No rate-limit read or write.** Reading would block a retraction whenever the publisher is at cap, which is wrong UX. Writing would let a Lite user publish, unpublish, then publish again to dodge the daily limit. So `unpublish` leaves `_windows[msg.sender]` untouched.
+- **No rate-limit read or write.** Reading would block a retraction whenever the publisher is at cap, which is wrong UX. Writing would let a Lite user publish, unpublish, then publish again to dodge the daily limit. So `unpublish` leaves the window untouched. It could not find the window anyway, since windows are keyed by alias and `unpublish` takes no proof.
 
 Republishing a previously unpublished label goes through the normal `publish` flow with the normal daily cap.
 
@@ -119,9 +127,20 @@ For browse, the natural pattern is one paginated `getPublished` call followed by
 
 ### Event path
 
-`Published` and `Unpublished` events carry the same `labelhash` indexed field. An indexer reduces them per `labelhash` and takes the latest by `(blockNumber, logIndex)`. Useful when scanning history or running a light client that can't afford state reads.
+`Published` and `Unpublished` events carry the same `labelhash` indexed field. An indexer reduces them per `labelhash` and takes the latest by `(blockNumber, logIndex)`. Useful when scanning history or running a light client that can't afford state reads. `PublishedByPerson` carries `labelhash` too, so a reducer that also wants the alias can join on it within the block.
 
-## Personhood context
+## Personhood proof
+
+The gate verifies a proof the caller supplies rather than reading a status the network already holds for them. Nothing has to be bound first, so a publisher who has never registered an alias account can still publish, and the People chain never learns which address the proof was spent from.
+
+The caller fills in a [`ProofVerificationRequest`](../evm/src/interfaces/IPersonhood.sol#L30). Two of its fields are overwritten by [`_verifyPersonhood`](../evm/src/Publisher.sol#L219) before the precompile sees them.
+
+- **`message` becomes `abi.encodePacked(msg.sender)`.** The precompile does not bind the proof to the caller itself. Without this, a proof copied out of another transaction would publish for whoever replayed it.
+- **`context` becomes `PERSONHOOD_CONTEXT`.** The alias is only stable per person within one context, so a caller free to choose the context could mint a fresh alias, and therefore a fresh rate-limit window, on every publish.
+
+Every other field is taken as given. A wrong `expectedAlias`, `ringIndex`, or `revision` just fails verification.
+
+### Personhood context
 
 The `PERSONHOOD_CONTEXT` value (`bytes32("dotns")`) reuses dotns' application context so any account already verified for dotns can publish here without a separate ring-root broadcast. Publisher emits `publisher` in plain text in the `Published` event, so the per-context aliasing's anti-linkability benefit is unused. Collapsing onto dotns' context costs nothing observable on the read side and saves the chain-side bootstrap of a `"browse"` ring.
 
@@ -135,7 +154,9 @@ The scheme tracks redeployments. The contract itself is immutable, so a "patch" 
 - **MINOR.** Additive change (new function, new event with a new topic, new pure helper).
 - **PATCH.** Behaviour fix at the same ABI.
 
-`v2.0.0` is a major bump from `v1.1.0`. The enumeration views now return raw labelhashes (callers compose with `publicationOf`), `CooldownActive` was replaced by `RateLimitExceeded`, `lastPublishedAt(address)` was removed in favour of the rolling-window ring, and the new `Publication` struct exposes `indexPlusOne` as a public field. Zero means not published, otherwise the value is the 1-indexed position in the global feed. The contract is pre-deployment at v2.
+`v3.0.0` is a major bump from `v2.1.0`. `publish` takes a second argument, the personhood proof, so its selector changed. The gate moved from `personhoodStatus(msg.sender, context)` to `personhoodInfoByProof(request)`, the rate-limit ring is now keyed by context alias instead of caller address, and `PublishedByPerson` is a new event. Deployed windows do not carry over: a redeploy appends a new address, and the new contract starts every person at an empty window.
+
+`v2.0.0` was a major bump from `v1.1.0`. The enumeration views now return raw labelhashes (callers compose with `publicationOf`), `CooldownActive` was replaced by `RateLimitExceeded`, `lastPublishedAt(address)` was removed in favour of the rolling-window ring, and the new `Publication` struct exposes `indexPlusOne` as a public field. Zero means not published, otherwise the value is the 1-indexed position in the global feed.
 
 ## What is not on-chain
 
@@ -151,7 +172,7 @@ The scheme tracks redeployments. The contract itself is immutable, so a "patch" 
 The contract has no admin, no upgrade, and no privileged callers. The only external trust roots are:
 
 - **DotNS registrar.** `IDotnsRegistrar` is `immutable` in this contract, but the dotNS registrar implementation is an OpenZeppelin upgradeable proxy. A compromised dotNS governance can rewrite `ownerOf` to spoof ownership, which Publisher would honor blindly. The blast radius is total. The mitigation is not in this contract.
-- **Personhood precompile.** The alias-accounts pallet receives ring roots from the People chain via XCM pub/sub. Status updates are eventually consistent. A recently-revoked verification retains publish ability for the XCM lag window. This is the steady state, not an attack edge.
+- **Personhood precompile.** Ring roots arrive from the People chain via XCM pub/sub, so they are eventually consistent. A proof against a superseded root stays verifiable until the new root lands, which means a recently-revoked person retains publish ability for the XCM lag window. This is the steady state, not an attack edge.
 - **Event log immutability.** Once a `Published` event is in a finalised block, it is in the log forever. An `Unpublished` retraction does not erase the prior payload, only declares the current state. Indexer reducers must take "latest event wins." Any UI that pivots on historical event content (for example cross-referencing old `Published` hashes) inherits the historical payload. This is a fundamental property of event-only registries, not a contract bug.
 
 ## Adding a new field

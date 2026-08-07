@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {IDotnsRegistrar} from "./IDotnsRegistrar.sol";
+import {IPersonhood} from "./IPersonhood.sol";
 import {ISemver} from "./ISemver.sol";
 
 /// @title IPublisher
@@ -26,6 +27,16 @@ interface IPublisher is ISemver {
         uint64 timestamp
     );
 
+    /// @notice Emitted alongside {Published} when a personhood proof gated the call.
+    ///
+    /// Carries the context alias so an indexer can group publishes by person.
+    event PublishedByPerson(
+        address indexed publisher,
+        bytes32 indexed personAlias,
+        bytes32 indexed labelhash,
+        uint8 status
+    );
+
     /// @notice Emitted when an owner retracts a previously published label.
     event Unpublished(
         address indexed publisher,
@@ -39,8 +50,14 @@ interface IPublisher is ISemver {
     error NotOwner(address caller, uint256 tokenId);
     error RateLimitExceeded(uint64 nextAvailableAt);
 
-    /// @notice Publishes the caller's `.dot` label as a discoverable app.
-    function publish(string calldata label) external;
+    /// @notice Publishes a `.dot` label owned by the caller as a discoverable app.
+    ///
+    /// Every caller but the registry owner must present a proof of personhood, and the
+    /// tier it claims sets their daily cap. The owner may pass an empty `request`.
+    function publish(
+        string calldata label,
+        IPersonhood.ProofVerificationRequest calldata request
+    ) external;
 
     /// @notice Retracts a previously published label from discovery.
     function unpublish(string calldata label) external;
