@@ -19,8 +19,10 @@
 The backend layer behind Browse. A publishing registry where anyone can publish a product, and any client can read the published set back.
 
 Labels are published through [Publisher.sol](src/Publisher.sol), which records each published label
-and gates who can publish with proof-of-personhood and per-account rate limits. Attestations on
-products are indexed by resolvers bound to an attestation service.
+and gates who can publish. A publisher submits a ring-membership proof of personhood, which the
+contract binds to the caller and to its own application context before verifying, and the daily rate
+limit is then counted per person rather than per address. Attestations on products are indexed by
+resolvers bound to an attestation service.
 [RecipientAndAttesterIndexResolver.sol](src/RecipientAndAttesterIndexResolver.sol) groups attestation
 IDs by recipient, schema, and attester so the app can query them efficiently. It also gates new
 attestations on a bound identity: a product account first proves, once, that an identity authorized
@@ -37,11 +39,20 @@ The addresses below are the source of truth the SDK and app
 read, defined in [packages/browse-sdk/src/config.ts](../packages/browse-sdk/src/config.ts). Full
 deployment records live in [deployments.json](deployments.json).
 
+Publisher `3.0.0` is deployed but not yet wired into the SDK config, so the app still reads `2.1.0`.
+The two are not ABI-compatible, since `publish` gained the proof argument.
+
 ### Testnets
 
 #### Paseo Next Asset Hub V2
 
 Genesis `0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f`.
+
+Version 3.0.0:
+
+* **Publisher**:
+  * Contract: `0x6b7e64a400e867f9bb0a136e77c327f6a366e183`
+  * Deployment and ABI: [Publisher.sol](src/Publisher.sol)
 
 Version 2.1.0:
 
@@ -59,6 +70,12 @@ Version 2.1.0:
 #### Previewnet Asset Hub
 
 Genesis `0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210`.
+
+Version 3.0.0:
+
+* **Publisher**:
+  * Contract: `0x891d24c36f125ecef1812278260bbcb3196dafe3`
+  * Deployment and ABI: [Publisher.sol](src/Publisher.sol)
 
 Version 2.1.0:
 

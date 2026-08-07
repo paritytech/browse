@@ -1,25 +1,27 @@
 {
   "publisher": {
     "previewnet": {
-      "address": "0x5a3c111278ec98f327466c9ab7a5e0e0f5047acc",
-      "version": "2.1.0",
+      "address": "0x891d24c36f125ecef1812278260bbcb3196dafe3",
+      "version": "3.0.0",
+      "previousAddress": "0x5a3c111278ec98f327466c9ab7a5e0e0f5047acc",
       "registrar": "0x4f06E818Ba3d987704fd91cf3d868E4b019106Ab",
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
       "network": "previewnet-asset-hub",
       "genesisHash": "0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210",
       "substrateRpc": "wss://previewnet.substrate.dev/asset-hub",
       "ethRpc": "https://previewnet.substrate.dev/eth-rpc",
-      "deployedAt": "2026-08-03T21:00:00Z"
+      "deployedAt": "2026-08-07T11:00:00Z"
     },
     "paseo-asset-hub-next-v2": {
-      "address": "0x0d30645f1d2c7dfa11926190e456a45db440581f",
-      "version": "2.1.0",
+      "address": "0x6b7e64a400e867f9bb0a136e77c327f6a366e183",
+      "version": "3.0.0",
+      "previousAddress": "0x0d30645f1d2c7dfa11926190e456a45db440581f",
       "registrar": "0xf7Ad3F44F316C73E4a2b46b1ed48d376bCc9E639",
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
       "network": "paseo-asset-hub-next-v2",
       "genesisHash": "0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f",
       "substrateRpc": "wss://paseo-asset-hub-next-rpc.polkadot.io",
-      "deployedAt": "2026-06-05T13:45:21Z"
+      "deployedAt": "2026-08-07T11:00:00Z"
     }
   },
   "trustedAttesterIndexResolver": {

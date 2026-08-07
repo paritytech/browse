@@ -11,7 +11,7 @@ import {Semver} from "./Semver.sol";
 
 /// @title Publisher
 /// @notice The browse publishing registry.
-contract Publisher is IPublisher, Ownable2Step, Semver(2, 1, 0) {
+contract Publisher is IPublisher, Ownable2Step, Semver(3, 0, 0) {
     // The Proof-of-Personhood precompile.
     address internal constant PERSONHOOD =
         0x000000000000000000000000000000000a010000;
@@ -23,19 +23,20 @@ contract Publisher is IPublisher, Ownable2Step, Semver(2, 1, 0) {
     // The application identifier passed to the personhood precompile.
     //
     // Reuses dotns' ring so any dotns-verified account can publish here without a
-    // separate ring-root broadcast.
+    // separate ring-root broadcast. Pinned, not read from the request, because the
+    // context is what makes an alias stable per person.
     bytes32 internal constant PERSONHOOD_CONTEXT = bytes32("dotns");
 
-    // The rolling window for the per-publisher rate limit.
+    // The rolling window for the per-person rate limit.
     uint64 internal constant RATE_WINDOW = 1 days;
 
-    // Maximum publishes per RATE_WINDOW for Lite-tier (status == 1) callers.
+    // Maximum publishes per RATE_WINDOW for a proof claiming the Lite tier.
     uint64 internal constant LITE_DAILY_LIMIT = 1;
 
-    // Maximum publishes per RATE_WINDOW for Full-tier (status >= 2) callers.
+    // Maximum publishes per RATE_WINDOW for a proof claiming the Full tier.
     uint64 internal constant FULL_DAILY_LIMIT = 5;
 
-    // Per-publisher rolling-window ring of the last FULL_DAILY_LIMIT timestamps.
+    // Per-person rolling-window ring of the last FULL_DAILY_LIMIT timestamps.
     //
     // Five uint48 fields total 30 bytes and pack into a single storage slot.
     // uint48 overflows around year 8.9M. Ordering runs most-recent (t0) to
@@ -60,8 +61,11 @@ contract Publisher is IPublisher, Ownable2Step, Semver(2, 1, 0) {
     // mapping has no separate "is published" flag.
     mapping(bytes32 labelhash => Publication) private _publications;
 
-    // publisher => rolling-window timestamps.
-    mapping(address publisher => PublishWindow) private _windows;
+    // context alias => rolling-window timestamps.
+    //
+    // Keyed by the person, not the address. A proof works from any account, so an
+    // address-keyed window would hand out a fresh quota with every new key.
+    mapping(bytes32 personAlias => PublishWindow) private _windows;
 
     /// @param registrar_ The address of the deployed DotNS registrar.
     constructor(IDotnsRegistrar registrar_) Ownable(msg.sender) {
@@ -69,23 +73,25 @@ contract Publisher is IPublisher, Ownable2Step, Semver(2, 1, 0) {
     }
 
     /// @inheritdoc IPublisher
-    function publish(string calldata label) external {
+    function publish(
+        string calldata label,
+        IPersonhood.ProofVerificationRequest calldata request
+    ) external {
         (bytes32 labelhash, bytes32 labelNode) = _requireOwnedLabel(label);
 
         uint64 nowTs = uint64(block.timestamp);
 
-        // The owner publishes without the personhood gate or the per-account
+        // The owner publishes without the personhood gate or the per-person
         // rate limit, so it can seed and operate the registry with as many
         // labels as it needs. Everyone else is gated and rate-limited by tier.
+        bytes32 personAlias;
         if (msg.sender != owner()) {
-            uint8 status = IPersonhood(PERSONHOOD)
-                .personhoodStatus(msg.sender, PERSONHOOD_CONTEXT)
-                .status;
+            personAlias = _verifyPersonhood(request);
 
-            if (status == 0) revert NoPersonhood();
-
-            uint64 cap = status == 1 ? LITE_DAILY_LIMIT : FULL_DAILY_LIMIT;
-            _checkAndRecordRate(msg.sender, cap, nowTs);
+            uint64 cap = request.expectedStatus == 1
+                ? LITE_DAILY_LIMIT
+                : FULL_DAILY_LIMIT;
+            _checkAndRecordRate(personAlias, cap, nowTs);
         }
 
         Publication storage data = _publications[labelhash];
@@ -102,6 +108,15 @@ contract Publisher is IPublisher, Ownable2Step, Semver(2, 1, 0) {
         }
 
         emit Published(msg.sender, labelNode, labelhash, nowTs);
+
+        if (personAlias != bytes32(0)) {
+            emit PublishedByPerson(
+                msg.sender,
+                personAlias,
+                labelhash,
+                request.expectedStatus
+            );
+        }
     }
 
     /// @inheritdoc IPublisher
@@ -192,17 +207,37 @@ contract Publisher is IPublisher, Ownable2Step, Semver(2, 1, 0) {
         }
     }
 
-    /// @dev Enforces the per-publisher daily cap and records this call's timestamp.
+    /// @dev Verifies the personhood proof and returns the context alias it derives.
+    ///
+    /// `message` and `context` are overwritten rather than trusted. The first stops a
+    /// proof copied from another transaction, the second keeps one person to one alias.
+    function _verifyPersonhood(
+        IPersonhood.ProofVerificationRequest calldata request
+    ) internal view returns (bytes32 personAlias) {
+        IPersonhood.ProofVerificationRequest memory bound = request;
+        bound.message = abi.encodePacked(msg.sender);
+        bound.context = PERSONHOOD_CONTEXT;
+
+        if (!IPersonhood(PERSONHOOD).personhoodInfoByProof(bound))
+            revert NoPersonhood();
+
+        // A verified proof always derives a non-zero alias, so zero stays free as
+        // the "no proof presented" sentinel on the owner path.
+        personAlias = request.expectedAlias;
+        if (personAlias == bytes32(0)) revert NoPersonhood();
+    }
+
+    /// @dev Enforces the per-person daily cap and records the timestamp of this call.
     ///
     /// Counts ring entries strictly newer than `nowTs - RATE_WINDOW`. Reverts with
     /// `RateLimitExceeded(oldestActive + RATE_WINDOW)` at cap. On pass, rotates the
     /// ring so the oldest slot drops and `nowTs` becomes the new head.
     function _checkAndRecordRate(
-        address caller,
+        bytes32 personAlias,
         uint64 cap,
         uint64 nowTs
     ) internal {
-        PublishWindow storage w = _windows[caller];
+        PublishWindow storage w = _windows[personAlias];
         uint64 cutoff = nowTs > RATE_WINDOW ? nowTs - RATE_WINDOW : 0;
 
         uint64 active = 0;
