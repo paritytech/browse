@@ -3,7 +3,7 @@ import {
   activeSchemaId,
   isKnownGenesis,
   type NetworkGenesis,
-  PASEO_ASSETHUB_NEXT_V2_GENESIS,
+  PASEONEXTV2_ASSETHUB_GENESIS,
   selectNetwork
 } from '@parity/browse-sdk'
 
@@ -13,7 +13,7 @@ declare const process: { env?: Record<string, string | undefined> }
 const NETWORK_GENESIS_HASH =
   import.meta.env?.NETWORK_GENESIS_HASH ??
   process.env?.NETWORK_GENESIS_HASH ??
-  PASEO_ASSETHUB_NEXT_V2_GENESIS
+  PASEONEXTV2_ASSETHUB_GENESIS
 
 if (!isKnownGenesis(NETWORK_GENESIS_HASH)) {
   throw new Error(`Unknown NETWORK_GENESIS_HASH: ${NETWORK_GENESIS_HASH}`)

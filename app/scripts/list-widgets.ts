@@ -1,7 +1,7 @@
 /**
  * List every published app whose root manifest declares `kind: "widget"`.
  *
- *   cd app && bun scripts/list-widgets.ts             # paseo-next-v2 (default)
+ *   cd app && bun scripts/list-widgets.ts             # paseonextv2 (default)
  *   cd app && bun scripts/list-widgets.ts previewnet  # previewnet
  *   cd app && MODALITY=app bun scripts/list-widgets.ts
  */
@@ -10,15 +10,14 @@ import {
   createBrowseSdk,
   MODALITIES,
   type Modality,
-  PASEO_ASSETHUB_NEXT_V2_GENESIS,
+  PASEONEXTV2_ASSETHUB_GENESIS,
   PREVIEWNET_ASSETHUB_GENESIS,
   selectNetwork
 } from '@parity/browse-sdk'
 import { getWsProvider } from 'polkadot-api/ws'
 
 const arg = (process.argv[2] ?? 'paseo').toLowerCase()
-const genesis =
-  arg === 'previewnet' ? PREVIEWNET_ASSETHUB_GENESIS : PASEO_ASSETHUB_NEXT_V2_GENESIS
+const genesis = arg === 'previewnet' ? PREVIEWNET_ASSETHUB_GENESIS : PASEONEXTV2_ASSETHUB_GENESIS
 const modality = (process.env.MODALITY ?? 'widget') as Modality
 if (!(MODALITIES as readonly string[]).includes(modality)) {
   console.error(`MODALITY must be one of: ${MODALITIES.join(', ')}`)
@@ -26,7 +25,7 @@ if (!(MODALITIES as readonly string[]).includes(modality)) {
 }
 
 const network = selectNetwork(genesis)
-console.log(`network:   ${arg === 'previewnet' ? 'previewnet' : 'paseo-next-v2'}`)
+console.log(`network:   ${arg === 'previewnet' ? 'previewnet' : 'paseonextv2'}`)
 console.log(`rpc:       ${network.ASSETHUB_RPCS[0]}`)
 console.log(
   `publisher: ${network.PUBLISHER.map((p) => `${p.version}@${p.address}`).join(', ') || '(none)'}`

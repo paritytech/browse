@@ -39,18 +39,3 @@ export interface Deployment {
   version: string
   address: `0x${string}`
 }
-
-export interface NetworkAddresses {
-  /**
-   * Deployed Publisher registries for this network, current first.
-   *
-   * https://github.com/paritytech/browse/blob/main/evm/src/Publisher.sol
-   */
-  PUBLISHER: readonly Deployment[]
-  /** https://github.com/paritytech/dotns/blob/master/contracts/registrars/DotnsRegistrar.sol */
-  REGISTRAR: `0x${string}`
-  /** https://github.com/paritytech/dotns/blob/master/contracts/resolvers/DotnsContentResolver.sol */
-  CONTENT_RESOLVER: `0x${string}`
-  /** https://github.com/paritytech/dotns/blob/master/contracts/utils/Multicall3.sol */
-  MULTICALL3: `0x${string}`
-}

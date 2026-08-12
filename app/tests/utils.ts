@@ -1,6 +1,6 @@
 import {
   KNOWN_NETWORKS,
-  PASEO_ASSETHUB_NEXT_V2_GENESIS,
+  PASEONEXTV2_ASSETHUB_GENESIS,
   PREVIEWNET_ASSETHUB_GENESIS
 } from '@parity/browse-sdk'
 import type { Frame, Page } from '@playwright/test'
@@ -49,11 +49,11 @@ export function identityUsername(): string {
 type Account = import('@parity/host-api-test-sdk').Account
 type NetworkConfig = import('@parity/host-api-test-sdk').NetworkConfig
 
-const PASEO_ASSETHUB_NEXT_V2: NetworkConfig = {
+const PASEONEXTV2_ASSETHUB: NetworkConfig = {
   id: 'paseo-asset-hub-next-v2',
-  name: 'Paseo Asset Hub Next V2',
-  genesisHash: PASEO_ASSETHUB_NEXT_V2_GENESIS,
-  rpcUrl: KNOWN_NETWORKS[PASEO_ASSETHUB_NEXT_V2_GENESIS].ASSETHUB_RPCS[0],
+  name: 'PaseoNextV2 AssetHub',
+  genesisHash: PASEONEXTV2_ASSETHUB_GENESIS,
+  rpcUrl: KNOWN_NETWORKS[PASEONEXTV2_ASSETHUB_GENESIS].ASSETHUB_RPCS[0],
   tokenSymbol: 'PAS',
   tokenDecimals: 10
 }
@@ -73,8 +73,8 @@ const PREVIEWNET_ASSETHUB: NetworkConfig = {
 const PASEO_PEOPLE: NetworkConfig = {
   id: 'paseo-people',
   name: 'Paseo People',
-  genesisHash: KNOWN_NETWORKS[PASEO_ASSETHUB_NEXT_V2_GENESIS].PEOPLE_GENESIS!,
-  rpcUrl: KNOWN_NETWORKS[PASEO_ASSETHUB_NEXT_V2_GENESIS].PEOPLE_RPCS![0],
+  genesisHash: KNOWN_NETWORKS[PASEONEXTV2_ASSETHUB_GENESIS].PEOPLE_GENESIS!,
+  rpcUrl: KNOWN_NETWORKS[PASEONEXTV2_ASSETHUB_GENESIS].PEOPLE_RPCS![0],
   tokenSymbol: 'PAS',
   tokenDecimals: 10
 }
@@ -90,13 +90,13 @@ const PREVIEWNET_PEOPLE: NetworkConfig = {
 
 function activeNetwork(): NetworkConfig {
   const genesis = process.env.NETWORK_GENESIS_HASH
-  if (genesis === PASEO_ASSETHUB_NEXT_V2.genesisHash) return PASEO_ASSETHUB_NEXT_V2
+  if (genesis === PASEONEXTV2_ASSETHUB.genesisHash) return PASEONEXTV2_ASSETHUB
   return PREVIEWNET_ASSETHUB
 }
 
 function activePeopleChain(): NetworkConfig {
   const genesis = process.env.NETWORK_GENESIS_HASH
-  if (genesis === PASEO_ASSETHUB_NEXT_V2.genesisHash) return PASEO_PEOPLE
+  if (genesis === PASEONEXTV2_ASSETHUB.genesisHash) return PASEO_PEOPLE
   return PREVIEWNET_PEOPLE
 }
 

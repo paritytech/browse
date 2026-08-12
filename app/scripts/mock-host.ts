@@ -19,7 +19,7 @@
 
 import {
   KNOWN_NETWORKS,
-  PASEO_ASSETHUB_NEXT_V2_GENESIS,
+  PASEONEXTV2_ASSETHUB_GENESIS,
   PREVIEWNET_ASSETHUB_GENESIS
 } from '@parity/browse-sdk'
 import { createTestHostServer } from '@parity/host-api-test-sdk'
@@ -44,7 +44,7 @@ function accountFlag(): (typeof DEV_ACCOUNTS)[number] {
 
 const port = flag('port', '3000')
 const onPreviewnet = flag('network', 'paseo') === 'previewnet'
-const genesis = onPreviewnet ? PREVIEWNET_ASSETHUB_GENESIS : PASEO_ASSETHUB_NEXT_V2_GENESIS
+const genesis = onPreviewnet ? PREVIEWNET_ASSETHUB_GENESIS : PASEONEXTV2_ASSETHUB_GENESIS
 const network = KNOWN_NETWORKS[genesis]
 const token = onPreviewnet
   ? { tokenSymbol: 'UNIT', tokenDecimals: 12 }
@@ -72,7 +72,7 @@ const host = await createTestHostServer({
 })
 
 console.log(
-  `dev server:  http://localhost:${port}/  (${onPreviewnet ? 'previewnet' : 'paseo-next-v2'})`
+  `dev server:  http://localhost:${port}/  (${onPreviewnet ? 'previewnet' : 'paseonextv2'})`
 )
 console.log(`open this:   ${host.url}`)
 console.log('Ctrl-C to stop.')

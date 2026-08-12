@@ -56,7 +56,7 @@ Paths under `app/src` unless noted.
 
 ## Gotchas
 
-- **Genesis var is `NETWORK_GENESIS_HASH`.** There is no `VITE_ACTIVE_GENESIS`. Vite exposes it via `envPrefix: ['APP_','NETWORK_']` from the root `.env`. Code fallback is Paseo, the committed `.env` pins previewnet, and `.env.example` is Paseo, so mind the mismatch. Only three genesis values are known (paseo-next-v2, previewnet, summit). `dev:*` and `test:e2e` set it inline.
+- **Genesis var is `NETWORK_GENESIS_HASH`.** There is no `VITE_ACTIVE_GENESIS`. Vite exposes it via `envPrefix: ['APP_','NETWORK_']` from the root `.env`. Code fallback is Paseo, the committed `.env` pins previewnet, and `.env.example` is Paseo, so mind the mismatch. Only two genesis values are known (paseonextv2, previewnet). `dev:*` and `test:e2e` set it inline.
 - **Hosted vs standalone.** Never touch `window.localStorage` in feature code. Go through the `localStorage` singleton in `lib/local-storage.ts`, or hosted mode (iframe or `__HOST_WEBVIEW_MARK__`) silently loses data.
 - **Dual build** via `APP_BUILD_TARGET` (`spa`, `widget`, or unset for both). The widget build emits `widget.html` then renames it to `index.html`. Two entries: `main.tsx` into `App.tsx`, and `widget.tsx`.
 - **Don't hand-edit generated dirs.** `app/.papi/descriptors` (regenerate via `papi generate` or the `papi:*` scripts, source of truth `.papi/polkadot-api.json`) and `app/chain-specs/` (gitignored). Note `.papi/{contracts,metadata,polkadot-api.json}` *are* committed.

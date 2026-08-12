@@ -23,7 +23,7 @@ import {
 import {
   isKnownGenesis,
   type NetworkGenesis,
-  PASEO_ASSETHUB_NEXT_V2_GENESIS,
+  PASEONEXTV2_ASSETHUB_GENESIS,
   PREVIEWNET_ASSETHUB_GENESIS,
 } from "@parity/browse-sdk/config";
 import { Binary, createClient, Enum } from "polkadot-api";
@@ -48,12 +48,12 @@ const ASSETS = [
 const SIGNER_PATH = "//wallet";
 
 const BULLETIN_RPC_BY_GENESIS: Partial<Record<NetworkGenesis, string>> = {
-  [PASEO_ASSETHUB_NEXT_V2_GENESIS]: "wss://paseo-bulletin-next-rpc.polkadot.io",
+  [PASEONEXTV2_ASSETHUB_GENESIS]: "wss://paseo-bulletin-next-rpc.polkadot.io",
   [PREVIEWNET_ASSETHUB_GENESIS]: "wss://previewnet.substrate.dev/bulletin",
 };
 
 const GENESIS_BY_ALIAS: Record<string, NetworkGenesis> = {
-  paseo: PASEO_ASSETHUB_NEXT_V2_GENESIS,
+  paseo: PASEONEXTV2_ASSETHUB_GENESIS,
   previewnet: PREVIEWNET_ASSETHUB_GENESIS,
 };
 

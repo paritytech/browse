@@ -5,7 +5,7 @@
     "paseohub": {
       "wsUrl": "wss://paseo-asset-hub-next-rpc.polkadot.io",
       "metadata": ".papi/metadata/paseohub.scale",
-      "genesis": "0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f",
+      "genesis": "0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6",
       "codeHash": "0xc1314017cbdcd76e8e343721350167ddd92a1c312b90ebc0188abff4bc4bdd4a"
     },
     "previewnethub": {

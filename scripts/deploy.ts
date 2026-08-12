@@ -16,7 +16,7 @@ const ZERO = "0x0000000000000000000000000000000000000000";
 // Defaults to Paseo Asset Hub Next v2, matching the app's default network.
 const NETWORK_GENESIS_HASH =
   process.env.NETWORK_GENESIS_HASH ??
-  "0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f";
+  "0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6";
 
 // The SS58 address allowed to issue certificates. Optional: when unset, deploy-trusted-resolver
 // defaults to the deployer account and derives the EVM address the resolver gates on.

@@ -21,25 +21,17 @@ export {
   attestationVersions,
   isKnownGenesis,
   KNOWN_NETWORKS,
-  PASEO_ASSETHUB_NEXT_V2_GENESIS,
+  PASEONEXTV2_ASSETHUB_GENESIS,
   PREVIEWNET_ASSETHUB_GENESIS,
   publisherReadAddresses,
-  selectNetwork,
-  SUMMIT_ASSETHUB_GENESIS
+  selectNetwork
 } from './config.js'
 export type { NetworkConfig, NetworkGenesis } from './config.js'
 
 export { parseRootManifest } from './manifest.js'
 
 export { MODALITIES } from './types.js'
-export type {
-  AppListing,
-  IconFormat,
-  Modality,
-  NetworkAddresses,
-  Deployment,
-  RootManifest
-} from './types.js'
+export type { AppListing, IconFormat, Modality, Deployment, RootManifest } from './types.js'
 
 export {
   trustedAttestationId,

@@ -1,18 +1,11 @@
 import {
   type BrowseSdk,
   createBrowseSdk,
-  PASEO_ASSETHUB_NEXT_V2_GENESIS,
-  PREVIEWNET_ASSETHUB_GENESIS,
-  SUMMIT_ASSETHUB_GENESIS
+  PASEONEXTV2_ASSETHUB_GENESIS,
+  PREVIEWNET_ASSETHUB_GENESIS
 } from '@parity/browse-sdk'
 import { getHostProvider, isChainSupported } from '@parity/product-sdk/host'
-import {
-  paseohub,
-  paseopeople,
-  previewnethub,
-  previewnetpeople,
-  summithub
-} from '@polkadot-api/descriptors'
+import { paseohub, paseopeople, previewnethub, previewnetpeople } from '@polkadot-api/descriptors'
 import {
   AccountId,
   createClient,
@@ -25,9 +18,8 @@ import { ASSETHUB_GENESIS, DUMMY_ORIGIN, NETWORK } from './config'
 
 /** Generated Asset Hub bindings, keyed by genesis. */
 export const ASSETHUB_DESCRIPTOR_BY_GENESIS = {
-  [PASEO_ASSETHUB_NEXT_V2_GENESIS]: paseohub,
-  [PREVIEWNET_ASSETHUB_GENESIS]: previewnethub,
-  [SUMMIT_ASSETHUB_GENESIS]: summithub
+  [PASEONEXTV2_ASSETHUB_GENESIS]: paseohub,
+  [PREVIEWNET_ASSETHUB_GENESIS]: previewnethub
 } as const
 
 const descriptor = (ASSETHUB_DESCRIPTOR_BY_GENESIS[ASSETHUB_GENESIS] ?? paseohub) as typeof paseohub
@@ -248,7 +240,7 @@ export async function reviveCall(
 
 const PEOPLE_DESCRIPTOR_BY_ASSETHUB = {
   [PREVIEWNET_ASSETHUB_GENESIS]: previewnetpeople,
-  [PASEO_ASSETHUB_NEXT_V2_GENESIS]: paseopeople
+  [PASEONEXTV2_ASSETHUB_GENESIS]: paseopeople
 } as const
 
 type PeopleApi = TypedApi<typeof previewnetpeople>

@@ -39,20 +39,20 @@ deployment records live in [deployments.json](deployments.json).
 
 ### Testnets
 
-#### Paseo Next Asset Hub V2
+#### PaseoNextV2 AssetHub
 
-Genesis `0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f`.
+Genesis `0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6`.
 
 Version 2.1.0:
 
 * **Publisher**:
-  * Contract: `0x0d30645f1d2c7dfa11926190e456a45db440581f`
+  * Contract: `0x09023fC7d5dDf5E79B31A8921Eb33f02FC14dDBB`
   * Deployment and ABI: [Publisher.sol](src/Publisher.sol)
 * **RecipientAndAttesterIndexResolver**:
-  * Contract: `0x1fa4627395455ec42cfb574c895b5bc5e9e40c4f`
+  * Contract: `0xAca17c2547f09b3AD0d3bd28Db11EE172604b85b`
   * Deployment and ABI: [RecipientAndAttesterIndexResolver.sol](src/RecipientAndAttesterIndexResolver.sol)
 * **TrustedAttesterIndexResolver**:
-  * Contract: `0x5abfc89934ee846d12629dfb5b22eecc59bbaed3`
+  * Contract: `0x8326c11a76Dda4702046e92f73C0ea7E698560a2`
   * Trusted attester: `0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20`
   * Deployment and ABI: [TrustedAttesterIndexResolver.sol](src/TrustedAttesterIndexResolver.sol)
 
