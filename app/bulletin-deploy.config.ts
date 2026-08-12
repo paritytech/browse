@@ -2,13 +2,16 @@ import { defineConfig } from 'bulletin-deploy'
 
 declare const process: { env?: Record<string, string | undefined> }
 
-// Set APP_DOTNS_DOMAIN to the bare label, e.g. `browse`.
+// APP_DOTNS_DOMAIN takes either a full name, `browse-beta00.paseo`, which is what
+// the deploy workflow passes, or a bare label, `browse`. A bare label gets the
+// suffix from APP_DOTNS_TLD, which defaults to the `.dot` networks.
 const domain = process.env?.APP_DOTNS_DOMAIN
 if (!domain) throw new Error('APP_DOTNS_DOMAIN is required')
-const label = domain.toLowerCase().replace(/\.dot$/, '')
+const name = domain.toLowerCase()
+const target = name.includes('.') ? name : `${name}.${process.env?.APP_DOTNS_TLD ?? 'dot'}`
 
 export default defineConfig({
-  domain: `${label}.dot`,
+  domain: target,
   displayName: 'Browse',
   description: 'Home for privacy apps.',
   icon: { path: './icon.png', format: 'png' },
