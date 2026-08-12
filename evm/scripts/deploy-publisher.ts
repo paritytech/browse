@@ -2,9 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { encodeAbiParameters, parseAbiParameters } from "viem";
-
-import { networkTldNode } from "@parity/browse-sdk/config";
+import { encodeAbiParameters, namehash, parseAbiParameters } from "viem";
 
 import { contractVersion, deploy } from "./create3.ts";
 import { connect, ensureMapped, getSigner } from "./lib.ts";
@@ -19,7 +17,9 @@ async function main() {
 
   const { client, api, config } = connect();
   const registrar = config.REGISTRAR;
-  const node = networkTldNode(config);
+  // The TLD node the registrar keys names by, which is what Publisher derives
+  // its token ids from. Same value as `tldNode()` on the dotNS protocol registry.
+  const node = namehash(config.TLD);
   console.log(`Registrar: ${registrar}`);
   console.log(`TLD:       .${config.TLD} (${node})`);
 

@@ -13,7 +13,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { tldNode } from './abi/namehash.js'
 import type { Deployment } from './types.js'
 
 export interface NetworkConfig {
@@ -125,15 +124,6 @@ export function isKnownGenesis(genesis: string): genesis is NetworkGenesis {
 
 export function selectNetwork(genesis: NetworkGenesis): NetworkConfig {
   return KNOWN_NETWORKS[genesis]
-}
-
-/**
- * Namehash of the TLD node a network runs, the root parent of every name on it.
- *
- * Matches `tldNode()` on the dotNS protocol registry there.
- */
-export function networkTldNode(network: NetworkConfig): `0x${string}` {
-  return tldNode(network.TLD)
 }
 
 /**
