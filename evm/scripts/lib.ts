@@ -6,7 +6,7 @@ import {
   mnemonicToEntropy,
   ss58Encode,
 } from "@polkadot-labs/hdkd-helpers";
-import { Binary, createClient } from "polkadot-api";
+import { createClient } from "polkadot-api";
 import { getPolkadotSigner } from "polkadot-api/signer";
 import { getWsProvider } from "polkadot-api/ws-provider/node";
 
@@ -134,37 +134,3 @@ export async function ensureMapped(api: any, signer: any) {
   });
 }
 
-export async function deploy(
-  api: any,
-  signer: any,
-  contractName: string,
-  bytecodeHex: string
-): Promise<string> {
-  console.log(`\nDeploying ${contractName}...`);
-
-  const code = Binary.fromHex(bytecodeHex);
-  const data = Binary.fromHex("0x");
-
-  const tx = api.tx.Revive.instantiate_with_code({
-    value: 0n,
-    weight_limit: { ref_time: 10_000_000_000n, proof_size: 1_000_000n },
-    storage_deposit_limit: 1_000_000_000_000n,
-    code,
-    data,
-    salt: undefined,
-  });
-
-  const event = await waitBestBlock(tx, signer, contractName);
-
-  const instantiated = (event.events ?? []).find(
-    (e: any) => e.type === "Revive" && e.value?.type === "Instantiated"
-  );
-  const contract = instantiated?.value?.value?.contract;
-  const address =
-    contract && typeof contract === "object" && "asHex" in contract
-      ? contract.asHex()
-      : String(contract);
-
-  console.log(`  → ${contractName} deployed at ${address}`);
-  return address;
-}

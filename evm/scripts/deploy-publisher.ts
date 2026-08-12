@@ -4,10 +4,12 @@ import { fileURLToPath } from "node:url";
 
 import { encodeAbiParameters, parseAbiParameters } from "viem";
 
-import { connect, deploy, ensureMapped, getSigner } from "./lib.ts";
+import { contractVersion, deployThroughCreate3 } from "./create3.ts";
+import { connect, ensureMapped, getSigner } from "./lib.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.resolve(__dirname, "../out");
+const SRC_DIR = path.resolve(__dirname, "../src");
 
 async function main() {
   const { signer, address } = getSigner();
@@ -32,15 +34,15 @@ async function main() {
     const bytecodeWithArgs =
       artifact.bytecode.object + constructorArgs.replace(/^0x/, "");
 
-    const publisherAddr = await deploy(
+    const version = contractVersion(path.join(SRC_DIR, "Publisher.sol"));
+    const { address: publisherAddr, status } = await deployThroughCreate3(
       api,
       signer,
-      "Publisher",
-      bytecodeWithArgs
+      { name: "Publisher", version, initCode: bytecodeWithArgs, network: config }
     );
 
     console.log("\n--- Summary ---");
-    console.log(`Publisher: ${publisherAddr}`);
+    console.log(`Publisher: ${publisherAddr} (${version}, ${status})`);
     console.log(`Registrar: ${registrar}`);
   } finally {
     client.destroy();

@@ -10,10 +10,12 @@ import {
   parseAbiParameters,
 } from "viem";
 
-import { connect, deploy, ensureMapped, getSigner } from "./lib.ts";
+import { contractVersion, deployThroughCreate3 } from "./create3.ts";
+import { connect, ensureMapped, getSigner } from "./lib.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.resolve(__dirname, "../out");
+const SRC_DIR = path.resolve(__dirname, "../src");
 
 async function main() {
   const { signer, address } = getSigner();
@@ -53,15 +55,22 @@ async function main() {
     const bytecodeWithArgs =
       artifact.bytecode.object + constructorArgs.replace(/^0x/, "");
 
-    const resolverAddr = await deploy(
+    const version = contractVersion(
+      path.join(SRC_DIR, "TrustedAttesterIndexResolver.sol")
+    );
+    const { address: resolverAddr, status } = await deployThroughCreate3(
       api,
       signer,
-      "TrustedAttesterIndexResolver",
-      bytecodeWithArgs
+      {
+        name: "TrustedAttesterIndexResolver",
+        version,
+        initCode: bytecodeWithArgs,
+        network: config,
+      }
     );
 
     console.log("\n--- Summary ---");
-    console.log(`Resolver: ${resolverAddr}`);
+    console.log(`Resolver: ${resolverAddr} (${version}, ${status})`);
     console.log(`AttestationService: ${ATTESTATION_SERVICE}`);
     console.log(`TrustedAttester (SS58): ${TRUSTED_ATTESTER_SS58_ADDRESS}`);
     console.log(`TrustedAttester (EVM):  ${trustedAttester}`);
