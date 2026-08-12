@@ -61,8 +61,8 @@ jobs:
       fail-fast: false
       matrix:
         target:
-          - env: paseonextv2
-            display-name: PaseoNextV2 AssetHub
+          - env: paseo
+            display-name: Paseo AssetHubNextV2
             genesis: '0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6'
             tld: paseo
             reuse-artifact: true
@@ -96,7 +96,7 @@ jobs:
             exit 1
           fi
           if [ "${{ github.ref }}" == "refs/heads/main" ]; then
-            if [ "${{ matrix.target.env }}" == "paseonextv2" ]; then
+            if [ "${{ matrix.target.env }}" == "paseo" ]; then
               echo "value=${DOMAIN}-beta00.${TLD}" >> "$GITHUB_OUTPUT"
             else
               echo "value=${DOMAIN}.${TLD}" >> "$GITHUB_OUTPUT"
@@ -258,13 +258,13 @@ jobs:
           echo "domain=${DOMAIN}" >> "$GITHUB_OUTPUT"
           
       - name: Persist CID for release
-        if: matrix.target.env == 'paseonextv2' && github.ref == 'refs/heads/main' && steps.final.outputs.cid != ''
+        if: matrix.target.env == 'paseo' && github.ref == 'refs/heads/main' && steps.final.outputs.cid != ''
         run: |
           mkdir -p .release-cid
           echo "${{ steps.final.outputs.cid }}" > .release-cid/cid
 
       - name: Cache CID by commit
-        if: matrix.target.env == 'paseonextv2' && github.ref == 'refs/heads/main' && steps.final.outputs.cid != ''
+        if: matrix.target.env == 'paseo' && github.ref == 'refs/heads/main' && steps.final.outputs.cid != ''
         uses: actions/cache/save@v4
         with:
           path: .release-cid
@@ -289,7 +289,7 @@ jobs:
           fi
 
       - name: Comment on PR
-        if: github.event.pull_request && steps.final.outputs.domain != '' && matrix.target.env == 'paseonextv2'
+        if: github.event.pull_request && steps.final.outputs.domain != '' && matrix.target.env == 'paseo'
         uses: actions/github-script@v7
         env:
           DOMAIN: ${{ steps.final.outputs.domain }}

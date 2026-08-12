@@ -1,7 +1,7 @@
 /**
  * List every published app whose root manifest declares `kind: "widget"`.
  *
- *   cd app && bun scripts/list-widgets.ts             # paseonextv2 (default)
+ *   cd app && bun scripts/list-widgets.ts             # paseo (default)
  *   cd app && bun scripts/list-widgets.ts previewnet  # previewnet
  *   cd app && MODALITY=app bun scripts/list-widgets.ts
  */
@@ -25,7 +25,7 @@ if (!(MODALITIES as readonly string[]).includes(modality)) {
 }
 
 const network = selectNetwork(genesis)
-console.log(`network:   ${arg === 'previewnet' ? 'previewnet' : 'paseonextv2'}`)
+console.log(`network:   ${arg === 'previewnet' ? 'previewnet' : 'paseo'}`)
 console.log(`rpc:       ${network.ASSETHUB_RPCS[0]}`)
 console.log(
   `publisher: ${network.PUBLISHER.map((p) => `${p.version}@${p.address}`).join(', ') || '(none)'}`

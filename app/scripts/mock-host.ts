@@ -72,7 +72,7 @@ const host = await createTestHostServer({
 })
 
 console.log(
-  `dev server:  http://localhost:${port}/  (${onPreviewnet ? 'previewnet' : 'paseonextv2'})`
+  `dev server:  http://localhost:${port}/  (${onPreviewnet ? 'previewnet' : 'paseo'})`
 )
 console.log(`open this:   ${host.url}`)
 console.log('Ctrl-C to stop.')

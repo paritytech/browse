@@ -12,7 +12,7 @@
       "ethRpc": "https://previewnet.substrate.dev/eth-rpc",
       "deployedAt": "2026-08-03T21:00:00Z"
     },
-    "paseonextv2": {
+    "paseo": {
       "address": "0x1875B90A61705917945f9B7C6Ff7819Ad48A198e",
       "version": "2.2.0",
       "tld": ".paseo",
@@ -20,7 +20,7 @@
       "create3Salt": "browse.create3.v1:Publisher:2.2.0",
       "registrar": "0x4f06E818Ba3d987704fd91cf3d868E4b019106Ab",
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
-      "network": "paseonextv2",
+      "network": "paseo",
       "genesisHash": "0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6",
       "substrateRpc": "wss://paseo-asset-hub-next-rpc.polkadot.io",
       "deployedAt": "2026-08-12"
@@ -38,7 +38,7 @@
       "genesisHash": "0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210",
       "deployedAt": "2026-08-03T21:00:00Z"
     },
-    "paseonextv2": {
+    "paseo": {
       "address": "0x8326c11a76Dda4702046e92f73C0ea7E698560a2",
       "version": "2.1.0",
       "create3Salt": "browse.create3.v1:TrustedAttesterIndexResolver:2.1.0",
@@ -47,7 +47,7 @@
       "schema": "bool compliant,string contentCid,string badgeIconCid,string name",
       "schemaId": 2,
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
-      "network": "paseonextv2",
+      "network": "paseo",
       "genesisHash": "0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6",
       "deployedAt": "2026-08-12"
     }
@@ -65,7 +65,7 @@
       "genesisHash": "0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210",
       "deployedAt": "2026-08-03"
     },
-    "paseonextv2": {
+    "paseo": {
       "address": "0xAca17c2547f09b3AD0d3bd28Db11EE172604b85b",
       "version": "2.1.0",
       "create3Salt": "browse.create3.v1:RecipientAndAttesterIndexResolver:2.1.0",
@@ -75,7 +75,7 @@
       "personhoodGated": false,
       "identityGated": true,
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
-      "network": "paseonextv2",
+      "network": "paseo",
       "genesisHash": "0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6",
       "deployedAt": "2026-08-12"
     }
@@ -85,7 +85,7 @@
       "address": "0xccd0a00f015f349264a3d7cd30fa6a05691f01cb",
       "note": "Deployed from the attestation-protocol repository."
     },
-    "paseonextv2": {
+    "paseo": {
       "address": "0x46fe8c29dece5a882be37a459c6e8ba1b73d3f20",
       "note": "Deployed from the attestation-protocol repository."
     }

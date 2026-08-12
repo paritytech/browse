@@ -51,7 +51,7 @@ type NetworkConfig = import('@parity/host-api-test-sdk').NetworkConfig
 
 const PASEONEXTV2_ASSETHUB: NetworkConfig = {
   id: 'paseo-asset-hub-next-v2',
-  name: 'PaseoNextV2 AssetHub',
+  name: 'Paseo AssetHubNextV2',
   genesisHash: PASEONEXTV2_ASSETHUB_GENESIS,
   rpcUrl: KNOWN_NETWORKS[PASEONEXTV2_ASSETHUB_GENESIS].ASSETHUB_RPCS[0],
   tokenSymbol: 'PAS',
