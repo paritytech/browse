@@ -4,9 +4,8 @@ import { isKnownGenesis, selectNetwork } from '../packages/browse-sdk/src/config
 
 declare const process: { env?: Record<string, string | undefined> }
 
-// Set APP_DOTNS_DOMAIN to the bare label, e.g. `browse`, and NETWORK_GENESIS_HASH
-// to the network being deployed to. The suffix comes from that network, so a
-// `.paseo` deployment needs no separate setting.
+// Set APP_DOTNS_DOMAIN to the bare label, e.g. `browse`. The suffix comes from
+// the network NETWORK_GENESIS_HASH names.
 const domain = process.env?.APP_DOTNS_DOMAIN
 if (!domain) throw new Error('APP_DOTNS_DOMAIN is required')
 
