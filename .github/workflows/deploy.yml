@@ -65,16 +65,14 @@ jobs:
             display-name: Paseo AssetHubNextV2
             genesis: '0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6'
             tld: paseo
-            # The environment name bulletin-deploy knows this network by, which is
-            # its own vocabulary and not the id used for cache keys above.
-            bulletin-env: paseo-next-v2
+            deployment-env: paseo-next-v2
             reuse-artifact: true
             required: true
           - env: preview
             display-name: Previewnet AssetHub
             genesis: '0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210'
             tld: dot
-            bulletin-env: preview
+            deployment-env: preview
             reuse-artifact: false
             snapshot-cache-prefix: previewnet-domains-snapshot-cid
             username-snapshot-cache-prefix: previewnet-usernames-snapshot-cid
@@ -239,7 +237,7 @@ jobs:
             export NODE_OPTIONS='--max-old-space-size=8192'
             export APP_DOTNS_DOMAIN='${{ steps.domain.outputs.value }}'
             cd app
-            bulletin-deploy dist/spa '${{ steps.domain.outputs.value }}' --env '${{ matrix.target.bulletin-env }}'
+            bulletin-deploy dist/spa '${{ steps.domain.outputs.value }}' --env '${{ matrix.target.deployment-env }}'
 
       - name: Save deployment to cache
         if: steps.cache.outputs.cache-hit != 'true' && steps.deploy.outcome == 'success'
