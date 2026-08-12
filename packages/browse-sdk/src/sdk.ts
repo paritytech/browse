@@ -32,6 +32,7 @@ import {
   tryDecode
 } from './abi/multicall.js'
 import { labelhashToTokenId, namehash } from './abi/namehash.js'
+import { nameWithTld } from './name.js'
 import { decodeBytes32Array } from './abi/codec.js'
 import type { NetworkConfig } from './config.js'
 import { parseRootManifest } from './manifest.js'
@@ -170,7 +171,7 @@ export class BrowseSdk {
   async resolveLabels(labelhashes: `0x${string}`[]): Promise<string[]> {
     const calls: MulticallTarget[] = labelhashes.map((lh) => ({
       target: this.network.REGISTRAR,
-      callData: encodeLabelOf(labelhashToTokenId(lh))
+      callData: encodeLabelOf(labelhashToTokenId(lh, this.network.TLD))
     }))
     const results = await this.multicall(calls)
     const out: string[] = []
@@ -193,7 +194,7 @@ export class BrowseSdk {
 
     const chCalls: MulticallTarget[] = labels.map((label) => ({
       target: this.network.CONTENT_RESOLVER,
-      callData: encodeContenthash(namehash(`${label}.dot`))
+      callData: encodeContenthash(namehash(nameWithTld(label, this.network.TLD)))
     }))
     const chResults = await this.multicall(chCalls)
     const contentHashes = labels.map((_, i) =>
@@ -206,7 +207,7 @@ export class BrowseSdk {
 
     const manifestCalls: MulticallTarget[] = liveIndexes.map((i) => ({
       target: this.network.CONTENT_RESOLVER,
-      callData: encodeText(namehash(`${labels[i]}.dot`), 'manifest')
+      callData: encodeText(namehash(nameWithTld(labels[i] as string, this.network.TLD)), 'manifest')
     }))
     const manifestResults = await this.multicall(manifestCalls)
 
@@ -225,11 +226,11 @@ export class BrowseSdk {
 
   /**
    * Return every published app for which a modality-specific subname carries
-   * content. The convention is `<modality>.<label>.dot`.
+   * content. The convention is `<modality>.<name>`, where the name carries the
+   * network TLD.
    *
-   * `app` reads `app.<label>.dot` (the SPA bundle). `widget` reads
-   * `widget.<label>.dot` (the embeddable widget). `worker` reads
-   * `worker.<label>.dot` (the worker bundle).
+   * `app` reads `app.<name>` (the SPA bundle). `widget` reads `widget.<name>`
+   * (the embeddable widget). `worker` reads `worker.<name>` (the worker bundle).
    *
    * Labels whose modality subname has no contenthash are excluded. The
    * returned `AppListing.contentHash` is the modality-specific CID, not the
@@ -243,7 +244,7 @@ export class BrowseSdk {
 
     const modalityCalls: MulticallTarget[] = labels.map((label) => ({
       target: this.network.CONTENT_RESOLVER,
-      callData: encodeContenthash(namehash(`${modality}.${label}.dot`))
+      callData: encodeContenthash(namehash(`${modality}.${nameWithTld(label, this.network.TLD)}`))
     }))
     const modalityResults = await this.multicall(modalityCalls)
     const modalityCids = labels.map((_, i) =>
@@ -256,7 +257,7 @@ export class BrowseSdk {
 
     const manifestCalls: MulticallTarget[] = liveIndexes.map((i) => ({
       target: this.network.CONTENT_RESOLVER,
-      callData: encodeText(namehash(`${labels[i]}.dot`), 'manifest')
+      callData: encodeText(namehash(nameWithTld(labels[i] as string, this.network.TLD)), 'manifest')
     }))
     const manifestResults = await this.multicall(manifestCalls)
 

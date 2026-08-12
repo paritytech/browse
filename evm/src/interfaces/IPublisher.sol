@@ -35,11 +35,12 @@ interface IPublisher is ISemver {
     );
 
     error EmptyLabel();
+    error EmptyTldNode();
     error NoPersonhood();
     error NotOwner(address caller, uint256 tokenId);
     error RateLimitExceeded(uint64 nextAvailableAt);
 
-    /// @notice Publishes the caller's `.dot` label as a discoverable app.
+    /// @notice Publishes a label the caller owns as a discoverable app.
     function publish(string calldata label) external;
 
     /// @notice Retracts a previously published label from discovery.
@@ -73,4 +74,8 @@ interface IPublisher is ISemver {
 
     /// @notice The DotNS registrar consulted for label ownership.
     function registrar() external view returns (IDotnsRegistrar);
+
+    /// @notice Namehash of the TLD node this registry derives label nodes from.
+    /// Matches `tldNode()` on the dotNS protocol registry of the network it is deployed to.
+    function tldNode() external view returns (bytes32);
 }

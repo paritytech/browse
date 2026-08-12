@@ -3,6 +3,7 @@ import { type VNode } from 'preact'
 import { useDeferredValue } from 'preact/compat'
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
 
+import { nameWithTld, stripTld } from '@parity/browse-sdk'
 import { getAccountsProvider, type HostSubscription } from '@parity/product-sdk/host'
 import { useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ArrowUp, Bookmark, Check, MoreVertical, Package, X } from 'lucide-preact'
@@ -27,7 +28,7 @@ import { useEvent } from './hooks/use-event'
 import { useFlipReorder } from './hooks/use-flip'
 import { useOverscrollSync } from './hooks/use-overscroll-sync'
 import { resetBrowseSdk } from './lib/client'
-import { SELF_LABEL } from './lib/config'
+import { NETWORK, SELF_LABEL } from './lib/config'
 import { setupDebugConsole } from './lib/debug'
 import { destinationFromQuery, typedLabel } from './lib/destination'
 import { useDomainSuggestions } from './lib/domains-snapshot'
@@ -87,7 +88,7 @@ const SYNC_DOTS_MAX_VISIBLE_MS = 3000
 
 /**
  * Render a snapshot-only search result as a product card, lazily resolving its
- * name and icon (the snapshot carries only the `.dot` domain). Published entries
+ * name and icon, since the snapshot carries only the domain. Published entries
  * already have their metadata and render directly via `renderCard`.
  */
 function LazyResolvedCard({
@@ -334,12 +335,9 @@ export function App() {
       }
     }
     // The app itself (SELF_LABEL, derived from APP_DOTNS_DOMAIN) only belongs in
-    // search on an exact name match, the label or `<label>.dot`. Never as a
+    // search on an exact name match, the label or its full name. Never as a
     // partial/substring hit.
-    const normalizedQuery = deferredQuery
-      .trim()
-      .toLowerCase()
-      .replace(/\.dot$/, '')
+    const normalizedQuery = stripTld(deferredQuery.trim(), NETWORK.TLD)
     const exactSelf = normalizedQuery === SELF_LABEL
     return exactSelf ? matches : matches.filter((app) => app.label !== SELF_LABEL)
   }, [deferredQuery, appsForFiltering, bookmarkedApps, followingDisplay, publishedLabels])
@@ -357,7 +355,7 @@ export function App() {
       : null
     return { published: entry?.contentHash ? entry : null, cached: entry }
   }, [destination, appsForFiltering])
-  // No length floor. `a.dot` is a registerable name, and gating the lookup would
+  // No length floor. A single character is a registerable name, and gating the lookup would
   // leave a short address stuck as a placeholder forever. One read per settled
   // query, cached for a minute, so the cost is bounded by the debounce.
   const canResolve = destination !== null && indexed.published === null
@@ -376,17 +374,14 @@ export function App() {
   // cached entry ranks last but still beats a placeholder, and ranking it below the
   // resolver lets a lookup upgrade it.
   const frontApp = indexed.published ?? resolvedApp ?? indexed.cached
-  // Domain-snapshot suggestion prefix: the raw query (trailing `.dot` stripped,
+  // Domain-snapshot suggestion prefix: the raw query (trailing suffix stripped,
   // lowercased), debounced ~150ms into suggestionPrefix by an effect below. A
   // local snapshot lookup, independent of the 500ms debouncedQuery.
-  const suggestionPrefixSource = query
-    .trim()
-    .toLowerCase()
-    .replace(/\.dot$/, '')
+  const suggestionPrefixSource = stripTld(query.trim(), NETWORK.TLD)
   const { data: domainSuggestions = [] } = useDomainSuggestions(suggestionPrefix)
   // Merge the search results shown while typing: published matches (with real
-  // metadata and icons) first, then every other `.dot` name from the snapshot
-  // as a minimal entry (Identicon and `<label>.dot`). Deduped by label.
+  // metadata and icons) first, then every other name from the snapshot
+  // as a minimal entry (Identicon and the full name). Deduped by label.
   //
   // The card at the front owns the typed address, so the list never repeats it,
   // whichever of the three sources it arrived from.
@@ -541,7 +536,7 @@ export function App() {
     const url = shareLink(app.label)
     if (typeof navigator.share === 'function') {
       try {
-        await navigator.share({ title: app.name ?? `${app.label}.dot`, url })
+        await navigator.share({ title: app.name ?? nameWithTld(app.label, NETWORK.TLD), url })
         return
       } catch (err) {
         // The user dismissed the sheet: leave it, don't fall back to a copy.
@@ -828,7 +823,7 @@ export function App() {
       onClickCertificate={(certificate) => {
         setCertificateView({
           subjectName: app.name,
-          subjectDomain: `${app.label}.dot`,
+          subjectDomain: nameWithTld(app.label, NETWORK.TLD),
           certificate
         })
         setCertificateModalOpen(true)

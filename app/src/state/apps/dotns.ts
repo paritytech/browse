@@ -7,6 +7,7 @@
  */
 
 import { attestationVersions } from '@parity/browse-sdk'
+import { nameWithTld, stripTld } from '@parity/browse-sdk'
 import { ss58ToEthereum } from '@polkadot-api/sdk-ink'
 import { AccountId, type SS58String } from 'polkadot-api'
 
@@ -97,7 +98,7 @@ async function flushLabelBatch(
 
     const chCalls: MulticallTarget[] = chunk.map((label) => ({
       target: NETWORK.CONTENT_RESOLVER,
-      callData: encodeContenthash(namehash(`${label}.dot`))
+      callData: encodeContenthash(namehash(nameWithTld(label, NETWORK.TLD)))
     }))
     hiddenLog(
       `Fetching content hashes: multicall(${NETWORK.MULTICALL3}, [contenthash×${chunk.length}])`
@@ -118,7 +119,7 @@ async function flushLabelBatch(
     if (liveIndexes.length > 0) {
       const metaCalls: MulticallTarget[] = []
       for (const j of liveIndexes) {
-        const node = namehash(`${chunk[j]}.dot`)
+        const node = namehash(nameWithTld(chunk[j] as string, NETWORK.TLD))
         const subject = nodeToSubject(node)
         metaCalls.push(
           { target: NETWORK.CONTENT_RESOLVER, callData: encodeText(node, 'name') },
@@ -269,7 +270,7 @@ async function scanStores(
 
     for (const rawLabel of storeLabels) {
       if (!rawLabel) continue
-      const bareLabel = rawLabel.endsWith('.dot') ? rawLabel.slice(0, -4) : rawLabel
+      const bareLabel = stripTld(rawLabel, NETWORK.TLD)
       if (bareLabel.includes('.')) continue
       normalized.push(bareLabel)
       if (!seenLabels.has(bareLabel)) {

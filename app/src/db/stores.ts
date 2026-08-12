@@ -4,7 +4,7 @@ export interface StoreEntry {
   storeAddress: string
   ownerH160Address: string | null
   ownerSS58Address: string | null
-  labels: string[] // normalized (no .dot suffix)
+  labels: string[] // normalized (no TLD suffix)
 }
 
 const KEY = 'browse:stores'

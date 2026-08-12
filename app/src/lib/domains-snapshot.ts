@@ -1,5 +1,5 @@
 /**
- * Search-bar suggestions from the verifiable `.dot` domain snapshot.
+ * Search-bar suggestions from the verifiable domain snapshot.
  *
  * Binds {@link domainService} to react-query, so a suggestion survives a
  * re-render and a stale keystroke aborts instead of racing the one after it.
@@ -11,9 +11,9 @@ import { useQuery } from '@tanstack/react-query'
 import { domainService } from './snapshot-services'
 
 /**
- * Suggest bare `.dot` labels for a search prefix.
+ * Suggest bare labels for a search prefix.
  *
- * The prefix must already be normalized, lowercased with any `.dot` stripped.
+ * The prefix must already be normalized, lowercased with any TLD stripped.
  * Yields `[]` rather than throwing on any failure, so suggestions close instead
  * of breaking render.
  */

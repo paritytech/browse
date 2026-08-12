@@ -74,8 +74,10 @@ export {
   labelhashToTokenId,
   namehash,
   nodeToSubject,
+  tldNode,
   tryDecode
 } from './abi/index.js'
+export { nameWithTld, stripTld } from './name.js'
 export type {
   AggregateResult,
   DecodedAttestation,

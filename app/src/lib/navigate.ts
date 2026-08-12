@@ -1,12 +1,14 @@
+import { nameWithTld } from '@parity/browse-sdk'
 import { navigateTo } from '@parity/product-sdk/host'
 
+import { NETWORK } from './config'
 import { isHosted } from './local-storage'
 import { appLink } from './share-link'
 
-/** Open an app by `.dot` label. Standalone goes through {@link appLink}, which knows the network. */
+/** Open an app by bare label. Standalone goes through {@link appLink}, which knows the network. */
 export function navigateToDomain(label: string) {
   if (isHosted()) {
-    void navigateTo(`${label}.dot`)
+    void navigateTo(nameWithTld(label, NETWORK.TLD))
   } else {
     window.open(appLink(label), '_blank', 'noopener')
   }
@@ -20,7 +22,7 @@ export function navigateToDomain(label: string) {
  */
 export function redirectToApp(label: string): void {
   if (isHosted()) {
-    void navigateTo(`${label}.dot`)
+    void navigateTo(nameWithTld(label, NETWORK.TLD))
   } else {
     window.location.replace(appLink(label))
   }

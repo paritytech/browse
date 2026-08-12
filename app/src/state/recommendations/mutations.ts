@@ -1,3 +1,4 @@
+import { nameWithTld } from '@parity/browse-sdk'
 import { ss58ToEthereum } from '@polkadot-api/sdk-ink'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { AccountId, type SS58String } from 'polkadot-api'
@@ -5,7 +6,7 @@ import { AccountId, type SS58String } from 'polkadot-api'
 import { type LabelEntry, updateAttestationCount } from '../../db/labels'
 import { encodeAttestationLabel, namehash, nodeToSubject } from '../../lib/abi'
 import { attestationService } from '../../lib/attestation-service'
-import { ACTIVE_SCHEMA_ID } from '../../lib/config'
+import { ACTIVE_SCHEMA_ID, NETWORK } from '../../lib/config'
 import { resolveIdentityH160 } from '../apps/identity'
 import { type AppEntry } from '../apps/types'
 
@@ -151,7 +152,7 @@ export function describeError(err: unknown): string {
 }
 
 export async function attestLabel(label: string, onPermitted?: () => void) {
-  const recipient = nodeToSubject(namehash(`${label}.dot`))
+  const recipient = nodeToSubject(namehash(nameWithTld(label, NETWORK.TLD)))
   const data = encodeAttestationLabel(label)
   const account = await attestationService.productH160()
   // The first recommendation from an unbound account batches the identity
@@ -177,7 +178,7 @@ async function getAttesterH160(): Promise<string> {
 }
 
 export async function revokeLabel(label: string, onPermitted?: () => void) {
-  const recipient = nodeToSubject(namehash(`${label}.dot`))
+  const recipient = nodeToSubject(namehash(nameWithTld(label, NETWORK.TLD)))
   const ids = await attestationService.listByRecipientAndSchema(recipient, 0n, 100n)
   if (ids.length === 0) throw new Error('No attestation to revoke')
 
@@ -205,7 +206,7 @@ export async function revokeLabel(label: string, onPermitted?: () => void) {
 }
 
 export async function getAttestationId(label: string): Promise<bigint | null> {
-  const recipient = nodeToSubject(namehash(`${label}.dot`))
+  const recipient = nodeToSubject(namehash(nameWithTld(label, NETWORK.TLD)))
   const ids = await attestationService.listByRecipientAndSchema(recipient, 0n, 100n)
   if (ids.length === 0) return null
 

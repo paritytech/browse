@@ -7,9 +7,9 @@ pragma solidity ^0.8.24;
 ///      Only the read paths needed for ownership checks are re-declared here so this repo
 ///      does not pull the upgradeable-OZ dependency tree from the dotns repo.
 interface IDotnsRegistrar {
-    /// @notice Returns the owner of the `.dot` name identified by `tokenId`.
+    /// @notice Returns the owner of the name identified by `tokenId`.
     /// @dev Reverts (e.g. with `ERC721NonexistentToken`) when the token has never been minted.
-    /// @param tokenId The token id, equal to `uint256(namehash(label.dot))`.
+    /// @param tokenId The token id, equal to `uint256(namehash(label.tld))`.
     /// @return holder The current owner of the name.
     function ownerOf(uint256 tokenId) external view returns (address holder);
 }

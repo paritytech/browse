@@ -7,6 +7,7 @@
 
 import { keccak_256 } from '@noble/hashes/sha3.js'
 import { attestationVersions, publisherReadAddresses } from '@parity/browse-sdk'
+import { nameWithTld } from '@parity/browse-sdk'
 import { decodeFunctionResult, encodeFunctionData, parseAbi, toHex } from 'viem'
 
 import { parseRootManifest } from './manifest'
@@ -92,7 +93,7 @@ export function tryDecode<T>(
   }
 }
 
-/** `keccak256(bytes(label))`, the dotNS labelhash for a bare `.dot` label. */
+/** `keccak256(bytes(label))`, the dotNS labelhash for a bare label. */
 export function labelhashOf(label: string): `0x${string}` {
   const bytes = new TextEncoder().encode(label)
   const hash = keccak_256(bytes)
@@ -156,7 +157,7 @@ async function readPublishedLabelhashesOnce(publishers: `0x${string}`[]): Promis
 }
 
 /**
- * Resolve labelhashes to `.dot` label strings via `registrar.labelOf`.
+ * Resolve labelhashes to bare label strings via `registrar.labelOf`.
  *
  * Hashes already represented in `cached` are reused; only the remainder
  * hits the chain (single Multicall3 batch).
@@ -182,7 +183,7 @@ export async function resolveLabels(
   )
   const calls: MulticallTarget[] = toResolve.map((lh) => ({
     target: NETWORK.REGISTRAR,
-    callData: encodeLabelOf(labelhashToTokenId(lh))
+    callData: encodeLabelOf(labelhashToTokenId(lh, NETWORK.TLD))
   }))
   const results = await multicall(calls)
   for (let i = 0; i < toResolve.length; i++) {
@@ -208,7 +209,7 @@ export async function hydrateLabelChunk(
 ): Promise<LabelEntry[]> {
   const chCalls: MulticallTarget[] = chunk.map((label) => ({
     target: NETWORK.CONTENT_RESOLVER,
-    callData: encodeContenthash(namehash(`${label}.dot`))
+    callData: encodeContenthash(namehash(nameWithTld(label, NETWORK.TLD)))
   }))
   hiddenLog(
     `Fetching content hashes: multicall(${NETWORK.MULTICALL3}, [contenthash×${chunk.length}])`
@@ -238,7 +239,7 @@ export async function hydrateLabelChunk(
   if (liveIndexes.length > 0) {
     const metaCalls: MulticallTarget[] = []
     for (const chunkIndex of liveIndexes) {
-      const node = namehash(`${chunk[chunkIndex]}.dot`)
+      const node = namehash(nameWithTld(chunk[chunkIndex] as string, NETWORK.TLD))
       const subject = nodeToSubject(node)
       metaCalls.push({ target: NETWORK.CONTENT_RESOLVER, callData: encodeText(node, 'manifest') })
       for (const { resolver, schemaId } of versions) {
@@ -382,7 +383,7 @@ export async function readContentByName(label: string): Promise<{
   description: string
   iconCid: string | null
 } | null> {
-  const node = namehash(`${label}.dot`)
+  const node = namehash(nameWithTld(label, NETWORK.TLD))
   const calls: MulticallTarget[] = [
     { target: NETWORK.CONTENT_RESOLVER, callData: encodeContenthash(node) },
     { target: NETWORK.CONTENT_RESOLVER, callData: encodeText(node, 'manifest') }

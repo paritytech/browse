@@ -11,14 +11,13 @@ import {Semver} from "./Semver.sol";
 
 /// @title Publisher
 /// @notice The browse publishing registry.
-contract Publisher is IPublisher, Ownable2Step, Semver(2, 1, 0) {
+contract Publisher is IPublisher, Ownable2Step, Semver(2, 2, 0) {
     // The Proof-of-Personhood precompile.
     address internal constant PERSONHOOD =
         0x000000000000000000000000000000000a010000;
 
-    // The namehash of the `.dot` TLD node.
-    bytes32 internal constant DOT_NODE =
-        0x3fce7d1364a893e213bc4212792b517ffc88f5b13b86c8ef9c8d390c3a1370ce;
+    /// @inheritdoc IPublisher
+    bytes32 public immutable tldNode;
 
     // The application identifier passed to the personhood precompile.
     //
@@ -63,9 +62,14 @@ contract Publisher is IPublisher, Ownable2Step, Semver(2, 1, 0) {
     // publisher => rolling-window timestamps.
     mapping(address publisher => PublishWindow) private _windows;
 
-    /// @param registrar_ The address of the deployed DotNS registrar.
-    constructor(IDotnsRegistrar registrar_) Ownable(msg.sender) {
+    /// @param registrar_ The dotNS registrar holding the names this registry publishes.
+    /// @param tldNode_ Namehash of the TLD node the network runs, as reported by `tldNode()` on
+    /// the dotNS protocol registry. A network fixes its TLD at initialisation, so this is set
+    /// once here rather than read per call.
+    constructor(IDotnsRegistrar registrar_, bytes32 tldNode_) Ownable(msg.sender) {
+        if (tldNode_ == bytes32(0)) revert EmptyTldNode();
         registrar = registrar_;
+        tldNode = tldNode_;
     }
 
     /// @inheritdoc IPublisher
@@ -96,7 +100,7 @@ contract Publisher is IPublisher, Ownable2Step, Semver(2, 1, 0) {
             data.indexPlusOne = uint32(_published.length);
         } else {
             // Republish path. Either the same publisher bumping the timestamp,
-            // or a new owner re-claiming the listing after a `.dot` transfer.
+            // or a new owner re-claiming the listing after a name transfer.
             data.publisher = msg.sender;
             data.timestamp = nowTs;
         }
@@ -182,7 +186,7 @@ contract Publisher is IPublisher, Ownable2Step, Semver(2, 1, 0) {
         if (bytes(label).length == 0) revert EmptyLabel();
 
         labelhash = keccak256(bytes(label));
-        labelNode = keccak256(abi.encodePacked(DOT_NODE, labelhash));
+        labelNode = keccak256(abi.encodePacked(tldNode, labelhash));
         uint256 tokenId = uint256(labelNode);
 
         try registrar.ownerOf(tokenId) returns (address holder) {

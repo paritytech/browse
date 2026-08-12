@@ -1,3 +1,4 @@
+import { nameWithTld } from '@parity/browse-sdk'
 import { ss58ToEthereum } from '@polkadot-api/sdk-ink'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { type SS58String } from 'polkadot-api'
@@ -5,6 +6,7 @@ import { type SS58String } from 'polkadot-api'
 import { getCachedFollowed, setCachedFollowed } from './cache'
 import { namehash, nodeToSubject } from '../../lib/abi'
 import { attestationService } from '../../lib/attestation-service'
+import { NETWORK } from '../../lib/config'
 import { resolveIdentityH160 } from '../apps/identity'
 import { type AppEntry } from '../apps/types'
 
@@ -47,7 +49,7 @@ async function mapRecommendersByLabel(
 
   await Promise.all(
     labels.map(async (label) => {
-      const recipient = nodeToSubject(namehash(`${label}.dot`)) as `0x${string}`
+      const recipient = nodeToSubject(namehash(nameWithTld(label, NETWORK.TLD))) as `0x${string}`
       const ids = await listRecipientAttestations(recipient)
       if (ids.length === 0) return
 

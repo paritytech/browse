@@ -43,10 +43,12 @@ deployment records live in [deployments.json](deployments.json).
 
 Genesis `0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6`.
 
-Version 2.1.0:
+TLD `.paseo`.
+
+Version 2.2.0:
 
 * **Publisher**:
-  * Contract: `0x09023fC7d5dDf5E79B31A8921Eb33f02FC14dDBB`
+  * Contract: `0x1875B90A61705917945f9B7C6Ff7819Ad48A198e`
   * Deployment and ABI: [Publisher.sol](src/Publisher.sol)
 * **RecipientAndAttesterIndexResolver**:
   * Contract: `0xAca17c2547f09b3AD0d3bd28Db11EE172604b85b`

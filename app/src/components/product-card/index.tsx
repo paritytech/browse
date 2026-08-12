@@ -1,8 +1,10 @@
 import { memo, useEffect, useState } from 'preact/compat'
 
+import { nameWithTld } from '@parity/browse-sdk'
 import { ArrowBigUp, ArrowUpRight, Bookmark, Share2 } from 'lucide-preact'
 
 import { BubbleBurst } from './bubble-burst'
+import { NETWORK } from '../../lib/config'
 import { useIconBlob } from '../../state/apps/icon'
 import { type AppCertificate, type AppEntry, displayName } from '../../state/apps/types'
 import { CertificateBadge } from '../certificate-badge'
@@ -13,18 +15,18 @@ import './styles.css'
 const PLACEHOLDER_SEED = 'dot'
 
 /**
- * The `.dot` domain of a product, or null when its title already is that domain.
+ * The domain of a product, or null when its title already is that domain.
  *
  * Only the phone layout asks. It gives the domain a line of its own, and a title
  * that already is the domain would fill that line with the same string twice.
- * `displayName` falls back to `<label>.dot` for a product carrying no name, and a
+ * `displayName` falls back to `<label>.<TLD>` for a product carrying no name, and a
  * product whose name was set to its own domain string comes to the same thing.
  * Skipping the line hands it to a second line of description instead.
  *
  * The desktop caption asks nothing. It carries the domain on every card.
  */
 function stackedDomain(app: AppEntry): string | null {
-  const domain = `${app.label}.dot`
+  const domain = nameWithTld(app.label, NETWORK.TLD)
   if (app.name === null) return null
   if (app.name.trim().toLowerCase() === domain.toLowerCase()) return null
   return domain
@@ -75,7 +77,7 @@ export const ProductCard = memo(function ProductCard({
   const instant = index < 0
   const delay = instant ? 0 : Math.min(index * 100, 700)
   const name = displayName(app)
-  const domain = `${app.label}.dot`
+  const domain = nameWithTld(app.label, NETWORK.TLD)
   const stacked = stackedDomain(app)
   const displayCount = app.attestationCount ?? 0
   const { url: iconBlobUrl, failed: iconFailed, markFailed } = useIconBlob(app.iconCid)
@@ -111,7 +113,7 @@ export const ProductCard = memo(function ProductCard({
       class={`product-card${instant ? ' product-card--instant' : ''}${isPlaceholder ? ' product-card--placeholder' : ''}`}
       style={`animation-delay: ${delay}ms`}
       data-label={isPlaceholder ? undefined : app.label}
-      title={`${isPlaceholder ? 'Go to' : 'Open'} ${app.label}.dot`}
+      title={`${isPlaceholder ? 'Go to' : 'Open'} ${nameWithTld(app.label, NETWORK.TLD)}`}
       tabIndex={0}
       onClick={() => onClick(app.label)}
       onKeyDown={(e) => {

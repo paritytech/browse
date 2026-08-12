@@ -18,7 +18,7 @@ import { decodeAbiParameters, encodeAbiParameters, type Hex } from 'viem'
 const LABEL_DATA_PARAMS = [{ type: 'string' as const }]
 
 /**
- * Wrap a `.dot` label string in the attestation `data` payload format
+ * Wrap a bare label string in the attestation `data` payload format
  * expected by the browse attestation schema.
  */
 export function encodeAttestationLabel(label: string): Hex {

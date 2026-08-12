@@ -6,6 +6,7 @@ import { render } from 'preact'
 import { useDeferredValue } from 'preact/compat'
 import { useEffect, useMemo, useState } from 'preact/hooks'
 
+import { stripTld } from '@parity/browse-sdk'
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
 
 import '@fontsource-variable/inter'
@@ -16,7 +17,7 @@ import { CardExplore } from './components/card-explore'
 import { SEARCH_ICON } from './components/icons'
 import { SearchBar } from './components/search-bar'
 import { WidgetCard } from './components/widget-card'
-import { SELF_LABEL } from './lib/config'
+import { NETWORK, SELF_LABEL } from './lib/config'
 import { navigateToDomain } from './lib/navigate'
 import { applyInitialTheme, subscribeHostTheme } from './lib/theme'
 import { prefetchAllApps, useGetAllApps, useResolveLabel } from './state/apps/queries'
@@ -101,10 +102,7 @@ function Widget() {
     return () => clearTimeout(id)
   }, [query])
 
-  const resolverLabel = debouncedQuery
-    .trim()
-    .toLowerCase()
-    .replace(/\.dot$/, '')
+  const resolverLabel = stripTld(debouncedQuery.trim(), NETWORK.TLD)
   const shouldResolve = debouncedQuery === query && resolverLabel.length >= 3
   const { data: resolvedApp, isFetching: resolverFetching } = useResolveLabel(
     resolverLabel,
@@ -112,13 +110,9 @@ function Widget() {
   )
 
   // Browse is hidden from the default grid (it is this widget, surfaced as the
-  // "Browse More" tile). The one exception: an exact search for `browse` or
-  // `browse.dot` should still find it, so we keep it only on an exact match.
-  const isSelfSearch =
-    query
-      .trim()
-      .toLowerCase()
-      .replace(/\.dot$/, '') === SELF_LABEL
+  // "Browse More" tile). The one exception: an exact search for `browse` or its
+  // full name should still find it, so we keep it only on an exact match.
+  const isSelfSearch = stripTld(query.trim(), NETWORK.TLD) === SELF_LABEL
 
   const results = useMemo(() => {
     const matches = filterApps(allApps, query, 'all').filter(

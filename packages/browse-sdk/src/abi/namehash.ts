@@ -19,13 +19,19 @@ import { type Address, type Hex, namehash as viemNamehash } from 'viem'
 /** ENS-style namehash. Re-exported as the canonical name across the SDK. */
 export const namehash = viemNamehash
 
-/** Namehash of the `.dot` TLD. Mirrors `DotnsConstants.DOT_NODE` on-chain. */
-const DOT_NODE = namehash('dot')
+/**
+ * Namehash of a network TLD node. Mirrors `tldNode()` on the protocol registry.
+ *
+ * Pass the bare label, `dot` or `paseo`, as carried by `TLD` on the network config.
+ */
+export function tldNode(tld: string): Hex {
+  return namehash(tld)
+}
 
-/** `keccak256(DOT_NODE || labelhash)` cast to uint256 (the registrar's token id). */
-export function labelhashToTokenId(labelhash: Hex): bigint {
+/** `keccak256(tldNode || labelhash)` cast to uint256, the token id the registrar keys names by. */
+export function labelhashToTokenId(labelhash: Hex, tld: string): bigint {
   const concat = new Uint8Array(64)
-  concat.set(hexToBytes(DOT_NODE), 0)
+  concat.set(hexToBytes(tldNode(tld)), 0)
   concat.set(hexToBytes(labelhash), 32)
   return BigInt(`0x${bytesToHex(keccak_256(concat))}`)
 }

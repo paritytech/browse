@@ -13,7 +13,7 @@ interface CertificateModalProps {
   visible: boolean
   /** Display name of the certified product. */
   subjectName: string | null
-  /** `<label>.dot` of the certified product. */
+  /** `<label>.<TLD>` of the certified product. */
   subjectDomain: string | null
   /** Attestation details. Null shows only the default certificate document. */
   certificate: AppCertificate | null

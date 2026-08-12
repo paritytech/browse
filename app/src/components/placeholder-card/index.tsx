@@ -1,3 +1,6 @@
+import { nameWithTld } from '@parity/browse-sdk'
+
+import { NETWORK } from '../../lib/config'
 import { type AppEntry } from '../../state/apps/types'
 import { ProductCard } from '../product-card'
 
@@ -32,7 +35,7 @@ const NO_DESCRIPTION = 'No description'
 export function PlaceholderCard({ label, target, onGo }: PlaceholderCardProps) {
   const app: AppEntry = {
     label: target,
-    name: `${label}.dot`,
+    name: nameWithTld(label, NETWORK.TLD),
     description: NO_DESCRIPTION,
     iconCid: null,
     contentHash: null,

@@ -1,5 +1,9 @@
 import { useEffect } from 'preact/hooks'
 
+import { nameWithTld } from '@parity/browse-sdk'
+
+import { NETWORK } from '../../lib/config'
+
 import './styles.css'
 
 interface RecommendPromptProps {
@@ -32,7 +36,8 @@ export function RecommendPrompt({ visible, label, onConfirm, onDismiss }: Recomm
     >
       <div class='recommend-prompt__body'>
         <p class='recommend-prompt__text'>
-          Hi! Would you recommend <strong>{label}.dot</strong> to your friends?
+          Hi! Would you recommend <strong>{nameWithTld(label, NETWORK.TLD)}</strong> to your
+          friends?
         </p>
         <div class='recommend-prompt__actions'>
           <button

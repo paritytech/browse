@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 
 import { encodeAbiParameters, parseAbiParameters } from "viem";
 
+import { networkTldNode } from "@parity/browse-sdk/config";
+
 import { contractVersion, deploy } from "./create3.ts";
 import { connect, ensureMapped, getSigner } from "./lib.ts";
 
@@ -17,7 +19,9 @@ async function main() {
 
   const { client, api, config } = connect();
   const registrar = config.REGISTRAR;
+  const node = networkTldNode(config);
   console.log(`Registrar: ${registrar}`);
+  console.log(`TLD:       .${config.TLD} (${node})`);
 
   try {
     await ensureMapped(api, signer);
@@ -28,9 +32,10 @@ async function main() {
         "utf-8"
       )
     );
-    const constructorArgs = encodeAbiParameters(parseAbiParameters("address"), [
-      registrar as `0x${string}`,
-    ]);
+    const constructorArgs = encodeAbiParameters(
+      parseAbiParameters("address, bytes32"),
+      [registrar as `0x${string}`, node]
+    );
     const bytecodeWithArgs =
       artifact.bytecode.object + constructorArgs.replace(/^0x/, "");
 

@@ -1,4 +1,7 @@
+import { nameWithTld } from '@parity/browse-sdk'
+
 import type { LabelEntry } from '../../db/labels'
+import { NETWORK } from '../../lib/config'
 import type { CertificateIdentity } from '../certificate-authorities/types'
 
 /**
@@ -63,7 +66,7 @@ export function isSortMode(value: string): value is SortMode {
 }
 
 export function displayName(app: AppEntry): string {
-  return app.name ?? `${app.label}.dot`
+  return app.name ?? nameWithTld(app.label, NETWORK.TLD)
 }
 
 // Ranking modifiers. See docs/ranking-algorithm.md.
@@ -103,9 +106,9 @@ export function rankScore(app: AppEntry, nowMs: number = Date.now()): number {
  */
 function matchTier(app: AppEntry, needle: string): number | null {
   const label = app.label.toLowerCase()
-  if (label === needle || `${label}.dot` === needle) return 0
+  if (label === needle || nameWithTld(label, NETWORK.TLD) === needle) return 0
   if (label.startsWith(needle)) return 1
-  if (label.includes(needle) || `${label}.dot`.includes(needle)) return 2
+  if (label.includes(needle) || nameWithTld(label, NETWORK.TLD).includes(needle)) return 2
   if (app.name?.toLowerCase().includes(needle)) return 3
   if (app.description.toLowerCase().includes(needle)) return 4
   return null

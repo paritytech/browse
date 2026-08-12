@@ -29,7 +29,7 @@ contract PublisherTest is Test {
     uint256 internal tokenId;
 
     function setUp() public {
-        publisher = new Publisher(IDotnsRegistrar(registrar));
+        publisher = new Publisher(IDotnsRegistrar(registrar), DOT_NODE);
         labelhash = keccak256(bytes(LABEL));
         labelNode = keccak256(abi.encodePacked(DOT_NODE, labelhash));
         tokenId = uint256(labelNode);
@@ -127,7 +127,7 @@ contract PublisherTest is Test {
     }
 
     function test_version_returnsExpectedSemver() public view {
-        assertEq(publisher.version(), "2.1.0");
+        assertEq(publisher.version(), "2.2.0");
     }
 
     function test_publicationOf_returnsZeroValueForUnknownLabel() public view {

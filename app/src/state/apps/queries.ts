@@ -100,7 +100,7 @@ export async function prefetchAllApps(queryClient: QueryClient) {
 }
 
 /**
- * Resolve a single `.dot` label to an {@link AppEntry} with live state.
+ * Resolve a single label to an {@link AppEntry} with live state.
  */
 async function resolveLabel(name: string): Promise<AppEntry | null> {
   const [identityH160, authorities] = await Promise.all([

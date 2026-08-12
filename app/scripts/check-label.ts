@@ -22,6 +22,7 @@ import {
   encodeText,
   labelhashToTokenId,
   namehash,
+  nameWithTld,
   PASEONEXTV2_ASSETHUB_GENESIS,
   PREVIEWNET_ASSETHUB_GENESIS,
   selectNetwork
@@ -55,11 +56,11 @@ function labelhashOf(s: string): `0x${string}` {
   return out as `0x${string}`
 }
 
-const node = namehash(`${label}.dot`)
+const node = namehash(nameWithTld(label, network.TLD))
 const lh = labelhashOf(label)
-const tokenId = labelhashToTokenId(lh)
+const tokenId = labelhashToTokenId(lh, network.TLD)
 
-console.log(`\nLabel:     ${label}.dot`)
+console.log(`\nLabel:     ${nameWithTld(label, network.TLD)}`)
 console.log(`namehash:  ${node}`)
 console.log(`labelhash: ${lh}`)
 console.log(`tokenId:   ${tokenId}`)

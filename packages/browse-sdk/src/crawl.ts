@@ -35,6 +35,7 @@ import {
 } from './abi/contracts.js'
 import { type MulticallTarget, tryDecode } from './abi/multicall.js'
 import { namehash } from './abi/namehash.js'
+import { nameWithTld, stripTld } from './name.js'
 import type { BrowseSdk } from './sdk.js'
 import type { PolkadotClient } from 'polkadot-api'
 
@@ -72,10 +73,10 @@ interface OriginalAccountApi {
   }
 }
 
-/** Strip a trailing `.dot` and lowercase, rejecting subnames. */
-function normalizeLabel(raw: string): string | null {
+/** Strip a trailing network TLD and lowercase, rejecting subnames. */
+function normalizeLabel(raw: string, tld: string): string | null {
   if (!raw) return null
-  const bare = (raw.endsWith('.dot') ? raw.slice(0, -4) : raw).toLowerCase()
+  const bare = stripTld(raw, tld)
   if (!bare || bare.includes('.')) return null
   return bare
 }
@@ -160,7 +161,7 @@ async function crawlViaStores(sdk: BrowseSdk, progress: CrawlProgress): Promise<
     const pages = await Promise.all(window.map((_, offset) => readStore(i + offset)))
     for (const page of pages) {
       for (const rawLabel of page) {
-        const bare = normalizeLabel(rawLabel)
+        const bare = normalizeLabel(rawLabel, network.TLD)
         if (bare) seen.add(bare)
       }
     }
@@ -182,7 +183,7 @@ async function filterToLive(
     const batch = labels.slice(i, i + CONTENT_CHUNK)
     const calls: MulticallTarget[] = batch.map((label) => ({
       target: network.CONTENT_RESOLVER,
-      callData: encodeContenthash(namehash(`${label}.dot`))
+      callData: encodeContenthash(namehash(nameWithTld(label, network.TLD)))
     }))
     const results = await sdk.multicall(calls)
     batch.forEach((label, j) => {
@@ -197,11 +198,11 @@ async function filterToLive(
 }
 
 /**
- * Every `.dot` label that currently resolves to content, sorted.
+ * Every registered label that currently resolves to content, sorted.
  *
  * Enumerates the LabelStore contracts the factory has deployed, reads the labels
  * out of each, then keeps the ones with a content hash. Lines are bare labels
- * with no `.dot` suffix.
+ * with no TLD suffix.
  */
 export async function crawlDomains(
   sdk: BrowseSdk,

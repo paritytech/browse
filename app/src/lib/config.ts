@@ -2,9 +2,11 @@ import {
   activeAttestationResolver,
   activeSchemaId,
   isKnownGenesis,
+  nameWithTld,
   type NetworkGenesis,
   PASEONEXTV2_ASSETHUB_GENESIS,
-  selectNetwork
+  selectNetwork,
+  stripTld
 } from '@parity/browse-sdk'
 
 declare const process: { env?: Record<string, string | undefined> }
@@ -53,10 +55,10 @@ export const DUMMY_ORIGIN = '5C4hrfjw9DjXZTzV3MwzrrAr9P1MLDHajjSidz9bR544LEq1'
 const APP_DOTNS_DOMAIN =
   import.meta.env?.APP_DOTNS_DOMAIN ?? process.env?.APP_DOTNS_DOMAIN ?? 'browse'
 
-export const SELF_LABEL = APP_DOTNS_DOMAIN.toLowerCase().replace(/\.dot$/, '')
+export const SELF_LABEL = stripTld(APP_DOTNS_DOMAIN, NETWORK.TLD)
 
 /**
- * Pins the `.dot` domain suggestions to one snapshot instead of the current one.
+ * Pins the domain suggestions to one snapshot instead of the current one.
  *
  * Snapshot CIDs rotate daily, so a baked value goes stale. Leave it unset and
  * the client reads the current CID from the `snapshot.domains` text record on
@@ -79,14 +81,14 @@ export const USERNAMES_SNAPSHOT_CID =
  * real product account is not provisionable. The e2e host maps this same id to
  * a funded account, so keep the two in sync.
  */
-export const LOCALHOST_SELF_DOTNS = `${SELF_LABEL}-beta00.dot`
+export const LOCALHOST_SELF_DOTNS = nameWithTld(`${SELF_LABEL}-beta00`, NETWORK.TLD)
 
 /**
  * The identifier we present to the host when deriving the product account and
  * signing transactions.
  */
 function resolveSelfDotns(): string {
-  const fallback = `${SELF_LABEL}.dot`
+  const fallback = nameWithTld(SELF_LABEL, NETWORK.TLD)
   if (typeof window === 'undefined') return fallback
   const hostname = window.location.hostname.toLowerCase()
   if (hostname === 'localhost' || hostname.endsWith('.localhost') || hostname === '127.0.0.1') {
