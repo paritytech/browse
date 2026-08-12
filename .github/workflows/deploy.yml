@@ -236,6 +236,7 @@ jobs:
             export MNEMONIC='${{ secrets.MNEMONIC }}'
             export NODE_OPTIONS='--max-old-space-size=8192'
             export APP_DOTNS_DOMAIN='${{ steps.domain.outputs.value }}'
+            export NETWORK_GENESIS_HASH='${{ matrix.target.genesis }}'
             cd app
             bulletin-deploy dist/spa '${{ steps.domain.outputs.value }}' --env '${{ matrix.target.deployment-env }}'
 

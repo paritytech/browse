@@ -1,17 +1,25 @@
 import { defineConfig } from 'bulletin-deploy'
 
+import { isKnownGenesis, selectNetwork } from '../packages/browse-sdk/src/config'
+
 declare const process: { env?: Record<string, string | undefined> }
 
-// APP_DOTNS_DOMAIN takes either a full name, `browse-beta00.paseo`, which is what
-// the deploy workflow passes, or a bare label, `browse`. A bare label gets the
-// suffix from APP_DOTNS_TLD, which defaults to the `.dot` networks.
+// Set APP_DOTNS_DOMAIN to the bare label, e.g. `browse`, and NETWORK_GENESIS_HASH
+// to the network being deployed to. The suffix comes from that network, so a
+// `.paseo` deployment needs no separate setting.
 const domain = process.env?.APP_DOTNS_DOMAIN
 if (!domain) throw new Error('APP_DOTNS_DOMAIN is required')
-const name = domain.toLowerCase()
-const target = name.includes('.') ? name : `${name}.${process.env?.APP_DOTNS_TLD ?? 'dot'}`
+
+const genesis = process.env?.NETWORK_GENESIS_HASH
+if (!genesis || !isKnownGenesis(genesis)) {
+  throw new Error(`NETWORK_GENESIS_HASH must name a known network, got '${genesis ?? ''}'`)
+}
+const { TLD } = selectNetwork(genesis)
+
+const label = domain.toLowerCase().replace(new RegExp(`\\.${TLD}$`), '')
 
 export default defineConfig({
-  domain: target,
+  domain: `${label}.${TLD}`,
   displayName: 'Browse',
   description: 'Home for privacy apps.',
   icon: { path: './icon.png', format: 'png' },
