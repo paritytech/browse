@@ -2,6 +2,7 @@
 pragma solidity ^0.8.24;
 
 import {IDotnsRegistrar} from "./IDotnsRegistrar.sol";
+import {IPersonhood} from "./IPersonhood.sol";
 import {ISemver} from "./ISemver.sol";
 
 /// @title IPublisher
@@ -41,7 +42,24 @@ interface IPublisher is ISemver {
     error RateLimitExceeded(uint64 nextAvailableAt);
 
     /// @notice Publishes a label the caller owns as a discoverable app.
-    function publish(string calldata label) external;
+    ///
+    /// Every caller but the registry owner must present a proof of personhood over
+    /// {getPublishDigest} for this label, and the tier it claims sets their daily cap. The
+    /// owner may pass an empty `request`.
+    function publish(
+        string calldata label,
+        IPersonhood.ProofVerificationRequest calldata request
+    ) external;
+
+    /// @notice The message a publisher must bind into their personhood proof.
+    ///
+    /// Covers the chain id, this contract, the publisher, and the label, so a proof is
+    /// spendable once, for one label, by one account, here, on this chain. Publishing a
+    /// second label needs a second proof.
+    function getPublishDigest(address publisher, bytes32 labelhash)
+        external
+        view
+        returns (bytes32);
 
     /// @notice Retracts a previously published label from discovery.
     function unpublish(string calldata label) external;

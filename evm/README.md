@@ -19,8 +19,10 @@
 The backend layer behind Browse. A publishing registry where anyone can publish a product, and any client can read the published set back.
 
 Labels are published through [Publisher.sol](src/Publisher.sol), which records each published label
-and gates who can publish with proof-of-personhood and per-account rate limits. Attestations on
-products are indexed by resolvers bound to an attestation service.
+and gates who can publish. A publisher submits a ring-membership proof of personhood over
+`getPublishDigest(publisher, labelhash)`, which covers the chain, the registry, the publisher, and the
+label, so a proof is spendable once for one name. The daily rate limit is counted per person rather
+than per address. Attestations on products are indexed by resolvers bound to an attestation service.
 [RecipientAndAttesterIndexResolver.sol](src/RecipientAndAttesterIndexResolver.sol) groups attestation
 IDs by recipient, schema, and attester so the app can query them efficiently. It also gates new
 attestations on a bound identity: a product account first proves, once, that an identity authorized
