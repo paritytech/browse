@@ -60,7 +60,7 @@ const PASEONEXTV2_ASSETHUB: NetworkConfig = {
 
 const PREVIEWNET_ASSETHUB: NetworkConfig = {
   id: 'previewnet-asset-hub',
-  name: 'Previewnet Asset Hub',
+  name: 'Previewnet AssetHub',
   genesisHash: PREVIEWNET_ASSETHUB_GENESIS,
   rpcUrl: KNOWN_NETWORKS[PREVIEWNET_ASSETHUB_GENESIS].ASSETHUB_RPCS[0],
   tokenSymbol: 'UNIT',

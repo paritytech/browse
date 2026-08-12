@@ -56,7 +56,7 @@ Version 2.1.0:
   * Trusted attester: `0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20`
   * Deployment and ABI: [TrustedAttesterIndexResolver.sol](src/TrustedAttesterIndexResolver.sol)
 
-#### Previewnet Asset Hub
+#### Previewnet AssetHub
 
 Genesis `0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210`.
 

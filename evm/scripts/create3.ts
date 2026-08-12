@@ -154,7 +154,7 @@ async function submit(tx: any, signer: any): Promise<string | null> {
  * `initCode` is the creation bytecode with the ABI-encoded constructor arguments
  * appended. Set `DRY_RUN=true` to print the address the salt resolves to and stop.
  */
-export async function deployThroughCreate3(
+export async function deploy(
   api: any,
   signer: any,
   options: {

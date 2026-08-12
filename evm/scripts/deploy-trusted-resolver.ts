@@ -10,7 +10,7 @@ import {
   parseAbiParameters,
 } from "viem";
 
-import { contractVersion, deployThroughCreate3 } from "./create3.ts";
+import { contractVersion, deploy } from "./create3.ts";
 import { connect, ensureMapped, getSigner } from "./lib.ts";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -58,7 +58,7 @@ async function main() {
     const version = contractVersion(
       path.join(SRC_DIR, "TrustedAttesterIndexResolver.sol")
     );
-    const { address: resolverAddr, status } = await deployThroughCreate3(
+    const { address: resolverAddr, status } = await deploy(
       api,
       signer,
       {
