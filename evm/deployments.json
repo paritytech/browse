@@ -3,6 +3,7 @@
     "previewnet": {
       "address": "0x5a3c111278ec98f327466c9ab7a5e0e0f5047acc",
       "version": "2.1.0",
+      "tld": ".dot",
       "registrar": "0x4f06E818Ba3d987704fd91cf3d868E4b019106Ab",
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
       "network": "previewnet-asset-hub",
@@ -11,15 +12,18 @@
       "ethRpc": "https://previewnet.substrate.dev/eth-rpc",
       "deployedAt": "2026-08-03T21:00:00Z"
     },
-    "paseo-asset-hub-next-v2": {
-      "address": "0x0d30645f1d2c7dfa11926190e456a45db440581f",
-      "version": "2.1.0",
-      "registrar": "0xf7Ad3F44F316C73E4a2b46b1ed48d376bCc9E639",
+    "paseonextv2": {
+      "address": "0x1875B90A61705917945f9B7C6Ff7819Ad48A198e",
+      "version": "2.2.0",
+      "tld": ".paseo",
+      "tldNode": "0x096b436ee9a398429fe33ad4b359bad4398dd74b412ec1dd043c93dfbf581874",
+      "create3Salt": "browse.create3.v1:Publisher:2.2.0",
+      "registrar": "0x4f06E818Ba3d987704fd91cf3d868E4b019106Ab",
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
-      "network": "paseo-asset-hub-next-v2",
-      "genesisHash": "0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f",
+      "network": "paseonextv2",
+      "genesisHash": "0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6",
       "substrateRpc": "wss://paseo-asset-hub-next-rpc.polkadot.io",
-      "deployedAt": "2026-06-05T13:45:21Z"
+      "deployedAt": "2026-08-12"
     }
   },
   "trustedAttesterIndexResolver": {
@@ -34,16 +38,18 @@
       "genesisHash": "0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210",
       "deployedAt": "2026-08-03T21:00:00Z"
     },
-    "paseo-asset-hub-next-v2": {
-      "address": "0x5abfc89934ee846d12629dfb5b22eecc59bbaed3",
-      "attestationService": "0x24af868f14605460f6385aae166986cee9800514",
+    "paseonextv2": {
+      "address": "0x8326c11a76Dda4702046e92f73C0ea7E698560a2",
+      "version": "2.1.0",
+      "create3Salt": "browse.create3.v1:TrustedAttesterIndexResolver:2.1.0",
+      "attestationService": "0x36e63233695675fd5b1f957da746602bd234fe19",
       "trustedAttester": "0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20",
-      "schema": "bool compliant",
+      "schema": "bool compliant,string contentCid,string badgeIconCid,string name",
       "schemaId": 2,
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
-      "network": "paseo-asset-hub-next-v2",
-      "genesisHash": "0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f",
-      "deployedAt": "2026-06-08T14:35:14Z"
+      "network": "paseonextv2",
+      "genesisHash": "0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6",
+      "deployedAt": "2026-08-12"
     }
   },
   "recipientAndAttesterIndexResolver": {
@@ -59,18 +65,29 @@
       "genesisHash": "0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210",
       "deployedAt": "2026-08-03"
     },
-    "paseo-asset-hub-next-v2": {
-      "address": "0x1fa4627395455ec42cfb574c895b5bc5e9e40c4f",
-      "previousAddress": "0xfa64ae58b4ce0c3a3dfd68b429959c4166394ba1",
-      "attestationService": "0x24af868f14605460f6385aae166986cee9800514",
-      "schema": "string label",
-      "schemaId": 5,
+    "paseonextv2": {
+      "address": "0xAca17c2547f09b3AD0d3bd28Db11EE172604b85b",
+      "version": "2.1.0",
+      "create3Salt": "browse.create3.v1:RecipientAndAttesterIndexResolver:2.1.0",
+      "attestationService": "0x36e63233695675fd5b1f957da746602bd234fe19",
+      "schema": "bool like",
+      "schemaId": 1,
       "personhoodGated": false,
       "identityGated": true,
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
-      "network": "paseo-asset-hub-next-v2",
-      "genesisHash": "0xbf0488dbe9daa1de1c08c5f743e26fdc2a4ecd74cf87dd1b4b1eeb99ae4ef19f",
-      "deployedAt": "2026-06-28"
+      "network": "paseonextv2",
+      "genesisHash": "0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6",
+      "deployedAt": "2026-08-12"
+    }
+  },
+  "schemaRegistry": {
+    "previewnet": {
+      "address": "0xccd0a00f015f349264a3d7cd30fa6a05691f01cb",
+      "note": "Deployed from the attestation-protocol repository."
+    },
+    "paseonextv2": {
+      "address": "0x46fe8c29dece5a882be37a459c6e8ba1b73d3f20",
+      "note": "Deployed from the attestation-protocol repository."
     }
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "@parity/browse-sdk",
-  "version": "0.1.0-rc.2",
+  "version": "0.1.0-rc.3",
   "description": "Client SDK for the publishing registry. Read published apps, widgets, and workers via any papi-compatible JsonRpcProvider.",
   "license": "Apache-2.0",
   "type": "module",
@@ -27,6 +27,11 @@
       "#/source": "./src/snapshots.ts",
       "types": "./dist/browse-sdk/src/snapshots.d.ts",
       "default": "./dist/browse-sdk/src/snapshots.js"
+    },
+    "./config": {
+      "#/source": "./src/config.ts",
+      "types": "./dist/browse-sdk/src/config.d.ts",
+      "default": "./dist/browse-sdk/src/config.js"
     }
   },
   "files": [

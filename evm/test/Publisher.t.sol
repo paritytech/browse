@@ -130,6 +130,15 @@ contract PublisherTest is Test {
         assertEq(publisher.version(), "2.2.0");
     }
 
+    function test_constructor_recordsTldNode() public view {
+        assertEq(publisher.tldNode(), DOT_NODE);
+    }
+
+    function test_constructor_revertsOnZeroTldNode() public {
+        vm.expectRevert(IPublisher.EmptyTldNode.selector);
+        new Publisher(IDotnsRegistrar(registrar), bytes32(0));
+    }
+
     function test_publicationOf_returnsZeroValueForUnknownLabel() public view {
         IPublisher.Publication memory missing = publisher.publicationOf(labelhash);
         assertEq(missing.publisher, address(0));
