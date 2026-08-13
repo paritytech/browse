@@ -46,8 +46,6 @@ jobs:
         working-directory: app
         run: bun install --frozen-lockfile
 
-      # The pointer record has to be written on the name deploy.yml deployed to,
-      # so this repeats what that workflow computes for main.
       - name: Compute domain
         id: domain
         env:
