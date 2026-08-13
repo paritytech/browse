@@ -50,7 +50,7 @@ TLD `.paseo`.
 Publisher 3.0.0:
 
 * **Publisher**:
-  * Contract: `0x34890368dFc109C0b905EA96035A850E3e5C3a2f`
+  * Contract: `0x01167f228A729f8e50f18aa7189f59b659155D09`
   * Deployment and ABI: [Publisher.sol](src/Publisher.sol)
   * Second in the SDK `PUBLISHER` array. Reads union every entry, writes go to the first, and this
     one starts empty while 2.2.0 still holds the published set.
@@ -77,7 +77,7 @@ TLD `.dot`.
 Publisher 3.0.0:
 
 * **Publisher**:
-  * Contract: `0x34890368dFc109C0b905EA96035A850E3e5C3a2f`
+  * Contract: `0x01167f228A729f8e50f18aa7189f59b659155D09`
   * Deployment and ABI: [Publisher.sol](src/Publisher.sol)
   * Second in the SDK `PUBLISHER` array. Reads union every entry, writes go to the first, and this
     one starts empty while 2.1.0 still holds the published set.

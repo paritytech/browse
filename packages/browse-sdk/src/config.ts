@@ -69,7 +69,7 @@ export const KNOWN_NETWORKS = {
       },
       {
         version: '3.0.0',
-        address: '0x34890368dFc109C0b905EA96035A850E3e5C3a2f'
+        address: '0x01167f228A729f8e50f18aa7189f59b659155D09'
       }
     ],
     SCHEMA_REGISTRY: '0x46fe8c29dece5a882be37a459c6e8ba1b73d3f20',
@@ -103,7 +103,7 @@ export const KNOWN_NETWORKS = {
       },
       {
         version: '3.0.0',
-        address: '0x34890368dFc109C0b905EA96035A850E3e5C3a2f'
+        address: '0x01167f228A729f8e50f18aa7189f59b659155D09'
       }
     ],
     SCHEMA_REGISTRY: '0xccd0a00f015f349264a3d7cd30fa6a05691f01cb',

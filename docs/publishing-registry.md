@@ -23,26 +23,26 @@ The registry is intentionally minimal. No stored content, no admin, no upgrade p
 
 | Symbol | Source | Notes |
 |---|---|---|
-| `tldNode` | [Publisher.sol:20](../evm/src/Publisher.sol#L20) | Namehash of the TLD node, set per network at construction |
+| `tldNode` | [Publisher.sol:17](../evm/src/Publisher.sol#L17) | Namehash of the TLD node, set per network at construction |
 | `event Published(publisher, labelNode, labelhash, timestamp)` | [IPublisher.sol:23](../evm/src/interfaces/IPublisher.sol#L23) | All three address/bytes32 args are `indexed` |
 | `event Unpublished(publisher, labelNode, labelhash, timestamp)` | [IPublisher.sol:31](../evm/src/interfaces/IPublisher.sol#L31) | Same shape as `Published` for symmetric indexer reduce |
-| `FULL_DAILY_LIMIT` | [Publisher.sol:36](../evm/src/Publisher.sol#L36) | 5 publishes per rolling `RATE_WINDOW` for status ≥ 2 |
-| `LITE_DAILY_LIMIT` | [Publisher.sol:33](../evm/src/Publisher.sol#L33) | 1 publish per rolling `RATE_WINDOW` for status == 1 |
-| `PERSONHOOD` precompile | [Publisher.sol:16](../evm/src/Publisher.sol#L16) | `0x…0a010000`. Verifies ring-membership proofs |
-| `PERSONHOOD_CONTEXT` | [Publisher.sol:27](../evm/src/Publisher.sol#L27) | `bytes32("dotns")`. Reuses the dotns ring root |
+| `FULL_DAILY_LIMIT` | [Publisher.sol:33](../evm/src/Publisher.sol#L33) | 5 publishes per rolling `RATE_WINDOW` for status ≥ 2 |
+| `LITE_DAILY_LIMIT` | [Publisher.sol:30](../evm/src/Publisher.sol#L30) | 1 publish per rolling `RATE_WINDOW` for status == 1 |
+| `PERSONHOOD` precompile | [Publisher.sol:13](../evm/src/Publisher.sol#L13) | `0x…0a010000`. Verifies ring-membership proofs |
+| `PERSONHOOD_CONTEXT` | [Publisher.sol:24](../evm/src/Publisher.sol#L24) | `bytes32("dotns")`. Reuses the dotns ring root |
 | `ProofVerificationRequest` struct | [IPersonhood.sol:27](../evm/src/interfaces/IPersonhood.sol#L27) | The proof bundle a publisher submits |
 | `Publication` struct | [IPublisher.sol:16](../evm/src/interfaces/IPublisher.sol#L16) | `(publisher, timestamp, indexPlusOne)`. Also the storage row |
-| `Publisher.getPublished(offset, limit)` | [Publisher.sol:158](../evm/src/Publisher.sol#L158) | Paginated read of labelhashes from the global feed |
-| `Publisher.getPublishedAt(index)` | [Publisher.sol:153](../evm/src/Publisher.sol#L153) | Single labelhash by enumeration index |
-| `Publisher.isPublished(labelhash)` | [Publisher.sol:143](../evm/src/Publisher.sol#L143) | O(1) "is this label live?" predicate |
-| `Publisher.publicationOf(labelhash)` | [Publisher.sol:174](../evm/src/Publisher.sol#L174) | Direct lookup. Zero-valued struct when absent |
-| `Publisher.publish(label, request)` | [Publisher.sol:80](../evm/src/Publisher.sol#L80) | Proof-gated, rolling-window rate-limited |
-| `Publisher.getPublishDigest(publisher, labelhash)` | [Publisher.sol:183](../evm/src/Publisher.sol#L183) | The bytes a publisher must bind into their proof |
-| `Publisher.publishedCount()` | [Publisher.sol:148](../evm/src/Publisher.sol#L148) | Total live entries |
-| `Publisher.registrar()` | [Publisher.sol:52](../evm/src/Publisher.sol#L52) | The configured `IDotnsRegistrar` |
-| `Publisher.unpublish(label)` | [Publisher.sol:117](../evm/src/Publisher.sol#L117) | Ownership-only. No personhood gate. No rate-slot touch |
+| `Publisher.getPublished(offset, limit)` | [Publisher.sol:152](../evm/src/Publisher.sol#L152) | Paginated read of labelhashes from the global feed |
+| `Publisher.getPublishedAt(index)` | [Publisher.sol:147](../evm/src/Publisher.sol#L147) | Single labelhash by enumeration index |
+| `Publisher.isPublished(labelhash)` | [Publisher.sol:137](../evm/src/Publisher.sol#L137) | O(1) "is this label live?" predicate |
+| `Publisher.publicationOf(labelhash)` | [Publisher.sol:168](../evm/src/Publisher.sol#L168) | Direct lookup. Zero-valued struct when absent |
+| `Publisher.publish(label, request)` | [Publisher.sol:77](../evm/src/Publisher.sol#L77) | Proof-gated, rolling-window rate-limited |
+| `Publisher.getPublishDigest(publisher, labelhash)` | [Publisher.sol:177](../evm/src/Publisher.sol#L177) | The bytes a publisher must bind into their proof |
+| `Publisher.publishedCount()` | [Publisher.sol:142](../evm/src/Publisher.sol#L142) | Total live entries |
+| `Publisher.registrar()` | [Publisher.sol:49](../evm/src/Publisher.sol#L49) | The configured `IDotnsRegistrar` |
+| `Publisher.unpublish(label)` | [Publisher.sol:111](../evm/src/Publisher.sol#L111) | Ownership-only. No personhood gate. No rate-slot touch |
 | `Publisher.version()` | [Semver.sol](../evm/src/Semver.sol) | Inherited via `Semver(4, 0, 0)` |
-| `RATE_WINDOW` | [Publisher.sol:30](../evm/src/Publisher.sol#L30) | `1 days`. The rolling window for the per-person rate limit |
+| `RATE_WINDOW` | [Publisher.sol:27](../evm/src/Publisher.sol#L27) | `1 days`. The rolling window for the per-person rate limit |
 
 ## Storage layout
 
@@ -50,7 +50,7 @@ Three pieces of state, plus the immutable registrar pointer.
 
 - **`bytes32[] _published`**. Insertion-order list of labelhashes whose publications are currently live. One slot per live label.
 - **`mapping(bytes32 => Publication) _publications`**. Per-label record. [`Publication`](../evm/src/interfaces/IPublisher.sol#L16) packs `address publisher (20) + uint64 timestamp (8) + uint32 indexPlusOne (4) = 32 bytes` into one slot. `indexPlusOne` is the 1-indexed position in `_published`, doubling as the "is published" flag and as the swap-and-pop pointer on removal. `indexPlusOne == 0` means the label is absent.
-- **`mapping(bytes32 => PublishWindow) _windows`**. Per-person rate-limit ring, keyed by the context alias the proof derives, not by the caller address. [`PublishWindow`](../evm/src/Publisher.sol#L43) packs five `uint48` timestamps into one slot (5 × 6 = 30 bytes). `uint48` overflows around year 8.9M, comfortably past contract lifetime.
+- **`mapping(bytes32 => PublishWindow) _windows`**. Per-person rate-limit ring, keyed by the context alias the proof derives, not by the caller address. [`PublishWindow`](../evm/src/Publisher.sol#L40) packs five `uint48` timestamps into one slot (5 × 6 = 30 bytes). `uint48` overflows around year 8.9M, comfortably past contract lifetime.
 
 One fresh publish writes two storage slots (`_published.push` and `_publications[lh]`) and rotates the ring. A republish writes one slot for the data refresh and rotates the ring.
 
@@ -65,7 +65,7 @@ One fresh publish writes two storage slots (`_published.push` and `_publications
    - Anything else has a daily cap of `FULL_DAILY_LIMIT` (5). Only `2` reaches that branch in practice, because the precompile rejects any `expectedStatus` outside `{1, 2}` and the call has already reverted. Treating unknown future tiers as Full is intentional so precompile upgrades cannot accidentally lock the contract down.
 4. **Rate limit.** A fixed-size ring of the last 5 publish timestamps for that person lives in `_windows[personAlias]`. The check counts entries strictly newer than `block.timestamp - RATE_WINDOW` and reverts with [`RateLimitExceeded(nextAvailableAt)`](../evm/src/interfaces/IPublisher.sol#L42) if the active count is already at the cap for that tier. `nextAvailableAt` is the oldest active timestamp plus `RATE_WINDOW`. That value is the wall-clock when the next slot frees up. On pass, the ring is rotated (oldest dropped) and the current timestamp becomes the new `t0`.
 
-The registry owner skips steps 3 and 4 so it can seed and operate the registry, and may pass an empty `request`.
+No account skips steps 3 and 4. The registry has no owner: `Ownable` was dropped once it became clear that deploying through the CREATE3 factory records the ephemeral proxy as owner, not the deployer, which strands ownership and leaves the bypass unreachable. Seeding therefore needs a proof and a rate-limit slot like any other publish.
 
 On success, the publication is recorded (see [Recording semantics](#recording-semantics)) and [`Published(publisher, labelNode, labelhash, timestamp)`](../evm/src/interfaces/IPublisher.sol#L23) is emitted. All three address/bytes32 fields are indexed. `labelNode` is for namehash joins, `labelhash` for label-key joins against dotNS content resolver records. The context alias is deliberately not emitted, see [what the alias must not leak](#what-the-alias-must-not-leak).
 
@@ -133,9 +133,9 @@ For browse, the natural pattern is one paginated `getPublished` call followed by
 
 The gate verifies a proof the caller supplies rather than reading a status the network already holds for them. Nothing has to be bound first, so a publisher who has never registered an alias account can still publish, and the People chain never learns which address the proof was spent from.
 
-The caller fills in a [`ProofVerificationRequest`](../evm/src/interfaces/IPersonhood.sol#L27). Two of its fields are overwritten by [`_verifyPersonhood`](../evm/src/Publisher.sol#L220) before the precompile sees them.
+The caller fills in a [`ProofVerificationRequest`](../evm/src/interfaces/IPersonhood.sol#L27). Two of its fields are overwritten by [`_verifyPersonhood`](../evm/src/Publisher.sol#L214) before the precompile sees them.
 
-- **`message` becomes [`getPublishDigest(msg.sender, labelhash)`](../evm/src/Publisher.sol#L183).** That is `keccak256(abi.encode(block.chainid, address(this), publisher, labelhash))`. The precompile does not bind the proof to anything itself, so without this the proof is a bearer token. The digest confines it to one publisher, one registry, one chain, and one label, so publishing a second label needs a second proof. Clients must read `getPublishDigest` and generate the proof over exactly those bytes.
+- **`message` becomes [`getPublishDigest(msg.sender, labelhash)`](../evm/src/Publisher.sol#L177).** That is `keccak256(abi.encode(block.chainid, address(this), publisher, labelhash))`. The precompile does not bind the proof to anything itself, so without this the proof is a bearer token. The digest confines it to one publisher, one registry, one chain, and one label, so publishing a second label needs a second proof. Clients must read `getPublishDigest` and generate the proof over exactly those bytes.
 - **`context` becomes `PERSONHOOD_CONTEXT`.** The alias is only stable per person within one context, so a caller free to choose the context could mint a fresh alias, and therefore a fresh rate-limit window, on every publish.
 
 Every other field is taken as given. A wrong `expectedAlias`, `ringIndex`, or `revision` just fails verification.
@@ -164,7 +164,9 @@ The scheme tracks redeployments. The contract itself is immutable, so a "patch" 
 - **MINOR.** Additive change (new function, new event with a new topic, new pure helper).
 - **PATCH.** Behaviour fix at the same ABI.
 
-`v3.0.0` is a major bump from `v2.2.0`. `publish` takes a second argument, the personhood proof, so its selector changed. The gate moved from `personhoodStatus(msg.sender, context)` to `personhoodInfoByProof(request)`, the rate-limit ring is now keyed by context alias instead of caller address, and `getPublishDigest` is a new view. A redeploy appends a new address rather than replacing one.
+`v3.0.0` is a major bump from `v2.2.0`. `publish` takes a second argument, the personhood proof, so its selector changed. The gate moved from `personhoodStatus(msg.sender, context)` to `personhoodInfoByProof(request)`, the rate-limit ring is now keyed by context alias instead of caller address, and `getPublishDigest` is a new view. `Ownable2Step` is gone with it, so `owner`, `pendingOwner`, `transferOwnership`, `acceptOwnership` and `renounceOwnership` are no longer part of the ABI. A redeploy appends a new address rather than replacing one.
+
+Its salt reads `browse.create3.v1:Publisher:3.0.0-noowner` while `version()` reports `3.0.0`. A CREATE3 address is derived from the factory and salt alone, never from the init code, so dropping `Ownable` could not move the contract off the `…:Publisher:3.0.0` slot an earlier build already occupied. The suffix bought a free address without renaming the release. That earlier build still answers `version()` `3.0.0` and still carries an owner; it was never referenced by the SDK.
 
 A fresh deployment starts with empty storage, so `v3.0.0` sits **second** in the `PUBLISHER` arrays rather than first. Reads union every entry, writes go to the first, and the published set still lives in the earlier contract. Promoting `v3.0.0` to first is a separate step that needs that state migrated, otherwise writes would land in an empty registry while the feed still reads from the old one. The rate-limit windows do not migrate either: a fresh contract starts every person at an empty window.
 

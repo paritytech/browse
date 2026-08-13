@@ -427,50 +427,15 @@ contract PublisherTest is Test {
         publisher.publish("b", lite);
     }
 
-    function test_owner_isDeployer() public view {
-        assertEq(publisher.owner(), address(this));
-    }
-
-    function test_publish_ownerBypassesPersonhoodAndRateLimit() public {
-        // The test contract is the owner. An empty proof reverts for anyone else.
+    // No account is exempt now that the registry has no owner. The contract that
+    // deployed it is gated like anyone else.
+    function test_publish_hasNoPrivilegedAccount() public {
         IPersonhood.ProofVerificationRequest memory none = _emptyRequest();
+        _mockProof(address(this), LABEL, none, false);
+        _mockOwner(address(this));
 
-        // Publish far past the Full-tier cap of 5 within a single window.
-        for (uint256 i = 0; i < 8; ++i) {
-            string memory label = string(abi.encodePacked("app", vm.toString(i)));
-            _mockOwner(_tokenIdOf(label), address(this));
-            publisher.publish(label, none);
-        }
-
-        assertEq(publisher.publishedCount(), 8);
-    }
-
-    function test_publish_privilegeFollowsTwoStepOwnershipTransfer() public {
-        address bob = makeAddr("bob");
-        IPersonhood.ProofVerificationRequest memory none = _emptyRequest();
-
-        // Hand the registry off to bob via the two-step flow.
-        publisher.transferOwnership(bob);
-        // Pending owner is not privileged until acceptance.
-        assertEq(publisher.owner(), address(this));
-        vm.prank(bob);
-        publisher.acceptOwnership();
-        assertEq(publisher.owner(), bob);
-
-        // Bob now publishes past the Full-tier cap with no proof.
-        for (uint256 i = 0; i < 7; ++i) {
-            string memory label = string(abi.encodePacked("bobapp", vm.toString(i)));
-            _mockOwner(_tokenIdOf(label), bob);
-            vm.prank(bob);
-            publisher.publish(label, none);
-        }
-        assertEq(publisher.publishedCount(), 7);
-
-        // The old owner lost the privilege: it is gated again and reverts.
-        _mockProof(address(this), "old", none, false);
-        _mockOwner(_tokenIdOf("old"), address(this));
         vm.expectRevert(IPublisher.NoPersonhood.selector);
-        publisher.publish("old", none);
+        publisher.publish(LABEL, none);
     }
 
     function test_unpublish_revertsWhenLabelEmpty() public {

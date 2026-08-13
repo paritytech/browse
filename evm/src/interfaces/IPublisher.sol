@@ -43,9 +43,9 @@ interface IPublisher is ISemver {
 
     /// @notice Publishes a label the caller owns as a discoverable app.
     ///
-    /// Every caller but the registry owner must present a proof of personhood over
-    /// {getPublishDigest} for this label, and the tier it claims sets their daily cap. The
-    /// owner may pass an empty `request`.
+    /// Every caller must present a proof of personhood over {getPublishDigest} for
+    /// this label, and the tier it claims sets their daily cap. The registry has no
+    /// owner, so there is no account that can publish without one.
     function publish(
         string calldata label,
         IPersonhood.ProofVerificationRequest calldata request

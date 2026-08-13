@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.24;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
-
 import {IDotnsRegistrar} from "./interfaces/IDotnsRegistrar.sol";
 import {IPersonhood} from "./interfaces/IPersonhood.sol";
 import {IPublisher} from "./interfaces/IPublisher.sol";
@@ -11,7 +8,7 @@ import {Semver} from "./Semver.sol";
 
 /// @title Publisher
 /// @notice The browse publishing registry.
-contract Publisher is IPublisher, Ownable2Step, Semver(3, 0, 0) {
+contract Publisher is IPublisher, Semver(3, 0, 0) {
     // The Proof-of-Personhood precompile.
     address internal constant PERSONHOOD =
         0x000000000000000000000000000000000a010000;
@@ -70,7 +67,7 @@ contract Publisher is IPublisher, Ownable2Step, Semver(3, 0, 0) {
     /// @param tldNode_ Namehash of the TLD node the network runs, as reported by `tldNode()` on
     /// the dotNS protocol registry. A network fixes its TLD at initialisation, so this is set
     /// once here rather than read per call.
-    constructor(IDotnsRegistrar registrar_, bytes32 tldNode_) Ownable(msg.sender) {
+    constructor(IDotnsRegistrar registrar_, bytes32 tldNode_) {
         if (tldNode_ == bytes32(0)) revert EmptyTldNode();
         registrar = registrar_;
         tldNode = tldNode_;
@@ -85,17 +82,14 @@ contract Publisher is IPublisher, Ownable2Step, Semver(3, 0, 0) {
 
         uint64 nowTs = uint64(block.timestamp);
 
-        // The owner publishes without the personhood gate or the per-person
-        // rate limit, so it can seed and operate the registry with as many
-        // labels as it needs. Everyone else is gated and rate-limited by tier.
-        if (msg.sender != owner()) {
-            bytes32 personAlias = _verifyPersonhood(request, labelhash);
-
-            uint64 cap = request.expectedStatus == 1
-                ? LITE_DAILY_LIMIT
-                : FULL_DAILY_LIMIT;
-            _checkAndRecordRate(personAlias, cap, nowTs);
-        }
+        // Every caller is gated and rate-limited by tier. There is no privileged
+        // account: the registry has no owner, so no address can publish past the
+        // cap or without a proof.
+        bytes32 personAlias = _verifyPersonhood(request, labelhash);
+        uint64 cap = request.expectedStatus == 1
+            ? LITE_DAILY_LIMIT
+            : FULL_DAILY_LIMIT;
+        _checkAndRecordRate(personAlias, cap, nowTs);
 
         Publication storage data = _publications[labelhash];
         if (data.indexPlusOne == 0) {

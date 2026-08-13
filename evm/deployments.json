@@ -1,14 +1,14 @@
 {
   "publisher": {
     "previewnet": {
-      "address": "0x34890368dFc109C0b905EA96035A850E3e5C3a2f",
+      "address": "0x01167f228A729f8e50f18aa7189f59b659155D09",
       "version": "3.0.0",
       "previousAddress": "0x5a3c111278ec98f327466c9ab7a5e0e0f5047acc",
       "previousVersion": "2.1.0",
       "note": "Second in the SDK PUBLISHER array, not first. Reads union every entry, writes go to the first, and 3.0.0 starts with empty storage while 2.1.0 still holds the published set. Promote it once that state is migrated.",
       "tld": ".dot",
       "tldNode": "0x3fce7d1364a893e213bc4212792b517ffc88f5b13b86c8ef9c8d390c3a1370ce",
-      "create3Salt": "browse.create3.v1:Publisher:3.0.0",
+      "salt": "browse.create3.v1:Publisher:3.0.0-noowner",
       "registrar": "0x4f06E818Ba3d987704fd91cf3d868E4b019106Ab",
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
       "network": "previewnet-asset-hub",
@@ -18,14 +18,14 @@
       "deployedAt": "2026-08-13"
     },
     "paseo": {
-      "address": "0x34890368dFc109C0b905EA96035A850E3e5C3a2f",
+      "address": "0x01167f228A729f8e50f18aa7189f59b659155D09",
       "version": "3.0.0",
       "previousAddress": "0x1875B90A61705917945f9B7C6Ff7819Ad48A198e",
       "previousVersion": "2.2.0",
       "note": "Second in the SDK PUBLISHER array, not first. Reads union every entry, writes go to the first, and 3.0.0 starts with empty storage while 2.2.0 still holds the published set. Promote it once that state is migrated.",
       "tld": ".paseo",
       "tldNode": "0x096b436ee9a398429fe33ad4b359bad4398dd74b412ec1dd043c93dfbf581874",
-      "create3Salt": "browse.create3.v1:Publisher:3.0.0",
+      "salt": "browse.create3.v1:Publisher:3.0.0-noowner",
       "registrar": "0x4f06E818Ba3d987704fd91cf3d868E4b019106Ab",
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
       "network": "paseo",
@@ -49,7 +49,7 @@
     "paseo": {
       "address": "0x8326c11a76Dda4702046e92f73C0ea7E698560a2",
       "version": "2.1.0",
-      "create3Salt": "browse.create3.v1:TrustedAttesterIndexResolver:2.1.0",
+      "salt": "browse.create3.v1:TrustedAttesterIndexResolver:2.1.0",
       "attestationService": "0x36e63233695675fd5b1f957da746602bd234fe19",
       "trustedAttester": "0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20",
       "schema": "bool compliant,string contentCid,string badgeIconCid,string name",
@@ -76,7 +76,7 @@
     "paseo": {
       "address": "0xAca17c2547f09b3AD0d3bd28Db11EE172604b85b",
       "version": "2.1.0",
-      "create3Salt": "browse.create3.v1:RecipientAndAttesterIndexResolver:2.1.0",
+      "salt": "browse.create3.v1:RecipientAndAttesterIndexResolver:2.1.0",
       "attestationService": "0x36e63233695675fd5b1f957da746602bd234fe19",
       "schema": "bool like",
       "schemaId": 1,
