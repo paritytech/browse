@@ -67,8 +67,6 @@ export const KNOWN_NETWORKS = {
         version: '2.2.0',
         address: '0x1875B90A61705917945f9B7C6Ff7819Ad48A198e'
       },
-      // Ordered after 2.x deliberately. This registry is proof-gated but empty,
-      // and the listings still live in the entry above, which is where writes go.
       {
         version: '3.0.0',
         address: '0x34890368dFc109C0b905EA96035A850E3e5C3a2f'
@@ -103,8 +101,6 @@ export const KNOWN_NETWORKS = {
         version: '2.1.0',
         address: '0x5a3c111278ec98f327466c9ab7a5e0e0f5047acc'
       },
-      // Ordered after 2.x deliberately. This registry is proof-gated but empty,
-      // and the listings still live in the entry above, which is where writes go.
       {
         version: '3.0.0',
         address: '0x34890368dFc109C0b905EA96035A850E3e5C3a2f'
