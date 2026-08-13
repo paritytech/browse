@@ -144,8 +144,8 @@ export class BrowseSdk {
 
   /**
    * Paginated read of `Publisher.getPublished` across every deployed Publisher
-   * for the network, unioned and de-duplicated by labelhash (current registry
-   * first). Returns `[]` on networks without a Publisher.
+   * for the network, unioned and de-duplicated by labelhash in array order.
+   * Returns `[]` on networks without a Publisher.
    */
   async listPublishedLabelhashes(): Promise<`0x${string}`[]> {
     const seen = new Set<string>()

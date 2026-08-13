@@ -1,6 +1,6 @@
 ---
 summary: "How a .dot label becomes a discoverable browse app via proof-of-personhood-gated, rolling-24h rate-limited Publisher events with paginated enumeration"
-title: "Publishing Registry v4.0"
+title: "Publishing Registry v3.0"
 read_when:
   - You are adding a publish or unpublish call from the app or a script
   - You are debugging why a label is or is not appearing in browse
@@ -150,7 +150,7 @@ The `PERSONHOOD_CONTEXT` value (`bytes32("dotns")`) reuses dotns' application co
 
 Because the context is shared with dotns, the alias Publisher verifies is the same alias dotns derives for that person. It is a stable per-person pseudonym, so it must never reach a log or a public view.
 
-Writing it to an event would publicly link every address one person publishes from, and link all of them to their dotns identity. The plaintext `publisher` field on `Published` does not do that on its own. An earlier draft of v4 emitted a `PublishedByPerson(publisher, personAlias, …)` event to let indexers group publishes by person; it was dropped for exactly this reason. Grouping by person needs a Publisher-specific context, which costs the ring-root broadcast this design chose to avoid.
+Writing it to an event would publicly link every address one person publishes from, and link all of them to their dotns identity. The plaintext `publisher` field on `Published` does not do that on its own. An earlier draft emitted a `PublishedByPerson(publisher, personAlias, …)` event to let indexers group publishes by person; it was dropped for exactly this reason. Grouping by person needs a Publisher-specific context, which costs the ring-root broadcast this design chose to avoid.
 
 The alias stays where it is safe: a mapping key, never read back.
 
