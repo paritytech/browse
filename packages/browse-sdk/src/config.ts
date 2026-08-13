@@ -66,6 +66,10 @@ export const KNOWN_NETWORKS = {
       {
         version: '2.2.0',
         address: '0x1875B90A61705917945f9B7C6Ff7819Ad48A198e'
+      },
+      {
+        version: '3.0.0',
+        address: '0x34890368dFc109C0b905EA96035A850E3e5C3a2f'
       }
     ],
     SCHEMA_REGISTRY: '0x46fe8c29dece5a882be37a459c6e8ba1b73d3f20',
@@ -90,12 +94,16 @@ export const KNOWN_NETWORKS = {
     CONTENT_RESOLVER: '0x7F74D7CD50f5a834270E2ad395a01b01891AB37d',
     REGISTRY: '0xf34054fd76BbF85f216cf9908226D5f0A72E50CA',
     REGISTRAR: '0x4f06E818Ba3d987704fd91cf3d868E4b019106Ab',
-    CREATE3_FACTORY: null,
+    CREATE3_FACTORY: '0x8533c79E058c5a6489CAFeCA86dc600E029D75f5',
     TLD: 'dot',
     PUBLISHER: [
       {
         version: '2.1.0',
         address: '0x5a3c111278ec98f327466c9ab7a5e0e0f5047acc'
+      },
+      {
+        version: '3.0.0',
+        address: '0x34890368dFc109C0b905EA96035A850E3e5C3a2f'
       }
     ],
     SCHEMA_REGISTRY: '0xccd0a00f015f349264a3d7cd30fa6a05691f01cb',

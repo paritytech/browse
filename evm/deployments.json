@@ -1,29 +1,37 @@
 {
   "publisher": {
     "previewnet": {
-      "address": "0x5a3c111278ec98f327466c9ab7a5e0e0f5047acc",
-      "version": "2.1.0",
+      "address": "0x34890368dFc109C0b905EA96035A850E3e5C3a2f",
+      "version": "3.0.0",
+      "previousAddress": "0x5a3c111278ec98f327466c9ab7a5e0e0f5047acc",
+      "previousVersion": "2.1.0",
+      "note": "Second in the SDK PUBLISHER array, not first. Reads union every entry, writes go to the first, and 3.0.0 starts with empty storage while 2.1.0 still holds the published set. Promote it once that state is migrated.",
       "tld": ".dot",
+      "tldNode": "0x3fce7d1364a893e213bc4212792b517ffc88f5b13b86c8ef9c8d390c3a1370ce",
+      "create3Salt": "browse.create3.v1:Publisher:3.0.0",
       "registrar": "0x4f06E818Ba3d987704fd91cf3d868E4b019106Ab",
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
       "network": "previewnet-asset-hub",
       "genesisHash": "0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210",
       "substrateRpc": "wss://previewnet.substrate.dev/asset-hub",
       "ethRpc": "https://previewnet.substrate.dev/eth-rpc",
-      "deployedAt": "2026-08-03T21:00:00Z"
+      "deployedAt": "2026-08-13"
     },
     "paseo": {
-      "address": "0x1875B90A61705917945f9B7C6Ff7819Ad48A198e",
-      "version": "2.2.0",
+      "address": "0x34890368dFc109C0b905EA96035A850E3e5C3a2f",
+      "version": "3.0.0",
+      "previousAddress": "0x1875B90A61705917945f9B7C6Ff7819Ad48A198e",
+      "previousVersion": "2.2.0",
+      "note": "Second in the SDK PUBLISHER array, not first. Reads union every entry, writes go to the first, and 3.0.0 starts with empty storage while 2.2.0 still holds the published set. Promote it once that state is migrated.",
       "tld": ".paseo",
       "tldNode": "0x096b436ee9a398429fe33ad4b359bad4398dd74b412ec1dd043c93dfbf581874",
-      "create3Salt": "browse.create3.v1:Publisher:2.2.0",
+      "create3Salt": "browse.create3.v1:Publisher:3.0.0",
       "registrar": "0x4f06E818Ba3d987704fd91cf3d868E4b019106Ab",
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
       "network": "paseo",
       "genesisHash": "0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6",
       "substrateRpc": "wss://paseo-asset-hub-next-rpc.polkadot.io",
-      "deployedAt": "2026-08-12"
+      "deployedAt": "2026-08-13"
     }
   },
   "trustedAttesterIndexResolver": {

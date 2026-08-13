@@ -47,6 +47,14 @@ Genesis `0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6`.
 
 TLD `.paseo`.
 
+Publisher 3.0.0:
+
+* **Publisher**:
+  * Contract: `0x34890368dFc109C0b905EA96035A850E3e5C3a2f`
+  * Deployment and ABI: [Publisher.sol](src/Publisher.sol)
+  * Second in the SDK `PUBLISHER` array. Reads union every entry, writes go to the first, and this
+    one starts empty while 2.2.0 still holds the published set.
+
 Version 2.2.0:
 
 * **Publisher**:
@@ -63,6 +71,16 @@ Version 2.2.0:
 #### Previewnet AssetHub
 
 Genesis `0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210`.
+
+TLD `.dot`.
+
+Publisher 3.0.0:
+
+* **Publisher**:
+  * Contract: `0x34890368dFc109C0b905EA96035A850E3e5C3a2f`
+  * Deployment and ABI: [Publisher.sol](src/Publisher.sol)
+  * Second in the SDK `PUBLISHER` array. Reads union every entry, writes go to the first, and this
+    one starts empty while 2.1.0 still holds the published set.
 
 Version 2.1.0:
 

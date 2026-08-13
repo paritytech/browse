@@ -164,7 +164,9 @@ The scheme tracks redeployments. The contract itself is immutable, so a "patch" 
 - **MINOR.** Additive change (new function, new event with a new topic, new pure helper).
 - **PATCH.** Behaviour fix at the same ABI.
 
-`v3.0.0` is a major bump from `v2.2.0`. `publish` takes a second argument, the personhood proof, so its selector changed. The gate moved from `personhoodStatus(msg.sender, context)` to `personhoodInfoByProof(request)`, the rate-limit ring is now keyed by context alias instead of caller address, and `getPublishDigest` is a new view. Deployed windows do not carry over: a redeploy appends a new address, and the new contract starts every person at an empty window.
+`v3.0.0` is a major bump from `v2.2.0`. `publish` takes a second argument, the personhood proof, so its selector changed. The gate moved from `personhoodStatus(msg.sender, context)` to `personhoodInfoByProof(request)`, the rate-limit ring is now keyed by context alias instead of caller address, and `getPublishDigest` is a new view. A redeploy appends a new address rather than replacing one.
+
+A fresh deployment starts with empty storage, so `v3.0.0` sits **second** in the `PUBLISHER` arrays rather than first. Reads union every entry, writes go to the first, and the published set still lives in the earlier contract. Promoting `v3.0.0` to first is a separate step that needs that state migrated, otherwise writes would land in an empty registry while the feed still reads from the old one. The rate-limit windows do not migrate either: a fresh contract starts every person at an empty window.
 
 `v2.2.0` took the TLD node as a constructor argument instead of hardcoding `.dot`, so one contract serves whichever TLD its network runs.
 
