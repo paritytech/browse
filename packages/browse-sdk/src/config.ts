@@ -67,6 +67,8 @@ export const KNOWN_NETWORKS = {
         version: '2.2.0',
         address: '0x1875B90A61705917945f9B7C6Ff7819Ad48A198e'
       },
+      // Ordered after 2.x deliberately. This registry is proof-gated but empty,
+      // and the listings still live in the entry above, which is where writes go.
       {
         version: '3.0.0',
         address: '0x34890368dFc109C0b905EA96035A850E3e5C3a2f'
@@ -101,6 +103,8 @@ export const KNOWN_NETWORKS = {
         version: '2.1.0',
         address: '0x5a3c111278ec98f327466c9ab7a5e0e0f5047acc'
       },
+      // Ordered after 2.x deliberately. This registry is proof-gated but empty,
+      // and the listings still live in the entry above, which is where writes go.
       {
         version: '3.0.0',
         address: '0x34890368dFc109C0b905EA96035A850E3e5C3a2f'
@@ -135,10 +139,14 @@ export function selectNetwork(genesis: NetworkGenesis): NetworkConfig {
 }
 
 /**
- * Every Publisher address to read listings from, current first.
+ * Every Publisher address to read listings from, write target first.
  *
  * Reads union across all deployments so a redeploy doesn't strand the listings
  * published to an older registry. Empty on networks without a Publisher.
+ *
+ * The first entry is the one writes go to, which is normally also the newest.
+ * A deployment whose storage has not been migrated yet is ordered after the
+ * registry still holding the listings, so the two can disagree.
  */
 export function publisherReadAddresses(network: NetworkConfig): `0x${string}`[] {
   return network.PUBLISHER.map((deployment) => deployment.address)
