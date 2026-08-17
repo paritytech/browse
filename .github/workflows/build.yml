@@ -29,9 +29,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .snapshot-cid
-          key: domains-snapshot-cid
+          key: paseo-domains-snapshot-cid
           restore-keys: |
-            domains-snapshot-cid-
+            paseo-domains-snapshot-cid-
 
       - name: Read snapshot CID
         id: snapshot-cid
@@ -46,9 +46,9 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: .usernames-snapshot-cid
-          key: usernames-snapshot-cid
+          key: paseo-usernames-snapshot-cid
           restore-keys: |
-            usernames-snapshot-cid-
+            paseo-usernames-snapshot-cid-
 
       - name: Read username snapshot CID
         id: usernames-cid

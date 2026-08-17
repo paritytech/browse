@@ -1,7 +1,7 @@
 /**
  * Build and publish the daily Dotns domains snapshot, then point the name at it.
  *
- *   cd app && MNEMONIC="…" APP_DOTNS_DOMAIN="…" bun run snapshot:domains:paseo
+ *   cd app && MNEMONIC="…" bun run snapshot:domains:paseo
  *
  * Crawling and publishing cost a full pass over the chain and real Bulletin
  * storage, while repointing costs one transaction. Pass `--cid` to skip straight
@@ -9,6 +9,7 @@
  * to stop at the check that the key may write the record.
  */
 
+import { createBrowseSdk, isKnownGenesis, selectNetwork } from '@parity/browse-sdk'
 import {
   crawlDomains,
   DOMAINS_POINTER_KEY,
@@ -16,7 +17,6 @@ import {
   shardKey,
   updateSnapshotPointer
 } from '@parity/browse-sdk/snapshots'
-import { createBrowseSdk, isKnownGenesis, selectNetwork } from '@parity/browse-sdk'
 import { createClient } from 'polkadot-api'
 import { getWsProvider } from 'polkadot-api/ws'
 
@@ -40,15 +40,13 @@ async function main(): Promise<void> {
   const mnemonic = process.env.MNEMONIC
   if (!mnemonic) throw new Error('MNEMONIC is required to pay for Bulletin storage')
 
-  const pointerDomain = process.env.APP_DOTNS_DOMAIN
-  if (!pointerDomain) throw new Error('APP_DOTNS_DOMAIN is required to record the pointer')
-
   const genesis = process.env.NETWORK_GENESIS_HASH
   if (!genesis || !isKnownGenesis(genesis)) {
     throw new Error(`NETWORK_GENESIS_HASH must be a known genesis, got ${genesis ?? 'nothing'}`)
   }
 
   const network = selectNetwork(genesis)
+  const pointerDomain = network.SNAPSHOT_POINTER_DOMAIN
   const assetHubRpc = network.ASSETHUB_RPCS[0]!
 
   console.log(`network:   ${genesis}`)

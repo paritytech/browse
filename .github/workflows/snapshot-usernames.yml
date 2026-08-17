@@ -18,22 +18,14 @@ jobs:
     name: Publish ${{ matrix.network.name }} username snapshot
     runs-on: ubuntu-latest
     strategy:
-      # One network failing must not skip publishing the other.
       fail-fast: false
       matrix:
         network:
-          - name: Paseo Next V2
-            env: paseo
+          - name: Paseo
             genesis: '0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6'
-            tld: paseo
-            # build.yml restores this via the `usernames-snapshot-cid-` prefix.
-            cache-prefix: usernames-snapshot-cid
+            cache-prefix: paseo-usernames-snapshot-cid
           - name: Previewnet
-            env: preview
             genesis: '0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210'
-            tld: dot
-            # deploy.yml restores this for the preview build via the
-            # `previewnet-usernames-snapshot-cid-` prefix.
             cache-prefix: previewnet-usernames-snapshot-cid
     steps:
       - uses: actions/checkout@v4
@@ -46,29 +38,11 @@ jobs:
         working-directory: app
         run: bun install --frozen-lockfile
 
-      - name: Compute domain
-        id: domain
-        env:
-          DOMAIN: ${{ secrets.APP_DOTNS_DOMAIN }}
-          TLD: ${{ matrix.network.tld }}
-          TARGET_ENV: ${{ matrix.network.env }}
-        run: |
-          if [ -z "$DOMAIN" ]; then
-            echo "::error::Required secret APP_DOTNS_DOMAIN is not set"
-            exit 1
-          fi
-          if [ "$TARGET_ENV" == "paseo" ]; then
-            echo "value=${DOMAIN}-beta00.${TLD}" >> "$GITHUB_OUTPUT"
-          else
-            echo "value=${DOMAIN}.${TLD}" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Build & publish snapshot
+      - name: Publish snapshot
         id: snapshot
         working-directory: app
         env:
           MNEMONIC: ${{ secrets.MNEMONIC }}
-          APP_DOTNS_DOMAIN: ${{ steps.domain.outputs.value }}
           NETWORK_GENESIS_HASH: ${{ matrix.network.genesis }}
         run: |
           # Capture the CID even on failure. The script prints it once the blocks
@@ -90,9 +64,6 @@ jobs:
           mkdir -p .usernames-snapshot-cid
           echo "$CID" > .usernames-snapshot-cid/cid
 
-      # Persist the manifest CID so the next build bakes it in. The key rotates
-      # per run because caches are immutable. The consuming build restores the
-      # most recent one via the network `cache-prefix`.
       - name: Cache snapshot CID
         if: always() && steps.snapshot.outputs.cid != ''
         uses: actions/cache/save@v4
