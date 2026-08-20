@@ -1,7 +1,7 @@
 import { defineConfig } from 'bulletin-deploy'
 
 export default defineConfig({
-  domain: 'stopwatch.dot',
+  domain: 'stopwatch.test',
   displayName: 'Stopwatch',
   description: 'Really? Yes. Someone had to.',
   icon: { path: './icon.png', format: 'png' },

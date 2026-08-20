@@ -51,7 +51,7 @@ export const PASEONEXTV2_ASSETHUB_GENESIS =
   '0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6' as const
 
 export const PREVIEWNET_ASSETHUB_GENESIS =
-  '0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210' as const
+  '0x627f54413120c81161261b2ca87f60f0020963107dc28367491e09ec2dd29659' as const
 
 export const KNOWN_NETWORKS = {
   [PASEONEXTV2_ASSETHUB_GENESIS]: {
@@ -95,7 +95,7 @@ export const KNOWN_NETWORKS = {
     REGISTRY: '0xf34054fd76BbF85f216cf9908226D5f0A72E50CA',
     REGISTRAR: '0x4f06E818Ba3d987704fd91cf3d868E4b019106Ab',
     CREATE3_FACTORY: '0x8533c79E058c5a6489CAFeCA86dc600E029D75f5',
-    TLD: 'dot',
+    TLD: 'test',
     PUBLISHER: [
       {
         version: '2.1.0',
@@ -114,11 +114,11 @@ export const KNOWN_NETWORKS = {
     IPFS_GATEWAY: 'https://previewnet.substrate.dev',
     PRIMARY_WEB_DOMAIN: 'testnet.li',
     SECONDARY_WEB_DOMAIN: 'testnet.li',
-    SNAPSHOT_POINTER_DOMAIN: 'browse.dot',
+    SNAPSHOT_POINTER_DOMAIN: 'browse.test',
     SCHEMA_ID: [3n],
     COMPLIANCE_SCHEMA_ID: 2n,
     ASSETHUB_RPCS: ['wss://previewnet.substrate.dev/asset-hub'],
-    PEOPLE_GENESIS: '0x3138c6d4ce58c760047a413c2a930e919b4673a841ab4890de59aac3bd037f3d',
+    PEOPLE_GENESIS: '0x34999c298555e25bf17a7f3ea20efe7f6fdab1dfec7f808fbcfd36ca8aa5d220',
     PEOPLE_RPCS: ['wss://previewnet.substrate.dev/people'],
     BULLETIN_RPCS: ['wss://previewnet.substrate.dev/bulletin']
   }

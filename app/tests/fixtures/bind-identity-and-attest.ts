@@ -2,8 +2,10 @@ import { ss58ToEthereum } from '@polkadot-api/sdk-ink'
 import { type SS58String } from 'polkadot-api'
 import { bytesToHex, hexToBytes } from 'viem'
 
+import { nameWithTld } from '@parity/browse-sdk'
+
 import { encodeAttestationLabel, namehash, nodeToSubject } from '../../src/lib/abi'
-import { ACTIVE_ATTESTATION_RESOLVER, ACTIVE_SCHEMA_ID } from '../../src/lib/config'
+import { ACTIVE_ATTESTATION_RESOLVER, ACTIVE_SCHEMA_ID, NETWORK } from '../../src/lib/config'
 import { createDevSigner, createProductSigner } from './fund'
 import { withSigner } from './with-attestation-service'
 
@@ -39,7 +41,7 @@ export async function bindIdentityAndAttest(tag: string, label: string): Promise
 
   await withSigner(account, async (service) => {
     await service.bindIdentity(bytesToHex(identity.publicKey), bytesToHex(signature))
-    const recipient = nodeToSubject(namehash(`${label}.dot`))
+    const recipient = nodeToSubject(namehash(nameWithTld(label, NETWORK.TLD)))
     const data = encodeAttestationLabel(label)
     try {
       await service.attest(ACTIVE_SCHEMA_ID, recipient, 0n, true, 0n, data)

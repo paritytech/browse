@@ -11,7 +11,7 @@
     "previewnethub": {
       "wsUrl": "wss://previewnet.substrate.dev/asset-hub",
       "metadata": ".papi/metadata/previewnethub.scale",
-      "genesis": "0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210",
+      "genesis": "0x627f54413120c81161261b2ca87f60f0020963107dc28367491e09ec2dd29659",
       "codeHash": "0x933429a990722d0df6762ffcd8aceaf356e64b1b1f7a36fb66895ac22578b48a"
     },
     "summithub": {

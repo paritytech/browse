@@ -1,7 +1,7 @@
 import { defineConfig } from 'bulletin-deploy'
 
 export default defineConfig({
-  domain: 'calculator.dot',
+  domain: 'calculator.test',
   displayName: 'Calculator',
   description: 'Yes. A calculator. Cool right?',
   icon: { path: './icon.png', format: 'png' },
