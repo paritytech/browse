@@ -98,24 +98,20 @@ export const KNOWN_NETWORKS = {
     TLD: 'test',
     PUBLISHER: [
       {
-        version: '2.1.0',
-        address: '0x5a3c111278ec98f327466c9ab7a5e0e0f5047acc'
-      },
-      {
         version: '3.0.0',
         address: '0x01167f228A729f8e50f18aa7189f59b659155D09'
       }
     ],
-    SCHEMA_REGISTRY: '0xccd0a00f015f349264a3d7cd30fa6a05691f01cb',
-    ATTESTATION_SERVICE: '0xb6493705c8280e2200ed799e1b47040fa8753d05',
-    ATTESTATION_INDEX_RESOLVER: ['0x1563d8f5beab796529d1135d1600a3e75476a1da'],
-    TRUSTED_ATTESTER_RESOLVER: '0x956834cd15bf02d3d9bb427e86d7115f5b062927',
+    SCHEMA_REGISTRY: '0xd8af2626d3c5d990ae75077de3c5d9bb5e71de1e',
+    ATTESTATION_SERVICE: '0x37e7021fd6e44d5cdc17847b33388d6d6eff63cd',
+    ATTESTATION_INDEX_RESOLVER: ['0xAca17c2547f09b3AD0d3bd28Db11EE172604b85b'],
+    TRUSTED_ATTESTER_RESOLVER: '0x8326c11a76Dda4702046e92f73C0ea7E698560a2',
     TRUSTED_ATTESTER: '0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20',
     IPFS_GATEWAY: 'https://previewnet.substrate.dev',
     PRIMARY_WEB_DOMAIN: 'testnet.li',
     SECONDARY_WEB_DOMAIN: 'testnet.li',
     SNAPSHOT_POINTER_DOMAIN: 'browse.test',
-    SCHEMA_ID: [3n],
+    SCHEMA_ID: [1n],
     COMPLIANCE_SCHEMA_ID: 2n,
     ASSETHUB_RPCS: ['wss://previewnet.substrate.dev/asset-hub'],
     PEOPLE_GENESIS: '0x34999c298555e25bf17a7f3ea20efe7f6fdab1dfec7f808fbcfd36ca8aa5d220',
