@@ -114,16 +114,19 @@ async function main() {
     }
     console.log(`Reserved personal id ${personalId}`)
 
-    await asSudo(api.tx.DummyDim.start_mutation_session().decodedCall, 'start_mutation_session')
-    // The member key goes in as a hex string and the id as a bigint. A Binary or
-    // a Uint8Array fails the compatibility check for this fixed-size field.
+    // No mutation session. `start_mutation_session` puts the whole collection
+    // into `RingsState::Mutating`, which stops onboarding for every member of
+    // it, and the counter only unwinds one `end_mutation_session` at a time. A
+    // run that dies between the two strands the collection for everyone.
+    //
+    // The member key goes in as a hex string and the id as a bigint. A Binary
+    // or a Uint8Array fails the compatibility check for this fixed-size field.
     await asSudo(
       api.tx.DummyDim.recognize_personhood({
         ids_and_keys: [[personalId, memberKeyHex]]
       }).decodedCall,
       'recognize_personhood'
     )
-    await asSudo(api.tx.DummyDim.end_mutation_session().decodedCall, 'end_mutation_session')
 
     const now = await membership()
     console.log(`\nMembership: ${now ? now.type : 'still absent'}`)
