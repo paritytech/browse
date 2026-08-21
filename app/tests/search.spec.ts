@@ -90,9 +90,9 @@ test.describe('Search', () => {
     const frame = await getProductFrame(page, '.category-tab')
 
     // When
-    await frame.locator('.search-bar__input').fill('host-playground44')
+    await frame.locator('.search-bar__input').fill('alarm-clock')
     // Then
-    const card = frame.locator('.product-card[data-label="host-playground44"]')
+    const card = frame.locator('.product-card[data-label="alarm-clock"]')
     await expect(card).toBeVisible({ timeout: 15_000 })
 
     await page.close()
