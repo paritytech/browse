@@ -28,7 +28,7 @@
     "viem": "^2.50.4"
   },
   "peerDependencies": {
-    "@parity/product-sdk": "^0.20.1"
+    "@parity/product-sdk": "^0.22.0"
   },
   "peerDependenciesMeta": {
     "@parity/product-sdk": {
@@ -36,7 +36,7 @@
     }
   },
   "devDependencies": {
-    "@parity/product-sdk": "^0.20.1",
+    "@parity/product-sdk": "^0.22.0",
     "multiformats": "^14.0.2",
     "typescript": "^5.4.0",
     "vitest": "^4.1.0"

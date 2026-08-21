@@ -56,7 +56,7 @@
     "viem": "^2.50.4"
   },
   "devDependencies": {
-    "@parity/product-sdk": "^0.20.1",
+    "@parity/product-sdk": "^0.22.0",
     "@polkadot-api/ws-provider": "^0.9.0",
     "@polkadot-labs/hdkd": "^0.0.27",
     "@polkadot-labs/hdkd-helpers": "^0.0.28",
@@ -68,7 +68,7 @@
     "node": ">=22"
   },
   "peerDependencies": {
-    "@parity/product-sdk": "^0.20.1",
+    "@parity/product-sdk": "^0.22.0",
     "@polkadot-labs/hdkd": "^0.0.27",
     "@polkadot-labs/hdkd-helpers": "^0.0.28",
     "@polkadot/api": "^16.5.4"
