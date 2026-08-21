@@ -16,8 +16,9 @@
  *     raw ring-VRF bytes. Passing the raw bytes verifies fine locally and is
  *     rejected by the precompile with no explanation.
  *   - the proof is built with `verifiablejs`, which is not a dependency here, so
- *     it comes in through the environment. `docs/publishing-registry.md` has the
- *     recipe.
+ *     it comes in through the environment. Run
+ *     `app/scripts/build-publish-proof.ts` to produce it, or read the recipe in
+ *     `docs/publishing-registry.md`.
  *
  * ```sh
  * NETWORK_GENESIS_HASH=0x… LABEL=calculator \
