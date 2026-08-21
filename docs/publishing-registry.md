@@ -144,7 +144,7 @@ The two overwrites pull in opposite directions and both are load-bearing. Bindin
 
 ### Producing the proof
 
-The proof is a ring-VRF one-shot built with [verifiablejs](https://www.npmjs.com/package/verifiablejs), the wasm build of the same `verifiable` crate the runtime verifies with, so its version has to match the network. Everything it needs is on chain.
+The proof is a ring-VRF one-shot built with `verifiablejs`, the wasm build of the same `verifiable` crate the runtime verifies with, so its version has to match the network. Everything it needs is on the network, and [app/scripts/build-publish-proof.ts](../app/scripts/build-publish-proof.ts) does the whole sequence.
 
 1. Derive the member key. A current app derives it at `//peopl.{tld}//index_bytes(0)` per RFC-0022, where the TLD is the one the network registers names under. The same mnemonic is a different person under a different TLD.
 2. Read the member position from `Members.Members[(collectionIdent, memberKey)]` on the People chain. It must be `Included`, which gives the ring index.
