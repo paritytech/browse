@@ -92,21 +92,31 @@ async function main() {
       return
     }
 
-    const reserved = await api.query.DummyDim.ReservedIds.getEntries({ at: 'best' })
-    const personalId = reserved
-      .map((entry: { keyArgs: unknown[] }) => entry.keyArgs[0] as bigint)
-      .sort((a: bigint, b: bigint) => (a < b ? -1 : a > b ? 1 : 0))[0]
-    if (personalId === undefined) {
-      console.error('No reserved personal id available. Run DummyDim.reserve_ids as sudo first.')
-      process.exit(1)
-    }
-    console.log(`Using reserved personal id ${personalId}`)
-
     const asSudo = async (call: unknown, label: string) => {
       const result = await api.tx.Sudo.sudo({ call }).signAndSubmit(signer, SIGN_OPTIONS)
       if (!result.ok) throw new Error(`${label} failed: ${JSON.stringify(result.dispatchError)}`)
       console.log(`  ${label}`)
     }
+
+    const reservedIds = async (): Promise<Set<string>> =>
+      new Set(
+        (await api.query.DummyDim.ReservedIds.getEntries({ at: 'best' })).map(
+          (entry: { keyArgs: unknown[] }) => String(entry.keyArgs[0])
+        )
+      )
+
+    // Reserve a fresh id rather than reusing one already sitting in ReservedIds.
+    // Those belong to whoever reserved them, and recognizing against one loses
+    // the race the moment its owner claims it, silently undoing this whole run.
+    const before = await reservedIds()
+    await asSudo(api.tx.DummyDim.reserve_ids({ count: 1 }).decodedCall, 'reserve_ids')
+    const mine = [...(await reservedIds())].filter((id) => !before.has(id))
+    const personalId = mine[0] === undefined ? undefined : BigInt(mine[0])
+    if (personalId === undefined) {
+      console.error('reserve_ids added no new reservation, so there is no id to recognize against.')
+      process.exit(1)
+    }
+    console.log(`Reserved personal id ${personalId}`)
 
     await asSudo(api.tx.DummyDim.start_mutation_session().decodedCall, 'start_mutation_session')
     // The member key goes in as a hex string and the id as a bigint. A Binary or
