@@ -228,8 +228,10 @@ export async function claimPgas(target: string, slotIndex = 0): Promise<ClaimRes
     const ringExponent = await ahApi.constants.AliasAccounts.PeopleRingExponent()
     const ringExpNum = ringExponent.type === 'R2e9' ? 9 : ringExponent.type === 'R2e10' ? 10 : 14
 
+    type RingRootsKey = Parameters<typeof ahApi.query.MembersSubscriber.RingRoots.getValue>
     const ringRoots = await ahApi.query.MembersSubscriber.RingRoots.getValue(
-      collectionId,
+      0,
+      collectionId as RingRootsKey[1],
       ringIndex,
       { at: 'best' }
     )
