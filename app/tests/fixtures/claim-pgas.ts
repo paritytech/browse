@@ -4,17 +4,17 @@
 
 import { member_from_entropy, one_shot, validate_with_commitment } from 'verifiablejs/nodejs'
 import { previewnethub, previewnetpeople } from '@polkadot-api/descriptors'
-import { blake2b } from '@noble/hashes/blake2.js'
 import { mnemonicToEntropy } from '@polkadot-labs/hdkd-helpers'
 import { Blake2256, Bytes, Vector } from '@polkadot-api/substrate-bindings'
 import { AccountId, createClient, Enum, type SS58String } from 'polkadot-api'
 import { getWsProvider } from 'polkadot-api/ws'
 import { WebSocket } from 'ws'
 
+import { fullPersonRingVrfEntropy } from '@parity/browse-sdk'
+
 import { NETWORK } from '../../src/lib/config'
 import { DEV_PHRASE } from '../utils'
 
-const MEMBER_ENTROPY_KEY = new TextEncoder().encode('candidate')
 const PGAS_CONTEXT_PREFIX = new TextEncoder().encode('pop:gas:') // 8 bytes
 const SECS_PER_DAY = 86_400n
 // The people-collection identifier the AsPgas extension binds against.
@@ -70,10 +70,16 @@ function compactEncode(n: number): Uint8Array {
   throw new Error('compactEncode: too large')
 }
 
+/**
+ * The ring-VRF member key entropy for this network, per RFC-0022.
+ *
+ * The TLD is part of the derivation, so the same mnemonic is a different
+ * person on each network and a key derived for the wrong one is simply not in
+ * the members map.
+ */
 function deriveMemberEntropy(mnemonic: string): Uint8Array {
   const normalized = mnemonic.trim().split(/\s+/).join(' ')
-  const bip39Entropy = mnemonicToEntropy(normalized)
-  return blake2b(bip39Entropy, { dkLen: 32, key: MEMBER_ENTROPY_KEY })
+  return fullPersonRingVrfEntropy(mnemonicToEntropy(normalized), NETWORK.TLD)
 }
 
 // [PGAS_CONTEXT_PREFIX (8b) | day u32 LE | slot u32 LE | zeros (16b)]

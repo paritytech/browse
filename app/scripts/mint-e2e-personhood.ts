@@ -18,7 +18,6 @@
  */
 
 import { member_from_entropy } from 'verifiablejs/nodejs'
-import { blake2b } from '@noble/hashes/blake2.js'
 import { mnemonicToEntropy, sr25519 } from '@polkadot-labs/hdkd-helpers'
 import { createClient, Enum, type PolkadotSigner } from 'polkadot-api'
 import { getPolkadotSigner } from 'polkadot-api/signer'
@@ -26,10 +25,10 @@ import { getWsProvider } from 'polkadot-api/ws'
 import { WebSocket } from 'ws'
 import { hexToBytes } from 'viem'
 
+import { fullPersonRingVrfEntropy } from '@parity/browse-sdk'
+
 import { NETWORK } from '../src/lib/config'
 import { DEV_PHRASE as IDENTITY_PHRASE } from '../tests/utils'
-
-const MEMBER_ENTROPY_KEY = new TextEncoder().encode('candidate')
 
 /** The people-collection identifier the members map is keyed under. */
 const PEOPLE_MEMBER_IDENTIFIER_HEX =
@@ -60,11 +59,8 @@ function sudoSigner(): PolkadotSigner {
 
 /** The funder ring-VRF member key, the same derivation `claim-pgas.ts` proves with. */
 function funderMemberKey(): Uint8Array {
-  const entropy = blake2b(mnemonicToEntropy(IDENTITY_PHRASE.trim()), {
-    dkLen: 32,
-    key: MEMBER_ENTROPY_KEY
-  })
-  return member_from_entropy(entropy)
+  const normalized = IDENTITY_PHRASE.trim().split(/\s+/).join(' ')
+  return member_from_entropy(fullPersonRingVrfEntropy(mnemonicToEntropy(normalized), NETWORK.TLD))
 }
 
 async function main() {

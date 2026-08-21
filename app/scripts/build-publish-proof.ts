@@ -21,16 +21,15 @@
 
 import { member_from_entropy, one_shot, validate_with_commitment } from 'verifiablejs/nodejs'
 import { previewnethub, previewnetpeople } from '@polkadot-api/descriptors'
-import { blake2b } from '@noble/hashes/blake2.js'
 import { mnemonicToEntropy } from '@polkadot-labs/hdkd-helpers'
 import { Bytes, Vector } from '@polkadot-api/substrate-bindings'
 import { createClient } from 'polkadot-api'
 import { getWsProvider } from 'polkadot-api/ws'
 import { WebSocket } from 'ws'
 
-import { NETWORK } from '../src/lib/config'
+import { fullPersonRingVrfEntropy } from '@parity/browse-sdk'
 
-const MEMBER_ENTROPY_KEY = new TextEncoder().encode('candidate')
+import { NETWORK } from '../src/lib/config'
 
 /** `bytes32("dotns")`, the Publisher `PERSONHOOD_CONTEXT`, right-padded. */
 const PERSONHOOD_CONTEXT = new Uint8Array(32)
@@ -80,7 +79,7 @@ function compactEncode(n: number): Uint8Array {
 
 function deriveMemberEntropy(mnemonic: string): Uint8Array {
   const normalized = mnemonic.trim().split(/\s+/).join(' ')
-  return blake2b(mnemonicToEntropy(normalized), { dkLen: 32, key: MEMBER_ENTROPY_KEY })
+  return fullPersonRingVrfEntropy(mnemonicToEntropy(normalized), NETWORK.TLD)
 }
 
 async function main() {
