@@ -70,8 +70,8 @@ jobs:
             required: true
           - env: preview
             display-name: Previewnet AssetHub
-            genesis: '0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210'
-            tld: dot
+            genesis: '0x627f54413120c81161261b2ca87f60f0020963107dc28367491e09ec2dd29659'
+            tld: test
             deployment-env: preview
             reuse-artifact: false
             snapshot-cache-prefix: previewnet-domains-snapshot-cid
@@ -219,7 +219,7 @@ jobs:
       - name: Install bulletin-deploy
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
-          npm install -g bulletin-deploy@0.15.0
+          npm install -g bulletin-deploy@0.15.2
           mkdir -p app/node_modules
           ln -sfn "$(npm root -g)/bulletin-deploy" app/node_modules/bulletin-deploy
 

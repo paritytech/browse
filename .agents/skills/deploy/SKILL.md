@@ -19,7 +19,7 @@ handled here.
 
   | network    | `<GENESIS>` (`NETWORK_GENESIS_HASH`)                                 | `<ENV>` (bulletin-deploy `--env`) |
   | ---------- | -------------------------------------------------------------------- | --------------------------------- |
-  | previewnet | `0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210` | `preview`                         |
+  | previewnet | `0x627f54413120c81161261b2ca87f60f0020963107dc28367491e09ec2dd29659` | `preview`                         |
   | paseo      | `0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6` | `paseo-next-v2`                   |
 
 - **Target domain**: from the arguments if given (e.g. `browse.dot`), otherwise

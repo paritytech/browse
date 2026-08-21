@@ -1,8 +1,10 @@
 import { ss58ToEthereum } from '@polkadot-api/sdk-ink'
 import { type SS58String } from 'polkadot-api'
 
+import { nameWithTld } from '@parity/browse-sdk'
+
 import { encodeAttestationLabel, namehash, nodeToSubject } from '../../src/lib/abi'
-import { ACTIVE_SCHEMA_ID } from '../../src/lib/config'
+import { ACTIVE_SCHEMA_ID, NETWORK } from '../../src/lib/config'
 import { withAttestationService } from './with-attestation-service'
 
 interface AttestResult {
@@ -16,7 +18,7 @@ interface AttestResult {
 // so seeding always signs as that account.
 export async function createAttestation(label: string): Promise<AttestResult> {
   return withAttestationService(async (service, address) => {
-    const recipient = nodeToSubject(namehash(`${label}.dot`))
+    const recipient = nodeToSubject(namehash(nameWithTld(label, NETWORK.TLD)))
     const attesterH160 = ss58ToEthereum(address as SS58String) as `0x${string}`
     const attestationCountBefore = await service.countByRecipientAndSchema(recipient)
     const alreadyAttested = await service.isActiveAny(recipient, [attesterH160])

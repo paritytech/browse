@@ -1,7 +1,10 @@
 import { ss58ToEthereum } from '@polkadot-api/sdk-ink'
 import { AccountId, type SS58String } from 'polkadot-api'
 
+import { nameWithTld } from '@parity/browse-sdk'
+
 import { namehash, nodeToSubject } from '../../src/lib/abi'
+import { NETWORK } from '../../src/lib/config'
 import { createProductSigner } from './fund'
 import { withSigner } from './with-attestation-service'
 
@@ -12,7 +15,7 @@ export async function createRevokedAttestation(
   credentials = createProductSigner()
 ): Promise<void> {
   await withSigner(credentials, async (service) => {
-    const recipient = nodeToSubject(namehash(`${label}.dot`))
+    const recipient = nodeToSubject(namehash(nameWithTld(label, NETWORK.TLD)))
     const { publicKey } = await service.getSigner()
     const ss58 = AccountId().dec(publicKey)
     const attesterH160 = (ss58ToEthereum(ss58 as SS58String) as `0x${string}`).toLowerCase()

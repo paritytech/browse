@@ -11,8 +11,8 @@
     "previewnethub": {
       "wsUrl": "wss://previewnet.substrate.dev/asset-hub",
       "metadata": ".papi/metadata/previewnethub.scale",
-      "genesis": "0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210",
-      "codeHash": "0x933429a990722d0df6762ffcd8aceaf356e64b1b1f7a36fb66895ac22578b48a"
+      "genesis": "0x627f54413120c81161261b2ca87f60f0020963107dc28367491e09ec2dd29659",
+      "codeHash": "0x1ab78678006052f5d8d5c2b5e058752cf2a600780025a6b6a3ae3678ade9e87c"
     },
     "summithub": {
       "wsUrl": "wss://summit-asset-hub-rpc.polkadot.io",
@@ -29,8 +29,8 @@
     "previewnetpeople": {
       "wsUrl": "wss://previewnet.substrate.dev/people",
       "metadata": ".papi/metadata/previewnetpeople.scale",
-      "genesis": "0x3138c6d4ce58c760047a413c2a930e919b4673a841ab4890de59aac3bd037f3d",
-      "codeHash": "0x952f0a5cfdb90e23f0b7aab23b975a594231a9f2fe502d5023b2ef2579985159"
+      "genesis": "0x34999c298555e25bf17a7f3ea20efe7f6fdab1dfec7f808fbcfd36ca8aa5d220",
+      "codeHash": "0x6dbb302e73393b7ceb73700734edcbbdf25ea02947f78ba83f0d014a8e4d3adc"
     }
   },
   "sol": {

@@ -70,7 +70,7 @@ Version 2.2.0:
 
 #### Previewnet AssetHub
 
-Genesis `0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210`.
+Genesis `0x627f54413120c81161261b2ca87f60f0020963107dc28367491e09ec2dd29659`.
 
 TLD `.dot`.
 

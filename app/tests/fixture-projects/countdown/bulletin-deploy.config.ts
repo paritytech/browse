@@ -1,9 +1,9 @@
 import { defineConfig } from 'bulletin-deploy'
 
 export default defineConfig({
-  domain: 'stopwatch.test',
-  displayName: 'Stopwatch',
-  description: 'Really? Yes. Someone had to.',
+  domain: 'countdown-timer.test',
+  displayName: 'Countdown Timer',
+  description: 'Counts down. Then stops. That is the whole pitch.',
   icon: { path: './icon.png', format: 'png' },
   executables: [
     {

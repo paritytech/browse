@@ -25,7 +25,7 @@ jobs:
             genesis: '0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6'
             cache-prefix: paseo-domains-snapshot-cid
           - name: Previewnet
-            genesis: '0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210'
+            genesis: '0x627f54413120c81161261b2ca87f60f0020963107dc28367491e09ec2dd29659'
             cache-prefix: previewnet-domains-snapshot-cid
     steps:
       - uses: actions/checkout@v4
@@ -77,7 +77,7 @@ jobs:
           NETWORK: ${{ matrix.network.name }}
         run: |
           {
-            echo "### ${NETWORK} .dot domain snapshot"
+            echo "### ${NETWORK} domain snapshot"
             echo ""
             echo "Manifest CID &nbsp; \`${CID}\`"
             echo ""

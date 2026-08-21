@@ -21,28 +21,28 @@ The registry is intentionally minimal. No stored content, no admin, no upgrade p
 
 ## Quick reference
 
-| Symbol | Source | Notes |
-|---|---|---|
-| `tldNode` | [Publisher.sol:17](../evm/src/Publisher.sol#L17) | Namehash of the TLD node, set per network at construction |
-| `event Published(publisher, labelNode, labelhash, timestamp)` | [IPublisher.sol:23](../evm/src/interfaces/IPublisher.sol#L23) | All three address/bytes32 args are `indexed` |
-| `event Unpublished(publisher, labelNode, labelhash, timestamp)` | [IPublisher.sol:31](../evm/src/interfaces/IPublisher.sol#L31) | Same shape as `Published` for symmetric indexer reduce |
-| `FULL_DAILY_LIMIT` | [Publisher.sol:33](../evm/src/Publisher.sol#L33) | 5 publishes per rolling `RATE_WINDOW` for status ≥ 2 |
-| `LITE_DAILY_LIMIT` | [Publisher.sol:30](../evm/src/Publisher.sol#L30) | 1 publish per rolling `RATE_WINDOW` for status == 1 |
-| `PERSONHOOD` precompile | [Publisher.sol:13](../evm/src/Publisher.sol#L13) | `0x…0a010000`. Verifies ring-membership proofs |
-| `PERSONHOOD_CONTEXT` | [Publisher.sol:24](../evm/src/Publisher.sol#L24) | `bytes32("dotns")`. Reuses the dotns ring root |
-| `ProofVerificationRequest` struct | [IPersonhood.sol:27](../evm/src/interfaces/IPersonhood.sol#L27) | The proof bundle a publisher submits |
-| `Publication` struct | [IPublisher.sol:16](../evm/src/interfaces/IPublisher.sol#L16) | `(publisher, timestamp, indexPlusOne)`. Also the storage row |
-| `Publisher.getPublished(offset, limit)` | [Publisher.sol:152](../evm/src/Publisher.sol#L152) | Paginated read of labelhashes from the global feed |
-| `Publisher.getPublishedAt(index)` | [Publisher.sol:147](../evm/src/Publisher.sol#L147) | Single labelhash by enumeration index |
-| `Publisher.isPublished(labelhash)` | [Publisher.sol:137](../evm/src/Publisher.sol#L137) | O(1) "is this label live?" predicate |
-| `Publisher.publicationOf(labelhash)` | [Publisher.sol:168](../evm/src/Publisher.sol#L168) | Direct lookup. Zero-valued struct when absent |
-| `Publisher.publish(label, request)` | [Publisher.sol:77](../evm/src/Publisher.sol#L77) | Proof-gated, rolling-window rate-limited |
-| `Publisher.getPublishDigest(publisher, labelhash)` | [Publisher.sol:177](../evm/src/Publisher.sol#L177) | The bytes a publisher must bind into their proof |
-| `Publisher.publishedCount()` | [Publisher.sol:142](../evm/src/Publisher.sol#L142) | Total live entries |
-| `Publisher.registrar()` | [Publisher.sol:49](../evm/src/Publisher.sol#L49) | The configured `IDotnsRegistrar` |
-| `Publisher.unpublish(label)` | [Publisher.sol:111](../evm/src/Publisher.sol#L111) | Ownership-only. No personhood gate. No rate-slot touch |
-| `Publisher.version()` | [Semver.sol](../evm/src/Semver.sol) | Inherited via `Semver(4, 0, 0)` |
-| `RATE_WINDOW` | [Publisher.sol:27](../evm/src/Publisher.sol#L27) | `1 days`. The rolling window for the per-person rate limit |
+| Symbol                                                          | Source                                                          | Notes                                                        |
+| --------------------------------------------------------------- | --------------------------------------------------------------- | ------------------------------------------------------------ |
+| `tldNode`                                                       | [Publisher.sol:17](../evm/src/Publisher.sol#L17)                | Namehash of the TLD node, set per network at construction    |
+| `event Published(publisher, labelNode, labelhash, timestamp)`   | [IPublisher.sol:23](../evm/src/interfaces/IPublisher.sol#L23)   | All three address/bytes32 args are `indexed`                 |
+| `event Unpublished(publisher, labelNode, labelhash, timestamp)` | [IPublisher.sol:31](../evm/src/interfaces/IPublisher.sol#L31)   | Same shape as `Published` for symmetric indexer reduce       |
+| `FULL_DAILY_LIMIT`                                              | [Publisher.sol:33](../evm/src/Publisher.sol#L33)                | 5 publishes per rolling `RATE_WINDOW` for status ≥ 2         |
+| `LITE_DAILY_LIMIT`                                              | [Publisher.sol:30](../evm/src/Publisher.sol#L30)                | 1 publish per rolling `RATE_WINDOW` for status == 1          |
+| `PERSONHOOD` precompile                                         | [Publisher.sol:13](../evm/src/Publisher.sol#L13)                | `0x…0a010000`. Verifies ring-membership proofs               |
+| `PERSONHOOD_CONTEXT`                                            | [Publisher.sol:24](../evm/src/Publisher.sol#L24)                | `bytes32("dotns")`. Reuses the dotns ring root               |
+| `ProofVerificationRequest` struct                               | [IPersonhood.sol:27](../evm/src/interfaces/IPersonhood.sol#L27) | The proof bundle a publisher submits                         |
+| `Publication` struct                                            | [IPublisher.sol:16](../evm/src/interfaces/IPublisher.sol#L16)   | `(publisher, timestamp, indexPlusOne)`. Also the storage row |
+| `Publisher.getPublished(offset, limit)`                         | [Publisher.sol:152](../evm/src/Publisher.sol#L152)              | Paginated read of labelhashes from the global feed           |
+| `Publisher.getPublishedAt(index)`                               | [Publisher.sol:147](../evm/src/Publisher.sol#L147)              | Single labelhash by enumeration index                        |
+| `Publisher.isPublished(labelhash)`                              | [Publisher.sol:137](../evm/src/Publisher.sol#L137)              | O(1) "is this label live?" predicate                         |
+| `Publisher.publicationOf(labelhash)`                            | [Publisher.sol:168](../evm/src/Publisher.sol#L168)              | Direct lookup. Zero-valued struct when absent                |
+| `Publisher.publish(label, request)`                             | [Publisher.sol:77](../evm/src/Publisher.sol#L77)                | Proof-gated, rolling-window rate-limited                     |
+| `Publisher.getPublishDigest(publisher, labelhash)`              | [Publisher.sol:177](../evm/src/Publisher.sol#L177)              | The bytes a publisher must bind into their proof             |
+| `Publisher.publishedCount()`                                    | [Publisher.sol:142](../evm/src/Publisher.sol#L142)              | Total live entries                                           |
+| `Publisher.registrar()`                                         | [Publisher.sol:49](../evm/src/Publisher.sol#L49)                | The configured `IDotnsRegistrar`                             |
+| `Publisher.unpublish(label)`                                    | [Publisher.sol:111](../evm/src/Publisher.sol#L111)              | Ownership-only. No personhood gate. No rate-slot touch       |
+| `Publisher.version()`                                           | [Semver.sol](../evm/src/Semver.sol)                             | Inherited via `Semver(4, 0, 0)`                              |
+| `RATE_WINDOW`                                                   | [Publisher.sol:27](../evm/src/Publisher.sol#L27)                | `1 days`. The rolling window for the per-person rate limit   |
 
 ## Storage layout
 
@@ -141,6 +141,24 @@ The caller fills in a [`ProofVerificationRequest`](../evm/src/interfaces/IPerson
 Every other field is taken as given. A wrong `expectedAlias`, `ringIndex`, or `revision` just fails verification.
 
 The two overwrites pull in opposite directions and both are load-bearing. Binding the message narrowly is what stops replay. Pinning the context broadly is what stops alias minting. Neither can be relaxed into the other.
+
+### Producing the proof
+
+The proof is a ring-VRF one-shot built with `verifiablejs`, the wasm build of the same `verifiable` crate the runtime verifies with, so its version has to match the network. Everything it needs is on the network, and [app/scripts/build-publish-proof.ts](../app/scripts/build-publish-proof.ts) does the whole sequence.
+
+1. Derive the member key. A current app derives it at `//peopl.{tld}//index_bytes(0)` per RFC-0022, where the TLD is the one the network registers names under. The same mnemonic is a different person under a different TLD.
+2. Read the member position from `Members.Members[(collectionIdent, memberKey)]` on the People chain. It must be `Included`, which gives the ring index.
+3. Read the ring keys from `Members.RingKeys[(collectionIdent, ringIndex, page)]`, ordered by page, and encode them as a SCALE `Vec<[u8; 32]>`.
+4. Read the current revision from `MembersSubscriber.RingRoots[(0, collectionIdent, ringIndex)]` on Asset Hub, taking the last entry.
+5. Call `one_shot(ringExponent, entropy, members, context, message)` where the message is `getPublishDigest` and the context is `bytes32("dotns")`. Version 1.5 returns a struct, so read `.proof` and `.alias` off it rather than treating the result as bytes.
+
+Two traps sit at the end of this.
+
+**The `proof` bytes must be SCALE length-prefixed.** A compact length followed by the raw proof. Passing the raw bytes on their own leaves `personhoodInfoByProof` returning `false` with nothing to explain why, and `publish` reverting as `NoPersonhood`.
+
+**Verify before spending.** `personhoodInfoByProof` is a view, so a proof can be checked for free before it is put in a transaction. Locally, `validate_with_commitment` against the stored ring commitment tells the difference between a malformed proof and a revision whose commitment predates the member joining the ring.
+
+The binding is also perishable in a way that is easy to miss. `RingRoots` keeps only the most recent few revisions, and a new one arrives regularly, so a proof built against a revision that has since fallen out of the window stops verifying.
 
 ### Personhood context
 

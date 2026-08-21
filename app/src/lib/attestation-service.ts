@@ -606,7 +606,7 @@ export class AttestationService {
       throw new Error('NotEnoughFunds: account holds no PGAS and host coverage is unavailable.')
     }
     const resources = [
-      { tag: 'SmartContractAllowance' as const, value: { tag: 'Left' as const, value: 0 } }
+      { tag: 'SmartContractAllowance' as const, value: { tag: 'Index' as const, value: 0 } }
     ]
     const allocation = await requestResourceAllocation(resources)
     const outcomes = allocation.ok ? allocation.value : []

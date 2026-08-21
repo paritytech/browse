@@ -369,7 +369,7 @@ test.describe('App Start', () => {
     test('As a user, when I bookmark a searched app, its name and icon survive a background synchronization after TTL', async () => {
       test.setTimeout(120_000)
       const page = await context.newPage()
-      const target = 'host-playground44'
+      const target = 'alarm-clock'
 
       // Given
       await navigateToTestHost(page, host.url)
@@ -378,7 +378,7 @@ test.describe('App Start', () => {
       await frame.locator('.search-bar__input').fill(target)
       const card = frame.locator(`.product-card[data-label="${target}"]`)
       await expect(card).toBeVisible({ timeout: 20_000 })
-      await expect(card.locator('.product-card__name')).toHaveText('Host Playground')
+      await expect(card.locator('.product-card__name')).toHaveText('Alarm Clock')
       await card.locator('.product-card__bookmark').click()
       await page.waitForTimeout(500)
 
@@ -405,7 +405,7 @@ test.describe('App Start', () => {
       await frame.locator('.category-tab', { hasText: 'Bookmarks' }).click()
       const bookmarked = frame.locator(`.product-card[data-label="${target}"]`)
       await expect(bookmarked).toBeVisible()
-      await expect(bookmarked.locator('.product-card__name')).toHaveText('Host Playground')
+      await expect(bookmarked.locator('.product-card__name')).toHaveText('Alarm Clock')
 
       await page.close()
     })
@@ -413,7 +413,7 @@ test.describe('App Start', () => {
     test('As a user, when I open a searched app then return and reload, I see the All list instantly', async () => {
       test.setTimeout(90_000)
       const page = await context.newPage()
-      const target = 'browse-trusted-attester-resolver00'
+      const target = 'countdown-timer'
       const listedLabels = async (fr: Frame) =>
         (await fr
           .locator('.product-card')

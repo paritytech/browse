@@ -23,7 +23,7 @@ const BLAKE2B_256 = 0xb220
 // fixtures work on whichever network the run targets.
 const GENESIS = process.env.NETWORK_GENESIS_HASH
 
-/** A `.dot` label present only in the snapshot, in no tab and unresolvable on-chain. */
+/** A label present only in the snapshot, in no tab and unresolvable on-chain. */
 export const SNAPSHOT_ONLY_LABEL = 'zzautocomplete'
 
 function blockCid(bytes: Uint8Array): string {
