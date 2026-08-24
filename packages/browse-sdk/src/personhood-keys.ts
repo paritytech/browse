@@ -38,10 +38,11 @@
  * Nothing here defaults the TLD. Pass the one the network registers names
  * under, which is `TLD` on its {@link NetworkConfig}.
  *
- * Spec: paritytech/truapi `docs/rfcs/0022-account-derivations.md`. The vectors
- * in `rfc0022.test.ts` are the cross-platform contract, pinned identically in
- * iOS `KeyedHashChainDeriverTests`, Android `KeyedEntropyDerivationTest` and
- * truapi's `product_account.rs`.
+ * Spec: paritytech/truapi `docs/rfcs/0022-account-derivations.md`. The same
+ * derivation is implemented in iOS `KeyedHashChainDeriverTests`, Android
+ * `KeyedEntropyDerivationTest` and truapi `product_account.rs`, and all of them
+ * have to agree byte for byte. A key derived even slightly differently is not
+ * rejected anywhere, it simply belongs to nobody.
  */
 
 import { blake2b } from '@noble/hashes/blake2.js'
