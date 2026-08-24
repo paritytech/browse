@@ -6,7 +6,7 @@
  * caller is a person. The contract overwrites the proof `message` with
  * `getPublishDigest(msg.sender, labelhash)` and the `context` with `dotns`
  * before verifying, so both have to be known up front. Pass the digest in.
- * `npm run read` on the Publisher will tell you it.
+ * `npm run read:contract` on the Publisher will tell you it.
  *
  * ```sh
  * MSG=0x0487a141… bun scripts/build-publish-proof.ts

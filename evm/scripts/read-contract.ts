@@ -7,8 +7,8 @@
  * needed.
  *
  * ```sh
- * NETWORK_GENESIS_HASH=0x23e7... npm run read -- 0x1875B9… "function version() view returns (string)"
- * NETWORK_GENESIS_HASH=0x23e7... npm run read -- 0x46fe8c… "function getSchema(uint256) view returns ((uint256,address,address,bool,bool,string))" 1
+ * NETWORK_GENESIS_HASH=0x23e7... npm run read:contract -- 0x1875B9… "function version() view returns (string)"
+ * NETWORK_GENESIS_HASH=0x23e7... npm run read:contract -- 0x46fe8c… "function getSchema(uint256) view returns ((uint256,address,address,bool,bool,string))" 1
  * ```
  *
  * With no signature it reports the code size at the address instead, which is the
@@ -25,7 +25,7 @@ const DRY_RUN_ORIGIN = "5C4hrfjw9DjXZTzV3MwzrrAr9P1MLDHajjSidz9bR544LEq1";
 
 function usage(): never {
   console.error(
-    'Usage: npm run read -- <address> ["function name() view returns (type)"] [args...]'
+    'Usage: npm run read:contract -- <address> ["function name() view returns (type)"] [args...]'
   );
   process.exit(1);
 }
