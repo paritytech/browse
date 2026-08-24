@@ -5,12 +5,16 @@
  * environments it does not support, which is every network except its default.
  * This is the same call, done directly.
  *
- * Publisher 3.0.0 takes a personhood proof alongside the label, and there is no
- * owner path any more, so every publish needs one. The contract rewrites the
- * proof `message` to `getPublishDigest(msg.sender, labelhash)` and the `context`
- * to `dotns` before verifying, so the proof has to be built over exactly those.
+ * Which calldata goes out depends on the Publisher the network writes to, which
+ * this reads from the SDK config rather than assuming. Version 2.x authorizes on
+ * name ownership and takes the label alone. Version 3.0.0 dropped the owner path,
+ * so it takes a personhood proof as well, and the proof inputs below are needed.
  *
- * Two things about the inputs, both learned the hard way:
+ * The 3.0.0 contract rewrites the proof `message` to
+ * `getPublishDigest(msg.sender, labelhash)` and the `context` to `dotns` before
+ * verifying, so the proof has to be built over exactly those.
+ *
+ * Two things about the proof, both learned the hard way:
  *
  *   - `proof` must be **SCALE length-prefixed**, a compact length followed by the
  *     raw ring-VRF bytes. Passing the raw bytes verifies fine locally and is
@@ -25,6 +29,8 @@
  *   PROOF=0x450c… ALIAS=0x… RING=0 CONTEXT=0x646f746e73…00 REVISION=4 MSG=0x… \
  *   npm run publish
  * ```
+ *
+ * Against a 2.x registry the proof variables are ignored, so `LABEL` is enough.
  */
 
 import { Binary } from "polkadot-api";
@@ -32,33 +38,19 @@ import { encodeFunctionData, parseAbi } from "viem";
 
 import { connect, ensureMapped, getSigner, requireEnv } from "./lib.ts";
 
-const ABI = parseAbi([
+/** Publisher 3.0.0 and later, where every publish carries a personhood proof. */
+const PROOF_ABI = parseAbi([
   "function publish(string label, (uint8 expectedStatus, bytes proof, bytes32 expectedAlias, uint32 ringIndex, bytes32 context, uint32 revision, bytes message) request)",
 ]);
+
+/** Publisher 2.x, which predates the proof and authorizes on name ownership. */
+const OWNER_ABI = parseAbi(["function publish(string label)"]);
 
 /** Headroom over the dry-run estimate, so a slightly heavier real run still fits. */
 const WEIGHT_MARGIN = 3n;
 
 async function main() {
   const label = requireEnv("LABEL", 'The bare label, e.g. LABEL="calculator".');
-  const request = {
-    // 2 is Full, 1 is Lite. The tier sets the daily cap the registry enforces.
-    expectedStatus: Number(process.env.EXPECTED_STATUS ?? 2),
-    proof: requireEnv(
-      "PROOF",
-      "SCALE length-prefixed ring proof.",
-    ) as `0x${string}`,
-    expectedAlias: requireEnv("ALIAS") as `0x${string}`,
-    ringIndex: Number(process.env.RING ?? 0),
-    context: requireEnv("CONTEXT") as `0x${string}`,
-    revision: Number(
-      requireEnv("REVISION", "A revision currently in RingRoots."),
-    ),
-    message: requireEnv(
-      "MSG",
-      "The publish digest the proof was built over.",
-    ) as `0x${string}`,
-  };
 
   const { signer, address } = getSigner();
   const { client, api, config } = connect();
@@ -69,17 +61,48 @@ async function main() {
     process.exit(1);
   }
 
+  // 2.x has no proof path, so which calldata to send is a property of the
+  // deployment the network writes to, not of the caller.
+  const version = config.PUBLISHER[0]!.version;
+  const needsProof = !version.startsWith("2.");
+
   console.log(`Caller:    ${address}`);
-  console.log(`Publisher: ${publisher}`);
+  console.log(`Publisher: ${publisher} (${version})`);
   console.log(`Label:     ${label}.${config.TLD}`);
 
   try {
     await ensureMapped(api, signer);
-    const data = encodeFunctionData({
-      abi: ABI,
-      functionName: "publish",
-      args: [label, request],
-    });
+    const data = needsProof
+      ? encodeFunctionData({
+          abi: PROOF_ABI,
+          functionName: "publish",
+          args: [
+            label,
+            {
+              // 2 is Full, 1 is Lite. The tier sets the daily cap the registry enforces.
+              expectedStatus: Number(process.env.EXPECTED_STATUS ?? 2),
+              proof: requireEnv(
+                "PROOF",
+                "SCALE length-prefixed ring proof.",
+              ) as `0x${string}`,
+              expectedAlias: requireEnv("ALIAS") as `0x${string}`,
+              ringIndex: Number(process.env.RING ?? 0),
+              context: requireEnv("CONTEXT") as `0x${string}`,
+              revision: Number(
+                requireEnv("REVISION", "A revision currently in RingRoots."),
+              ),
+              message: requireEnv(
+                "MSG",
+                "The publish digest the proof was built over.",
+              ) as `0x${string}`,
+            },
+          ],
+        })
+      : encodeFunctionData({
+          abi: OWNER_ABI,
+          functionName: "publish",
+          args: [label],
+        });
 
     // Dry run first: it prices the call and, more usefully, catches a bad proof
     // for free. `flags` is the revert bit, and it is set while `success` is true,
@@ -94,9 +117,10 @@ async function main() {
     );
     if (!dry.result.success || dry.result.value.flags !== 0) {
       console.error(
-        `\nDry run reverted, not submitting. Empty return data means the proof did` +
-          ` not verify, which is NoPersonhood. Check the proof is length-prefixed` +
-          ` and the revision is still in RingRoots.`,
+        `\nDry run reverted, not submitting. Against a proof registry, empty return` +
+          ` data means the proof did not verify, which is NoPersonhood: check it is` +
+          ` length-prefixed and the revision is still in RingRoots. Otherwise the` +
+          ` caller most likely does not own the name.`,
       );
       process.exit(1);
     }

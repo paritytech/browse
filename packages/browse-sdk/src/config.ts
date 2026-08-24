@@ -64,12 +64,12 @@ export const KNOWN_NETWORKS = {
     TLD: 'paseo',
     PUBLISHER: [
       {
-        version: '2.2.0',
-        address: '0x1875B90A61705917945f9B7C6Ff7819Ad48A198e'
-      },
-      {
         version: '3.0.0',
         address: '0x01167f228A729f8e50f18aa7189f59b659155D09'
+      },
+      {
+        version: '2.2.0',
+        address: '0x1875B90A61705917945f9B7C6Ff7819Ad48A198e'
       }
     ],
     SCHEMA_REGISTRY: '0x46fe8c29dece5a882be37a459c6e8ba1b73d3f20',
