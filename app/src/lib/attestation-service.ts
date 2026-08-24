@@ -2,13 +2,16 @@ import { attestationVersions } from '@parity/browse-sdk'
 import {
   formatHostError,
   getAccountsProvider,
+  getTruApi,
+  type ProductAccount,
   requestPermission,
-  requestResourceAllocation
+  requestResourceAllocation,
+  type TruApi
 } from '@parity/product-sdk/host'
 import { contracts } from '@polkadot-api/descriptors'
 import { type AsyncTransaction, createInkSdk, ss58ToEthereum } from '@polkadot-api/sdk-ink'
 import { AccountId, type PolkadotClient, type PolkadotSigner, type SS58String } from 'polkadot-api'
-import { bytesToHex } from 'viem'
+import { bytesToHex, hexToBytes } from 'viem'
 
 import { decodeBool, encodeIdentityHasAttested } from './abi'
 import {
@@ -21,6 +24,7 @@ import {
 import {
   ACTIVE_ATTESTATION_RESOLVER,
   ACTIVE_SCHEMA_ID,
+  ASSETHUB_GENESIS,
   DRY_RUN_WEIGHT_LIMIT,
   DUMMY_ORIGIN,
   NETWORK,
@@ -82,13 +86,51 @@ function isStaleNonce(err: unknown): boolean {
   return /stale/i.test(String(err))
 }
 
+function truapiProductSigner(client: TruApi, account: ProductAccount): PolkadotSigner {
+  const signer = {
+    dotNsIdentifier: account.dotNsIdentifier,
+    derivationIndex: { tag: 'Index' as const, value: account.derivationIndex }
+  }
+  return {
+    publicKey: account.publicKey,
+    async signTx(callData, signedExtensions) {
+      const extensions = Object.values(signedExtensions).map((extension) => ({
+        id: extension.identifier,
+        extra: bytesToHex(extension.value),
+        additionalSigned: bytesToHex(extension.additionalSigned)
+      }))
+      const result = await client.signing.createTransaction({
+        signer,
+        genesisHash: ASSETHUB_GENESIS,
+        callData: bytesToHex(callData),
+        extensions,
+        txExtVersion: 0
+      })
+      if (result.isErr()) {
+        throw new Error(`createTransaction failed: ${JSON.stringify(result.error)}`)
+      }
+      return hexToBytes(result.value.transaction)
+    },
+    async signBytes(data) {
+      const result = await client.signing.signRaw({
+        account: signer,
+        payload: { tag: 'Bytes', value: { bytes: bytesToHex(data) } }
+      })
+      if (result.isErr()) {
+        throw new Error(`signRaw failed: ${JSON.stringify(result.error)}`)
+      }
+      return hexToBytes(result.value.signature)
+    }
+  }
+}
+
 async function hostSigner(): Promise<{
   signer: PolkadotSigner
   origin: string
   publicKey: Uint8Array
 }> {
-  const accountsProvider = await getAccountsProvider()
-  if (!accountsProvider) {
+  const [accountsProvider, truApi] = await Promise.all([getAccountsProvider(), getTruApi()])
+  if (!accountsProvider || !truApi) {
     throw new Error('Host accounts provider unavailable')
   }
   const accountResult = await accountsProvider.getProductAccount(SELF_DOTNS, 0)
@@ -101,7 +143,7 @@ async function hostSigner(): Promise<{
   const publicKey = account.publicKey
   const origin = AccountId().dec(publicKey)
   return {
-    signer: accountsProvider.getProductAccountSigner(account),
+    signer: truapiProductSigner(truApi, account),
     origin,
     publicKey
   }
