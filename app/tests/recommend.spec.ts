@@ -45,7 +45,7 @@ test.describe('Recommend works', () => {
     await fundWithNative(createProductSigner().address)
     await createRevokedAttestation('host-playground').catch(() => {})
     await createRevokedAttestation('calculator').catch(() => {})
-    await createRevokedAttestation('browse-beta00').catch(() => {})
+    await createRevokedAttestation('alarm-clock').catch(() => {})
     host = await startSignedHost(IDENTITY_ACCOUNT)
     unbound = await createUnboundProductAccount()
     await createRevokedAttestation('calculator', createDevSigner(unbound.tag)).catch(() => {})
@@ -60,7 +60,7 @@ test.describe('Recommend works', () => {
     test.setTimeout(120_000)
     await page?.close()
     await createRevokedAttestation('host-playground').catch(() => {})
-    await createRevokedAttestation('browse-beta00').catch(() => {})
+    await createRevokedAttestation('alarm-clock').catch(() => {})
     // `calculator` is recommended by the fresh account, so revoke it as that attester.
     if (unbound) {
       await createRevokedAttestation('calculator', createDevSigner(unbound.tag)).catch(() => {})
@@ -106,8 +106,8 @@ test.describe('Recommend works', () => {
     // Given
     await navigateToTestHost(page, host.url)
     frame = await getProductFrame(page, '.search-bar__input')
-    await frame.locator('.search-bar__input').fill('browse-beta00')
-    const card = frame.locator('.product-card[data-label="browse-beta00"]')
+    await frame.locator('.search-bar__input').fill('alarm-clock')
+    const card = frame.locator('.product-card[data-label="alarm-clock"]')
     await expect(card).toBeVisible({ timeout: 15_000 })
     const upvote = card.locator('.product-card__upvote')
     const upvoteCount = upvote.locator('.product-card__upvote-count')
@@ -166,12 +166,12 @@ test.describe('Recommend works', () => {
     page = await context.newPage()
 
     // Given
-    const attestResult = await createAttestation('browse-beta00')
+    const attestResult = await createAttestation('alarm-clock')
     expect(attestResult.attestationCountAfter).toBe(attestResult.attestationCountBefore + 1n)
     await navigateToTestHost(page, host.url)
     frame = await getProductFrame(page, '.search-bar__input')
-    await frame.locator('.search-bar__input').fill('browse-beta00')
-    const card = frame.locator('.product-card[data-label="browse-beta00"]')
+    await frame.locator('.search-bar__input').fill('alarm-clock')
+    const card = frame.locator('.product-card[data-label="alarm-clock"]')
     await expect(card).toBeVisible({ timeout: 15_000 })
     const upvote = card.locator('.product-card__upvote')
     const upvoteCount = upvote.locator('.product-card__upvote-count')
