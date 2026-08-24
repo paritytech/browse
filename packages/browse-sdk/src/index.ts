@@ -87,7 +87,7 @@ export {
   junctionChainCode,
   indexBytes,
   INDEX_MAGIC
-} from './rfc0022.js'
+} from './personhood-keys.js'
 export type {
   AggregateResult,
   DecodedAttestation,
