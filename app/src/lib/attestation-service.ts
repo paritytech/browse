@@ -126,12 +126,6 @@ const GAS = DRY_RUN_WEIGHT_LIMIT
 const STORAGE = 1_000_000_000_000n
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const
 
-// Gas cap for the batched attest. It can't be dry-run while the account is
-// unbound, so we cap it instead of measuring. Generous but block-bounded, and
-// matches the proven evm/scripts Revive.call limit. batch_all is atomic, so an
-// undercap (or any failure) reverts the whole batch rather than half-binding.
-const CALL_WEIGHT = { ref_time: 10_000_000_000n, proof_size: 1_000_000n }
-
 // Memoised per client so a provider rebuild yields fresh instances, not ones
 // stranded on the dead client.
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -436,14 +430,20 @@ export class AttestationService {
   }
 
   /**
-   * Bind the product account to its identity and attest in one signature, as an
-   * atomic `Utility.batch_all([bindIdentity, attest])` (the first recommendation
-   * from an unbound account). A failed attest reverts the bind too, so the
-   * account is never left bound but not recommended.
+   * Bind the product account to its identity, then submit the first
+   * attestation.
    *
-   * The attest can't be dry-run while unbound (its `onAttest` gate checks the
-   * binding the batch sets), so it takes a bounded gas cap while the bind is
-   * dry-run for an accurate weight.
+   * These are deliberately separate transactions. The attestation resolver
+   * rejects an unbound caller, so an atomic bind-and-attest batch cannot
+   * dry-run the attestation in isolation. Giving that nested call a generous
+   * fixed gas cap makes `ChargePGAS` price the cap rather than the work and can
+   * exhaust a freshly granted allowance before execution. Once the binding is
+   * included, the normal attestation dry-run supplies its exact weight and
+   * storage limits.
+   *
+   * A binding that succeeds before an attestation failure is safe to retain:
+   * it is product-account identity state, independent of the recommended
+   * product, and the next attempt proceeds directly to the attestation.
    */
   async bindIdentityAndAttest(
     schema: bigint,
@@ -454,38 +454,11 @@ export class AttestationService {
     data: `0x${string}`,
     onBroadcast?: () => void
   ): Promise<TxResult> {
-    return this.withTransactionRetry(async (track) => {
-      const { signer, origin } = await this.signer()
-      const account = await this.productH160()
-      const attestData = {
-        request: { schema, data: { recipient, expirationTime, revocable, refId, data } }
-      }
-      await this.ensureAllowance(origin)
+    const account = await this.productH160()
+    const { pubKey, signature } = await signIdentityMessage(ACTIVE_ATTESTATION_RESOLVER, account)
 
-      // Build the inner calls with sdk-ink so the nested call codec matches the
-      // runtime. A raw `Revive.call` fails the Utility sign-time check.
-      const { pubKey, signature } = await signIdentityMessage(ACTIVE_ATTESTATION_RESOLVER, account)
-      const resolver = await this.getResolver()
-      const bindDry = await resolver.query('bindIdentity', {
-        origin: origin as SS58String,
-        data: { pubKey: bytesToHex(pubKey), signature: bytesToHex(signature) },
-        options: { gasLimit: GAS, storageDepositLimit: STORAGE }
-      })
-      if (!bindDry.success) {
-        throw new Error(`bindIdentity dry-run failed: ${JSON.stringify(bindDry.value, bigStr)}`)
-      }
-      const contract = await this.getContract()
-      const bindCall = await bindDry.value.send().decodedCall
-      const attestCall = await contract.send('attest', {
-        data: attestData,
-        gasLimit: CALL_WEIGHT,
-        storageDepositLimit: STORAGE
-      }).decodedCall
-
-      const api = (await this.client()).getUnsafeApi()
-      const batch = api.tx.Utility.batch_all({ calls: [bindCall, attestCall] })
-      return this.submitTx(() => batch as never, signer, track)
-    }, onBroadcast)
+    await this.bindIdentity(bytesToHex(pubKey), bytesToHex(signature))
+    return this.attest(schema, recipient, expirationTime, revocable, refId, data, onBroadcast)
   }
 
   async getSigner() {

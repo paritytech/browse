@@ -32,8 +32,8 @@ import {
 test.describe('Recommend works', () => {
   let host: Awaited<ReturnType<typeof startSignedHost>>
   // A second host signed in as the same identity but with a fresh, never-bound
-  // product account at index 0, so a recommendation drives the bind-and-attest
-  // batch instead of a plain attest.
+  // product account at index 0, so a recommendation binds the account before
+  // submitting the exact-weight attestation.
   let unboundHost: Awaited<ReturnType<typeof startSignedHostWithProductAccounts>>
   let unbound: UnboundProduct
   let context: BrowserContext
@@ -48,7 +48,7 @@ test.describe('Recommend works', () => {
     await createRevokedAttestation('alarm-clock').catch(() => {})
     host = await startSignedHost(IDENTITY_ACCOUNT)
     unbound = await createUnboundProductAccount()
-    await createRevokedAttestation('calculator', createDevSigner(unbound.tag)).catch(() => {})
+    await createRevokedAttestation('chess-clock', createDevSigner(unbound.tag)).catch(() => {})
     unboundHost = await startSignedHostWithProductAccounts(
       IDENTITY_ACCOUNT,
       unbound.productAccounts
@@ -61,9 +61,9 @@ test.describe('Recommend works', () => {
     await page?.close()
     await createRevokedAttestation('host-playground').catch(() => {})
     await createRevokedAttestation('alarm-clock').catch(() => {})
-    // `calculator` is recommended by the fresh account, so revoke it as that attester.
+    // `chess-clock` is recommended by the fresh account, so revoke it as that attester.
     if (unbound) {
-      await createRevokedAttestation('calculator', createDevSigner(unbound.tag)).catch(() => {})
+      await createRevokedAttestation('chess-clock', createDevSigner(unbound.tag)).catch(() => {})
       await transferAllWithPgas(unbound.tag).catch(() => {})
       await transferAllWithNative(unbound.tag).catch(() => {})
     }
@@ -196,17 +196,17 @@ test.describe('Recommend works', () => {
     })
   })
 
-  test('As a first-time user, when I recommend an app, I reveal my primary identity and recommend in a single signature', async () => {
-    test.setTimeout(40_000)
+  test('As a first-time user, when I recommend an app, I reveal my primary identity and recommend with measured transaction weights', async () => {
+    test.setTimeout(60_000)
     const unboundPage = await context.newPage()
 
     // Given
     // The unbound host maps the product account to a fresh, never-bound account,
-    // so the recommendation runs the bind-and-attest batch, not a plain attest.
+    // so the recommendation first binds it, then dry-runs and submits the attest.
     await navigateToTestHost(unboundPage, unboundHost.url)
     const unboundFrame = await getProductFrame(unboundPage, '.search-bar__input')
-    await unboundFrame.locator('.search-bar__input').fill('calculator')
-    const card = unboundFrame.locator('.product-card[data-label="calculator"]')
+    await unboundFrame.locator('.search-bar__input').fill('chess-clock')
+    const card = unboundFrame.locator('.product-card[data-label="chess-clock"]')
     await expect(card).toBeVisible({ timeout: 15_000 })
     const upvote = card.locator('.product-card__upvote')
 
