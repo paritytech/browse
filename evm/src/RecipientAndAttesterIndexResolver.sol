@@ -69,9 +69,8 @@ contract RecipientAndAttesterIndexResolver is IAttestationResolver {
     }
 
     /// @notice The digest a recommendation's personhood proof must be built over.
-    /// @dev Binds the proof to this resolver, this chain, the attester, and the one app and
-    ///      schema being recommended, so a proof lifted from another recommendation does not
-    ///      verify. Exposed so a client can build the proof before submitting the attestation.
+    /// @dev Binds the proof to this resolver, this chain, the attester, and the app and schema
+    ///      being recommended, so a proof lifted from another recommendation does not verify.
     /// @param attester The account that will submit the attestation.
     /// @param recipient The app being recommended.
     /// @param schema The schema ID of the recommendation.
@@ -102,15 +101,10 @@ contract RecipientAndAttesterIndexResolver is IAttestationResolver {
     /// @inheritdoc IAttestationResolver
     /// @dev Admits the attestation only when it carries a valid personhood proof and that person
     ///      has not already attested this (recipient, schema). Returns false on either failure so
-    ///      the service rejects it.
+    ///      the service rejects it, and reverts when `data` does not decode.
     ///
-    ///      Keyed on the person alias rather than the attester address, because addresses are free
-    ///      to make and one human always derives the same alias in this context. Proving per
-    ///      attestation rather than once per account is what makes a later loss of personhood take
-    ///      effect: nothing here is a stored snapshot.
-    ///
-    ///      Reverts rather than returning false when `data` does not decode, since that is a
-    ///      malformed request rather than a rejected one.
+    ///      Keyed on the person alias, not the attester address, because addresses are free to
+    ///      make and one human derives the same alias in this context.
     function onAttest(
         Attestation calldata attestation
     ) external onlyService returns (bool) {

@@ -22,8 +22,8 @@ contract RecipientAndAttesterIndexResolverTest is Test {
 
     uint256 internal constant SCHEMA = 7;
 
-    // The alias the personhood ring derives per person. One human keeps one alias in this
-    // context however many accounts they attest from, which is what the dedup leans on.
+    // One human keeps one alias in this context however many accounts they attest from,
+    // which is what the dedup leans on.
     bytes32 internal aliceAlias = keccak256("alice-person");
     bytes32 internal bobAlias = keccak256("bob-person");
 
@@ -126,8 +126,8 @@ contract RecipientAndAttesterIndexResolverTest is Test {
     }
 
     function test_onAttest_sybilRejectsSamePersonViaSecondAccount() public {
-        // One person attesting the same app from a second account. Addresses are free to make,
-        // so the lock has to key on the alias the ring derives rather than the attester.
+        // Addresses are free to make, so the lock has to key on the alias the ring derives
+        // rather than the attester.
         vm.startPrank(service);
         bool first = resolver.onAttest(_att(1, productA, app, aliceAlias));
         bool second = resolver.onAttest(_att(2, productB, app, aliceAlias));
@@ -139,8 +139,7 @@ contract RecipientAndAttesterIndexResolverTest is Test {
     }
 
     function test_onAttest_rejectsAfterPersonhoodLost() public {
-        // Proving per attestation rather than once per account is what buys this: the second
-        // call is rejected without anything having to revoke a stored binding.
+        // Proving per attestation is what buys this. Nothing has to revoke a stored binding.
         vm.prank(service);
         bool before = resolver.onAttest(_att(1, productA, app, aliceAlias));
 
