@@ -5,6 +5,7 @@
 import type { BrowserContext } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 
+import { NETWORK } from '../src/lib/config'
 import { createCachedApps } from './fixtures/cache'
 import { getProductFrame, navigateToTestHost, startSignedHost } from './utils'
 
@@ -33,8 +34,8 @@ test.describe('Certificate', () => {
         calculator: {
           certificates: [
             {
-              resolver: '0x956834cd15bf02d3d9bb427e86d7115f5b062927',
-              attester: '0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20',
+              resolver: NETWORK.TRUSTED_ATTESTER_RESOLVER,
+              attester: NETWORK.TRUSTED_ATTESTER!,
               name: CERTIFICATE_NAME,
               contentCid: null,
               badgeIconCid: null,

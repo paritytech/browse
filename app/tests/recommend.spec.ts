@@ -6,6 +6,7 @@
 
 import type { BrowserContext, Frame, Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
+import { LOCALHOST_SELF_DOTNS } from '../src/lib/config'
 
 import { createAttestation } from './fixtures/attest'
 import { bindIdentityAndAttest } from './fixtures/bind-identity-and-attest'
@@ -222,8 +223,9 @@ test.describe('Recommend works', () => {
 })
 
 test.describe('Recommendation fails', () => {
-  // The account a recommendation fails through: a fresh, zero-balance keypair.
-  let unfundedHost: Awaited<ReturnType<typeof startSignedHost>>
+  // A logged-in identity whose Browse product account is a fresh,
+  // zero-balance keypair.
+  let unfundedHost: Awaited<ReturnType<typeof startSignedHostWithProductAccounts>>
   // The identity `//wallet` account, a second product account of the identity
   // that already recommended `calculator` through the seeded account below.
   let walletHost: Awaited<ReturnType<typeof startSignedHost>>
@@ -232,9 +234,10 @@ test.describe('Recommendation fails', () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(120_000)
-    // Unique derivation per run gives a fresh keypair with a guaranteed zero balance on chain.
     const uri = `//e2e-unfunded-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-    unfundedHost = await startSignedHost({ name: 'Unfunded', uri })
+    unfundedHost = await startSignedHostWithProductAccounts(IDENTITY_ACCOUNT, {
+      [`${LOCALHOST_SELF_DOTNS}/0`]: { name: 'Unfunded', uri }
+    })
 
     // Seed a standing recommendation: a fresh account binds the identity and
     // recommends `calculator`, so a second account of the same identity is refused.
