@@ -197,19 +197,19 @@ test.describe('Recommend works', () => {
     })
   })
 
-  test('As a first-time user, when I recommend an app, I reveal my primary identity and recommend with measured transaction weights', async () => {
-    test.setTimeout(60_000)
+  test('As a first-time user, when I recommend and remove an app, both measured transactions persist after reload', async () => {
+    test.setTimeout(120_000)
     const unboundPage = await context.newPage()
 
     // Given
     // The unbound host maps the product account to a fresh, never-bound account,
     // so the recommendation first binds it, then dry-runs and submits the attest.
     await navigateToTestHost(unboundPage, unboundHost.url)
-    const unboundFrame = await getProductFrame(unboundPage, '.search-bar__input')
+    let unboundFrame = await getProductFrame(unboundPage, '.search-bar__input')
     await unboundFrame.locator('.search-bar__input').fill('chess-clock')
-    const card = unboundFrame.locator('.product-card[data-label="chess-clock"]')
+    let card = unboundFrame.locator('.product-card[data-label="chess-clock"]')
     await expect(card).toBeVisible({ timeout: 15_000 })
-    const upvote = card.locator('.product-card__upvote')
+    let upvote = card.locator('.product-card__upvote')
 
     // When
     await upvote.click()
@@ -219,6 +219,32 @@ test.describe('Recommend works', () => {
     await expect(unboundFrame.locator('.toast--visible')).toContainText('Recommended!', {
       timeout: 25_000
     })
+
+    // Given the first transaction has survived a full host reload
+    await navigateToTestHost(unboundPage, unboundHost.url)
+    unboundFrame = await getProductFrame(unboundPage, '.search-bar__input')
+    await unboundFrame.locator('.search-bar__input').fill('chess-clock')
+    card = unboundFrame.locator('.product-card[data-label="chess-clock"]')
+    upvote = card.locator('.product-card__upvote')
+    await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 25_000 })
+
+    // When
+    await upvote.click()
+
+    // Then
+    await expect(upvote).not.toHaveClass(/product-card__upvote--active/, { timeout: 25_000 })
+    await expect(unboundFrame.locator('.toast--visible')).toContainText('Unrecommended!', {
+      timeout: 25_000
+    })
+
+    // And the removal is also chain-backed rather than an optimistic UI state.
+    await navigateToTestHost(unboundPage, unboundHost.url)
+    unboundFrame = await getProductFrame(unboundPage, '.search-bar__input')
+    await unboundFrame.locator('.search-bar__input').fill('chess-clock')
+    upvote = unboundFrame
+      .locator('.product-card[data-label="chess-clock"]')
+      .locator('.product-card__upvote')
+    await expect(upvote).not.toHaveClass(/product-card__upvote--active/, { timeout: 25_000 })
   })
 })
 

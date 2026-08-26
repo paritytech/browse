@@ -40,6 +40,14 @@ export type SignerProvider = () => Promise<{
   publicKey: Uint8Array
 }>
 
+type WatchedTransactionEvent = {
+  type: string
+  ok?: boolean
+  dispatchError?: unknown
+  txHash?: string
+  block?: { hash?: string }
+}
+
 function bigStr(_: string, v: unknown): unknown {
   if (typeof v === 'bigint') return v.toString()
   return v
@@ -654,8 +662,7 @@ export class AttestationService {
   }
 
   private async submitTx(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    send: () => AsyncTransaction<any, any, any, any>,
+    send: () => AsyncTransaction<Record<string, never>, string, string, unknown>,
     signer: PolkadotSigner,
     onBroadcast?: () => void
   ): Promise<TxResult> {
@@ -666,35 +673,63 @@ export class AttestationService {
     }
 
     const tx = send()
-
-    return new Promise((resolve, reject) => {
-      tx.signSubmitAndWatch(signer).subscribe({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        next: (event: any) => {
-          if (event.type === 'broadcasted') {
+    let resolvePromise: (value: TxResult) => void
+    let rejectPromise: (reason?: unknown) => void
+    // The ES2022 target has no Promise.withResolvers type; this event-backed
+    // boundary needs stored resolvers until the transaction watch settles.
+    const promise = new Promise<TxResult>((resolve, reject) => {
+      resolvePromise = resolve
+      rejectPromise = reject
+    })
+    let settled = false
+    let broadcasted = false
+    let unsubscribe = () => {}
+    const finish = (complete: () => void) => {
+      if (settled) return
+      settled = true
+      unsubscribe()
+      complete()
+    }
+    const subscription = tx.signSubmitAndWatch(signer).subscribe({
+      next: (event: WatchedTransactionEvent) => {
+        if (event.type === 'broadcasted') {
+          if (!broadcasted) {
+            broadcasted = true
             onBroadcast?.()
-          } else if (
-            event.type === 'finalized' ||
-            (event.type === 'txBestBlocksState' && event.found)
-          ) {
-            // A tx can be included yet revert. `ok === false` carries the
-            // dispatch error. Treating that as success hides on-chain failures.
-            if (event.ok === false) {
-              reject(
+          }
+        } else if (event.type === 'finalized') {
+          // Resolving at best-block inclusion lets a dependent transaction
+          // reuse a nonce that the finalized chain has not consumed yet.
+          // Recommend/remove are sequential writes, so expose success only
+          // after finality advances the account nonce.
+          if (event.ok === false) {
+            finish(() =>
+              rejectPromise(
                 new Error(
                   `Transaction reverted: ${JSON.stringify(event.dispatchError ?? {}, bigStr)}`
                 )
               )
-              return
-            }
-            resolve({ txHash: event.txHash ?? '', block: event.block?.hash ?? '' })
+            )
+            return
           }
-        },
-        error: (err: Error) => {
-          reject(err)
+          finish(() =>
+            resolvePromise({
+              txHash: event.txHash ?? '',
+              block: event.block?.hash ?? ''
+            })
+          )
         }
-      })
+      },
+      error: (err: Error) => {
+        finish(() => rejectPromise(err))
+      },
+      complete: () => {
+        finish(() => rejectPromise(new Error('Transaction watch ended before inclusion')))
+      }
     })
+    unsubscribe = () => subscription.unsubscribe()
+    if (settled) unsubscribe()
+    return promise
   }
 }
 
