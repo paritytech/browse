@@ -13,9 +13,6 @@ import { AttestationService } from '../../src/lib/attestation-service'
 import { ACTIVE_ATTESTATION_RESOLVER, NETWORK } from '../../src/lib/config'
 import { DEV_PHRASE as IDENTITY_PHRASE, identityPath } from '../utils'
 
-// Keep the funder above this PGAS balance. One claim mints far more, so a single
-// successful claim covers many tests. Claim across daily slots to top up.
-const FUNDER_PGAS_FLOOR = 20_000_000_000n
 const MAX_CLAIM_SLOTS = 20
 
 const RPC_ENDPOINTS = [...NETWORK.ASSETHUB_RPCS]
@@ -27,6 +24,12 @@ export const DEFAULT_PGAS_AMOUNT = 5_000_000_000n
 // grant. Seed enough to cover the two-call batch of `bindIdentity` and
 // `attest`, which a token seed does not. Reclaimed to the master after the run.
 export const PGAS_SEED_AMOUNT = 10_000_000_000n
+// The per-run identity signs many attests across a suite, and browser recommends
+// consume its PGAS without a refill, so seed it generously in one shot.
+const IDENTITY_PGAS_AMOUNT = 30_000_000_000n
+// The funder must cover the identity seed and retain one ordinary top-up for
+// its own contract calls after the transfer.
+const FUNDER_PGAS_FLOOR = IDENTITY_PGAS_AMOUNT + DEFAULT_PGAS_AMOUNT
 // Native only pays tx fees, so a small grant is plenty. Kept well under the
 // funder balance so it can seed several sub-accounts without a native top-up.
 const DEFAULT_NATIVE_AMOUNT = 100_000_000_000n
@@ -385,10 +388,6 @@ export async function fundWithNative(
     )
   })
 }
-
-// The per-run identity signs many attests across a suite, and browser recommends
-// consume its PGAS without a refill, so seed it generously in one shot.
-const IDENTITY_PGAS_AMOUNT = 30_000_000_000n
 
 /**
  * Prepare the per-run identity so it can bind and attest: fund native + PGAS
