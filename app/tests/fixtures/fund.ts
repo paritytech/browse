@@ -13,9 +13,11 @@ import { AttestationService } from '../../src/lib/attestation-service'
 import { ACTIVE_ATTESTATION_RESOLVER, NETWORK } from '../../src/lib/config'
 import { DEV_PHRASE as IDENTITY_PHRASE, identityPath } from '../utils'
 
-// Keep the funder above this PGAS balance. One claim mints far more, so a single
-// successful claim covers many tests. Claim across daily slots to top up.
-const FUNDER_PGAS_FLOOR = 20_000_000_000n
+// Keep the funder above this PGAS balance. It has to clear IDENTITY_PGAS_AMOUNT
+// with room to spare: a floor below one run's seed lets `ensureFunderPgas`
+// decide the funder is healthy and the very next transfer fail `BalanceLow`.
+// Claim across daily slots to top up; each claim mints 50e9.
+const FUNDER_PGAS_FLOOR = 150_000_000_000n
 const MAX_CLAIM_SLOTS = 20
 
 const RPC_ENDPOINTS = [...NETWORK.ASSETHUB_RPCS]

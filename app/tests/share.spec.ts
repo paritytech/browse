@@ -81,10 +81,10 @@ test.describe('Share', () => {
     const input = frame.locator('.search-bar__input')
 
     // When
-    await input.fill('https://browse.testnet.li/localhost:3000?app=host-playground')
+    await input.fill('https://browse.testnet.li/localhost:3000?app=chess-clock')
 
     // Then
-    await expect(input).toHaveValue('host-playground')
+    await expect(input).toHaveValue('chess-clock')
   })
 
   test('As a returning user, I am asked if I liked a shared app and dismissing clears it', async () => {
@@ -92,13 +92,13 @@ test.describe('Share', () => {
     page = await context.newPage()
 
     // Given
-    // Seed a pending record as if a `?app=host-playground&from=alice` link had
+    // Seed a pending record as if a `?app=chess-clock&from=alice` link had
     // redirected us into the app on a previous visit.
     await page.addInitScript(() => {
       window.localStorage.setItem(
         'browse.pendingRecommend',
         JSON.stringify({
-          'host-playground': { label: 'host-playground', from: 'alice', seenAt: Date.now() }
+          'chess-clock': { label: 'chess-clock', from: 'alice', seenAt: Date.now() }
         })
       )
     })
@@ -117,6 +117,6 @@ test.describe('Share', () => {
     const stored = await frame.evaluate(() =>
       window.localStorage.getItem('browse.pendingRecommend')
     )
-    expect(stored ?? '').not.toContain('host-playground')
+    expect(stored ?? '').not.toContain('chess-clock')
   })
 })

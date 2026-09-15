@@ -217,7 +217,7 @@ test.describe('Motion', () => {
   test('Recommending an app bubbles when the network confirms', async ({ browser }) => {
     test.setTimeout(60000)
     await fundWithNative(createProductSigner().address)
-    await createRevokedAttestation('host-playground').catch(() => {})
+    await createRevokedAttestation('chess-clock').catch(() => {})
     const host = await startSignedHost({ name: identityUsername(), uri: identityUri() })
     const context = await browser.newContext({
       ignoreHTTPSErrors: true,
@@ -229,7 +229,7 @@ test.describe('Motion', () => {
     await navigateToTestHost(page, host.url)
     const frame = await getProductFrame(page, '.category-tab')
     await frame.locator('.category-tab', { hasText: 'All' }).click()
-    const card = frame.locator('.product-card[data-label="host-playground"]')
+    const card = frame.locator('.product-card[data-label="chess-clock"]')
     await expect(card).toBeVisible({ timeout: 15000 })
     const upvote = card.locator('.product-card__upvote')
 

@@ -43,7 +43,7 @@ test.describe('Recommend works', () => {
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(120_000)
     await fundWithNative(createProductSigner().address)
-    await createRevokedAttestation('host-playground').catch(() => {})
+    await createRevokedAttestation('chess-clock').catch(() => {})
     await createRevokedAttestation('calculator').catch(() => {})
     await createRevokedAttestation('alarm-clock').catch(() => {})
     host = await startSignedHost(IDENTITY_ACCOUNT)
@@ -59,7 +59,7 @@ test.describe('Recommend works', () => {
   test.afterAll(async () => {
     test.setTimeout(120_000)
     await page?.close()
-    await createRevokedAttestation('host-playground').catch(() => {})
+    await createRevokedAttestation('chess-clock').catch(() => {})
     await createRevokedAttestation('alarm-clock').catch(() => {})
     // `calculator` is recommended by the fresh account, so revoke it as that attester.
     if (unbound) {
@@ -80,7 +80,7 @@ test.describe('Recommend works', () => {
     await navigateToTestHost(page, host.url)
     frame = await getProductFrame(page, '.category-tab')
     await frame.locator('.category-tab', { hasText: 'All' }).click()
-    const card = frame.locator('.product-card[data-label="host-playground"]')
+    const card = frame.locator('.product-card[data-label="chess-clock"]')
     await expect(card).toBeVisible({ timeout: 15_000 })
     const upvote = card.locator('.product-card__upvote')
     const upvoteCount = upvote.locator('.product-card__upvote-count')
@@ -131,12 +131,12 @@ test.describe('Recommend works', () => {
     page = await context.newPage()
 
     // Given
-    const attestResult = await createAttestation('host-playground')
+    const attestResult = await createAttestation('chess-clock')
     expect(attestResult.attestationCountAfter).toBe(attestResult.attestationCountBefore + 1n)
     await navigateToTestHost(page, host.url)
     frame = await getProductFrame(page, '.category-tab')
     await frame.locator('.category-tab', { hasText: 'All' }).click()
-    const card = frame.locator('.product-card[data-label="host-playground"]')
+    const card = frame.locator('.product-card[data-label="chess-clock"]')
     await expect(card).toBeVisible({ timeout: 15_000 })
     const upvote = card.locator('.product-card__upvote')
     const upvoteCount = upvote.locator('.product-card__upvote-count')
