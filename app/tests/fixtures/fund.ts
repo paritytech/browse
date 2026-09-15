@@ -13,10 +13,10 @@ import { AttestationService } from '../../src/lib/attestation-service'
 import { ACTIVE_ATTESTATION_RESOLVER, NETWORK } from '../../src/lib/config'
 import { DEV_PHRASE as IDENTITY_PHRASE, identityPath } from '../utils'
 
-// Keep the funder above this PGAS balance. It has to clear IDENTITY_PGAS_AMOUNT
-// with room to spare: a floor below one run's seed lets `ensureFunderPgas`
-// decide the funder is healthy and the very next transfer fail `BalanceLow`.
-// Claim across daily slots to top up; each claim mints 50e9.
+// Keep the funder above this PGAS balance. It has to clear
+// IDENTITY_PGAS_AMOUNT with room to spare. A floor below what one run seeds
+// lets `ensureFunderPgas` call the funder healthy and the very next transfer
+// fail `BalanceLow`. Claim across the daily slots to top up.
 const FUNDER_PGAS_FLOOR = 150_000_000_000n
 const MAX_CLAIM_SLOTS = 20
 
@@ -269,8 +269,8 @@ export async function mapAccount(tag: string): Promise<void> {
   })
 }
 
-// An account holding only PGAS pays the reclaim's own fee in PGAS, so sending
-// the whole balance leaves nothing to settle with and the transfer reverts with
+// An account holding only PGAS pays the reclaim fee in PGAS, so sending the
+// whole balance leaves nothing to settle with and the transfer reverts with
 // `Assets.BalanceLow`. Hold this much back and the rest recycles.
 const PGAS_RECLAIM_FEE_BUFFER = 2_000_000_000n
 

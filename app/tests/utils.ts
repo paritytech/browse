@@ -175,10 +175,10 @@ export async function getProductFrame(page: Page, readySelector = '.product-card
       await productFrame.waitForSelector(readySelector, {
         timeout: Math.min(30_000, deadline - Date.now())
       })
-      // The app disables the category tabs while the first sync has nothing to
-      // show (`coldStart` in App.tsx). Handing back a frame before they go live
-      // means the caller's next tab click waits out the whole test budget and
-      // then reports "Target page, context or browser has been closed".
+      // The app disables the category tabs while `coldStart` holds, which is
+      // until the first sync has something to show. Handing back a frame before
+      // they go live means the next tab click waits out the whole test budget
+      // and then reports "Target page, context or browser has been closed".
       if ((await productFrame.locator('.category-tab').count()) > 0) {
         await productFrame.waitForSelector('.category-tab:not([disabled])', {
           timeout: Math.min(30_000, deadline - Date.now())

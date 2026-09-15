@@ -92,8 +92,7 @@ function deriveMemberEntropy(mnemonic: string): Uint8Array {
  *
  * The suffix is a runtime setting that happens to equal the DotNS TLD on both
  * networks we run against: `testnet` on previewnet, `paseo` on paseo-next-v2.
- * An unhashed context is what the runtime took before the 2026-09 upgrade, and
- * it now fails every claim with `Invalid::BadProof`.
+ * Passing an unhashed context fails every claim with `Invalid::BadProof`.
  */
 function buildGasContext(day: number, slotIndex: number): Uint8Array {
   const suffix = new Uint8Array(32)

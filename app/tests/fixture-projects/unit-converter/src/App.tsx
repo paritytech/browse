@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'preact/hooks'
 
-/** Factor to the family's base unit, so any pair converts through it. */
+/** Factor to the base unit of the family, so any pair converts through it. */
 const FAMILIES = {
   Length: { metre: 1, kilometre: 1000, mile: 1609.344, foot: 0.3048, inch: 0.0254 },
   Mass: { gram: 1, kilogram: 1000, pound: 453.59237, ounce: 28.349523125 },
