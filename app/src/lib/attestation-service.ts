@@ -2,13 +2,16 @@ import { attestationVersions } from '@parity/browse-sdk'
 import {
   formatHostError,
   getAccountsProvider,
+  getTruApi,
+  type ProductAccount,
   requestPermission,
-  requestResourceAllocation
+  requestResourceAllocation,
+  type TruApi
 } from '@parity/product-sdk/host'
 import { contracts } from '@polkadot-api/descriptors'
 import { type AsyncTransaction, createInkSdk, ss58ToEthereum } from '@polkadot-api/sdk-ink'
 import { AccountId, type PolkadotClient, type PolkadotSigner, type SS58String } from 'polkadot-api'
-import { bytesToHex } from 'viem'
+import { bytesToHex, hexToBytes } from 'viem'
 
 import { decodeBool, encodeIdentityHasAttested } from './abi'
 import {
@@ -21,6 +24,7 @@ import {
 import {
   ACTIVE_ATTESTATION_RESOLVER,
   ACTIVE_SCHEMA_ID,
+  ASSETHUB_GENESIS,
   DRY_RUN_WEIGHT_LIMIT,
   DUMMY_ORIGIN,
   NETWORK,
@@ -35,6 +39,14 @@ export type SignerProvider = () => Promise<{
   origin: string
   publicKey: Uint8Array
 }>
+
+type WatchedTransactionEvent = {
+  type: string
+  ok?: boolean
+  dispatchError?: unknown
+  txHash?: string
+  block?: { hash?: string }
+}
 
 function bigStr(_: string, v: unknown): unknown {
   if (typeof v === 'bigint') return v.toString()
@@ -82,13 +94,51 @@ function isStaleNonce(err: unknown): boolean {
   return /stale/i.test(String(err))
 }
 
+function truapiProductSigner(client: TruApi, account: ProductAccount): PolkadotSigner {
+  const signer = {
+    dotNsIdentifier: account.dotNsIdentifier,
+    derivationIndex: { tag: 'Index' as const, value: account.derivationIndex }
+  }
+  return {
+    publicKey: account.publicKey,
+    async signTx(callData, signedExtensions) {
+      const extensions = Object.values(signedExtensions).map((extension) => ({
+        id: extension.identifier,
+        extra: bytesToHex(extension.value),
+        additionalSigned: bytesToHex(extension.additionalSigned)
+      }))
+      const result = await client.signing.createTransaction({
+        signer,
+        genesisHash: ASSETHUB_GENESIS,
+        callData: bytesToHex(callData),
+        extensions,
+        txExtVersion: 0
+      })
+      if (result.isErr()) {
+        throw new Error(`createTransaction failed: ${JSON.stringify(result.error)}`)
+      }
+      return hexToBytes(result.value.transaction)
+    },
+    async signBytes(data) {
+      const result = await client.signing.signRaw({
+        account: signer,
+        payload: { tag: 'Bytes', value: { bytes: bytesToHex(data) } }
+      })
+      if (result.isErr()) {
+        throw new Error(`signRaw failed: ${JSON.stringify(result.error)}`)
+      }
+      return hexToBytes(result.value.signature)
+    }
+  }
+}
+
 async function hostSigner(): Promise<{
   signer: PolkadotSigner
   origin: string
   publicKey: Uint8Array
 }> {
-  const accountsProvider = await getAccountsProvider()
-  if (!accountsProvider) {
+  const [accountsProvider, truApi] = await Promise.all([getAccountsProvider(), getTruApi()])
+  if (!accountsProvider || !truApi) {
     throw new Error('Host accounts provider unavailable')
   }
   const accountResult = await accountsProvider.getProductAccount(SELF_DOTNS, 0)
@@ -101,7 +151,7 @@ async function hostSigner(): Promise<{
   const publicKey = account.publicKey
   const origin = AccountId().dec(publicKey)
   return {
-    signer: accountsProvider.getProductAccountSigner(account),
+    signer: truapiProductSigner(truApi, account),
     origin,
     publicKey
   }
@@ -125,12 +175,6 @@ export type TxResult = { txHash: string; block: string }
 const GAS = DRY_RUN_WEIGHT_LIMIT
 const STORAGE = 1_000_000_000_000n
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as const
-
-// Gas cap for the batched attest. It can't be dry-run while the account is
-// unbound, so we cap it instead of measuring. Generous but block-bounded, and
-// matches the proven evm/scripts Revive.call limit. batch_all is atomic, so an
-// undercap (or any failure) reverts the whole batch rather than half-binding.
-const CALL_WEIGHT = { ref_time: 10_000_000_000n, proof_size: 1_000_000n }
 
 // Memoised per client so a provider rebuild yields fresh instances, not ones
 // stranded on the dead client.
@@ -436,14 +480,20 @@ export class AttestationService {
   }
 
   /**
-   * Bind the product account to its identity and attest in one signature, as an
-   * atomic `Utility.batch_all([bindIdentity, attest])` (the first recommendation
-   * from an unbound account). A failed attest reverts the bind too, so the
-   * account is never left bound but not recommended.
+   * Bind the product account to its identity, then submit the first
+   * attestation.
    *
-   * The attest can't be dry-run while unbound (its `onAttest` gate checks the
-   * binding the batch sets), so it takes a bounded gas cap while the bind is
-   * dry-run for an accurate weight.
+   * These are deliberately separate transactions. The attestation resolver
+   * rejects an unbound caller, so an atomic bind-and-attest batch cannot
+   * dry-run the attestation in isolation. Giving that nested call a generous
+   * fixed gas cap makes `ChargePGAS` price the cap rather than the work and can
+   * exhaust a freshly granted allowance before execution. Once the binding is
+   * included, the normal attestation dry-run supplies its exact weight and
+   * storage limits.
+   *
+   * A binding that succeeds before an attestation failure is safe to retain:
+   * it is product-account identity state, independent of the recommended
+   * product, and the next attempt proceeds directly to the attestation.
    */
   async bindIdentityAndAttest(
     schema: bigint,
@@ -454,38 +504,11 @@ export class AttestationService {
     data: `0x${string}`,
     onBroadcast?: () => void
   ): Promise<TxResult> {
-    return this.withTransactionRetry(async (track) => {
-      const { signer, origin } = await this.signer()
-      const account = await this.productH160()
-      const attestData = {
-        request: { schema, data: { recipient, expirationTime, revocable, refId, data } }
-      }
-      await this.ensureAllowance(origin)
+    const account = await this.productH160()
+    const { pubKey, signature } = await signIdentityMessage(ACTIVE_ATTESTATION_RESOLVER, account)
 
-      // Build the inner calls with sdk-ink so the nested call codec matches the
-      // runtime. A raw `Revive.call` fails the Utility sign-time check.
-      const { pubKey, signature } = await signIdentityMessage(ACTIVE_ATTESTATION_RESOLVER, account)
-      const resolver = await this.getResolver()
-      const bindDry = await resolver.query('bindIdentity', {
-        origin: origin as SS58String,
-        data: { pubKey: bytesToHex(pubKey), signature: bytesToHex(signature) },
-        options: { gasLimit: GAS, storageDepositLimit: STORAGE }
-      })
-      if (!bindDry.success) {
-        throw new Error(`bindIdentity dry-run failed: ${JSON.stringify(bindDry.value, bigStr)}`)
-      }
-      const contract = await this.getContract()
-      const bindCall = await bindDry.value.send().decodedCall
-      const attestCall = await contract.send('attest', {
-        data: attestData,
-        gasLimit: CALL_WEIGHT,
-        storageDepositLimit: STORAGE
-      }).decodedCall
-
-      const api = (await this.client()).getUnsafeApi()
-      const batch = api.tx.Utility.batch_all({ calls: [bindCall, attestCall] })
-      return this.submitTx(() => batch as never, signer, track)
-    }, onBroadcast)
+    await this.bindIdentity(bytesToHex(pubKey), bytesToHex(signature))
+    return this.attest(schema, recipient, expirationTime, revocable, refId, data, onBroadcast)
   }
 
   async getSigner() {
@@ -639,8 +662,7 @@ export class AttestationService {
   }
 
   private async submitTx(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    send: () => AsyncTransaction<any, any, any, any>,
+    send: () => AsyncTransaction<Record<string, never>, string, string, unknown>,
     signer: PolkadotSigner,
     onBroadcast?: () => void
   ): Promise<TxResult> {
@@ -651,35 +673,63 @@ export class AttestationService {
     }
 
     const tx = send()
-
-    return new Promise((resolve, reject) => {
-      tx.signSubmitAndWatch(signer).subscribe({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        next: (event: any) => {
-          if (event.type === 'broadcasted') {
+    let resolvePromise: (value: TxResult) => void
+    let rejectPromise: (reason?: unknown) => void
+    // The ES2022 target has no Promise.withResolvers type; this event-backed
+    // boundary needs stored resolvers until the transaction watch settles.
+    const promise = new Promise<TxResult>((resolve, reject) => {
+      resolvePromise = resolve
+      rejectPromise = reject
+    })
+    let settled = false
+    let broadcasted = false
+    let unsubscribe = () => {}
+    const finish = (complete: () => void) => {
+      if (settled) return
+      settled = true
+      unsubscribe()
+      complete()
+    }
+    const subscription = tx.signSubmitAndWatch(signer).subscribe({
+      next: (event: WatchedTransactionEvent) => {
+        if (event.type === 'broadcasted') {
+          if (!broadcasted) {
+            broadcasted = true
             onBroadcast?.()
-          } else if (
-            event.type === 'finalized' ||
-            (event.type === 'txBestBlocksState' && event.found)
-          ) {
-            // A tx can be included yet revert. `ok === false` carries the
-            // dispatch error. Treating that as success hides on-chain failures.
-            if (event.ok === false) {
-              reject(
+          }
+        } else if (event.type === 'finalized') {
+          // Resolving at best-block inclusion lets a dependent transaction
+          // reuse a nonce that the finalized chain has not consumed yet.
+          // Recommend/remove are sequential writes, so expose success only
+          // after finality advances the account nonce.
+          if (event.ok === false) {
+            finish(() =>
+              rejectPromise(
                 new Error(
                   `Transaction reverted: ${JSON.stringify(event.dispatchError ?? {}, bigStr)}`
                 )
               )
-              return
-            }
-            resolve({ txHash: event.txHash ?? '', block: event.block?.hash ?? '' })
+            )
+            return
           }
-        },
-        error: (err: Error) => {
-          reject(err)
+          finish(() =>
+            resolvePromise({
+              txHash: event.txHash ?? '',
+              block: event.block?.hash ?? ''
+            })
+          )
         }
-      })
+      },
+      error: (err: Error) => {
+        finish(() => rejectPromise(err))
+      },
+      complete: () => {
+        finish(() => rejectPromise(new Error('Transaction watch ended before inclusion')))
+      }
     })
+    unsubscribe = () => subscription.unsubscribe()
+    if (settled) unsubscribe()
+    return promise
   }
 }
 

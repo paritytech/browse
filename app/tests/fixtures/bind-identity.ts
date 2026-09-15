@@ -19,16 +19,16 @@ export interface UnboundProduct {
 /**
  * Derive and fund a fresh product account that has never bound on the active
  * resolver, mapped as the app product account (`${LOCALHOST_SELF_DOTNS}/0`).
- * The connected identity is unchanged, so recommending through it runs the
- * bind-and-attest batch (the attester is unbound) instead of a plain attest.
- * PGAS lets `ensureAllowance` skip the grant. Native covers the batch tx fees.
+ * The connected identity is unchanged, so recommending through it first binds
+ * the account, then dry-runs and submits the attestation with measured limits.
+ * PGAS lets `ensureAllowance` skip the grant.
  */
 export async function createUnboundProductAccount(): Promise<UnboundProduct> {
   const tag = `Unbound${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`
   const product = createDevSigner(tag)
   await fundWithNative(product.address)
   await mapAccount(tag)
-  // Fund the account so it can pay its first-recommend batch fee in PGAS.
+  // Fund the account so PGAS pays both first-recommend transactions.
   await fundWithPgas(tag, PGAS_SEED_AMOUNT)
   return {
     tag,

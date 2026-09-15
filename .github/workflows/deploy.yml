@@ -55,7 +55,10 @@ jobs:
   deploy:
     name: Deploy ${{ matrix.target.display-name }}
     needs: [check, build]
-    if: needs.check.outputs.cache-hit != 'true' || inputs.skip-cache
+    if: >-
+      (needs.check.outputs.cache-hit != 'true' || inputs.skip-cache) &&
+      (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

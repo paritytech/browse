@@ -6,6 +6,7 @@
 
 import type { BrowserContext, Frame, Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
+import { LOCALHOST_SELF_DOTNS } from '../src/lib/config'
 
 import { createAttestation } from './fixtures/attest'
 import { bindIdentityAndAttest } from './fixtures/bind-identity-and-attest'
@@ -32,8 +33,8 @@ import {
 test.describe('Recommend works', () => {
   let host: Awaited<ReturnType<typeof startSignedHost>>
   // A second host signed in as the same identity but with a fresh, never-bound
-  // product account at index 0, so a recommendation drives the bind-and-attest
-  // batch instead of a plain attest.
+  // product account at index 0, so a recommendation binds the account before
+  // submitting the exact-weight attestation.
   let unboundHost: Awaited<ReturnType<typeof startSignedHostWithProductAccounts>>
   let unbound: UnboundProduct
   let context: BrowserContext
@@ -48,7 +49,7 @@ test.describe('Recommend works', () => {
     await createRevokedAttestation('alarm-clock').catch(() => {})
     host = await startSignedHost(IDENTITY_ACCOUNT)
     unbound = await createUnboundProductAccount()
-    await createRevokedAttestation('calculator', createDevSigner(unbound.tag)).catch(() => {})
+    await createRevokedAttestation('chess-clock', createDevSigner(unbound.tag)).catch(() => {})
     unboundHost = await startSignedHostWithProductAccounts(
       IDENTITY_ACCOUNT,
       unbound.productAccounts
@@ -61,9 +62,9 @@ test.describe('Recommend works', () => {
     await page?.close()
     await createRevokedAttestation('host-playground').catch(() => {})
     await createRevokedAttestation('alarm-clock').catch(() => {})
-    // `calculator` is recommended by the fresh account, so revoke it as that attester.
+    // `chess-clock` is recommended by the fresh account, so revoke it as that attester.
     if (unbound) {
-      await createRevokedAttestation('calculator', createDevSigner(unbound.tag)).catch(() => {})
+      await createRevokedAttestation('chess-clock', createDevSigner(unbound.tag)).catch(() => {})
       await transferAllWithPgas(unbound.tag).catch(() => {})
       await transferAllWithNative(unbound.tag).catch(() => {})
     }
@@ -196,19 +197,19 @@ test.describe('Recommend works', () => {
     })
   })
 
-  test('As a first-time user, when I recommend an app, I reveal my primary identity and recommend in a single signature', async () => {
-    test.setTimeout(40_000)
+  test('As a first-time user, when I recommend and remove an app, both measured transactions persist after reload', async () => {
+    test.setTimeout(120_000)
     const unboundPage = await context.newPage()
 
     // Given
     // The unbound host maps the product account to a fresh, never-bound account,
-    // so the recommendation runs the bind-and-attest batch, not a plain attest.
+    // so the recommendation first binds it, then dry-runs and submits the attest.
     await navigateToTestHost(unboundPage, unboundHost.url)
-    const unboundFrame = await getProductFrame(unboundPage, '.search-bar__input')
-    await unboundFrame.locator('.search-bar__input').fill('calculator')
-    const card = unboundFrame.locator('.product-card[data-label="calculator"]')
+    let unboundFrame = await getProductFrame(unboundPage, '.search-bar__input')
+    await unboundFrame.locator('.search-bar__input').fill('chess-clock')
+    let card = unboundFrame.locator('.product-card[data-label="chess-clock"]')
     await expect(card).toBeVisible({ timeout: 15_000 })
-    const upvote = card.locator('.product-card__upvote')
+    let upvote = card.locator('.product-card__upvote')
 
     // When
     await upvote.click()
@@ -218,12 +219,39 @@ test.describe('Recommend works', () => {
     await expect(unboundFrame.locator('.toast--visible')).toContainText('Recommended!', {
       timeout: 25_000
     })
+
+    // Given the first transaction has survived a full host reload
+    await navigateToTestHost(unboundPage, unboundHost.url)
+    unboundFrame = await getProductFrame(unboundPage, '.search-bar__input')
+    await unboundFrame.locator('.search-bar__input').fill('chess-clock')
+    card = unboundFrame.locator('.product-card[data-label="chess-clock"]')
+    upvote = card.locator('.product-card__upvote')
+    await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 25_000 })
+
+    // When
+    await upvote.click()
+
+    // Then
+    await expect(upvote).not.toHaveClass(/product-card__upvote--active/, { timeout: 25_000 })
+    await expect(unboundFrame.locator('.toast--visible')).toContainText('Unrecommended!', {
+      timeout: 25_000
+    })
+
+    // And the removal is also chain-backed rather than an optimistic UI state.
+    await navigateToTestHost(unboundPage, unboundHost.url)
+    unboundFrame = await getProductFrame(unboundPage, '.search-bar__input')
+    await unboundFrame.locator('.search-bar__input').fill('chess-clock')
+    upvote = unboundFrame
+      .locator('.product-card[data-label="chess-clock"]')
+      .locator('.product-card__upvote')
+    await expect(upvote).not.toHaveClass(/product-card__upvote--active/, { timeout: 25_000 })
   })
 })
 
 test.describe('Recommendation fails', () => {
-  // The account a recommendation fails through: a fresh, zero-balance keypair.
-  let unfundedHost: Awaited<ReturnType<typeof startSignedHost>>
+  // A logged-in identity whose Browse product account is a fresh,
+  // zero-balance keypair.
+  let unfundedHost: Awaited<ReturnType<typeof startSignedHostWithProductAccounts>>
   // The identity `//wallet` account, a second product account of the identity
   // that already recommended `calculator` through the seeded account below.
   let walletHost: Awaited<ReturnType<typeof startSignedHost>>
@@ -232,9 +260,10 @@ test.describe('Recommendation fails', () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(120_000)
-    // Unique derivation per run gives a fresh keypair with a guaranteed zero balance on chain.
     const uri = `//e2e-unfunded-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-    unfundedHost = await startSignedHost({ name: 'Unfunded', uri })
+    unfundedHost = await startSignedHostWithProductAccounts(IDENTITY_ACCOUNT, {
+      [`${LOCALHOST_SELF_DOTNS}/0`]: { name: 'Unfunded', uri }
+    })
 
     // Seed a standing recommendation: a fresh account binds the identity and
     // recommends `calculator`, so a second account of the same identity is refused.

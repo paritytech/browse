@@ -155,8 +155,8 @@ export async function attestLabel(label: string, onPermitted?: () => void) {
   const recipient = nodeToSubject(namehash(nameWithTld(label, NETWORK.TLD)))
   const data = encodeAttestationLabel(label)
   const account = await attestationService.productH160()
-  // The first recommendation from an unbound account batches the identity
-  // binding and the attestation into one tx. Later ones are a plain single attest.
+  // The first recommendation from an unbound account binds its identity before
+  // submitting the attestation. Later recommendations only attest.
   const bound = BigInt(await attestationService.boundIdentity(account)) !== 0n
   return bound
     ? attestationService.attest(ACTIVE_SCHEMA_ID, recipient, 0n, true, 0n, data, onPermitted)
