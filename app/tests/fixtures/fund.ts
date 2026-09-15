@@ -267,9 +267,14 @@ export async function mapAccount(tag: string): Promise<void> {
   })
 }
 
+// An account holding only PGAS pays the reclaim's own fee in PGAS, so sending
+// the whole balance leaves nothing to settle with and the transfer reverts with
+// `Assets.BalanceLow`. Hold this much back and the rest recycles.
+const PGAS_RECLAIM_FEE_BUFFER = 2_000_000_000n
+
 /**
- * Send the entire PGAS balance of `fromTag` to `to` so the pool recycles.
- * Defaults to the identity account.
+ * Send the PGAS balance of `fromTag` to `to`, less the fee buffer, so the pool
+ * recycles. Defaults to the identity account.
  */
 export async function transferAllWithPgas(
   fromTag: string,
@@ -280,12 +285,12 @@ export async function transferAllWithPgas(
     await withAssetHubApi(async (api) => {
       const assetId = (await api.constants.Pgas.PgasAssetId()) as number
       const balance = await pgasBalanceOf(api, assetId, from.address)
-      if (balance === 0n) return
+      if (balance <= PGAS_RECLAIM_FEE_BUFFER) return
       await new Promise<void>((resolve, reject) => {
         api.tx.Assets.transfer({
           id: assetId,
           target: { type: 'Id', value: to as SS58String },
-          amount: balance
+          amount: balance - PGAS_RECLAIM_FEE_BUFFER
         })
           .signSubmitAndWatch(from.signer)
           .subscribe({
@@ -461,13 +466,13 @@ export async function reclaimIdentity(): Promise<void> {
   await withAssetHubApi(async (api) => {
     const assetId = (await api.constants.Pgas.PgasAssetId()) as number
     const pgas = await pgasBalanceOf(api, assetId, identity.address)
-    if (pgas > 0n) {
+    if (pgas > PGAS_RECLAIM_FEE_BUFFER) {
       await watchTxWithRetry(
         () =>
           api.tx.Assets.transfer({
             id: assetId,
             target: { type: 'Id', value: master.address as SS58String },
-            amount: pgas
+            amount: pgas - PGAS_RECLAIM_FEE_BUFFER
           }),
         identity.signer,
         'identity PGAS reclaim'
