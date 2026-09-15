@@ -11,8 +11,8 @@ const PORT = process.env.PORT ?? '5173'
 
 export default defineConfig({
   testDir: '.',
-  globalSetup: './global-setup.ts',
-  globalTeardown: './global-teardown.ts',
+  globalSetup: './fixtures/global-setup.ts',
+  globalTeardown: './fixtures/global-teardown.ts',
   timeout: 10_000,
   retries: 0,
   workers: 2,

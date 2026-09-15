@@ -5,6 +5,7 @@
 import type { BrowserContext } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 
+import { NETWORK } from '../src/lib/config'
 import { createCachedApps } from './fixtures/cache'
 import { getProductFrame, navigateToTestHost, startSignedHost } from './utils'
 
@@ -33,7 +34,9 @@ test.describe('Certificate', () => {
         calculator: {
           certificates: [
             {
-              resolver: '0x956834cd15bf02d3d9bb427e86d7115f5b062927',
+              // Read from config, not pinned: a network reset moves the resolver and
+              // a stale address makes the app drop the certificate silently.
+              resolver: NETWORK.TRUSTED_ATTESTER_RESOLVER,
               attester: '0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20',
               name: CERTIFICATE_NAME,
               contentCid: null,

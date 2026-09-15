@@ -1,5 +1,5 @@
-import { removeUsername } from './fixtures/create-username'
-import { reclaimIdentity } from './fixtures/fund'
+import { removeUsername } from './create-username'
+import { reclaimIdentity } from './fund'
 
 /**
  * Clear the run username mapping and sweep the per-run identity balances back to

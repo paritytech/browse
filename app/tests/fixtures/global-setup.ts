@@ -1,5 +1,5 @@
-import { createUsername } from './fixtures/create-username'
-import { fundIdentity } from './fixtures/fund'
+import { createUsername } from './create-username'
+import { fundIdentity } from './fund'
 
 /**
  * Prepare the per-run identity once before the suite: fund it native and PGAS
