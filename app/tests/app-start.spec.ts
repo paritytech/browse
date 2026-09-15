@@ -59,7 +59,9 @@ test.describe('App Start', () => {
     })
 
     test('As an unsigned user, when I open browse, the All tab loads apps immediately', async () => {
-      test.setTimeout(30_000)
+      // The explicit waits inside already sum past 30s (cards 20s, dots 10s, icon
+      // 20s) before the second page load, so the budget has to clear them.
+      test.setTimeout(90_000)
       // Then
       const cards = frame.locator('.product-card[data-label]')
       await expect(cards.first()).toBeVisible({ timeout: 20_000 })
@@ -81,7 +83,12 @@ test.describe('App Start', () => {
       const reloadedFrame = await getProductFrame(reloaded, '.category-tab')
 
       // Then
-      await expect(reloadedFrame.locator('.product-card[data-label]').first()).toBeVisible()
+      // The first page is still open and syncing, and `lib/client.ts` rate-gates
+      // RPC to about 2.5 per second, so the second instance can take noticeably
+      // longer than a lone cold start.
+      await expect(reloadedFrame.locator('.product-card[data-label]').first()).toBeVisible({
+        timeout: 30_000
+      })
       await expect(reloadedFrame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
 
       await reloaded.close()
@@ -133,13 +140,21 @@ test.describe('App Start', () => {
     })
 
     test('As a signed user, when the All tab loads, I see products ordered by the selected sort', async () => {
-      test.setTimeout(30_000)
+      // Two sorts, each waiting on a live list, plus a poll for the reorder. 30s
+      // left no headroom and the teardown surfaced as "page has been closed"
+      // mid-click rather than as a timeout.
+      test.setTimeout(60_000)
+
+      // Given
+      // The app disables the tabs while the first sync has nothing to show
+      // (`coldStart`), so clicking before a card lands waits on a disabled
+      // button for the whole budget.
+      await frame.waitForSelector('.product-card[data-label]', { timeout: 30_000 })
 
       // When
       await frame.locator('.category-tab', { hasText: 'All' }).click()
 
       // Then
-      await frame.waitForSelector('.product-card[data-label]', { timeout: 30_000 })
       await expect(frame.locator('.product-card[data-label]').first()).toBeVisible()
       await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
       const cards = frame.locator('.product-card[data-label]')
