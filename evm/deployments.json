@@ -3,98 +3,107 @@
     "previewnet": {
       "address": "0x01167f228A729f8e50f18aa7189f59b659155D09",
       "version": "3.0.0",
-      "previousAddress": "0x5a3c111278ec98f327466c9ab7a5e0e0f5047acc",
-      "previousVersion": "2.1.0",
-      "note": "Second in the SDK PUBLISHER array, not first. Reads union every entry, writes go to the first, and 3.0.0 starts with empty storage while 2.1.0 still holds the published set. Promote it once that state is migrated.",
-      "tld": ".dot",
-      "tldNode": "0x3fce7d1364a893e213bc4212792b517ffc88f5b13b86c8ef9c8d390c3a1370ce",
+      "tld": ".testnet",
+      "tldNode": "0xa82d4ea7f5ef2a0a969fc555433de4b0518583f01fa483d065be1ce952e7a456",
       "salt": "browse.create3.v1:Publisher:3.0.0-noowner",
       "registrar": "0x4f06E818Ba3d987704fd91cf3d868E4b019106Ab",
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
       "network": "previewnet-asset-hub",
-      "genesisHash": "0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210",
+      "genesisHash": "0xc27c8bf3f13f96dc2130cd2b0a3debe57618fd02521ecc1902bd7dd4ed83d2fe",
       "substrateRpc": "wss://previewnet.substrate.dev/asset-hub",
       "ethRpc": "https://previewnet.substrate.dev/eth-rpc",
-      "deployedAt": "2026-08-13"
+      "deployedAt": "2026-09-15"
     },
     "paseo": {
       "address": "0x01167f228A729f8e50f18aa7189f59b659155D09",
       "version": "3.0.0",
-      "previousAddress": "0x1875B90A61705917945f9B7C6Ff7819Ad48A198e",
-      "previousVersion": "2.2.0",
-      "note": "Second in the SDK PUBLISHER array, not first. Reads union every entry, writes go to the first, and 3.0.0 starts with empty storage while 2.2.0 still holds the published set. Promote it once that state is migrated.",
       "tld": ".paseo",
       "tldNode": "0x096b436ee9a398429fe33ad4b359bad4398dd74b412ec1dd043c93dfbf581874",
       "salt": "browse.create3.v1:Publisher:3.0.0-noowner",
       "registrar": "0x4f06E818Ba3d987704fd91cf3d868E4b019106Ab",
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
       "network": "paseo",
-      "genesisHash": "0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6",
+      "genesisHash": "0x4349b00e54897e21196fd331015fc5be0f14e118beb0375ed2bb1793737bb57a",
       "substrateRpc": "wss://paseo-asset-hub-next-rpc.polkadot.io",
-      "deployedAt": "2026-08-13"
+      "deployedAt": "2026-09-15"
     }
   },
   "trustedAttesterIndexResolver": {
     "previewnet": {
-      "address": "0x956834cd15bf02d3d9bb427e86d7115f5b062927",
-      "attestationService": "0xb6493705c8280e2200ed799e1b47040fa8753d05",
+      "address": "0x8326c11a76Dda4702046e92f73C0ea7E698560a2",
+      "version": "2.1.0",
+      "salt": "browse.create3.v1:TrustedAttesterIndexResolver:2.1.0",
+      "attestationService": "0x37e7021fd6e44d5cdc17847b33388d6d6eff63cd",
       "trustedAttester": "0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20",
       "schema": "bool compliant,string contentCid,string badgeIconCid,string name",
       "schemaId": 2,
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
       "network": "previewnet-asset-hub",
-      "genesisHash": "0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210",
-      "deployedAt": "2026-08-03T21:00:00Z"
+      "genesisHash": "0xc27c8bf3f13f96dc2130cd2b0a3debe57618fd02521ecc1902bd7dd4ed83d2fe",
+      "deployedAt": "2026-09-15"
     },
     "paseo": {
       "address": "0x8326c11a76Dda4702046e92f73C0ea7E698560a2",
       "version": "2.1.0",
       "salt": "browse.create3.v1:TrustedAttesterIndexResolver:2.1.0",
-      "attestationService": "0x36e63233695675fd5b1f957da746602bd234fe19",
+      "attestationService": "0x37e7021fd6e44d5cdc17847b33388d6d6eff63cd",
       "trustedAttester": "0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20",
       "schema": "bool compliant,string contentCid,string badgeIconCid,string name",
       "schemaId": 2,
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
       "network": "paseo",
-      "genesisHash": "0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6",
-      "deployedAt": "2026-08-12"
+      "genesisHash": "0x4349b00e54897e21196fd331015fc5be0f14e118beb0375ed2bb1793737bb57a",
+      "deployedAt": "2026-09-15"
     }
   },
   "recipientAndAttesterIndexResolver": {
+    "note": "Deployed from the identity-bound source at e24f6e6, not from src/. The personhood-gated rewrite in #108 dropped bindIdentity and boundIdentity, which app/src/lib/attestation-service.ts still calls, so deploying src/ as it stands would break every recommendation. Bump the salt version and redeploy once the app speaks the personhood-gated resolver.",
     "previewnet": {
-      "address": "0x1563d8f5beab796529d1135d1600a3e75476a1da",
-      "attestationService": "0xb6493705c8280e2200ed799e1b47040fa8753d05",
+      "address": "0xAca17c2547f09b3AD0d3bd28Db11EE172604b85b",
+      "version": "2.1.0",
+      "salt": "browse.create3.v1:RecipientAndAttesterIndexResolver:2.1.0",
+      "attestationService": "0x37e7021fd6e44d5cdc17847b33388d6d6eff63cd",
       "schema": "string label",
-      "schemaId": 3,
+      "schemaId": 1,
       "personhoodGated": false,
       "identityGated": true,
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
       "network": "previewnet-asset-hub",
-      "genesisHash": "0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210",
-      "deployedAt": "2026-08-03"
+      "genesisHash": "0xc27c8bf3f13f96dc2130cd2b0a3debe57618fd02521ecc1902bd7dd4ed83d2fe",
+      "deployedAt": "2026-09-15"
     },
     "paseo": {
       "address": "0xAca17c2547f09b3AD0d3bd28Db11EE172604b85b",
       "version": "2.1.0",
       "salt": "browse.create3.v1:RecipientAndAttesterIndexResolver:2.1.0",
-      "attestationService": "0x36e63233695675fd5b1f957da746602bd234fe19",
-      "schema": "bool like",
+      "attestationService": "0x37e7021fd6e44d5cdc17847b33388d6d6eff63cd",
+      "schema": "string label",
       "schemaId": 1,
       "personhoodGated": false,
       "identityGated": true,
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
       "network": "paseo",
-      "genesisHash": "0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6",
-      "deployedAt": "2026-08-12"
+      "genesisHash": "0x4349b00e54897e21196fd331015fc5be0f14e118beb0375ed2bb1793737bb57a",
+      "deployedAt": "2026-09-15"
+    }
+  },
+  "attestationService": {
+    "previewnet": {
+      "address": "0x37e7021fd6e44d5cdc17847b33388d6d6eff63cd",
+      "note": "Deployed from the attestation-protocol repository."
+    },
+    "paseo": {
+      "address": "0x37e7021fd6e44d5cdc17847b33388d6d6eff63cd",
+      "note": "Deployed from the attestation-protocol repository."
     }
   },
   "schemaRegistry": {
     "previewnet": {
-      "address": "0xccd0a00f015f349264a3d7cd30fa6a05691f01cb",
+      "address": "0xd8af2626d3c5d990ae75077de3c5d9bb5e71de1e",
       "note": "Deployed from the attestation-protocol repository."
     },
     "paseo": {
-      "address": "0x46fe8c29dece5a882be37a459c6e8ba1b73d3f20",
+      "address": "0xd8af2626d3c5d990ae75077de3c5d9bb5e71de1e",
       "note": "Deployed from the attestation-protocol repository."
     }
   }

@@ -15,7 +15,8 @@ import { fullPersonRingVrfEntropy } from '@parity/browse-sdk'
 import { NETWORK } from '../../src/lib/config'
 import { DEV_PHRASE } from '../utils'
 
-const PGAS_CONTEXT_PREFIX = new TextEncoder().encode('pop:gas:') // 8 bytes
+const SYSTEM_SUFFIX_PREFIX = new TextEncoder().encode('sys/')
+const PGAS_CLAIM_FAMILY = 4
 const SECS_PER_DAY = 86_400n
 // The people-collection identifier the AsPgas extension binds against.
 const PEOPLE_MEMBER_IDENTIFIER_HEX =
@@ -82,14 +83,27 @@ function deriveMemberEntropy(mnemonic: string): Uint8Array {
   return fullPersonRingVrfEntropy(mnemonicToEntropy(normalized), NETWORK.TLD)
 }
 
-// [PGAS_CONTEXT_PREFIX (8b) | day u32 LE | slot u32 LE | zeros (16b)]
+/**
+ * Mirror `indiv_pallet_pgas::Pallet::build_gas_context` on Asset Hub, which
+ * hashes the claim slot under the personhood product:
+ *
+ *   blake2_256("product/peopl.<suffix>/" ++ ["sys/" ++ u32_le(4) ++ u32_le(day)
+ *   ++ u32_le(slot) ++ zero padding])
+ *
+ * The suffix is a runtime setting that happens to equal the DotNS TLD on both
+ * networks we run against: `testnet` on previewnet, `paseo` on paseo-next-v2.
+ * An unhashed context is what the runtime took before the 2026-09 upgrade, and
+ * it now fails every claim with `Invalid::BadProof`.
+ */
 function buildGasContext(day: number, slotIndex: number): Uint8Array {
-  const out = new Uint8Array(32)
-  out.set(PGAS_CONTEXT_PREFIX, 0)
-  const dv = new DataView(out.buffer)
+  const suffix = new Uint8Array(32)
+  suffix.set(SYSTEM_SUFFIX_PREFIX, 0)
+  const dv = new DataView(suffix.buffer)
+  dv.setUint32(4, PGAS_CLAIM_FAMILY, true)
   dv.setUint32(8, day, true)
   dv.setUint32(12, slotIndex, true)
-  return out
+  const product = new TextEncoder().encode(`product/peopl.${NETWORK.TLD}/`)
+  return Blake2256(concatBytes(product, suffix))
 }
 
 // The AsPgas inherited implication excludes every extension at or after AsPgas
@@ -235,8 +249,11 @@ export async function claimPgas(target: string, slotIndex = 0): Promise<ClaimRes
     const ringExpNum = ringExponent.type === 'R2e9' ? 9 : ringExponent.type === 'R2e10' ? 10 : 14
 
     type RingRootsKey = Parameters<typeof ahApi.query.MembersSubscriber.RingRoots.getValue>
+    const generation = await ahApi.query.MembersSubscriber.CurrentGeneration.getValue({
+      at: 'best'
+    })
     const ringRoots = await ahApi.query.MembersSubscriber.RingRoots.getValue(
-      0,
+      generation,
       collectionId as RingRootsKey[1],
       ringIndex,
       { at: 'best' }

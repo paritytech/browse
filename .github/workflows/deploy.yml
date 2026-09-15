@@ -63,14 +63,14 @@ jobs:
         target:
           - env: paseo
             display-name: Paseo AssetHubNextV2
-            genesis: '0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6'
+            genesis: '0x4349b00e54897e21196fd331015fc5be0f14e118beb0375ed2bb1793737bb57a'
             tld: paseo
             deployment-env: paseo-next-v2
             reuse-artifact: true
             required: true
           - env: preview
             display-name: Previewnet AssetHub
-            genesis: '0x627f54413120c81161261b2ca87f60f0020963107dc28367491e09ec2dd29659'
+            genesis: '0xc27c8bf3f13f96dc2130cd2b0a3debe57618fd02521ecc1902bd7dd4ed83d2fe'
             tld: testnet
             deployment-env: preview
             reuse-artifact: false
@@ -106,6 +106,12 @@ jobs:
           else
             REF="${{ github.event.pull_request.head.ref || github.ref_name }}"
             SANITIZED=$(echo "$REF" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//' | cut -c1-48)
+            # DotNS accepts exactly zero or two trailing digits, and the "00"
+            # preview suffix supplies the two. A branch that ends in a digit
+            # would push the count past two, so separate it with a letter.
+            case "$SANITIZED" in
+              *[0-9]) SANITIZED="${SANITIZED}-x" ;;
+            esac
             echo "value=${DOMAIN}-${SANITIZED}00.${TLD}" >> "$GITHUB_OUTPUT"
           fi
 

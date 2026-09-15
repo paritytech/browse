@@ -43,7 +43,7 @@ deployment records live in [deployments.json](deployments.json).
 
 #### Paseo AssetHubNextV2
 
-Genesis `0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6`.
+Genesis `0x4349b00e54897e21196fd331015fc5be0f14e118beb0375ed2bb1793737bb57a`.
 
 TLD `.paseo`.
 
@@ -70,7 +70,7 @@ Version 2.2.0:
 
 #### Previewnet AssetHub
 
-Genesis `0x627f54413120c81161261b2ca87f60f0020963107dc28367491e09ec2dd29659`.
+Genesis `0xc27c8bf3f13f96dc2130cd2b0a3debe57618fd02521ecc1902bd7dd4ed83d2fe`.
 
 TLD `.dot`.
 

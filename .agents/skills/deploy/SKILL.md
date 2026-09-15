@@ -19,8 +19,8 @@ handled here.
 
   | network    | `<GENESIS>` (`NETWORK_GENESIS_HASH`)                                 | `<ENV>` (bulletin-deploy `--env`) |
   | ---------- | -------------------------------------------------------------------- | --------------------------------- |
-  | previewnet | `0x627f54413120c81161261b2ca87f60f0020963107dc28367491e09ec2dd29659` | `preview`                         |
-  | paseo      | `0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6` | `paseo-next-v2`                   |
+  | previewnet | `0xc27c8bf3f13f96dc2130cd2b0a3debe57618fd02521ecc1902bd7dd4ed83d2fe` | `preview`                         |
+  | paseo      | `0x4349b00e54897e21196fd331015fc5be0f14e118beb0375ed2bb1793737bb57a` | `paseo-next-v2`                   |
 
 - **Target domain**: from the arguments if given (e.g. `browse.dot`), otherwise
   `browse-beta00.dot`. Derive the bare **label** by stripping a trailing `.dot`.

@@ -48,10 +48,10 @@ export interface NetworkConfig {
 }
 
 export const PASEONEXTV2_ASSETHUB_GENESIS =
-  '0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6' as const
+  '0x4349b00e54897e21196fd331015fc5be0f14e118beb0375ed2bb1793737bb57a' as const
 
 export const PREVIEWNET_ASSETHUB_GENESIS =
-  '0x627f54413120c81161261b2ca87f60f0020963107dc28367491e09ec2dd29659' as const
+  '0xc27c8bf3f13f96dc2130cd2b0a3debe57618fd02521ecc1902bd7dd4ed83d2fe' as const
 
 export const KNOWN_NETWORKS = {
   [PASEONEXTV2_ASSETHUB_GENESIS]: {
@@ -66,14 +66,10 @@ export const KNOWN_NETWORKS = {
       {
         version: '3.0.0',
         address: '0x01167f228A729f8e50f18aa7189f59b659155D09'
-      },
-      {
-        version: '2.2.0',
-        address: '0x1875B90A61705917945f9B7C6Ff7819Ad48A198e'
       }
     ],
-    SCHEMA_REGISTRY: '0x46fe8c29dece5a882be37a459c6e8ba1b73d3f20',
-    ATTESTATION_SERVICE: '0x36e63233695675fd5b1f957da746602bd234fe19',
+    SCHEMA_REGISTRY: '0xd8af2626d3c5d990ae75077de3c5d9bb5e71de1e',
+    ATTESTATION_SERVICE: '0x37e7021fd6e44d5cdc17847b33388d6d6eff63cd',
     ATTESTATION_INDEX_RESOLVER: ['0xAca17c2547f09b3AD0d3bd28Db11EE172604b85b'],
     TRUSTED_ATTESTER_RESOLVER: '0x8326c11a76Dda4702046e92f73C0ea7E698560a2',
     TRUSTED_ATTESTER: '0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20',
@@ -84,7 +80,7 @@ export const KNOWN_NETWORKS = {
     SCHEMA_ID: [1n],
     COMPLIANCE_SCHEMA_ID: 2n,
     ASSETHUB_RPCS: ['wss://paseo-asset-hub-next-rpc.polkadot.io'],
-    PEOPLE_GENESIS: '0x89a63b11fef2c0273fc72c0d864da0793a665dade5db153e0cab995348c5440f',
+    PEOPLE_GENESIS: '0x4a2b5b737de1da59e209b0000a876ec2fa20035dc34fd292a848da32d255ad48',
     PEOPLE_RPCS: ['wss://paseo-people-next-system-rpc.polkadot.io'],
     BULLETIN_RPCS: ['wss://paseo-bulletin-next-rpc.polkadot.io']
   },
@@ -114,7 +110,7 @@ export const KNOWN_NETWORKS = {
     SCHEMA_ID: [1n],
     COMPLIANCE_SCHEMA_ID: 2n,
     ASSETHUB_RPCS: ['wss://previewnet.substrate.dev/asset-hub'],
-    PEOPLE_GENESIS: '0x34999c298555e25bf17a7f3ea20efe7f6fdab1dfec7f808fbcfd36ca8aa5d220',
+    PEOPLE_GENESIS: '0xf720c28fe3315e67fa799a616fc59abad47dd257b1a336af6538435844d35218',
     PEOPLE_RPCS: ['wss://previewnet.substrate.dev/people'],
     BULLETIN_RPCS: ['wss://previewnet.substrate.dev/bulletin']
   }
