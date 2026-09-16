@@ -34,7 +34,12 @@
  */
 
 import { AccountId, Binary } from "polkadot-api";
-import { decodeFunctionResult, encodeFunctionData, keccak256, parseAbi } from "viem";
+import {
+  decodeFunctionResult,
+  encodeFunctionData,
+  keccak256,
+  parseAbi,
+} from "viem";
 
 import { connect, ensureMapped, getSigner, requireEnv } from "./lib.ts";
 
@@ -58,19 +63,28 @@ function evmAddressOf(ss58: string): `0x${string}` {
 }
 
 /** The registry operator, or null on a deployment that has no owner. */
-async function publisherOwner(api: any, publisher: string): Promise<string | null> {
+async function publisherOwner(
+  api: any,
+  publisher: string,
+): Promise<string | null> {
   const result = await api.apis.ReviveApi.call(
     "5C4hrfjw9DjXZTzV3MwzrrAr9P1MLDHajjSidz9bR544LEq1",
     Binary.fromHex(publisher),
     0n,
     undefined,
     undefined,
-    Binary.fromHex(encodeFunctionData({ abi: OWNABLE_ABI, functionName: "owner" })),
+    Binary.fromHex(
+      encodeFunctionData({ abi: OWNABLE_ABI, functionName: "owner" }),
+    ),
   );
   if (!result.result.success) return null;
   const data = result.result.value.data.asHex();
   if (data === "0x") return null;
-  return decodeFunctionResult({ abi: OWNABLE_ABI, functionName: "owner", data }) as string;
+  return decodeFunctionResult({
+    abi: OWNABLE_ABI,
+    functionName: "owner",
+    data,
+  }) as string;
 }
 
 async function main() {
@@ -94,7 +108,9 @@ async function main() {
   // without holding the name, so the struct it still has to pass is all zeroes.
   // Read the owner off the deployment rather than trusting a flag.
   const owner = await publisherOwner(api, publisher);
-  const asOwner = owner !== null && owner.toLowerCase() === evmAddressOf(address).toLowerCase();
+  const asOwner =
+    owner !== null &&
+    owner.toLowerCase() === evmAddressOf(address).toLowerCase();
   const needsProof = takesProofArg && !asOwner;
   if (asOwner) console.log("Owner:     yes, publishing without a proof");
 
@@ -111,47 +127,47 @@ async function main() {
           args: [label],
         })
       : needsProof
-      ? encodeFunctionData({
-          abi: PROOF_ABI,
-          functionName: "publish",
-          args: [
-            label,
-            {
-              // 2 is Full, 1 is Lite. The tier sets the daily cap the registry enforces.
-              expectedStatus: Number(process.env.EXPECTED_STATUS ?? 2),
-              proof: requireEnv(
-                "PROOF",
-                "SCALE length-prefixed ring proof.",
-              ) as `0x${string}`,
-              expectedAlias: requireEnv("ALIAS") as `0x${string}`,
-              ringIndex: Number(process.env.RING ?? 0),
-              context: requireEnv("CONTEXT") as `0x${string}`,
-              revision: Number(
-                requireEnv("REVISION", "A revision currently in RingRoots."),
-              ),
-              message: requireEnv(
-                "MSG",
-                "The publish digest the proof was built over.",
-              ) as `0x${string}`,
-            },
-          ],
-        })
-      : encodeFunctionData({
-          abi: PROOF_ABI,
-          functionName: "publish",
-          args: [
-            label,
-            {
-              expectedStatus: 0,
-              proof: "0x",
-              expectedAlias: `0x${"00".repeat(32)}`,
-              ringIndex: 0,
-              context: `0x${"00".repeat(32)}`,
-              revision: 0,
-              message: "0x",
-            },
-          ],
-        });
+        ? encodeFunctionData({
+            abi: PROOF_ABI,
+            functionName: "publish",
+            args: [
+              label,
+              {
+                // 2 is Full, 1 is Lite. The tier sets the daily cap the registry enforces.
+                expectedStatus: Number(process.env.EXPECTED_STATUS ?? 2),
+                proof: requireEnv(
+                  "PROOF",
+                  "SCALE length-prefixed ring proof.",
+                ) as `0x${string}`,
+                expectedAlias: requireEnv("ALIAS") as `0x${string}`,
+                ringIndex: Number(process.env.RING ?? 0),
+                context: requireEnv("CONTEXT") as `0x${string}`,
+                revision: Number(
+                  requireEnv("REVISION", "A revision currently in RingRoots."),
+                ),
+                message: requireEnv(
+                  "MSG",
+                  "The publish digest the proof was built over.",
+                ) as `0x${string}`,
+              },
+            ],
+          })
+        : encodeFunctionData({
+            abi: PROOF_ABI,
+            functionName: "publish",
+            args: [
+              label,
+              {
+                expectedStatus: 0,
+                proof: "0x",
+                expectedAlias: `0x${"00".repeat(32)}`,
+                ringIndex: 0,
+                context: `0x${"00".repeat(32)}`,
+                revision: 0,
+                message: "0x",
+              },
+            ],
+          });
 
     // Dry run first: it prices the call and, more usefully, catches a bad proof
     // for free. `flags` is the revert bit, and it is set while `success` is true,

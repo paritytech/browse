@@ -89,9 +89,9 @@ contract Publisher is IPublisher, Ownable2Step, Semver(3, 1, 0) {
         IPersonhood.ProofVerificationRequest calldata request
     ) external {
         // The owner publishes any label, including one it does not hold, and
-        // without the personhood gate or the per-person rate limit, so it can
-        // seed and operate the registry on behalf of names it does not own.
-        // Everyone else must hold the name, and is gated and rate-limited by tier.
+        // skips the personhood gate and the per-person rate limit, so it can
+        // operate the registry for names held by others. Everyone else must hold
+        // the name, and is gated and rate-limited by tier.
         bool isOwner = msg.sender == owner();
         (bytes32 labelhash, bytes32 labelNode) = isOwner
             ? _labelNodes(label)

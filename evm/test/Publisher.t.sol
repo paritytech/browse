@@ -446,7 +446,7 @@ contract PublisherTest is Test {
         // The test contract is the owner. An empty proof reverts for anyone else.
         IPersonhood.ProofVerificationRequest memory none = _emptyRequest();
 
-        // Publish far past the Full-tier cap of 5 within a single window.
+        // Publish far past the Full-tier cap within a single window.
         for (uint256 i = 0; i < 8; ++i) {
             string memory label = string(abi.encodePacked("app", vm.toString(i)));
             _mockOwner(_tokenIdOf(label), address(this));

@@ -38,10 +38,9 @@ async function main() {
         "utf-8"
       )
     );
-    // The owner is passed in rather than inferred from the signer: a CREATE3
-    // deploy runs the constructor from an ephemeral factory proxy, so a
-    // contract taking `msg.sender` ends up owned by an address nobody holds.
-    // Defaults to the deployer EVM address, which is what an operator wants.
+    // The owner is passed in rather than inferred from the signer. A CREATE3
+    // deploy runs the constructor from an ephemeral factory proxy, so a contract
+    // taking `msg.sender` ends up owned by an address nobody holds.
     const owner = (process.env.PUBLISHER_OWNER ?? evmAddressOf(address)) as `0x${string}`;
     console.log(`Owner:     ${owner}`);
     const constructorArgs = encodeAbiParameters(
