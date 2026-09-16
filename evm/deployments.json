@@ -29,12 +29,7 @@
       "network": "paseo",
       "genesisHash": "0x4349b00e54897e21196fd331015fc5be0f14e118beb0375ed2bb1793737bb57a",
       "substrateRpc": "wss://paseo-asset-hub-next-rpc.polkadot.io",
-      "deployedAt": "2026-09-16",
-      "abandoned": {
-        "address": "0x34890368dFc109C0b905EA96035A850E3e5C3a2f",
-        "salt": "browse.create3.v1:Publisher:3.0.0",
-        "reason": "Owner resolved to the CREATE3 factory proxy, so nobody can act as operator and Ownable2Step cannot transfer out. Do not use."
-      }
+      "deployedAt": "2026-09-16"
     }
   },
   "trustedAttesterIndexResolver": {
