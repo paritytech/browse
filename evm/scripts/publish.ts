@@ -33,8 +33,8 @@
  * Against a 2.x registry the proof variables are ignored, so `LABEL` is enough.
  */
 
-import { Binary } from "polkadot-api";
-import { encodeFunctionData, parseAbi } from "viem";
+import { AccountId, Binary } from "polkadot-api";
+import { decodeFunctionResult, encodeFunctionData, keccak256, parseAbi } from "viem";
 
 import { connect, ensureMapped, getSigner, requireEnv } from "./lib.ts";
 
@@ -46,8 +46,32 @@ const PROOF_ABI = parseAbi([
 /** Publisher 2.x, which predates the proof and authorizes on name ownership. */
 const OWNER_ABI = parseAbi(["function publish(string label)"]);
 
+/** Present from 3.1.0, absent on 3.0.0-noowner. */
+const OWNABLE_ABI = parseAbi(["function owner() view returns (address)"]);
+
 /** Headroom over the dry-run estimate, so a slightly heavier real run still fits. */
 const WEIGHT_MARGIN = 3n;
+
+/** The pallet-revive EVM address an SS58 account controls. */
+function evmAddressOf(ss58: string): `0x${string}` {
+  return `0x${keccak256(AccountId().enc(ss58)).slice(-40)}` as `0x${string}`;
+}
+
+/** The registry operator, or null on a deployment that has no owner. */
+async function publisherOwner(api: any, publisher: string): Promise<string | null> {
+  const result = await api.apis.ReviveApi.call(
+    "5C4hrfjw9DjXZTzV3MwzrrAr9P1MLDHajjSidz9bR544LEq1",
+    Binary.fromHex(publisher),
+    0n,
+    undefined,
+    undefined,
+    Binary.fromHex(encodeFunctionData({ abi: OWNABLE_ABI, functionName: "owner" })),
+  );
+  if (!result.result.success) return null;
+  const data = result.result.value.data.asHex();
+  if (data === "0x") return null;
+  return decodeFunctionResult({ abi: OWNABLE_ABI, functionName: "owner", data }) as string;
+}
 
 async function main() {
   const label = requireEnv("LABEL", 'The bare label, e.g. LABEL="calculator".');
@@ -64,7 +88,15 @@ async function main() {
   // 2.x has no proof path, so which calldata to send is a property of the
   // deployment the network writes to, not of the caller.
   const version = config.PUBLISHER[0]!.version;
-  const needsProof = !version.startsWith("2.");
+  const takesProofArg = !version.startsWith("2.");
+
+  // From 3.1.0 the registry operator publishes any label without a proof and
+  // without holding the name, so the struct it still has to pass is all zeroes.
+  // Read the owner off the deployment rather than trusting a flag.
+  const owner = await publisherOwner(api, publisher);
+  const asOwner = owner !== null && owner.toLowerCase() === evmAddressOf(address).toLowerCase();
+  const needsProof = takesProofArg && !asOwner;
+  if (asOwner) console.log("Owner:     yes, publishing without a proof");
 
   console.log(`Caller:    ${address}`);
   console.log(`Publisher: ${publisher} (${version})`);
@@ -72,7 +104,13 @@ async function main() {
 
   try {
     await ensureMapped(api, signer);
-    const data = needsProof
+    const data = !takesProofArg
+      ? encodeFunctionData({
+          abi: OWNER_ABI,
+          functionName: "publish",
+          args: [label],
+        })
+      : needsProof
       ? encodeFunctionData({
           abi: PROOF_ABI,
           functionName: "publish",
@@ -99,9 +137,20 @@ async function main() {
           ],
         })
       : encodeFunctionData({
-          abi: OWNER_ABI,
+          abi: PROOF_ABI,
           functionName: "publish",
-          args: [label],
+          args: [
+            label,
+            {
+              expectedStatus: 0,
+              proof: "0x",
+              expectedAlias: `0x${"00".repeat(32)}`,
+              ringIndex: 0,
+              context: `0x${"00".repeat(32)}`,
+              revision: 0,
+              message: "0x",
+            },
+          ],
         });
 
     // Dry run first: it prices the call and, more usefully, catches a bad proof

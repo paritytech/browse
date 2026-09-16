@@ -15,17 +15,26 @@
       "deployedAt": "2026-09-15"
     },
     "paseo": {
-      "address": "0x01167f228A729f8e50f18aa7189f59b659155D09",
-      "version": "3.0.0",
+      "address": "0xAa189B1D4F65CF6e5D0baD734F6C876f2E12F984",
+      "version": "3.1.0",
+      "owner": "0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20",
+      "note": "First in the SDK PUBLISHER array. The operator publishes any label, including names it does not hold, with no personhood proof and no rate limit. 3.0.0 stays behind it so listings made there keep resolving.",
+      "previousAddress": "0x01167f228A729f8e50f18aa7189f59b659155D09",
+      "previousVersion": "3.0.0",
       "tld": ".paseo",
       "tldNode": "0x096b436ee9a398429fe33ad4b359bad4398dd74b412ec1dd043c93dfbf581874",
-      "salt": "browse.create3.v1:Publisher:3.0.0-noowner",
+      "salt": "browse.create3.v1:Publisher:3.1.0",
       "registrar": "0x4f06E818Ba3d987704fd91cf3d868E4b019106Ab",
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
       "network": "paseo",
       "genesisHash": "0x4349b00e54897e21196fd331015fc5be0f14e118beb0375ed2bb1793737bb57a",
       "substrateRpc": "wss://paseo-asset-hub-next-rpc.polkadot.io",
-      "deployedAt": "2026-09-15"
+      "deployedAt": "2026-09-16",
+      "abandoned": {
+        "address": "0x34890368dFc109C0b905EA96035A850E3e5C3a2f",
+        "salt": "browse.create3.v1:Publisher:3.0.0",
+        "reason": "Owner resolved to the CREATE3 factory proxy, so nobody can act as operator and Ownable2Step cannot transfer out. Do not use."
+      }
     }
   },
   "trustedAttesterIndexResolver": {

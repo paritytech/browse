@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 pragma solidity ^0.8.24;
 
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
+
 import {IDotnsRegistrar} from "./interfaces/IDotnsRegistrar.sol";
 import {IPersonhood} from "./interfaces/IPersonhood.sol";
 import {IPublisher} from "./interfaces/IPublisher.sol";
@@ -8,7 +11,7 @@ import {Semver} from "./Semver.sol";
 
 /// @title Publisher
 /// @notice The browse publishing registry.
-contract Publisher is IPublisher, Semver(3, 0, 0) {
+contract Publisher is IPublisher, Ownable2Step, Semver(3, 1, 0) {
     // The Proof-of-Personhood precompile.
     address internal constant PERSONHOOD =
         0x000000000000000000000000000000000a010000;
@@ -67,7 +70,14 @@ contract Publisher is IPublisher, Semver(3, 0, 0) {
     /// @param tldNode_ Namehash of the TLD node the network runs, as reported by `tldNode()` on
     /// the dotNS protocol registry. A network fixes its TLD at initialisation, so this is set
     /// once here rather than read per call.
-    constructor(IDotnsRegistrar registrar_, bytes32 tldNode_) {
+    /// @param owner_ The registry operator. Passed in rather than taken from `msg.sender`
+    /// because a CREATE3 deploy runs the constructor from an ephemeral factory proxy, which
+    /// would leave the registry owned by an address nobody holds a key for.
+    constructor(
+        IDotnsRegistrar registrar_,
+        bytes32 tldNode_,
+        address owner_
+    ) Ownable(owner_) {
         if (tldNode_ == bytes32(0)) revert EmptyTldNode();
         registrar = registrar_;
         tldNode = tldNode_;
@@ -78,18 +88,25 @@ contract Publisher is IPublisher, Semver(3, 0, 0) {
         string calldata label,
         IPersonhood.ProofVerificationRequest calldata request
     ) external {
-        (bytes32 labelhash, bytes32 labelNode) = _requireOwnedLabel(label);
+        // The owner publishes any label, including one it does not hold, and
+        // without the personhood gate or the per-person rate limit, so it can
+        // seed and operate the registry on behalf of names it does not own.
+        // Everyone else must hold the name, and is gated and rate-limited by tier.
+        bool isOwner = msg.sender == owner();
+        (bytes32 labelhash, bytes32 labelNode) = isOwner
+            ? _labelNodes(label)
+            : _requireOwnedLabel(label);
 
         uint64 nowTs = uint64(block.timestamp);
 
-        // Every caller is gated and rate-limited by tier. There is no privileged
-        // account: the registry has no owner, so no address can publish past the
-        // cap or without a proof.
-        bytes32 personAlias = _verifyPersonhood(request, labelhash);
-        uint64 cap = request.expectedStatus == 1
-            ? LITE_DAILY_LIMIT
-            : FULL_DAILY_LIMIT;
-        _checkAndRecordRate(personAlias, cap, nowTs);
+        if (!isOwner) {
+            bytes32 personAlias = _verifyPersonhood(request, labelhash);
+
+            uint64 cap = request.expectedStatus == 1
+                ? LITE_DAILY_LIMIT
+                : FULL_DAILY_LIMIT;
+            _checkAndRecordRate(personAlias, cap, nowTs);
+        }
 
         Publication storage data = _publications[labelhash];
         if (data.indexPlusOne == 0) {
@@ -189,8 +206,10 @@ contract Publisher is IPublisher, Semver(3, 0, 0) {
     ///
     /// Collapses "label doesn't exist" and "label exists but isn't yours" into a single
     /// `NotOwner` revert. Callers never need to branch on which one happened.
-    function _requireOwnedLabel(string calldata label)
-        internal
+    /// @dev Hashes for a label, with no authorisation. `labelNode` doubles as the
+    /// registrar token id.
+    function _labelNodes(string calldata label)
+        private
         view
         returns (bytes32 labelhash, bytes32 labelNode)
     {
@@ -198,6 +217,14 @@ contract Publisher is IPublisher, Semver(3, 0, 0) {
 
         labelhash = keccak256(bytes(label));
         labelNode = keccak256(abi.encodePacked(tldNode, labelhash));
+    }
+
+    function _requireOwnedLabel(string calldata label)
+        internal
+        view
+        returns (bytes32 labelhash, bytes32 labelNode)
+    {
+        (labelhash, labelNode) = _labelNodes(label);
         uint256 tokenId = uint256(labelNode);
 
         try registrar.ownerOf(tokenId) returns (address holder) {
