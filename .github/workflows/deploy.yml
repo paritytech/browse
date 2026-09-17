@@ -9,6 +9,11 @@ on:
     paths: ['app/**']
   workflow_dispatch:
     inputs:
+      network:
+        description: "Network to deploy; all on push, pick one for a targeted redeploy"
+        type: choice
+        default: all
+        options: [all, preview, paseo-next-v2]
       skip-cache:
         description: 'Skip deployment cache and force redeploy'
         type: boolean
@@ -52,31 +57,55 @@ jobs:
     if: needs.check.outputs.cache-hit != 'true' || inputs.skip-cache
     uses: ./.github/workflows/build.yml
 
+  # Which network legs this run deploys: every target on push, the chosen one
+  # on a targeted redeploy (paritytech/autodeployer dispatches per network).
+  plan:
+    name: Pick networks
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.plan.outputs.targets }}
+    steps:
+      - id: plan
+        env:
+          NETWORK: ${{ inputs.network || 'all' }}
+        run: |
+          targets=$(jq -c --arg n "$NETWORK" 'map(select($n == "all" or .env == $n))' <<'JSON'
+          [
+            {
+              "env": "paseo",
+              "display-name": "Paseo AssetHubNextV2",
+              "genesis": "0x4349b00e54897e21196fd331015fc5be0f14e118beb0375ed2bb1793737bb57a",
+              "tld": "paseo",
+              "deployment-env": "paseo-next-v2",
+              "reuse-artifact": true,
+              "required": true
+            },
+            {
+              "env": "preview",
+              "display-name": "Previewnet AssetHub",
+              "genesis": "0xc27c8bf3f13f96dc2130cd2b0a3debe57618fd02521ecc1902bd7dd4ed83d2fe",
+              "tld": "testnet",
+              "deployment-env": "preview",
+              "reuse-artifact": false,
+              "snapshot-cache-prefix": "previewnet-domains-snapshot-cid",
+              "username-snapshot-cache-prefix": "previewnet-usernames-snapshot-cid",
+              "required": true
+            }
+          ]
+          JSON
+          )
+          echo "targets=$targets" >> "$GITHUB_OUTPUT"
+          echo "$targets" | jq -r '.[] | "deploying " + .env'
+
   deploy:
     name: Deploy ${{ matrix.target.display-name }}
-    needs: [check, build]
+    needs: [check, build, plan]
     if: needs.check.outputs.cache-hit != 'true' || inputs.skip-cache
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        target:
-          - env: paseo
-            display-name: Paseo AssetHubNextV2
-            genesis: '0x4349b00e54897e21196fd331015fc5be0f14e118beb0375ed2bb1793737bb57a'
-            tld: paseo
-            deployment-env: paseo-next-v2
-            reuse-artifact: true
-            required: true
-          - env: preview
-            display-name: Previewnet AssetHub
-            genesis: '0xc27c8bf3f13f96dc2130cd2b0a3debe57618fd02521ecc1902bd7dd4ed83d2fe'
-            tld: testnet
-            deployment-env: preview
-            reuse-artifact: false
-            snapshot-cache-prefix: previewnet-domains-snapshot-cid
-            username-snapshot-cache-prefix: previewnet-usernames-snapshot-cid
-            required: true
+        target: ${{ fromJSON(needs.plan.outputs.targets) }}
     outputs:
       cid: ${{ steps.final.outputs.cid }}
       domain: ${{ steps.final.outputs.domain }}
