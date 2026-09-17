@@ -472,7 +472,12 @@ export class AttestationService {
         options: { gasLimit: GAS, storageDepositLimit: STORAGE }
       })
       if (!bindDry.success) {
-        throw new Error(`bindIdentity dry-run failed: ${JSON.stringify(bindDry.value, bigStr)}`)
+        const detail = JSON.stringify(bindDry.value, bigStr)
+        console.warn(
+          'debug network connection',
+          JSON.stringify({ event: 'bindIdentityAndAttest:bindDryRunFailed', recipient, detail })
+        )
+        throw new Error(`bindIdentity dry-run failed: ${detail}`)
       }
       const contract = await this.getContract()
       const bindCall = await bindDry.value.send().decodedCall
@@ -484,7 +489,19 @@ export class AttestationService {
 
       const api = (await this.client()).getUnsafeApi()
       const batch = api.tx.Utility.batch_all({ calls: [bindCall, attestCall] })
-      return this.submitTx(() => batch as never, signer, track)
+      try {
+        return await this.submitTx(() => batch as never, signer, track)
+      } catch (err) {
+        console.warn(
+          'debug network connection',
+          JSON.stringify({
+            event: 'bindIdentityAndAttest:batchFailed',
+            recipient,
+            err: String(err)
+          })
+        )
+        throw err
+      }
     }, onBroadcast)
   }
 
