@@ -65,6 +65,8 @@ export function isSortMode(value: string): value is SortMode {
   return (SORT_MODES as readonly string[]).includes(value)
 }
 
+export const DEFAULT_SORT_MODE: SortMode = 'relevant'
+
 export function displayName(app: AppEntry): string {
   return app.name ?? nameWithTld(app.label, NETWORK.TLD)
 }
@@ -121,7 +123,7 @@ export function filterApps(
   bookmarkedApps?: Set<string>,
   followingApps?: Set<string>,
   publishedApps?: Set<string>,
-  sort: SortMode = 'relevant'
+  sort: SortMode = DEFAULT_SORT_MODE
 ): AppEntry[] {
   const filterByMode: Record<FilterMode, (app: AppEntry) => boolean> = {
     all: (app) => publishedApps?.has(app.label) ?? true,

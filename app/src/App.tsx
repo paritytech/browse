@@ -46,6 +46,7 @@ import {
 import {
   type AppCertificate,
   type AppEntry,
+  DEFAULT_SORT_MODE,
   filterApps,
   type FilterMode,
   isFilterMode,
@@ -107,7 +108,7 @@ export function App() {
   const attestProduct = useAttestProduct()
 
   const [currentMode, setCurrentMode] = useState<FilterMode>('all')
-  const [sortMode, setSortMode] = useState<SortMode>('relevant')
+  const [sortMode, setSortMode] = useState<SortMode>(DEFAULT_SORT_MODE)
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [bookmarkedApps, setBookmarkedApps] = useState<Set<string>>(() => new Set())
