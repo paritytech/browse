@@ -497,6 +497,8 @@ export class AttestationService {
           JSON.stringify({
             event: 'bindIdentityAndAttest:batchFailed',
             recipient,
+            dotns: SELF_DOTNS,
+            origin,
             err: String(err)
           })
         )
@@ -664,6 +666,17 @@ export class AttestationService {
     if (this.truapi) {
       const permission = await requestPermission({ tag: 'ChainSubmit', value: undefined })
       const permitted = permission.ok ? permission.value : false
+      // The host denies `createTransaction` with a bare `PermissionDenied` for
+      // either a missing ChainSubmit grant or a product account belonging to
+      // another product. Recording the grant here is what tells the two apart.
+      console.warn(
+        'debug network connection',
+        JSON.stringify({
+          event: 'submitTx:chainSubmitPermission',
+          permitted,
+          err: permission.ok ? null : formatHostError(permission.error)
+        })
+      )
       if (!permitted) throw new Error('Transaction submit permission denied')
     }
 
