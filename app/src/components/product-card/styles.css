@@ -102,8 +102,6 @@
 .product-card__title-row {
   display: flex;
   align-items: center;
-  /* Clears the bookmark pinned in the corner, so a long title cannot run under it. */
-  padding-right: 28px;
   /* The title line box, so the row never grows taller than its own contents. */
   min-height: 20px;
 }
@@ -170,13 +168,11 @@
   stroke: var(--fg-primary-inverted);
 }
 
-/* The card corner on phones, where it fills a mostly empty row. Beside the name from
-   768px, since a wide card strands it far from the title. Smaller than the title line
-   box so it never sets the row height, with the tap area restored by the ::after. */
+/* Smaller than the title line box so it never sets the row height, with the tap area
+   restored by the ::after. */
 .product-card__bookmark {
-  position: absolute;
-  top: var(--space-medium-increased);
-  right: var(--space-medium-increased);
+  position: relative;
+  margin-left: var(--space-small);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -185,7 +181,7 @@
   padding: 0;
   flex-shrink: 0;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-small);
   background: transparent;
   color: rgb(var(--fg-rgb) / 0.5);
   cursor: pointer;
@@ -587,22 +583,6 @@
 
   .product-card__title-row {
     min-height: 0;
-    padding-right: 0;
-  }
-
-  /* Back beside the name, and back in the row flow. */
-  .product-card__bookmark {
-    position: relative;
-    top: auto;
-    right: auto;
-    margin-left: var(--space-small);
-    border-radius: var(--radius-small);
-  }
-
-  /* Lets a long title truncate. No type step-down, since the base scale is the
-     lockup scale already. */
-  .product-card__name {
-    min-width: 0;
   }
 
   /* Swap the slots, which also leaves the title the whole text column. */
