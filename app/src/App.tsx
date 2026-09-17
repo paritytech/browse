@@ -107,7 +107,7 @@ export function App() {
   const attestProduct = useAttestProduct()
 
   const [currentMode, setCurrentMode] = useState<FilterMode>('all')
-  const [sortMode, setSortMode] = useState<SortMode>('new')
+  const [sortMode, setSortMode] = useState<SortMode>('relevant')
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [bookmarkedApps, setBookmarkedApps] = useState<Set<string>>(() => new Set())
