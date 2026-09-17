@@ -5,7 +5,7 @@ const KEY = 'browse:sort-mode'
 
 export async function readSortMode(): Promise<SortMode> {
   const stored = await localStorage.readJSON<string>(KEY)
-  return stored && isSortMode(stored) ? stored : 'new'
+  return stored && isSortMode(stored) ? stored : 'relevant'
 }
 
 export async function writeSortMode(sort: SortMode): Promise<void> {
