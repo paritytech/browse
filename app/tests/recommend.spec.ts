@@ -239,8 +239,9 @@ test.describe('Recommendation fails', () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(120_000)
-    // Unique derivation per run gives a fresh keypair with a guaranteed zero balance on chain.
-    const uri = `//e2e-unfunded-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    // Unique derivation per run gives a fresh keypair with a guaranteed zero
+    // balance on chain. A junction carries at most 31 bytes, so keep it short.
+    const uri = `//nofunds${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
     unfundedHost = await startSignedHost({ name: 'Unfunded', uri })
 
     // Seed a standing recommendation: a fresh account binds the identity and
