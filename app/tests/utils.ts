@@ -41,13 +41,17 @@ export function identityUri(): string {
 }
 
 /**
- * Returns the DotNS username the per-run identity reveals on a first
- * recommendation. Locally it falls back to the real `smalltava.08`, which the
- * master identity already owns.
+ * The username the per-run identity registers for itself and reveals on a
+ * first recommendation. A base of lowercase letters, as the People chain
+ * wants it, that encodes the run id, so every run registers a fresh one and
+ * the `.10` suffix is always free.
  */
 export function identityUsername(): string {
-  const id = runId()
-  return id ? `smalltava.08.run${id}` : 'smalltava.08'
+  const id = runId() ?? 'local'
+  const base = id
+    .replace(/[^a-z]/gi, (c) => (/\d/.test(c) ? String.fromCharCode(97 + Number(c)) : ''))
+    .toLowerCase()
+  return `run${base}.10`
 }
 
 type Account = import('@parity/host-api-test-sdk').Account

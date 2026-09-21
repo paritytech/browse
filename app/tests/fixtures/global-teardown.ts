@@ -1,18 +1,12 @@
-import { removeUsername } from './create-username'
 import { reclaimIdentity } from './fund'
 
 /**
- * Clear the run username mapping and sweep the per-run identity balances back to
- * the shared master once the run finishes, so each run leaves no stale username
- * entry and does not strand native and PGAS. Best-effort: a failure is logged,
- * not thrown.
+ * Sweep the per-run identity balances back to the shared master once the run
+ * finishes, so a fresh identity does not strand native and PGAS. Its username
+ * stays: it is unique to the run and registered with the identity itself.
+ * Best-effort: a failure is logged, not thrown.
  */
 export default async function globalTeardown(): Promise<void> {
-  try {
-    await removeUsername()
-  } catch (e) {
-    console.error('globalTeardown: username removal failed:', e)
-  }
   try {
     await reclaimIdentity()
   } catch (e) {
