@@ -1,5 +1,6 @@
 import { createUsername } from './create-username'
 import { ensureContracts } from './ensure-contracts'
+import { ensureFixtureApps } from './ensure-fixture-apps'
 import { fundIdentity } from './fund'
 
 /**
@@ -10,6 +11,7 @@ import { fundIdentity } from './fund'
  */
 export default async function globalSetup(): Promise<void> {
   ensureContracts()
+  await ensureFixtureApps()
   await fundIdentity()
   await createUsername()
 }
