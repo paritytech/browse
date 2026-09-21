@@ -33,7 +33,10 @@ export async function createAttestation(label: string): Promise<AttestResult> {
         // with ResolverRejected. For seeding that is a success: the label is
         // already recommended by the identity, so treat it as an idempotent
         // no-op rather than failing the whole suite.
-        if (!String(err).includes('ResolverRejected')) throw err
+        // sdk-ink cannot name a revert defined on the resolver, so it throws
+        // over the raw selector instead.
+        const refused = /ResolverRejected|0xad0d91b9/.test(String(err))
+        if (!refused) throw err
       }
     }
     return {

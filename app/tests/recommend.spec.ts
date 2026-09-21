@@ -7,7 +7,6 @@
 import type { BrowserContext, Frame, Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 
-import { createAttestation } from './fixtures/attest'
 import { bindIdentityAndAttest } from './fixtures/bind-identity-and-attest'
 import {
   createUnboundProductAccount,
@@ -21,6 +20,7 @@ import {
   transferAllWithNative,
   transferAllWithPgas
 } from './fixtures/fund'
+import { fundProductAccount } from './fixtures/product-account'
 import { createRevokedAttestation } from './fixtures/revoke-attestation'
 import {
   getProductFrame,
@@ -41,11 +41,14 @@ test.describe('Recommend works', () => {
   let frame: Frame
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(120_000)
+    // Two hosts to fund, each read from a browser the app has to start in.
+    test.setTimeout(240_000)
     await fundWithNative(createProductSigner().address)
     await createRevokedAttestation('chess-clock').catch(() => {})
     await createRevokedAttestation('calculator').catch(() => {})
     await createRevokedAttestation('alarm-clock').catch(() => {})
+    await createRevokedAttestation('unit-converter').catch(() => {})
+    await createRevokedAttestation('countdown-timer').catch(() => {})
     host = await startSignedHost(IDENTITY_ACCOUNT)
     unbound = await createUnboundProductAccount()
     await createRevokedAttestation('calculator', createDevSigner(unbound.tag)).catch(() => {})
@@ -53,6 +56,10 @@ test.describe('Recommend works', () => {
       IDENTITY_ACCOUNT,
       unbound.productAccounts
     )
+    // The host derives the account that pays for a recommendation, so ask each
+    // one what it handed the product and fund that.
+    await fundProductAccount(browser, host.url)
+    await fundProductAccount(browser, unboundHost.url)
     context = await browser.newContext({ ignoreHTTPSErrors: true })
   })
 
@@ -131,16 +138,17 @@ test.describe('Recommend works', () => {
     page = await context.newPage()
 
     // Given
-    const attestResult = await createAttestation('chess-clock')
-    expect(attestResult.attestationCountAfter).toBe(attestResult.attestationCountBefore + 1n)
+    // Only the host holds the key to the account that signs a recommendation,
+    // so the app has to make the one it un-makes.
     await navigateToTestHost(page, host.url)
     frame = await getProductFrame(page, '.category-tab')
     await frame.locator('.category-tab', { hasText: 'All' }).click()
-    const card = frame.locator('.product-card[data-label="chess-clock"]')
+    const card = frame.locator('.product-card[data-label="unit-converter"]')
     await expect(card).toBeVisible({ timeout: 15_000 })
     const upvote = card.locator('.product-card__upvote')
     const upvoteCount = upvote.locator('.product-card__upvote-count')
-    await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 15_000 })
+    await upvote.click()
+    await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 25_000 })
     await expect(upvoteCount).toBeVisible()
     const beforeText = (await upvoteCount.textContent()) ?? ''
     const before = beforeText === '999+' ? 1000 : Number(beforeText)
@@ -166,16 +174,15 @@ test.describe('Recommend works', () => {
     page = await context.newPage()
 
     // Given
-    const attestResult = await createAttestation('alarm-clock')
-    expect(attestResult.attestationCountAfter).toBe(attestResult.attestationCountBefore + 1n)
     await navigateToTestHost(page, host.url)
     frame = await getProductFrame(page, '.search-bar__input')
-    await frame.locator('.search-bar__input').fill('alarm-clock')
-    const card = frame.locator('.product-card[data-label="alarm-clock"]')
+    await frame.locator('.search-bar__input').fill('countdown-timer')
+    const card = frame.locator('.product-card[data-label="countdown-timer"]')
     await expect(card).toBeVisible({ timeout: 15_000 })
     const upvote = card.locator('.product-card__upvote')
     const upvoteCount = upvote.locator('.product-card__upvote-count')
-    await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 15_000 })
+    await upvote.click()
+    await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 25_000 })
     await expect(upvoteCount).toBeVisible()
     const beforeText = (await upvoteCount.textContent()) ?? ''
     const before = beforeText === '999+' ? 1000 : Number(beforeText)
@@ -261,7 +268,8 @@ test.describe('Recommendation fails', () => {
   })
 
   test('As a signed user, when I recommend an app and it fails, I see an error badge with a message', async () => {
-    test.setTimeout(30_000)
+    // A cold All list, then the failing write.
+    test.setTimeout(60_000)
     const page = await context.newPage()
 
     // Given
