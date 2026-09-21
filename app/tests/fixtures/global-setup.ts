@@ -11,5 +11,12 @@ import { fundIdentity } from './fund'
 export default async function globalSetup(): Promise<void> {
   ensureContracts()
   await fundIdentity()
-  await createUsername()
+  // The username is still written through the sudo proxy, the one step a
+  // funded wallet cannot do for itself. When the proxy cannot pay, the run
+  // goes on and only the specs that reveal a username fail.
+  try {
+    await createUsername()
+  } catch (e) {
+    console.warn('[create-username] skipped, the sudo proxy could not write the username:', e)
+  }
 }
