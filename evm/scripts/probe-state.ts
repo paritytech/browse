@@ -49,31 +49,42 @@ async function view(api: any, address: string, data: `0x${string}`) {
     0n,
     undefined,
     undefined,
-    Binary.fromHex(data)
+    Binary.fromHex(data),
   );
   if (!result.result.success) return null;
-  const value = result.result.value;
-  return (typeof value === "string" ? value : value.asHex()) as `0x${string}`;
+  const returned = result.result.value.data;
+  return (
+    typeof returned === "string" ? returned : returned.asHex()
+  ) as `0x${string}`;
 }
 
 async function schemaState(
   api: any,
   registry: string,
-  id: bigint
+  id: bigint,
 ): Promise<SchemaState> {
   const raw = await view(
     api,
     registry,
-    encodeFunctionData({ abi: REGISTRY_ABI, functionName: "getSchema", args: [id] })
+    encodeFunctionData({
+      abi: REGISTRY_ABI,
+      functionName: "getSchema",
+      args: [id],
+    }),
   );
-  if (raw === null) return { id: id.toString(), registered: false, schema: null };
+  if (raw === null)
+    return { id: id.toString(), registered: false, schema: null };
   const record = decodeFunctionResult({
     abi: REGISTRY_ABI,
     functionName: "getSchema",
     data: raw,
   });
   const registered = record.registerer !== ZERO_ADDRESS;
-  return { id: id.toString(), registered, schema: registered ? record.schema : null };
+  return {
+    id: id.toString(),
+    registered,
+    schema: registered ? record.schema : null,
+  };
 }
 
 async function main() {
@@ -88,7 +99,8 @@ async function main() {
       SchemaRegistry: config.SCHEMA_REGISTRY,
       AttestationService: config.ATTESTATION_SERVICE,
       Publisher: config.PUBLISHER[0]?.address ?? ZERO_ADDRESS,
-      RecipientAndAttesterIndexResolver: config.ATTESTATION_INDEX_RESOLVER[0] ?? ZERO_ADDRESS,
+      RecipientAndAttesterIndexResolver:
+        config.ATTESTATION_INDEX_RESOLVER[0] ?? ZERO_ADDRESS,
       TrustedAttesterIndexResolver: config.TRUSTED_ATTESTER_RESOLVER,
     };
     const contracts: NetworkState["contracts"] = {};
@@ -101,7 +113,10 @@ async function main() {
       ? await view(
           api,
           config.SCHEMA_REGISTRY,
-          encodeFunctionData({ abi: REGISTRY_ABI, functionName: "schemaCount" })
+          encodeFunctionData({
+            abi: REGISTRY_ABI,
+            functionName: "schemaCount",
+          }),
         )
       : null;
     const state: NetworkState = {
@@ -117,10 +132,22 @@ async function main() {
       schemas: {
         like: registryLive
           ? await schemaState(api, config.SCHEMA_REGISTRY, config.SCHEMA_ID[0]!)
-          : { id: config.SCHEMA_ID[0]!.toString(), registered: false, schema: null },
+          : {
+              id: config.SCHEMA_ID[0]!.toString(),
+              registered: false,
+              schema: null,
+            },
         compliance: registryLive
-          ? await schemaState(api, config.SCHEMA_REGISTRY, config.COMPLIANCE_SCHEMA_ID)
-          : { id: config.COMPLIANCE_SCHEMA_ID.toString(), registered: false, schema: null },
+          ? await schemaState(
+              api,
+              config.SCHEMA_REGISTRY,
+              config.COMPLIANCE_SCHEMA_ID,
+            )
+          : {
+              id: config.COMPLIANCE_SCHEMA_ID.toString(),
+              registered: false,
+              schema: null,
+            },
       },
     };
     console.log(JSON.stringify(state));
