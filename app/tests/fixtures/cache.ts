@@ -4,6 +4,8 @@ import type { Page } from '@playwright/test'
 
 import type { AppCertificate } from '../../src/state/apps/types'
 
+import { seedProductStorage } from './host-storage'
+
 const SEED_STORE_ADDRESS = '0x000000000000000000000000000000000e2e7e57'
 
 const SEED_LABEL_ENTRIES = [
@@ -58,9 +60,9 @@ export type LabelOverride = Partial<{
  * affect.
  *
  * The app's storage layer (`lib/local-storage.ts`) routes through
- * `hostLocalStorage` when inside an iframe, which the test-host-sdk bridges
- * to the host page's `localStorage` under the `test-host:` prefix. We also
- * write the bare keys for the non-hosted (direct APP_URL) case.
+ * `hostLocalStorage` when inside an iframe, so the seed goes into the store the
+ * host holds for the product. We also write the bare keys for the non-hosted
+ * (direct APP_URL) case.
  */
 export async function createCachedApps(
   page: Page,
@@ -87,14 +89,11 @@ export async function createCachedApps(
       labels: SEED_LABEL_ENTRIES.map((l) => l.label)
     }
   ]
+  await seedProductStorage(page, { 'browse:labels': allLabels, 'browse:stores': stores })
   await page.addInitScript(
     ({ labels, stores }) => {
-      const write = (prefix: string) => {
-        localStorage.setItem(`${prefix}browse:labels`, JSON.stringify(labels))
-        localStorage.setItem(`${prefix}browse:stores`, JSON.stringify(stores))
-      }
-      write('test-host:')
-      write('')
+      localStorage.setItem('browse:labels', JSON.stringify(labels))
+      localStorage.setItem('browse:stores', JSON.stringify(stores))
     },
     { labels: allLabels, stores }
   )
@@ -125,9 +124,5 @@ export async function seedCacheFromSnapshot(
     )
   }
 
-  await page.addInitScript((data) => {
-    for (const [k, v] of Object.entries(data)) {
-      localStorage.setItem(`test-host:${k}`, JSON.stringify(v))
-    }
-  }, snapshot)
+  await seedProductStorage(page, snapshot)
 }

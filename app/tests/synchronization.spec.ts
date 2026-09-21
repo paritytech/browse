@@ -27,19 +27,29 @@ test.describe('Synchronization', () => {
 
     // Given
     await seedCacheFromSnapshot(page, SNAPSHOT_PATH, true)
+    // The product and the host talk over a MessagePort, so that is the bridge
+    // to weigh. Init scripts run in the product frame too, and each side counts
+    // what it sends.
     await page.addInitScript(() => {
-      const proto = window.Storage.prototype
-      const origSet = proto.setItem
-      const origGet = proto.getItem
       const counter = { bytes: 0 }
-      proto.setItem = function (k: string, v: string) {
-        if (k.startsWith('test-host:')) counter.bytes += k.length + v.length
-        return origSet.call(this, k, v)
+      const sizeOf = (value: unknown, depth = 0): number => {
+        if (typeof value === 'string') return value.length
+        if (value instanceof ArrayBuffer || ArrayBuffer.isView(value)) return value.byteLength
+        if (typeof value === 'number' || typeof value === 'boolean') return 8
+        if (value === null || value === undefined || depth > 4) return 0
+        if (Array.isArray(value)) return value.reduce((n, v) => n + sizeOf(v, depth + 1), 0)
+        if (typeof value === 'object') {
+          return Object.entries(value as Record<string, unknown>).reduce(
+            (n, [k, v]) => n + k.length + sizeOf(v, depth + 1),
+            0
+          )
+        }
+        return 0
       }
-      proto.getItem = function (k: string) {
-        const v = origGet.call(this, k)
-        if (k.startsWith('test-host:') && v) counter.bytes += k.length + v.length
-        return v
+      const post = MessagePort.prototype.postMessage
+      MessagePort.prototype.postMessage = function (message: unknown, ...rest: unknown[]) {
+        counter.bytes += sizeOf(message)
+        return post.apply(this, [message, ...rest] as Parameters<typeof post>)
       }
       ;(window as unknown as { __bridgeBytes: typeof counter }).__bridgeBytes = counter
     })
@@ -51,9 +61,11 @@ test.describe('Synchronization', () => {
     await page.waitForTimeout(SAMPLE_WINDOW_MS)
 
     // Then
-    const totalBridgeBytes = await page.evaluate(
-      () => (window as unknown as { __bridgeBytes: { bytes: number } }).__bridgeBytes.bytes
-    )
+    const bytesSentBy = (target: { evaluate: typeof page.evaluate }) =>
+      target.evaluate(
+        () => (window as unknown as { __bridgeBytes?: { bytes: number } }).__bridgeBytes?.bytes ?? 0
+      )
+    const totalBridgeBytes = (await bytesSentBy(page)) + (await bytesSentBy(frame))
 
     expect(totalBridgeBytes).toBeLessThan(BRIDGE_TRAFFIC_BUDGET_MB * 1024 * 1024)
 

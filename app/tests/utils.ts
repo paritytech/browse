@@ -6,6 +6,7 @@ import {
 import type { Frame, Page } from '@playwright/test'
 
 import { LOCALHOST_SELF_DOTNS } from '../src/lib/config'
+import { persistProductStorage } from './fixtures/host-storage'
 
 const PORT = process.env.PORT ?? '5173'
 const APP_URL = `http://localhost:${PORT}`
@@ -165,6 +166,8 @@ export async function startUnsignedHost() {
 }
 
 export async function navigateToTestHost(page: Page, hostUrl: string): Promise<void> {
+  // The test host loses its product storage on every load, so mirror it.
+  await persistProductStorage(page)
   await page.goto(hostUrl, { waitUntil: 'commit' })
   // The host mints the session for the active account itself, and getUserId
   // reports that account's username, so nothing has to be reconnected.

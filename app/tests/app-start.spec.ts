@@ -8,6 +8,12 @@ import type { BrowserContext, Frame } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 
 import { createCachedApps } from './fixtures/cache'
+import {
+  LABELS_KEY,
+  productStorageKey,
+  readProductStorage,
+  writeProductStorage
+} from './fixtures/host-storage'
 import { seedIconPreimage } from './fixtures/seed-preimage'
 import { getProductFrame, navigateToTestHost, startSignedHost, startUnsignedHost } from './utils'
 import { filterApps, type AppEntry } from '../src/state/apps/types'
@@ -171,47 +177,34 @@ test.describe('App Start', () => {
         .toEqual(orderBy('relevant'))
 
       // Then
-      const labelCount = await frame.page().evaluate(() => {
-        const labels = localStorage.getItem('test-host:browse:labels')
-        return labels ? (JSON.parse(labels) as unknown[]).length : 0
-      })
+      const labelCount =
+        (await readProductStorage<unknown[]>(frame.page(), LABELS_KEY))?.length ?? 0
       expect(labelCount).toBeGreaterThan(1)
     })
 
     test('As a signed user, when cached label metadata is older than the TTL, it refreshes (fresh entries are left alone)', async () => {
       test.setTimeout(150_000)
       const page = await context.newPage()
-      const KEY = 'test-host:browse:labels'
 
       // Given
       await navigateToTestHost(page, host.url)
       const frameInit = await getProductFrame(page, '.category-tab')
       await frameInit.locator('.category-tab', { hasText: 'All' }).click()
       await frameInit.waitForSelector('.product-card', { timeout: 30_000 })
-      const labelsAfterSync = await page.evaluate(
-        (key) =>
-          JSON.parse(localStorage.getItem(key) ?? '[]') as Array<{
-            label: string
-            fetchedAt?: number
-          }>,
-        KEY
-      )
+      const labelsAfterSync =
+        (await readProductStorage<Array<{ label: string; fetchedAt?: number }>>(
+          page,
+          LABELS_KEY
+        )) ?? []
       expect(labelsAfterSync.length).toBeGreaterThan(1)
       const staleLabel = labelsAfterSync[0].label
       const freshLabel = labelsAfterSync[1].label
       const originalFreshTs = labelsAfterSync[1].fetchedAt
       const STALE_TS = Date.now() - 25 * 3_600_000
-      await page.evaluate(
-        ({ key, target, stale }) => {
-          const arr = JSON.parse(localStorage.getItem(key) ?? '[]') as Array<{
-            label: string
-            fetchedAt?: number
-          }>
-          const e = arr.find((l) => l.label === target)
-          if (e) e.fetchedAt = stale
-          localStorage.setItem(key, JSON.stringify(arr))
-        },
-        { key: KEY, target: staleLabel, stale: STALE_TS }
+      await writeProductStorage(
+        page,
+        LABELS_KEY,
+        labelsAfterSync.map((l) => (l.label === staleLabel ? { ...l, fetchedAt: STALE_TS } : l))
       )
 
       // When
@@ -222,29 +215,24 @@ test.describe('App Start', () => {
       // Then
       await page.waitForFunction(
         ({ key, target, stale }) => {
-          const arr = JSON.parse(localStorage.getItem(key) ?? '[]') as Array<{
-            label: string
-            fetchedAt?: number
-          }>
+          const raw = window.__TEST_HOST__?.getProductStorage()[key]
+          const arr = (raw ? JSON.parse(raw) : []) as Array<{ label: string; fetchedAt?: number }>
           const e = arr.find((l) => l.label === target)
           return e !== undefined && (e.fetchedAt ?? 0) > stale
         },
-        { key: KEY, target: staleLabel, stale: STALE_TS },
+        { key: productStorageKey(LABELS_KEY), target: staleLabel, stale: STALE_TS },
         { timeout: 30_000 }
       )
 
       // Then
-      const freshTsAfter = await page.evaluate(
-        ({ key, target }) => {
-          const arr = JSON.parse(localStorage.getItem(key) ?? '[]') as Array<{
-            label: string
-            fetchedAt?: number
-          }>
-          return arr.find((l) => l.label === target)?.fetchedAt
-        },
-        { key: KEY, target: freshLabel }
+      const labelsAfterRefresh =
+        (await readProductStorage<Array<{ label: string; fetchedAt?: number }>>(
+          page,
+          LABELS_KEY
+        )) ?? []
+      expect(labelsAfterRefresh.find((l) => l.label === freshLabel)?.fetchedAt).toBe(
+        originalFreshTs
       )
-      expect(freshTsAfter).toBe(originalFreshTs)
 
       await page.close()
     })
@@ -270,10 +258,7 @@ test.describe('App Start', () => {
       await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
 
       // Then
-      const labelCount = await page.evaluate(() => {
-        const labels = localStorage.getItem('test-host:browse:labels')
-        return labels ? (JSON.parse(labels) as unknown[]).length : 0
-      })
+      const labelCount = (await readProductStorage<unknown[]>(page, LABELS_KEY))?.length ?? 0
       expect(labelCount).toBeGreaterThan(3)
 
       await page.close()
@@ -382,21 +367,22 @@ test.describe('App Start', () => {
       await page.waitForTimeout(500)
 
       // When
-      await page.evaluate(() => {
-        const key = 'test-host:browse:labels'
-        const arr = JSON.parse(localStorage.getItem(key) ?? '[]') as Array<{ fetchedAt?: number }>
-        for (const l of arr) l.fetchedAt = 1
-        localStorage.setItem(key, JSON.stringify(arr))
-      })
+      const cached =
+        (await readProductStorage<Array<{ fetchedAt?: number }>>(page, LABELS_KEY)) ?? []
+      await writeProductStorage(
+        page,
+        LABELS_KEY,
+        cached.map((l) => ({ ...l, fetchedAt: 1 }))
+      )
       await page.reload({ waitUntil: 'commit' })
       frame = await getProductFrame(page, '.category-tab')
       await page.waitForFunction(
-        () => {
-          const raw = localStorage.getItem('test-host:browse:labels')
+        (key) => {
+          const raw = window.__TEST_HOST__?.getProductStorage()[key]
           const arr = (raw ? JSON.parse(raw) : []) as Array<{ fetchedAt?: number }>
           return arr.length > 0 && arr.some((l) => (l.fetchedAt ?? 0) > 1000)
         },
-        undefined,
+        productStorageKey(LABELS_KEY),
         { timeout: 60_000 }
       )
 
