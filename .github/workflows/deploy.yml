@@ -52,9 +52,38 @@ jobs:
     if: needs.check.outputs.cache-hit != 'true' || inputs.skip-cache
     uses: ./.github/workflows/build.yml
 
+  # The contracts the app reads, put back when a chain reset took them.
+  # Idempotent: on a healthy network it is a handful of reads.
+  contracts:
+    name: Contracts ${{ matrix.target.display-name }}
+    needs: [check, build]
+    if: needs.check.outputs.cache-hit != 'true' || inputs.skip-cache
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target:
+          - display-name: Paseo AssetHubNextV2
+            genesis: '0x4349b00e54897e21196fd331015fc5be0f14e118beb0375ed2bb1793737bb57a'
+          - display-name: Previewnet AssetHub
+            genesis: '0xc27c8bf3f13f96dc2130cd2b0a3debe57618fd02521ecc1902bd7dd4ed83d2fe'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: foundry-rs/foundry-toolchain@v1
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: npm ci
+        working-directory: evm
+      - run: bun scripts/deploy.ts --contracts-only
+        env:
+          NETWORK_GENESIS_HASH: ${{ matrix.target.genesis }}
+          MNEMONIC: ${{ secrets.MNEMONIC }}
+
   deploy:
     name: Deploy ${{ matrix.target.display-name }}
-    needs: [check, build]
+    needs: [check, build, contracts]
     if: needs.check.outputs.cache-hit != 'true' || inputs.skip-cache
     runs-on: ubuntu-latest
     strategy:
