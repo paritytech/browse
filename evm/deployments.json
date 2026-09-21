@@ -2,7 +2,9 @@
   "publisher": {
     "previewnet": {
       "address": "0x01167f228A729f8e50f18aa7189f59b659155D09",
-      "version": "3.0.0",
+      "version": "3.1.0",
+      "owner": "0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20",
+      "note": "Only entry in the SDK PUBLISHER array. The operator publishes any label with no personhood proof and no rate limit. Sits at the 3.0.0-noowner CREATE3 slot, so the salt stays.",
       "tld": ".testnet",
       "tldNode": "0xa82d4ea7f5ef2a0a969fc555433de4b0518583f01fa483d065be1ce952e7a456",
       "salt": "browse.create3.v1:Publisher:3.0.0-noowner",

@@ -98,7 +98,7 @@ export const KNOWN_NETWORKS = {
     TLD: 'testnet',
     PUBLISHER: [
       {
-        version: '3.0.0',
+        version: '3.1.0',
         address: '0x01167f228A729f8e50f18aa7189f59b659155D09'
       }
     ],
