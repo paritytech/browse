@@ -397,9 +397,10 @@ export async function fundWithNative(
   })
 }
 
-// The per-run identity signs many attests across a suite, and browser recommends
-// consume its PGAS without a refill, so seed it generously in one shot.
-const IDENTITY_PGAS_AMOUNT = 30_000_000_000n
+// The per-run identity signs the fixture attests across a suite. The app's own
+// writes come out of the product account now, so this covers seeding alone, and
+// whatever it does not spend goes back to the funder at teardown.
+const IDENTITY_PGAS_AMOUNT = 18_000_000_000n
 
 /**
  * Prepare the per-run identity so it can bind and attest: fund native + PGAS

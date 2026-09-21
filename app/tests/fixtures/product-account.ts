@@ -12,15 +12,23 @@ import type { Browser } from '@playwright/test'
 import { getProductFrame, navigateToTestHost } from '../utils'
 import { fundAddressWithPgas, fundWithNative } from './fund'
 
-/** Enough PGAS for the contract writes one spec file makes. */
-const PRODUCT_PGAS_AMOUNT = 10_000_000_000n
+/**
+ * What a product account is given, in PGAS. Sized per host: a write costs
+ * roughly 2, and nothing can hand the balance back, since only the host holds
+ * the key. The funder claims a capped amount a day, so this is not free.
+ */
+const DEFAULT_PRODUCT_PGAS = 12_000_000_000n
 
 /**
  * Fund the product account behind `hostUrl`, whatever the host derived it to
  * be. Idempotent: the funders skip an account that is already above their
  * threshold.
  */
-export async function fundProductAccount(browser: Browser, hostUrl: string): Promise<string> {
+export async function fundProductAccount(
+  browser: Browser,
+  hostUrl: string,
+  pgas: bigint = DEFAULT_PRODUCT_PGAS
+): Promise<string> {
   const context = await browser.newContext({ ignoreHTTPSErrors: true })
   try {
     const page = await context.newPage()
@@ -41,7 +49,7 @@ export async function fundProductAccount(browser: Browser, hostUrl: string): Pro
         })
     )
     await fundWithNative(address)
-    await fundAddressWithPgas(address, PRODUCT_PGAS_AMOUNT)
+    await fundAddressWithPgas(address, pgas)
     return address
   } finally {
     await context.close()

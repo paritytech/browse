@@ -59,7 +59,8 @@ test.describe('Recommend works', () => {
     // The host derives the account that pays for a recommendation, so ask each
     // one what it handed the product and fund that.
     await fundProductAccount(browser, host.url)
-    await fundProductAccount(browser, unboundHost.url)
+    // One recommendation, through the bind-and-attest batch.
+    await fundProductAccount(browser, unboundHost.url, 5_000_000_000n)
     context = await browser.newContext({ ignoreHTTPSErrors: true })
   })
 
