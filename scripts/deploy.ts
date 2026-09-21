@@ -14,6 +14,7 @@
  */
 
 import { execSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 
 import chalk from "chalk";
 import ora, { type Ora } from "ora";
@@ -95,6 +96,29 @@ function probe(): NetworkState {
   return JSON.parse(out.trim().split("\n").pop() ?? "{}") as NetworkState;
 }
 
+/**
+ * The version in a contract's recorded CREATE3 salt on this network, from
+ * evm/deployments.json. The salt is what fixes the address, so a redeploy
+ * after a chain reset must reuse it rather than the version the source
+ * declares today; a deliberately new version is a new record, and a new
+ * config entry, not a wipe recovery.
+ */
+function recordedVersion(record: string): string {
+  const records = JSON.parse(
+    readFileSync("evm/deployments.json", "utf8"),
+  ) as Record<string, Record<string, { genesisHash?: string; salt?: string }>>;
+  const entry = Object.values(records[record] ?? {}).find(
+    (e) => e && typeof e === "object" && e.genesisHash === NETWORK_GENESIS_HASH,
+  );
+  const salt = entry?.salt;
+  if (!salt) {
+    throw new Error(
+      `evm/deployments.json has no ${record} record for ${NETWORK_GENESIS_HASH}, so there is no salt to redeploy under`,
+    );
+  }
+  return salt.slice(salt.lastIndexOf(":") + 1);
+}
+
 /** A dependency stage: fails when the contract is not on chain. */
 function requireCode(state: NetworkState, name: string, hint: string): void {
   const { address, codeBytes } = state.contracts[name]!;
@@ -103,10 +127,11 @@ function requireCode(state: NetworkState, name: string, hint: string): void {
   });
 }
 
-/** A Browse contract stage: deploys when nothing is at the address. */
+/** A Browse contract stage: deploys under its recorded salt when nothing is at the address. */
 function ensureContract(
   state: NetworkState,
   name: string,
+  record: string,
   npmScript: string,
   env: Record<string, string> = {},
 ): void {
@@ -117,7 +142,11 @@ function ensureContract(
     return;
   }
   stage(label, () =>
-    sh(`cd evm && npm run ${npmScript}`, { NETWORK_GENESIS_HASH, ...env }),
+    sh(`cd evm && npm run ${npmScript}`, {
+      NETWORK_GENESIS_HASH,
+      VERSION: recordedVersion(record),
+      ...env,
+    }),
   );
 }
 
@@ -193,12 +222,20 @@ function main(): void {
   requireCode(state, "SchemaRegistry", attestation);
   requireCode(state, "AttestationService", attestation);
 
-  // Browse services, on CREATE3 addresses the config already names.
-  ensureContract(state, "Publisher", "deploy:publisher", { PUBLISHER_OWNER });
-  ensureContract(state, "RecipientAndAttesterIndexResolver", "deploy:resolver");
+  // Browse services, on the CREATE3 addresses the config already names.
+  ensureContract(state, "Publisher", "publisher", "deploy:publisher", {
+    PUBLISHER_OWNER,
+  });
+  ensureContract(
+    state,
+    "RecipientAndAttesterIndexResolver",
+    "recipientAndAttesterIndexResolver",
+    "deploy:resolver",
+  );
   ensureContract(
     state,
     "TrustedAttesterIndexResolver",
+    "trustedAttesterIndexResolver",
     "deploy:trusted-resolver",
     { TRUSTED_ATTESTER_SS58_ADDRESS },
   );
@@ -210,6 +247,10 @@ function main(): void {
     state.schemas.like,
     LIKE_SCHEMA,
   );
+  // The first registration moves the next id along, so read again.
+  stage("Re-read the registry", () => {
+    state = probe();
+  });
   ensureSchema(
     state,
     "Register certificate schema",
