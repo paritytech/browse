@@ -37,7 +37,7 @@ const PUBLISHER_OWNER = process.env.PUBLISHER_OWNER ?? DEV_ROOT_EVM;
 const TRUSTED_ATTESTER_SS58_ADDRESS =
   process.env.TRUSTED_ATTESTER_SS58_ADDRESS ?? DEV_ROOT_SS58;
 
-const LIKE_SCHEMA = "bool like";
+const LIKE_SCHEMA = "string label";
 const COMPLIANCE_SCHEMA =
   "bool compliant,string contentCid,string badgeIconCid,string name";
 

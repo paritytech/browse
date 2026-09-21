@@ -68,7 +68,7 @@
       "salt": "browse.create3.v1:RecipientAndAttesterIndexResolver:2.1.1",
       "attestationService": "0xA722702956694BFF0Ad6689df0505C3e357Bf0F1",
       "schema": "string label",
-      "schemaId": 5,
+      "schemaId": 6,
       "personhoodGated": false,
       "identityGated": true,
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
@@ -76,7 +76,7 @@
       "genesisHash": "0xc27c8bf3f13f96dc2130cd2b0a3debe57618fd02521ecc1902bd7dd4ed83d2fe",
       "deployedAt": "2026-09-21",
       "artifact": "builds/RecipientAndAttesterIndexResolver-e24f6e6.json",
-      "note": "Salt 2.1.0 (0xAca17c25…) holds the src/ build on previewnet since the 2026-09-21 recovery, so the identity-bound build lives at 2.1.1 and the label schema was re-registered against it as id 5."
+      "note": "Salt 2.1.0 (0xAca17c25…) holds the src/ build on previewnet since the 2026-09-21 recovery, so the identity-bound build lives at 2.1.1 and the label schema was re-registered against it as id 6."
     },
     "paseo": {
       "address": "0xAca17c2547f09b3AD0d3bd28Db11EE172604b85b",
