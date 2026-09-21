@@ -1,12 +1,3 @@
-  contracts:
-    name: Contracts ${{ matrix.target.display-name }}
-    needs: [check, build, plan]
-    if: needs.check.outputs.cache-hit != 'true' || inputs.skip-cache
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        target: ${{ fromJSON(needs.plan.outputs.targets) }}
 name: Deploy
 
 on:
@@ -110,17 +101,13 @@ jobs:
   # Idempotent: on a healthy network it is a handful of reads.
   contracts:
     name: Contracts ${{ matrix.target.display-name }}
-    needs: [check, build]
+    needs: [check, build, plan]
     if: needs.check.outputs.cache-hit != 'true' || inputs.skip-cache
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        target:
-          - display-name: Paseo AssetHubNextV2
-            genesis: '0x4349b00e54897e21196fd331015fc5be0f14e118beb0375ed2bb1793737bb57a'
-          - display-name: Previewnet AssetHub
-            genesis: '0xc27c8bf3f13f96dc2130cd2b0a3debe57618fd02521ecc1902bd7dd4ed83d2fe'
+        target: ${{ fromJSON(needs.plan.outputs.targets) }}
     steps:
       - uses: actions/checkout@v4
         with:
