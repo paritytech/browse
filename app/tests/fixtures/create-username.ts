@@ -13,6 +13,7 @@ import { fileURLToPath } from 'node:url'
 
 import { previewnetpeople } from '@polkadot-api/descriptors'
 import { sr25519CreateDerive } from '@polkadot-labs/hdkd'
+import { ss58Encode } from '@polkadot-labs/hdkd-helpers'
 import { Binary, createClient, Enum, type TypedApi } from 'polkadot-api'
 import { getPolkadotSigner, type PolkadotSigner } from 'polkadot-api/signer'
 import { getWsProvider } from 'polkadot-api/ws'
@@ -65,6 +66,7 @@ function proxySigner(): PolkadotSigner | undefined {
     throw new Error(`PROXY_PRIVATE_KEY must be a 32 byte sr25519 seed, got ${seed.length} bytes`)
   }
   const wallet = sr25519CreateDerive(seed)('')
+  console.log('[create-username] proxy signer', ss58Encode(wallet.publicKey, 42))
   cachedProxySigner = getPolkadotSigner(wallet.publicKey, 'Sr25519', async (msg) =>
     wallet.sign(msg)
   )
