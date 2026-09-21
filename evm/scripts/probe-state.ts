@@ -13,7 +13,8 @@ import { Binary } from "polkadot-api";
 import { decodeFunctionResult, encodeFunctionData, parseAbi } from "viem";
 import { connect } from "./lib.ts";
 
-/** Any account works, this only ever dry-runs. */
+/** Any account works, this only ever dry-runs. Reads are at the best block:
+ * the deploy stages write and then read again, and finality lags. */
 const DRY_RUN_ORIGIN = "5C4hrfjw9DjXZTzV3MwzrrAr9P1MLDHajjSidz9bR544LEq1";
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
@@ -37,7 +38,9 @@ export interface NetworkState {
 
 async function codeBytes(api: any, address: string): Promise<number> {
   if (!address || address === ZERO_ADDRESS) return 0;
-  const code = await api.apis.ReviveApi.code(Binary.fromHex(address));
+  const code = await api.apis.ReviveApi.code(Binary.fromHex(address), {
+    at: "best",
+  });
   const hex: string = typeof code === "string" ? code : code.asHex();
   return (hex.length - 2) / 2;
 }
@@ -50,6 +53,7 @@ async function view(api: any, address: string, data: `0x${string}`) {
     undefined,
     undefined,
     Binary.fromHex(data),
+    { at: "best" },
   );
   if (!result.result.success) return null;
   const returned = result.result.value.data;
