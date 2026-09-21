@@ -10,7 +10,7 @@ import { AccountId, createClient, Enum, type SS58String } from 'polkadot-api'
 import { getWsProvider } from 'polkadot-api/ws'
 import { WebSocket } from 'ws'
 
-import { fullPersonRingVrfEntropy } from '@parity/browse-sdk'
+import { lightPersonRingVrfEntropy } from '@parity/browse-sdk'
 
 import { NETWORK } from '../../src/lib/config'
 import { DEV_PHRASE } from '../utils'
@@ -18,9 +18,10 @@ import { DEV_PHRASE } from '../utils'
 const SYSTEM_SUFFIX_PREFIX = new TextEncoder().encode('sys/')
 const PGAS_CLAIM_FAMILY = 4
 const SECS_PER_DAY = 86_400n
-// The people-collection identifier the AsPgas extension binds against.
+// The lite people collection the funder is a member of; the AsPgas extension
+// binds against it with the `LitePeople` claim variant.
 const PEOPLE_MEMBER_IDENTIFIER_HEX =
-  '0x706f703a706f6c6b61646f742e6e6574776f726b2f70656f706c652020202020'
+  '0x706f703a706f6c6b61646f742e6e6574776f726b2f70656f706c652d6c697465'
 
 const wsProvider = (url: string) =>
   getWsProvider(url, { websocketClass: WebSocket as unknown as typeof globalThis.WebSocket })
@@ -72,7 +73,8 @@ function compactEncode(n: number): Uint8Array {
 }
 
 /**
- * The ring-VRF member key entropy for this network, per RFC-0022.
+ * The lite ring-VRF member key entropy for this network, per RFC-0022. The
+ * funder registers this key itself (see `lite-personhood.ts`).
  *
  * The TLD is part of the derivation, so the same mnemonic is a different
  * person on each network and a key derived for the wrong one is simply not in
@@ -80,7 +82,7 @@ function compactEncode(n: number): Uint8Array {
  */
 function deriveMemberEntropy(mnemonic: string): Uint8Array {
   const normalized = mnemonic.trim().split(/\s+/).join(' ')
-  return fullPersonRingVrfEntropy(mnemonicToEntropy(normalized), NETWORK.TLD)
+  return lightPersonRingVrfEntropy(mnemonicToEntropy(normalized), NETWORK.TLD)
 }
 
 /**
@@ -243,7 +245,7 @@ export async function claimPgas(target: string, slotIndex = 0): Promise<ClaimRes
     const ringKeys = pages.flatMap(([, ks]) => ks)
     const membersBytes = MembersCodec.enc(ringKeys)
 
-    const collectionId = await ahApi.constants.AliasAccounts.PeopleCollectionIdentifier()
+    const collectionId = await ahApi.constants.AliasAccounts.PeopleLiteCollectionIdentifier()
     const ringExponent = await ahApi.constants.AliasAccounts.PeopleRingExponent()
     const ringExpNum = ringExponent.type === 'R2e9' ? 9 : ringExponent.type === 'R2e10' ? 10 : 14
 
@@ -285,7 +287,7 @@ export async function claimPgas(target: string, slotIndex = 0): Promise<ClaimRes
       proof: proofResult.proof,
       ring_index: ringIndex,
       revision,
-      collection: Enum('People'),
+      collection: Enum('LitePeople'),
       day
     })
     const passProof = await capturePass(signable, asPgasValue)

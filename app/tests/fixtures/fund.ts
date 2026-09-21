@@ -9,6 +9,7 @@ import { WebSocket } from 'ws'
 import { bytesToHex, hexToBytes } from 'viem'
 
 import { claimPgas } from './claim-pgas'
+import { ensureLitePersonhood } from './lite-personhood'
 import { AttestationService } from '../../src/lib/attestation-service'
 import { ACTIVE_ATTESTATION_RESOLVER, NETWORK } from '../../src/lib/config'
 import { DEV_PHRASE as IDENTITY_PHRASE, identityPath } from '../utils'
@@ -189,12 +190,14 @@ export interface FundResult {
 /**
  * Ensure the funder holds PGAS, self-claiming from the personhood faucet when it
  * has run dry. The funder is also the product account that signs attestations,
- * so it must stay funded for both transfers and its own contract calls.
+ * so it must stay funded for both transfers and its own contract calls. A
+ * claim needs the funder in a lite ring, which it registers itself for.
  */
 export async function ensureFunderPgas(from: Credentials = createMasterSigner()): Promise<void> {
   await withAssetHubApi(async (api) => {
     const assetId = (await api.constants.Pgas.PgasAssetId()) as number
     let balance = await pgasBalanceOf(api, assetId, from.address)
+    if (balance < FUNDER_PGAS_FLOOR) await ensureLitePersonhood()
     for (let slot = 0; slot < MAX_CLAIM_SLOTS && balance < FUNDER_PGAS_FLOOR; slot++) {
       try {
         const { claimed } = await claimPgas(from.address, slot)
