@@ -218,7 +218,11 @@ test.describe('Motion', () => {
     test.setTimeout(60000)
     await fundWithNative(createProductSigner().address)
     await createRevokedAttestation('chess-clock').catch(() => {})
-    const host = await startSignedHost({ name: identityUsername(), uri: identityUri() })
+    const host = await startSignedHost({
+      name: identityUsername(),
+      uri: identityUri(),
+      username: identityUsername()
+    })
     const context = await browser.newContext({
       ignoreHTTPSErrors: true,
       reducedMotion: 'no-preference'

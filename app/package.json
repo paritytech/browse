@@ -61,7 +61,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@parity/host-api-test-sdk": "^0.12.1",
+    "@parity/host-api-test-sdk": "^0.13.1",
     "@playwright/test": "^1.59.1",
     "@polkadot-labs/hdkd": "^0.0.27",
     "@polkadot-labs/hdkd-helpers": "^0.0.28",

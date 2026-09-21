@@ -1,5 +1,3 @@
-import { DEV_PHRASE as STD_DEV_PHRASE } from '@polkadot-labs/hdkd-helpers'
-
 import { LOCALHOST_SELF_DOTNS } from '../../src/lib/config'
 import { identityUsername, identityUri } from '../utils'
 import { createDevSigner, fundWithNative, fundWithPgas, mapAccount, PGAS_SEED_AMOUNT } from './fund'
@@ -7,7 +5,11 @@ import { createDevSigner, fundWithNative, fundWithPgas, mapAccount, PGAS_SEED_AM
 type Account = import('@parity/host-api-test-sdk').Account
 
 /** Pins the connected per-run identity to the run username and its run-unique wallet path. */
-export const IDENTITY_ACCOUNT: Account = { name: identityUsername(), uri: identityUri() }
+export const IDENTITY_ACCOUNT: Account = {
+  name: identityUsername(),
+  uri: identityUri(),
+  username: identityUsername()
+}
 
 export interface UnboundProduct {
   /** Host product-account map pinning the app product account (index 0) to the funded, never-bound account. */
@@ -33,7 +35,7 @@ export async function createUnboundProductAccount(): Promise<UnboundProduct> {
   return {
     tag,
     productAccounts: {
-      [`${LOCALHOST_SELF_DOTNS}/0`]: { name: tag, uri: `${STD_DEV_PHRASE}//${tag}` }
+      [LOCALHOST_SELF_DOTNS]: { name: tag, uri: `//${tag}` }
     }
   }
 }

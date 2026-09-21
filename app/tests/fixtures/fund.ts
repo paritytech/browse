@@ -108,7 +108,8 @@ export function createDevSigner(name: string) {
  * contend on the same identity. Funded and self-bound by {@link fundIdentity}.
  */
 export function createProductSigner() {
-  return signerFor(mnemonicToMiniSecret(IDENTITY_PHRASE, ''), identityPath())
+  // Under the substrate dev seed, the only root the test host derives from.
+  return signerFor(mnemonicToMiniSecret(DEV_PHRASE, ''), identityPath())
 }
 
 /**

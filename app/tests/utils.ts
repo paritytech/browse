@@ -31,9 +31,13 @@ export function identityPath(): string {
   return id ? `//wallet//run${id}` : '//wallet'
 }
 
-/** Builds the host uri for the per-run identity, matching {@link identityPath}. */
+/**
+ * The host uri of the per-run identity: hard junctions under the dev seed, which
+ * is all the test host derives from. {@link identityPath} names the same key
+ * the fixtures sign with (see createProductSigner).
+ */
 export function identityUri(): string {
-  return `${DEV_PHRASE}${identityPath()}`
+  return identityPath()
 }
 
 /**
@@ -55,7 +59,8 @@ const PASEONEXTV2_ASSETHUB: NetworkConfig = {
   genesisHash: PASEONEXTV2_ASSETHUB_GENESIS,
   rpcUrl: KNOWN_NETWORKS[PASEONEXTV2_ASSETHUB_GENESIS].ASSETHUB_RPCS[0],
   tokenSymbol: 'PAS',
-  tokenDecimals: 10
+  tokenDecimals: 10,
+  chain: 'AssetHub'
 }
 
 const PREVIEWNET_ASSETHUB: NetworkConfig = {
@@ -64,7 +69,8 @@ const PREVIEWNET_ASSETHUB: NetworkConfig = {
   genesisHash: PREVIEWNET_ASSETHUB_GENESIS,
   rpcUrl: KNOWN_NETWORKS[PREVIEWNET_ASSETHUB_GENESIS].ASSETHUB_RPCS[0],
   tokenSymbol: 'UNIT',
-  tokenDecimals: 12
+  tokenDecimals: 12,
+  chain: 'AssetHub'
 }
 
 // People networks. The app identity-binding flow reads
@@ -105,7 +111,8 @@ export { APP_URL, PORT }
 function productAccountMap(accounts: Account[]): Record<string, Account> | undefined {
   const primary = accounts[0]
   if (!primary) return undefined
-  return { [`${LOCALHOST_SELF_DOTNS}/0`]: primary }
+  // The host maps a product's whole account subtree, keyed by the bare id.
+  return { [LOCALHOST_SELF_DOTNS]: primary }
 }
 
 export async function startSignedHost(...accounts: Account[]) {
@@ -113,6 +120,7 @@ export async function startSignedHost(...accounts: Account[]) {
   const resolved = accounts.length > 0 ? accounts : (['alice'] as Account[])
   return createTestHostServer({
     productUrl: APP_URL,
+    productId: LOCALHOST_SELF_DOTNS,
     accounts: resolved,
     networks: [activeNetwork(), activePeopleChain()],
     productAccounts: productAccountMap(resolved)
@@ -121,7 +129,7 @@ export async function startSignedHost(...accounts: Account[]) {
 
 /**
  * Like {@link startSignedHost} but with explicit product-account mappings,
- * keyed `${dotnsId}/${index}`. Lets a test point a chosen derivation index at a
+ * keyed by bare product id. Lets a test point the app's account subtree at a
  * distinct (fundable) account, such as a fresh, never-bound attester that drives
  * the bind-and-attest batch.
  */
@@ -132,6 +140,7 @@ export async function startSignedHostWithProductAccounts(
   const { createTestHostServer } = await import('@parity/host-api-test-sdk')
   return createTestHostServer({
     productUrl: APP_URL,
+    productId: LOCALHOST_SELF_DOTNS,
     accounts: [account],
     networks: [activeNetwork(), activePeopleChain()],
     productAccounts
@@ -142,6 +151,7 @@ export async function startUnsignedHost() {
   const { createTestHostServer } = await import('@parity/host-api-test-sdk')
   return createTestHostServer({
     productUrl: APP_URL,
+    productId: LOCALHOST_SELF_DOTNS,
     accounts: [],
     networks: [activeNetwork()]
   })
@@ -149,16 +159,11 @@ export async function startUnsignedHost() {
 
 export async function navigateToTestHost(page: Page, hostUrl: string): Promise<void> {
   await page.goto(hostUrl, { waitUntil: 'commit' })
+  // The host mints the session for the active account itself, and getUserId
+  // reports that account's username, so nothing has to be reconnected.
   await page.waitForFunction(
     () => !!(window as unknown as { __TEST_HOST__: unknown }).__TEST_HOST__,
     { timeout: 30_000 }
-  )
-  // A signed host models a logged-in user. Authenticate so getUserId resolves.
-  // The identity-binding flow reads the primary username via getUserId.
-  await page.evaluate(() =>
-    (
-      window as unknown as { __TEST_HOST__: { simulateReconnect(): void } }
-    ).__TEST_HOST__.simulateReconnect()
   )
 }
 
