@@ -119,6 +119,24 @@ function recordedVersion(record: string): string {
   return salt.slice(salt.lastIndexOf(":") + 1);
 }
 
+/**
+ * The committed build a record names, when the deployment must not follow
+ * src/. The identity-bound index resolver is one: the app still calls
+ * bindIdentity, which the personhood-gated rewrite of the source dropped.
+ */
+function recordedArtifact(record: string): Record<string, string> {
+  const records = JSON.parse(
+    readFileSync("evm/deployments.json", "utf8"),
+  ) as Record<
+    string,
+    Record<string, { genesisHash?: string; artifact?: string }>
+  >;
+  const entry = Object.values(records[record] ?? {}).find(
+    (e) => e && typeof e === "object" && e.genesisHash === NETWORK_GENESIS_HASH,
+  );
+  return entry?.artifact ? { ARTIFACT: entry.artifact } : {};
+}
+
 /** A dependency stage: fails when the contract is not on chain. */
 function requireCode(state: NetworkState, name: string, hint: string): void {
   const { address, codeBytes } = state.contracts[name]!;
@@ -145,6 +163,7 @@ function ensureContract(
     sh(`cd evm && npm run ${npmScript}`, {
       NETWORK_GENESIS_HASH,
       VERSION: recordedVersion(record),
+      ...recordedArtifact(record),
       ...env,
     }),
   );
