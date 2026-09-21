@@ -23,15 +23,16 @@ async function main() {
   try {
     await ensureMapped(api, signer);
 
-    const artifact = JSON.parse(
-      fs.readFileSync(
-        path.join(
+    // ARTIFACT points at a committed build (see evm/builds) when the
+    // deployment must not follow src/, as the identity-bound resolver does.
+    const artifactPath = process.env.ARTIFACT
+      ? path.resolve(__dirname, "..", process.env.ARTIFACT)
+      : path.join(
           OUT_DIR,
-          "RecipientAndAttesterIndexResolver.sol/RecipientAndAttesterIndexResolver.json"
-        ),
-        "utf-8"
-      )
-    );
+          "RecipientAndAttesterIndexResolver.sol/RecipientAndAttesterIndexResolver.json",
+        );
+    console.log(`Artifact: ${artifactPath}`);
+    const artifact = JSON.parse(fs.readFileSync(artifactPath, "utf-8"));
     const constructorArgs = encodeAbiParameters(parseAbiParameters("address"), [
       ATTESTATION_SERVICE,
     ]);
@@ -39,18 +40,14 @@ async function main() {
       artifact.bytecode.object + constructorArgs.replace(/^0x/, "");
 
     const version = contractVersion(
-      path.join(SRC_DIR, "RecipientAndAttesterIndexResolver.sol")
+      path.join(SRC_DIR, "RecipientAndAttesterIndexResolver.sol"),
     );
-    const { address: resolverAddr, status } = await deploy(
-      api,
-      signer,
-      {
-        name: "RecipientAndAttesterIndexResolver",
-        version,
-        initCode: bytecodeWithArgs,
-        network: config,
-      }
-    );
+    const { address: resolverAddr, status } = await deploy(api, signer, {
+      name: "RecipientAndAttesterIndexResolver",
+      version,
+      initCode: bytecodeWithArgs,
+      network: config,
+    });
 
     console.log("\n--- Summary ---");
     console.log(`Resolver: ${resolverAddr} (${version}, ${status})`);
