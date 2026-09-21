@@ -1,4 +1,5 @@
 import { createUsername } from './create-username'
+import { ensureContracts } from './ensure-contracts'
 import { fundIdentity } from './fund'
 
 /**
@@ -8,6 +9,7 @@ import { fundIdentity } from './fund'
  * that no dead account has locked and can reveal a name on a first recommend.
  */
 export default async function globalSetup(): Promise<void> {
+  ensureContracts()
   await fundIdentity()
   await createUsername()
 }
