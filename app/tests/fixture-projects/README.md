@@ -4,10 +4,15 @@ The standalone apps the e2e suite expects to find deployed on the network. They
 are versioned here so a network reset never depends on a local checkout, or on a
 repo this one does not own, to rebuild the fixture world.
 
+Global setup puts them back: `tests/fixtures/ensure-fixture-apps.ts` deploys
+any project whose name has no content, signed by the master wallet, and lists
+the published ones in the Publisher as its operator. A healthy network costs one
+read per app, so a plain `bun run test:e2e` after a reset rebuilds the world.
+
 Each project is a self-contained Vite app, deliberately outside the bun
 workspace and excluded from the app typecheck sweep. Its
 `bulletin-deploy.config.ts` pins the domain and display name the tests assert
-on, so deploy from the project directory without overriding either:
+on, so a manual deploy runs from the project directory without overriding either:
 
 ```bash
 cd calculator   # or stopwatch, chess-clock, unit-converter, alarm, countdown
