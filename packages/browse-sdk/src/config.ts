@@ -105,14 +105,17 @@ export const KNOWN_NETWORKS = {
     // attestation-protocol 1.0.0, CREATE3 through the factory above.
     SCHEMA_REGISTRY: '0x90e2a80f6c59C2e1cbd0Be50f60bA56bae4ADE97',
     ATTESTATION_SERVICE: '0xA722702956694BFF0Ad6689df0505C3e357Bf0F1',
-    ATTESTATION_INDEX_RESOLVER: ['0xAca17c2547f09b3AD0d3bd28Db11EE172604b85b'],
+    // The identity-bound resolver, salt 2.1.1; 0xAca17c25… holds the src/
+    // build here since the 2026-09-21 recovery (see evm/deployments.json).
+    ATTESTATION_INDEX_RESOLVER: ['0xE5c4C005093828e12bB0A427A74ECAe1601218b6'],
     TRUSTED_ATTESTER_RESOLVER: '0x8326c11a76Dda4702046e92f73C0ea7E698560a2',
     TRUSTED_ATTESTER: '0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20',
     IPFS_GATEWAY: 'https://previewnet.substrate.dev',
     PRIMARY_WEB_DOMAIN: 'testnet.li',
     SECONDARY_WEB_DOMAIN: 'testnet.li',
     SNAPSHOT_POINTER_DOMAIN: 'browse.testnet',
-    SCHEMA_ID: [1n],
+    // Registered against the 2.1.1 resolver; ids 1 to 4 point at the wrong one.
+    SCHEMA_ID: [5n],
     COMPLIANCE_SCHEMA_ID: 2n,
     ASSETHUB_RPCS: ['wss://previewnet.substrate.dev/asset-hub'],
     PEOPLE_GENESIS: '0xf720c28fe3315e67fa799a616fc59abad47dd257b1a336af6538435844d35218',
