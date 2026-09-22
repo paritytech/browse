@@ -23,7 +23,10 @@ export class LocalStorage {
   async readJSONOrThrow<T>(key: string): Promise<T | null> {
     if (isHosted()) {
       const store = await getHostLocalStorage()
-      if (store) return (await store.readJSON(key)) as T
+      // Falling back to the store this page owns would answer for the host
+      // with something that was never written there.
+      if (!store) throw new Error('the host store is unavailable')
+      return (await store.readJSON(key)) as T
     }
     const raw = window.localStorage.getItem(key)
     if (!raw) return null

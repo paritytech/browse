@@ -106,7 +106,7 @@ export async function syncAllApps(
 
   // Drop cached labels no longer in the published set, except bookmarked and
   // followed ones. A null set means the bookmarks could not be read, and
-  // pruning then would throw away a bookmarked app's name and icon for good.
+  // pruning then would throw away the name and icon of a bookmarked app for good.
   if (protectedLabels) {
     for (const name of [...labels.keys()]) {
       if (!publishedNames.has(name) && !protectedLabels.has(name)) labels.delete(name)

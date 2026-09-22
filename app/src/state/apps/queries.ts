@@ -9,7 +9,7 @@ import { resolveIdentityH160 } from './identity'
 import { hydrateLabelChunk } from './remote'
 import { materialize, syncAllApps } from './sync'
 import { type AppEntry, labelToApp } from './types'
-import { readBookmarksOrThrow } from '../../db/bookmarks'
+import { readBookmarksWithRetry } from '../../db/bookmarks'
 import { type LabelEntry, readLabels } from '../../db/labels'
 import { ensureBrowseSdk } from '../../lib/client'
 import { knownCertificateAuthorities } from '../certificate-authorities/queries'
@@ -66,7 +66,7 @@ export function getAllAppsOptions(queryClient: QueryClient) {
       // Bookmarked labels are kept through the sync prune even when unpublished,
       // so their cached name/icon survives for the Bookmarks tab. A store that
       // will not answer leaves the set unknown, and the prune is skipped.
-      const protectedLabels = await readBookmarksOrThrow()
+      const protectedLabels = await readBookmarksWithRetry()
         .then((labels) => new Set(labels))
         .catch(() => null)
       const finalApps = await syncAllApps(
