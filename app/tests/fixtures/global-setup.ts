@@ -15,7 +15,29 @@ export default async function globalSetup(): Promise<void> {
   await ensureFixtureApps()
   await fundIdentity()
   await createUsername()
-  // The dev server builds the client on its first request, which the first spec
-  // would otherwise wait out on top of its own cold start.
-  await fetch(APP_URL).catch(() => undefined)
+  await warmClient()
+}
+
+/**
+ * Load the client once so the first spec does not wait for it.
+ *
+ * The dev server transforms a module the first time a browser asks for it, so
+ * the first page of a run pays for the whole graph on top of its own cold start.
+ * Failures here are not worth failing the suite over: the specs pay the cost
+ * themselves if this does not land.
+ */
+async function warmClient(): Promise<void> {
+  try {
+    const { chromium } = await import('@playwright/test')
+    const browser = await chromium.launch()
+    try {
+      const page = await browser.newPage({ ignoreHTTPSErrors: true })
+      await page.goto(APP_URL, { waitUntil: 'load', timeout: 120_000 })
+      await page.waitForTimeout(2_000)
+    } finally {
+      await browser.close()
+    }
+  } catch {
+    // a warm-up that will not run is not a reason to stop
+  }
 }

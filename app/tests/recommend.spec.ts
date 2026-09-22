@@ -123,7 +123,7 @@ test.describe('Recommend works', () => {
     // Then
     await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 15_000 })
     await expect(frame.locator('.toast--visible')).toContainText('Recommended!', {
-      timeout: 25_000
+      timeout: 60_000
     })
 
     // Then
@@ -197,7 +197,7 @@ test.describe('Recommend works', () => {
       await expect(upvoteCount).not.toBeVisible({ timeout: 15_000 })
     }
     await expect(frame.locator('.toast--visible')).toContainText('Unrecommended!', {
-      timeout: 25_000
+      timeout: 60_000
     })
   })
 
@@ -231,7 +231,7 @@ test.describe('Recommend works', () => {
       await expect(upvoteCount).not.toBeVisible()
     }
     await expect(frame.locator('.toast--visible')).toContainText('Unrecommended!', {
-      timeout: 15_000
+      timeout: 60_000
     })
   })
 
@@ -255,7 +255,7 @@ test.describe('Recommend works', () => {
     // Then
     await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 25_000 })
     await expect(unboundFrame.locator('.toast--visible')).toContainText('Recommended!', {
-      timeout: 25_000
+      timeout: 60_000
     })
   })
 })
