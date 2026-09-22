@@ -33,6 +33,9 @@ export function productStorageKey(key: string): string {
 /** The app's label cache, the entry the caching specs assert on. */
 export const LABELS_KEY = 'browse:labels'
 
+/** The labels the user bookmarked. */
+export const BOOKMARKS_KEY = 'browse:bookmarks'
+
 /** Where the mirror lives in the host page's own `localStorage`. */
 export const MIRROR_KEY = 'e2e:product-storage'
 
@@ -61,13 +64,18 @@ export async function persistProductStorage(page: Page): Promise<void> {
         } catch {
           // an unreadable mirror just means a cold start
         }
-        setInterval(() => {
+        const flush = () => {
           try {
             localStorage.setItem(mirrorKey, JSON.stringify(value.getProductStorage()))
           } catch {
             // ignore
           }
-        }, 200)
+        }
+        setInterval(flush, 200)
+        // A reload right after a write would otherwise lose it: the timer has
+        // not fired yet and the runtime goes with the page.
+        window.addEventListener('pagehide', flush)
+        window.addEventListener('beforeunload', flush)
       }
     })
   }, MIRROR_KEY)
