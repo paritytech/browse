@@ -152,22 +152,6 @@ export function resetBrowseSdk(force: boolean = false): void {
     .catch(() => {})
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const id = setTimeout(() => reject(new Error(`RPC timeout after ${ms}ms: ${label}`)), ms)
-    promise.then(
-      (value) => {
-        clearTimeout(id)
-        resolve(value)
-      },
-      (err) => {
-        clearTimeout(id)
-        reject(err)
-      }
-    )
-  })
-}
-
 export const ensureClient = async (): Promise<PolkadotClient> =>
   (await ensureBrowseSdk()).getClient()
 
@@ -209,33 +193,13 @@ export async function reviveCall(
   _providedApi?: PaseoHubApi
 ): Promise<`0x${string}`> {
   void _providedApi
-  // A dry-run contract read is sub-second when healthy. If it doesn't return in
-  // RPC_TIMEOUT_MS the underlying request was almost certainly orphaned by a
-  // socket swap.
-  const RPC_TIMEOUT_MS = 8_000
-  const attempt = async () => {
-    const sdk = await ensureBrowseSdk()
-    await rpcGate()
-    console.warn(
-      'debug network connection',
-      JSON.stringify({ event: 'reviveCall:attempt', contractAddress })
-    )
-    return withTimeout(
-      sdk.reviveCall(contractAddress as `0x${string}`, encodedData, origin),
-      RPC_TIMEOUT_MS,
-      contractAddress
-    )
-  }
-  try {
-    return await attempt()
-  } catch (err) {
-    console.warn(
-      'debug network connection',
-      JSON.stringify({ event: 'reviveCall:failed', contractAddress, err: String(err) })
-    )
-    resetBrowseSdk(true)
-    return attempt()
-  }
+  const sdk = await ensureBrowseSdk()
+  await rpcGate()
+  console.warn(
+    'debug network connection',
+    JSON.stringify({ event: 'reviveCall:attempt', contractAddress })
+  )
+  return sdk.reviveCall(contractAddress as `0x${string}`, encodedData, origin)
 }
 
 const PEOPLE_DESCRIPTOR_BY_ASSETHUB = {
