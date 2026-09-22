@@ -52,8 +52,8 @@ async function withPeopleApi<T>(fn: (api: PeopleApi) => Promise<T>): Promise<T> 
   } finally {
     try {
       client.destroy()
-    } finally {
-      // ignore teardown errors
+    } catch {
+      // a client that will not close cleanly has nothing left to give
     }
   }
 }
@@ -98,7 +98,7 @@ function consumerRegistrationMessage(
   )
 }
 
-/** The identity's key in the 65-byte on-chain container the chat feature reads. */
+/** The key of the identity, in the 65-byte container the chat feature reads. */
 function identifierKeyOf(publicKey: Uint8Array): Uint8Array {
   const out = new Uint8Array(IDENTIFIER_KEY_BYTES)
   out.set(publicKey, 1)
@@ -136,7 +136,7 @@ export async function createUsername(): Promise<void> {
       )
     }
 
-    // The fee is paid on People; the master wallet holds native there.
+    // The fee is paid on People, where the master wallet holds native.
     const free = (
       await api.query.System.Account.getValue(identity.address as SS58String, { at: 'best' })
     ).data.free
@@ -165,7 +165,7 @@ export async function createUsername(): Promise<void> {
       throw new Error('proof of ownership does not verify locally')
     }
     const identifierKey = identifierKeyOf(identity.publicKey)
-    // Raw sr25519 over the payload, as the pallet verifies it; a papi signer
+    // Raw sr25519 over the payload, as the pallet verifies it. A papi signer
     // would wrap the bytes.
     const wallet = sr25519CreateDerive(mnemonicToMiniSecret(DEV_PHRASE, ''))(identityPath())
     const consent = wallet.sign(

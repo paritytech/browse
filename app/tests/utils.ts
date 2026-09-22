@@ -116,7 +116,7 @@ export { APP_URL, PORT }
 function productAccountMap(accounts: Account[]): Record<string, Account> | undefined {
   const primary = accounts[0]
   if (!primary) return undefined
-  // The host maps a product's whole account subtree, keyed by the bare id.
+  // The host maps the whole account subtree of a product, keyed by the bare id.
   return { [LOCALHOST_SELF_DOTNS]: primary }
 }
 
@@ -134,7 +134,7 @@ export async function startSignedHost(...accounts: Account[]) {
 
 /**
  * Like {@link startSignedHost} but with explicit product-account mappings,
- * keyed by bare product id. Lets a test point the app's account subtree at a
+ * keyed by bare product id. Lets a test point the account subtree at a
  * distinct (fundable) account, such as a fresh, never-bound attester that drives
  * the bind-and-attest batch.
  */
@@ -155,11 +155,16 @@ export async function startSignedHostWithProductAccounts(
 /**
  * A host for the specs written against a user with no connected account.
  *
- * host-api-test-sdk 0.13 always mints a session for its first roster entry
- * and refuses an empty roster, so a disconnected account cannot be modelled
- * any more; the old page rewrite that left the account request pending has
- * nothing to rewrite. The specs' assertions hold for a connected user too, so
- * until the host can present a disconnected one this is the signed host.
+ * host-api-test-sdk 0.13 always mints a session for its first roster entry and
+ * refuses an empty roster, so a disconnected account cannot be modelled any
+ * more. The old page rewrite that left the account request pending has nothing
+ * to rewrite, an empty roster is rejected outright, and a host whose product id
+ * does not match the one the app asks for still hands over an account. The
+ * assertions in these specs hold for a connected user too, so until the host can
+ * present a disconnected one this is the signed host, and the unsigned half of
+ * the sign-in detection in the app goes untested. The signed half is covered: the
+ * suite funds the account that detection reports, and every recommend spec
+ * fails without it.
  */
 export async function startUnsignedHost() {
   return startSignedHost('alice')
@@ -170,7 +175,7 @@ export async function navigateToTestHost(page: Page, hostUrl: string): Promise<v
   await persistProductStorage(page)
   await page.goto(hostUrl, { waitUntil: 'commit' })
   // The host mints the session for the active account itself, and getUserId
-  // reports that account's username, so nothing has to be reconnected.
+  // reports the username of that account, so nothing has to be reconnected.
   await page.waitForFunction(
     () => !!(window as unknown as { __TEST_HOST__: unknown }).__TEST_HOST__,
     { timeout: 30_000 }

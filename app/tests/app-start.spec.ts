@@ -28,7 +28,7 @@ test.describe('App Start', () => {
 
     test.beforeAll(async ({ browser }) => {
       // The first hook of the run pays for the cold start: the dev server, the
-      // host, and the app's first sync.
+      // host, and the first sync the app runs.
       test.setTimeout(120_000)
       host = await startUnsignedHost()
       context = await browser.newContext({ ignoreHTTPSErrors: true })
@@ -181,12 +181,10 @@ test.describe('App Start', () => {
         return { dom, expected }
       }
       // The default sort is Relevant.
-      await expect
-        .poll(async () => {
-          const { dom, expected } = await orderedAs('relevant')
-          return dom.join() === expected.join()
-        })
-        .toBe(true)
+      await expect(async () => {
+        const { dom, expected } = await orderedAs('relevant')
+        expect(dom).toEqual(expected)
+      }).toPass({ timeout: 30_000 })
 
       // When
       await frame.locator('.customize-trigger').click()
@@ -194,12 +192,10 @@ test.describe('App Start', () => {
       await frame.locator('.order-panel__option', { hasText: 'New' }).click()
 
       // Then
-      await expect
-        .poll(async () => {
-          const { dom, expected } = await orderedAs('new')
-          return dom.join() === expected.join()
-        })
-        .toBe(true)
+      await expect(async () => {
+        const { dom, expected } = await orderedAs('new')
+        expect(dom).toEqual(expected)
+      }).toPass({ timeout: 30_000 })
 
       // Then
       const labelCount =
@@ -381,8 +377,8 @@ test.describe('App Start', () => {
       const target = 'alarm-clock'
 
       // Given
-      // This one is about the cache's own lifecycle, so it starts from an empty
-      // store rather than what the tests before it left in the context.
+      // This one is about how the cache itself lives and dies, so it starts from
+      // an empty store rather than what the tests before it left in the context.
       await resetProductStorage(page)
       await navigateToTestHost(page, host.url)
       let frame = await getProductFrame(page, '.category-tab')

@@ -18,7 +18,7 @@ import { DEV_PHRASE } from '../utils'
 const SYSTEM_SUFFIX_PREFIX = new TextEncoder().encode('sys/')
 const PGAS_CLAIM_FAMILY = 4
 const SECS_PER_DAY = 86_400n
-// The lite people collection the funder is a member of; the AsPgas extension
+// The lite people collection the funder is a member of. The AsPgas extension
 // binds against it with the `LitePeople` claim variant.
 const PEOPLE_MEMBER_IDENTIFIER_HEX =
   '0x706f703a706f6c6b61646f742e6e6574776f726b2f70656f706c652d6c697465'

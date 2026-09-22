@@ -37,7 +37,7 @@ export const LABELS_KEY = 'browse:labels'
 export const BOOKMARKS_KEY = 'browse:bookmarks'
 
 /**
- * Where the mirror lives in the host page's own `localStorage`. One key per
+ * Where the mirror lives in the `localStorage` of the host page. One key per
  * browser context, as a real host keeps one store per user and product however
  * many pages read it.
  */
@@ -46,8 +46,8 @@ export const MIRROR_KEY = 'e2e:product-storage'
 const installed = new WeakSet<Page>()
 
 /**
- * Make the host's product storage survive a reload of its page, for the rest of
- * this page's life. Install before the first navigation.
+ * Make the product storage the host holds survive a reload of its page, for as
+ * long as this page lives. Install before the first navigation.
  */
 export async function persistProductStorage(page: Page): Promise<void> {
   if (installed.has(page)) return
@@ -75,11 +75,15 @@ export async function persistProductStorage(page: Page): Promise<void> {
             // ignore
           }
         }
-        setInterval(flush, 200)
-        // A reload right after a write would otherwise lose it: the timer has
-        // not fired yet and the runtime goes with the page.
-        window.addEventListener('pagehide', flush)
-        window.addEventListener('beforeunload', flush)
+        // A reload right after a write would otherwise lose it, since the timer
+        // has not fired yet and the runtime goes with the page.
+        const timer = setInterval(flush, 200)
+        const stop = () => {
+          flush()
+          clearInterval(timer)
+        }
+        window.addEventListener('pagehide', stop)
+        window.addEventListener('beforeunload', stop)
       }
     })
   }, MIRROR_KEY)

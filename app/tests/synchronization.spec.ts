@@ -32,19 +32,21 @@ test.describe('Synchronization', () => {
     // what it sends.
     await page.addInitScript(() => {
       const counter = { bytes: 0 }
-      const sizeOf = (value: unknown, depth = 0): number => {
+      // Weighs the whole payload. A cap would let the budget pass on a short
+      // measurement rather than on quiet traffic. Seen objects guard the walk.
+      const sizeOf = (value: unknown, seen = new Set<object>()): number => {
         if (typeof value === 'string') return value.length
         if (value instanceof ArrayBuffer || ArrayBuffer.isView(value)) return value.byteLength
         if (typeof value === 'number' || typeof value === 'boolean') return 8
-        if (value === null || value === undefined || depth > 4) return 0
-        if (Array.isArray(value)) return value.reduce((n, v) => n + sizeOf(v, depth + 1), 0)
-        if (typeof value === 'object') {
-          return Object.entries(value as Record<string, unknown>).reduce(
-            (n, [k, v]) => n + k.length + sizeOf(v, depth + 1),
-            0
-          )
-        }
-        return 0
+        if (value === null || value === undefined) return 0
+        if (typeof value !== 'object') return 0
+        if (seen.has(value)) return 0
+        seen.add(value)
+        if (Array.isArray(value)) return value.reduce((n, v) => n + sizeOf(v, seen), 0)
+        return Object.entries(value as Record<string, unknown>).reduce(
+          (n, [k, v]) => n + k.length + sizeOf(v, seen),
+          0
+        )
       }
       const post = MessagePort.prototype.postMessage
       MessagePort.prototype.postMessage = function (message: unknown, ...rest: unknown[]) {

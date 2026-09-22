@@ -186,7 +186,7 @@ async function fundFiller(api: PeopleApi, from: Account, to: Account): Promise<v
 }
 
 /**
- * Block until the funder's key is covered by a built lite ring that Asset Hub
+ * Block until the key of the funder is covered by a built lite ring that Asset Hub
  * has synced, which is what a PGAS claim proves against.
  */
 async function waitForRing(
@@ -243,7 +243,7 @@ async function waitForRing(
 /**
  * Make the funder a lite person covered by a synced ring, registering it and
  * any fillers the cohort still needs. Needs about 230 PAS on the People chain
- * for a fresh cohort; the autodeployer tops the funder up there after a wipe.
+ * for a fresh cohort, which the autodeployer tops the funder up with after a wipe.
  */
 export async function ensureLitePersonhood(): Promise<void> {
   const entropy = liteMemberEntropy()
