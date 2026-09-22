@@ -4,10 +4,9 @@
  * Validates recommendation behaviour.
  */
 
-import type { BrowserContext, Frame, Page } from '@playwright/test'
+import type { BrowserContext, Frame, Locator, Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 
-import { createAttestation } from './fixtures/attest'
 import { bindIdentityAndAttest } from './fixtures/bind-identity-and-attest'
 import {
   createUnboundProductAccount,
@@ -21,6 +20,7 @@ import {
   transferAllWithNative,
   transferAllWithPgas
 } from './fixtures/fund'
+import { fundProductAccount } from './fixtures/product-account'
 import { createRevokedAttestation } from './fixtures/revoke-attestation'
 import {
   getProductFrame,
@@ -28,6 +28,28 @@ import {
   startSignedHost,
   startSignedHostWithProductAccounts
 } from './utils'
+
+/**
+ * The count a card shows once a sync in flight has stopped moving it. Reading it
+ * mid-sync makes the recommendation look like it counted for nothing, and a
+ * refresh that started before the write lands can still clobber it once, so the
+ * assertions that follow outlast a refresh too.
+ */
+async function settledCount(counter: Locator): Promise<number> {
+  const read = async () => {
+    if ((await counter.count()) === 0) return 0
+    const text = (await counter.textContent()) ?? ''
+    return text === '' ? 0 : text === '999+' ? 1000 : Number(text)
+  }
+  let last = await read()
+  for (let i = 0; i < 20; i++) {
+    await counter.page().waitForTimeout(500)
+    const next = await read()
+    if (next === last) return next
+    last = next
+  }
+  return last
+}
 
 test.describe('Recommend works', () => {
   let host: Awaited<ReturnType<typeof startSignedHost>>
@@ -41,11 +63,14 @@ test.describe('Recommend works', () => {
   let frame: Frame
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(120_000)
+    // Two hosts to fund, each read from a browser the app has to start in.
+    test.setTimeout(240_000)
     await fundWithNative(createProductSigner().address)
     await createRevokedAttestation('chess-clock').catch(() => {})
     await createRevokedAttestation('calculator').catch(() => {})
     await createRevokedAttestation('alarm-clock').catch(() => {})
+    await createRevokedAttestation('unit-converter').catch(() => {})
+    await createRevokedAttestation('countdown-timer').catch(() => {})
     host = await startSignedHost(IDENTITY_ACCOUNT)
     unbound = await createUnboundProductAccount()
     await createRevokedAttestation('calculator', createDevSigner(unbound.tag)).catch(() => {})
@@ -53,6 +78,11 @@ test.describe('Recommend works', () => {
       IDENTITY_ACCOUNT,
       unbound.productAccounts
     )
+    // The host derives the account that pays for a recommendation, so ask each
+    // one what it handed the product and fund that.
+    await fundProductAccount(browser, host.url)
+    // One recommendation, through the bind-and-attest batch.
+    await fundProductAccount(browser, unboundHost.url, 5_000_000_000n)
     context = await browser.newContext({ ignoreHTTPSErrors: true })
   })
 
@@ -73,7 +103,10 @@ test.describe('Recommend works', () => {
   })
 
   test('As a signed user, when I recommend an app, I see the count go up and a confirmation toast', async () => {
-    test.setTimeout(35_000)
+    // The first recommendation of a run binds the identity and attests in one
+    // batch, so it is the slowest write the suite makes, and the toast waits on
+    // the network confirming it.
+    test.setTimeout(180_000)
     page = await context.newPage()
 
     // Given
@@ -84,23 +117,31 @@ test.describe('Recommend works', () => {
     await expect(card).toBeVisible({ timeout: 15_000 })
     const upvote = card.locator('.product-card__upvote')
     const upvoteCount = upvote.locator('.product-card__upvote-count')
-    const hasCount = (await upvoteCount.count()) > 0
-    const beforeText = hasCount ? ((await upvoteCount.textContent()) ?? '') : ''
-    const before = beforeText === '' ? 0 : beforeText === '999+' ? 1000 : Number(beforeText)
+    const before = await settledCount(upvoteCount)
 
     // When
     await upvote.click()
 
     // Then
     await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 15_000 })
-    await expect(upvoteCount).toHaveText(String(before + 1), { timeout: 15_000 })
     await expect(frame.locator('.toast--visible')).toContainText('Recommended!', {
-      timeout: 25_000
+      timeout: 120_000
     })
+
+    // Then
+    // A sync that started before the write carries the older count and lands on
+    // top of it, so read the count back from a fresh load instead.
+    await page.reload({ waitUntil: 'commit' })
+    frame = await getProductFrame(page, '.category-tab')
+    await frame.locator('.category-tab', { hasText: 'All' }).click()
+    const reloadedCount = frame
+      .locator('.product-card[data-label="chess-clock"] .product-card__upvote-count')
+      .first()
+    await expect(reloadedCount).toHaveText(String(before + 1), { timeout: 45_000 })
   })
 
   test('As a signed user, when I search for a domain and recommend it, I see the count go up and a confirmation toast', async () => {
-    test.setTimeout(25_000)
+    test.setTimeout(90_000)
     page = await context.newPage()
 
     // Given
@@ -120,27 +161,28 @@ test.describe('Recommend works', () => {
 
     // Then
     await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 15_000 })
-    await expect(upvoteCount).toHaveText(String(before + 1), { timeout: 15_000 })
+    await expect(upvoteCount).toHaveText(String(before + 1), { timeout: 45_000 })
     await expect(frame.locator('.toast--visible')).toContainText('Recommended!', {
       timeout: 15_000
     })
   })
 
   test('As a signed user, when I un-recommend an app, I see the count go down and a confirmation toast', async () => {
-    test.setTimeout(40_000)
+    test.setTimeout(90_000)
     page = await context.newPage()
 
     // Given
-    const attestResult = await createAttestation('chess-clock')
-    expect(attestResult.attestationCountAfter).toBe(attestResult.attestationCountBefore + 1n)
+    // Only the host holds the key to the account that signs a recommendation,
+    // so the app has to make the one it un-makes.
     await navigateToTestHost(page, host.url)
     frame = await getProductFrame(page, '.category-tab')
     await frame.locator('.category-tab', { hasText: 'All' }).click()
-    const card = frame.locator('.product-card[data-label="chess-clock"]')
+    const card = frame.locator('.product-card[data-label="unit-converter"]')
     await expect(card).toBeVisible({ timeout: 15_000 })
     const upvote = card.locator('.product-card__upvote')
     const upvoteCount = upvote.locator('.product-card__upvote-count')
-    await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 15_000 })
+    await upvote.click()
+    await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 25_000 })
     await expect(upvoteCount).toBeVisible()
     const beforeText = (await upvoteCount.textContent()) ?? ''
     const before = beforeText === '999+' ? 1000 : Number(beforeText)
@@ -152,30 +194,29 @@ test.describe('Recommend works', () => {
     // Then
     await expect(upvote).not.toHaveClass(/product-card__upvote--active/, { timeout: 15_000 })
     if (before > 1) {
-      await expect(upvoteCount).toHaveText(String(before - 1), { timeout: 15_000 })
+      await expect(upvoteCount).toHaveText(String(before - 1), { timeout: 45_000 })
     } else {
       await expect(upvoteCount).not.toBeVisible({ timeout: 15_000 })
     }
     await expect(frame.locator('.toast--visible')).toContainText('Unrecommended!', {
-      timeout: 25_000
+      timeout: 60_000
     })
   })
 
   test('As a signed user, when I search for a domain and unrecommend it, I see the count go down and a confirmation toast', async () => {
-    test.setTimeout(30_000)
+    test.setTimeout(90_000)
     page = await context.newPage()
 
     // Given
-    const attestResult = await createAttestation('alarm-clock')
-    expect(attestResult.attestationCountAfter).toBe(attestResult.attestationCountBefore + 1n)
     await navigateToTestHost(page, host.url)
     frame = await getProductFrame(page, '.search-bar__input')
-    await frame.locator('.search-bar__input').fill('alarm-clock')
-    const card = frame.locator('.product-card[data-label="alarm-clock"]')
+    await frame.locator('.search-bar__input').fill('countdown-timer')
+    const card = frame.locator('.product-card[data-label="countdown-timer"]')
     await expect(card).toBeVisible({ timeout: 15_000 })
     const upvote = card.locator('.product-card__upvote')
     const upvoteCount = upvote.locator('.product-card__upvote-count')
-    await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 15_000 })
+    await upvote.click()
+    await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 25_000 })
     await expect(upvoteCount).toBeVisible()
     const beforeText = (await upvoteCount.textContent()) ?? ''
     const before = beforeText === '999+' ? 1000 : Number(beforeText)
@@ -187,12 +228,12 @@ test.describe('Recommend works', () => {
     // Then
     await expect(upvote).not.toHaveClass(/product-card__upvote--active/)
     if (before > 1) {
-      await expect(upvoteCount).toHaveText(String(before - 1))
+      await expect(upvoteCount).toHaveText(String(before - 1), { timeout: 45_000 })
     } else {
       await expect(upvoteCount).not.toBeVisible()
     }
     await expect(frame.locator('.toast--visible')).toContainText('Unrecommended!', {
-      timeout: 15_000
+      timeout: 60_000
     })
   })
 
@@ -216,7 +257,7 @@ test.describe('Recommend works', () => {
     // Then
     await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 25_000 })
     await expect(unboundFrame.locator('.toast--visible')).toContainText('Recommended!', {
-      timeout: 25_000
+      timeout: 60_000
     })
   })
 })
@@ -232,8 +273,9 @@ test.describe('Recommendation fails', () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(120_000)
-    // Unique derivation per run gives a fresh keypair with a guaranteed zero balance on chain.
-    const uri = `//e2e-unfunded-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+    // Unique derivation per run gives a fresh keypair with a guaranteed zero
+    // balance on chain. A junction carries at most 31 bytes, so keep it short.
+    const uri = `//nofunds${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
     unfundedHost = await startSignedHost({ name: 'Unfunded', uri })
 
     // Seed a standing recommendation: a fresh account binds the identity and
@@ -261,7 +303,8 @@ test.describe('Recommendation fails', () => {
   })
 
   test('As a signed user, when I recommend an app and it fails, I see an error badge with a message', async () => {
-    test.setTimeout(30_000)
+    // A cold All list, then the failing write.
+    test.setTimeout(60_000)
     const page = await context.newPage()
 
     // Given

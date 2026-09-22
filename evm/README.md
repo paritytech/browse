@@ -72,15 +72,15 @@ Version 2.2.0:
 
 Genesis `0xc27c8bf3f13f96dc2130cd2b0a3debe57618fd02521ecc1902bd7dd4ed83d2fe`.
 
-TLD `.dot`.
+TLD `.testnet`.
 
-Publisher 3.0.0:
+Publisher 3.1.0:
 
 * **Publisher**:
   * Contract: `0x01167f228A729f8e50f18aa7189f59b659155D09`
   * Deployment and ABI: [Publisher.sol](src/Publisher.sol)
-  * Second in the SDK `PUBLISHER` array. Reads union every entry, writes go to the first, and this
-    one starts empty while 2.1.0 still holds the published set.
+  * Only entry in the SDK `PUBLISHER` array. The operator, the substrate dev root, publishes any
+    label; the 2.1.0 set below predates the network reset.
 
 Version 2.1.0:
 

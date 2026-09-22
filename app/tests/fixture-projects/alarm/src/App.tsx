@@ -42,9 +42,7 @@ export function App() {
   }, [])
 
   const toggle = useCallback((id: number) => {
-    setAlarms((list) =>
-      list.map((a) => (a.id === id ? { ...a, enabled: !a.enabled } : a))
-    )
+    setAlarms((list) => list.map((a) => (a.id === id ? { ...a, enabled: !a.enabled } : a)))
   }, [])
 
   const remove = useCallback((id: number) => {

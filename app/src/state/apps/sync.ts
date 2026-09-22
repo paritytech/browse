@@ -54,7 +54,17 @@ async function flushLabelBatch(
     // `published` is derived from the current Publisher set, not from hydration:
     // bookmarked labels are refreshed too but stay out of the All list.
     for (const entry of entries) {
-      labels.set(entry.label, { ...entry, published: publishedNames.has(entry.label) })
+      const cached = labels.get(entry.label)
+      labels.set(entry.label, {
+        ...entry,
+        // A refresh that could not read the manifest carries no name or icon.
+        // Keeping what the cache holds leaves the card as the user last saw it,
+        // rather than falling back to the bare domain.
+        name: entry.name ?? cached?.name ?? null,
+        description: entry.name === null && cached ? cached.description : entry.description,
+        iconCid: entry.iconCid ?? cached?.iconCid ?? null,
+        published: publishedNames.has(entry.label)
+      })
     }
     onProgress?.(materialize(labels))
 
@@ -76,7 +86,7 @@ async function flushLabelBatch(
 export async function syncAllApps(
   cachedLabels: LabelEntry[],
   onProgress?: (apps: AppEntry[]) => void,
-  protectedLabels: ReadonlySet<string> = new Set()
+  protectedLabels: ReadonlySet<string> | null = new Set()
 ): Promise<AppEntry[]> {
   const t0 = performance.now()
   hiddenLog(`Starting synchronization - cache holds ${cachedLabels.length} labels`)
@@ -104,10 +114,13 @@ export async function syncAllApps(
   const labelByHash = await resolveLabels(published, labels)
   const publishedNames = new Set<string>(labelByHash.values())
 
-  // Drop cached labels no longer in the published set, except bookmarked/followed
-  // ones.
-  for (const name of [...labels.keys()]) {
-    if (!publishedNames.has(name) && !protectedLabels.has(name)) labels.delete(name)
+  // Drop cached labels no longer in the published set, except bookmarked and
+  // followed ones. A null set means the bookmarks could not be read, and
+  // pruning then would throw away the name and icon of a bookmarked app for good.
+  if (protectedLabels) {
+    for (const name of [...labels.keys()]) {
+      if (!publishedNames.has(name) && !protectedLabels.has(name)) labels.delete(name)
+    }
   }
 
   // `published` is recomputed every sync from the current Publisher set. A kept

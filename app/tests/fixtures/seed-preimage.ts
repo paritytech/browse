@@ -5,6 +5,8 @@ import {
 } from '@parity/browse-sdk'
 import type { Page } from '@playwright/test'
 
+import { LABELS_KEY, readProductStorage } from './host-storage'
+
 /** IPFS gateway for the network the suite runs against. */
 function ipfsGateway(): string {
   const genesis = process.env.NETWORK_GENESIS_HASH
@@ -29,14 +31,15 @@ export async function seedPreimage(page: Page, bytes: Uint8Array): Promise<void>
 /**
  * Fetch a cached app's icon bytes from the IPFS gateway by its `iconCid` and
  * seed them into the test host, so the card's icon lookup resolves to an image.
- * Reads `iconCid` from the host page's labels DB, so call it after a sync.
+ * Reads `iconCid` from the labels the host holds, so call it after a sync.
  */
 export async function seedIconPreimage(page: Page, label: string): Promise<void> {
-  const cid = await page.evaluate((l) => {
-    const raw = localStorage.getItem('test-host:browse:labels')
-    const arr = raw ? (JSON.parse(raw) as Array<{ label: string; iconCid: string | null }>) : []
-    return arr.find((entry) => entry.label === l)?.iconCid ?? null
-  }, label)
+  const labels =
+    (await readProductStorage<Array<{ label: string; iconCid: string | null }>>(
+      page,
+      LABELS_KEY
+    )) ?? []
+  const cid = labels.find((entry) => entry.label === label)?.iconCid ?? null
   if (!cid) throw new Error(`No cached iconCid for "${label}"`)
 
   const res = await fetch(`${ipfsGateway()}/ipfs/${cid}`)

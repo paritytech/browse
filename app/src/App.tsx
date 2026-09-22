@@ -7,6 +7,7 @@ import { nameWithTld, stripTld } from '@parity/browse-sdk'
 import { getAccountsProvider, type HostSubscription } from '@parity/product-sdk/host'
 import { useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ArrowUp, Bookmark, Check, MoreVertical, Package, X } from 'lucide-preact'
+import { AccountId } from 'polkadot-api'
 
 import { CategoryTabs } from './components/category-tabs'
 import { CertificateAuthorityManager } from './components/certificate-authority-manager'
@@ -21,14 +22,14 @@ import { RecommendPrompt } from './components/recommend-prompt'
 import { SearchBar } from './components/search-bar'
 import { Toast } from './components/toast'
 import { ToastContext } from './components/toast/context'
-import { createBookmark, deleteBookmark, readBookmarks } from './db/bookmarks'
+import { createBookmark, deleteBookmark, readBookmarksWithRetry } from './db/bookmarks'
 import { upsertLabel } from './db/labels'
 import { readSortMode, writeSortMode } from './db/sort-preference'
 import { useEvent } from './hooks/use-event'
 import { useFlipReorder } from './hooks/use-flip'
 import { useOverscrollSync } from './hooks/use-overscroll-sync'
 import { resetBrowseSdk } from './lib/client'
-import { NETWORK, SELF_LABEL } from './lib/config'
+import { NETWORK, SELF_DOTNS, SELF_LABEL } from './lib/config'
 import { setupDebugConsole } from './lib/debug'
 import { destinationFromQuery, typedLabel } from './lib/destination'
 import { useDomainSuggestions } from './lib/domains-snapshot'
@@ -668,15 +669,35 @@ export function App() {
   useEffect(() => {
     let cancelled = false
     let sub: HostSubscription | undefined
-    void getAccountsProvider().then((provider) => {
+    void getAccountsProvider().then(async (provider) => {
       if (cancelled || !provider) return
+      let reported = false
       sub = provider.subscribeAccountConnectionStatus((status) => {
+        reported = true
         console.warn(
           'debug network connection',
           JSON.stringify({ event: 'accountConnectionStatus', status })
         )
         setSigned(status === 'Connected')
       })
+      // The subscription reports transitions, and a host that connected the
+      // account before this loaded has none left to report, so ask once for the
+      // account we would sign with. A host with no account connected leaves
+      // that request unanswered, which is the unsigned state we start in.
+      const account = await provider
+        .getProductAccount(SELF_DOTNS, 0)
+        .match(
+          (value) => value,
+          () => null
+        )
+        .catch(() => null)
+      if (cancelled) return
+      if (!reported) setSigned(account !== null)
+      // The host derives this account rather than being told it, so nothing
+      // outside the product can work out which account pays for a write.
+      if (import.meta.env?.DEV && account) {
+        window.__productAccount = AccountId().dec(account.publicKey)
+      }
     })
     return () => {
       cancelled = true
@@ -693,10 +714,12 @@ export function App() {
   }, [allError, showToast])
   // Load bookmarks and the following list on mount.
   useEffect(() => {
-    readBookmarks().then((bookmark) => {
-      setBookmarkedApps(new Set(bookmark))
-      setBookmarkedAppsLoaded(true)
-    })
+    readBookmarksWithRetry()
+      .catch(() => [])
+      .then((bookmark) => {
+        setBookmarkedApps(new Set(bookmark))
+        setBookmarkedAppsLoaded(true)
+      })
     getFollowing().then(setFollowing)
     readSortMode().then(setSortMode)
   }, [])

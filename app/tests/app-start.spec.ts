@@ -8,6 +8,14 @@ import type { BrowserContext, Frame } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 
 import { createCachedApps } from './fixtures/cache'
+import {
+  BOOKMARKS_KEY,
+  LABELS_KEY,
+  productStorageKey,
+  readProductStorage,
+  resetProductStorage,
+  writeProductStorage
+} from './fixtures/host-storage'
 import { seedIconPreimage } from './fixtures/seed-preimage'
 import { getProductFrame, navigateToTestHost, startSignedHost, startUnsignedHost } from './utils'
 import { filterApps, type AppEntry } from '../src/state/apps/types'
@@ -19,26 +27,14 @@ test.describe('App Start', () => {
     let frame: Frame
 
     test.beforeAll(async ({ browser }) => {
+      // The first hook of the run pays for the cold start: the dev server, the
+      // host, and the first sync the app runs.
+      test.setTimeout(240_000)
       host = await startUnsignedHost()
       context = await browser.newContext({ ignoreHTTPSErrors: true })
-      // The host of an unsigned user may never answer getProductAccount, like
-      // a desktop host with its account disconnected, so this whole suite runs
-      // against a host page rewritten to leave that request pending forever.
-      const hostOrigin = new URL(host.url).origin
-      await context.route(
-        (url) => url.origin === hostOrigin,
-        async (route) => {
-          const response = await route.fetch()
-          const body = (await response.text()).replace(
-            /handleAccountGet\((\([^)]*\))=>\{/,
-            'handleAccountGet($1=>{return;'
-          )
-          await route.fulfill({ response, body })
-        }
-      )
       const page = await context.newPage()
       await navigateToTestHost(page, host.url)
-      frame = await getProductFrame(page, '.category-tab')
+      frame = await getProductFrame(page, '.category-tab', 180_000)
     })
 
     test.afterAll(async () => {
@@ -159,74 +155,77 @@ test.describe('App Start', () => {
       const cards = frame.locator('.product-card[data-label]')
       expect(await cards.count()).toBeGreaterThan(1)
 
-      const domOrder = await cards.evaluateAll((els) =>
-        els.map((el) => el.getAttribute('data-label'))
-      )
-      const apps = await frame.evaluate(() => {
-        const qc = (
-          window as unknown as { __queryClient?: { getQueryData: (key: unknown[]) => unknown } }
-        ).__queryClient
-        return (qc?.getQueryData(['apps', 'all']) as unknown[] | undefined) ?? []
-      })
-      const orderBy = (sort: 'relevant' | 'new') =>
-        filterApps(apps as AppEntry[], '', 'all', undefined, undefined, undefined, sort)
+      const domOrder = () =>
+        cards.evaluateAll((els) => els.map((el) => el.getAttribute('data-label')))
+      // A sync that lands a publishedAt re-sorts the list, so read both sides
+      // together and let them settle rather than catching a frame in between.
+      const orderedAs = async (sort: 'relevant' | 'new') => {
+        const dom = await domOrder()
+        const apps = await frame.evaluate(() => {
+          const qc = (
+            window as unknown as { __queryClient?: { getQueryData: (key: unknown[]) => unknown } }
+          ).__queryClient
+          return (qc?.getQueryData(['apps', 'all']) as unknown[] | undefined) ?? []
+        })
+        const expected = filterApps(
+          apps as AppEntry[],
+          '',
+          'all',
+          undefined,
+          undefined,
+          undefined,
+          sort
+        )
           .map((app) => app.label)
-          .filter((label) => domOrder.includes(label))
-      // The default sort is New.
-      expect(domOrder).toEqual(orderBy('new'))
+          .filter((label) => dom.includes(label))
+        return { dom, expected }
+      }
+      // The default sort is Relevant.
+      await expect(async () => {
+        const { dom, expected } = await orderedAs('relevant')
+        expect(dom).toEqual(expected)
+      }).toPass({ timeout: 30_000 })
 
       // When
       await frame.locator('.customize-trigger').click()
       await frame.locator('.customize-nav-row', { hasText: 'Order by' }).click()
-      await frame.locator('.order-panel__option', { hasText: 'Relevant' }).click()
+      await frame.locator('.order-panel__option', { hasText: 'New' }).click()
 
       // Then
-      await expect
-        .poll(() => cards.evaluateAll((els) => els.map((el) => el.getAttribute('data-label'))))
-        .toEqual(orderBy('relevant'))
+      await expect(async () => {
+        const { dom, expected } = await orderedAs('new')
+        expect(dom).toEqual(expected)
+      }).toPass({ timeout: 30_000 })
 
       // Then
-      const labelCount = await frame.page().evaluate(() => {
-        const labels = localStorage.getItem('test-host:browse:labels')
-        return labels ? (JSON.parse(labels) as unknown[]).length : 0
-      })
+      const labelCount =
+        (await readProductStorage<unknown[]>(frame.page(), LABELS_KEY))?.length ?? 0
       expect(labelCount).toBeGreaterThan(1)
     })
 
     test('As a signed user, when cached label metadata is older than the TTL, it refreshes (fresh entries are left alone)', async () => {
       test.setTimeout(150_000)
       const page = await context.newPage()
-      const KEY = 'test-host:browse:labels'
 
       // Given
       await navigateToTestHost(page, host.url)
       const frameInit = await getProductFrame(page, '.category-tab')
       await frameInit.locator('.category-tab', { hasText: 'All' }).click()
       await frameInit.waitForSelector('.product-card', { timeout: 30_000 })
-      const labelsAfterSync = await page.evaluate(
-        (key) =>
-          JSON.parse(localStorage.getItem(key) ?? '[]') as Array<{
-            label: string
-            fetchedAt?: number
-          }>,
-        KEY
-      )
+      const labelsAfterSync =
+        (await readProductStorage<Array<{ label: string; fetchedAt?: number }>>(
+          page,
+          LABELS_KEY
+        )) ?? []
       expect(labelsAfterSync.length).toBeGreaterThan(1)
       const staleLabel = labelsAfterSync[0].label
       const freshLabel = labelsAfterSync[1].label
       const originalFreshTs = labelsAfterSync[1].fetchedAt
       const STALE_TS = Date.now() - 25 * 3_600_000
-      await page.evaluate(
-        ({ key, target, stale }) => {
-          const arr = JSON.parse(localStorage.getItem(key) ?? '[]') as Array<{
-            label: string
-            fetchedAt?: number
-          }>
-          const e = arr.find((l) => l.label === target)
-          if (e) e.fetchedAt = stale
-          localStorage.setItem(key, JSON.stringify(arr))
-        },
-        { key: KEY, target: staleLabel, stale: STALE_TS }
+      await writeProductStorage(
+        page,
+        LABELS_KEY,
+        labelsAfterSync.map((l) => (l.label === staleLabel ? { ...l, fetchedAt: STALE_TS } : l))
       )
 
       // When
@@ -237,29 +236,24 @@ test.describe('App Start', () => {
       // Then
       await page.waitForFunction(
         ({ key, target, stale }) => {
-          const arr = JSON.parse(localStorage.getItem(key) ?? '[]') as Array<{
-            label: string
-            fetchedAt?: number
-          }>
+          const raw = window.__TEST_HOST__?.getProductStorage()[key]
+          const arr = (raw ? JSON.parse(raw) : []) as Array<{ label: string; fetchedAt?: number }>
           const e = arr.find((l) => l.label === target)
           return e !== undefined && (e.fetchedAt ?? 0) > stale
         },
-        { key: KEY, target: staleLabel, stale: STALE_TS },
+        { key: productStorageKey(LABELS_KEY), target: staleLabel, stale: STALE_TS },
         { timeout: 30_000 }
       )
 
       // Then
-      const freshTsAfter = await page.evaluate(
-        ({ key, target }) => {
-          const arr = JSON.parse(localStorage.getItem(key) ?? '[]') as Array<{
-            label: string
-            fetchedAt?: number
-          }>
-          return arr.find((l) => l.label === target)?.fetchedAt
-        },
-        { key: KEY, target: freshLabel }
+      const labelsAfterRefresh =
+        (await readProductStorage<Array<{ label: string; fetchedAt?: number }>>(
+          page,
+          LABELS_KEY
+        )) ?? []
+      expect(labelsAfterRefresh.find((l) => l.label === freshLabel)?.fetchedAt).toBe(
+        originalFreshTs
       )
-      expect(freshTsAfter).toBe(originalFreshTs)
 
       await page.close()
     })
@@ -285,10 +279,7 @@ test.describe('App Start', () => {
       await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
 
       // Then
-      const labelCount = await page.evaluate(() => {
-        const labels = localStorage.getItem('test-host:browse:labels')
-        return labels ? (JSON.parse(labels) as unknown[]).length : 0
-      })
+      const labelCount = (await readProductStorage<unknown[]>(page, LABELS_KEY))?.length ?? 0
       expect(labelCount).toBeGreaterThan(3)
 
       await page.close()
@@ -386,6 +377,9 @@ test.describe('App Start', () => {
       const target = 'alarm-clock'
 
       // Given
+      // This one is about how the cache itself lives and dies, so it starts from
+      // an empty store rather than what the tests before it left in the context.
+      await resetProductStorage(page)
       await navigateToTestHost(page, host.url)
       let frame = await getProductFrame(page, '.category-tab')
       await frame.waitForSelector('.product-card', { timeout: 30_000 })
@@ -394,32 +388,53 @@ test.describe('App Start', () => {
       await expect(card).toBeVisible({ timeout: 20_000 })
       await expect(card.locator('.product-card__name')).toHaveText('Alarm Clock')
       await card.locator('.product-card__bookmark').click()
-      await page.waitForTimeout(500)
+      // The write crosses the host bridge, and the reload below drops whatever
+      // has not landed.
+      await expect
+        .poll(async () => (await readProductStorage<string[]>(page, BOOKMARKS_KEY)) ?? [])
+        .toContain(target)
 
       // When
-      await page.evaluate(() => {
-        const key = 'test-host:browse:labels'
-        const arr = JSON.parse(localStorage.getItem(key) ?? '[]') as Array<{ fetchedAt?: number }>
-        for (const l of arr) l.fetchedAt = 1
-        localStorage.setItem(key, JSON.stringify(arr))
-      })
+      // The searched label is written on its own round trip, and rewriting the
+      // cache before it lands would drop it.
+      await expect
+        .poll(async () =>
+          ((await readProductStorage<Array<{ label: string }>>(page, LABELS_KEY)) ?? []).map(
+            (l) => l.label
+          )
+        )
+        .toContain(target)
+      const cached =
+        (await readProductStorage<Array<{ label: string; fetchedAt?: number }>>(
+          page,
+          LABELS_KEY
+        )) ?? []
+      await writeProductStorage(
+        page,
+        LABELS_KEY,
+        cached.map((l) => ({ ...l, fetchedAt: 1 }))
+      )
       await page.reload({ waitUntil: 'commit' })
       frame = await getProductFrame(page, '.category-tab')
       await page.waitForFunction(
-        () => {
-          const raw = localStorage.getItem('test-host:browse:labels')
+        (key) => {
+          const raw = window.__TEST_HOST__?.getProductStorage()[key]
           const arr = (raw ? JSON.parse(raw) : []) as Array<{ fetchedAt?: number }>
           return arr.length > 0 && arr.some((l) => (l.fetchedAt ?? 0) > 1000)
         },
-        undefined,
+        productStorageKey(LABELS_KEY),
         { timeout: 60_000 }
       )
 
       // Then
       await frame.locator('.category-tab', { hasText: 'Bookmarks' }).click()
       const bookmarked = frame.locator(`.product-card[data-label="${target}"]`)
-      await expect(bookmarked).toBeVisible()
-      await expect(bookmarked.locator('.product-card__name')).toHaveText('Alarm Clock')
+      // The label refreshes behind the published ones, so the card can take a
+      // while to come back, but come back it must, with its name.
+      await expect(bookmarked).toBeVisible({ timeout: 90_000 })
+      await expect(bookmarked.locator('.product-card__name')).toHaveText('Alarm Clock', {
+        timeout: 30_000
+      })
 
       await page.close()
     })

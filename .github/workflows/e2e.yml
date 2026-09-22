@@ -63,15 +63,26 @@ jobs:
 
       - uses: actions/checkout@v4
         if: needs.check.outputs.skip != 'true'
+        with:
+          submodules: recursive
 
       - uses: oven-sh/setup-bun@v2
         if: needs.check.outputs.skip != 'true'
         with:
           bun-version: latest
 
+      # The global setup puts the contract stack back when a reset took it.
+      - uses: foundry-rs/foundry-toolchain@v1
+        if: needs.check.outputs.skip != 'true'
+
       - name: Install dependencies
         if: needs.check.outputs.skip != 'true'
         run: bun install --frozen-lockfile
+
+      - name: Install contract tooling
+        if: needs.check.outputs.skip != 'true'
+        working-directory: evm
+        run: npm ci
 
       - name: Install Playwright browsers
         if: needs.check.outputs.skip != 'true'
@@ -79,8 +90,6 @@ jobs:
 
       - name: Run e2e tests
         if: needs.check.outputs.skip != 'true'
-        env:
-          PROXY_PRIVATE_KEY: ${{ secrets.PROXY_PRIVATE_KEY }}
         run: bun run test:e2e --retries=1 --workers=1
 
   mark-passed:

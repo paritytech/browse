@@ -2,7 +2,9 @@
   "publisher": {
     "previewnet": {
       "address": "0x01167f228A729f8e50f18aa7189f59b659155D09",
-      "version": "3.0.0",
+      "version": "3.1.0",
+      "owner": "0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20",
+      "note": "Only entry in the SDK PUBLISHER array. The operator publishes any label with no personhood proof and no rate limit. Sits at the 3.0.0-noowner CREATE3 slot, so the salt stays.",
       "tld": ".testnet",
       "tldNode": "0xa82d4ea7f5ef2a0a969fc555433de4b0518583f01fa483d065be1ce952e7a456",
       "salt": "browse.create3.v1:Publisher:3.0.0-noowner",
@@ -12,7 +14,7 @@
       "genesisHash": "0xc27c8bf3f13f96dc2130cd2b0a3debe57618fd02521ecc1902bd7dd4ed83d2fe",
       "substrateRpc": "wss://previewnet.substrate.dev/asset-hub",
       "ethRpc": "https://previewnet.substrate.dev/eth-rpc",
-      "deployedAt": "2026-09-15"
+      "deployedAt": "2026-09-21"
     },
     "paseo": {
       "address": "0xAa189B1D4F65CF6e5D0baD734F6C876f2E12F984",
@@ -37,14 +39,14 @@
       "address": "0x8326c11a76Dda4702046e92f73C0ea7E698560a2",
       "version": "2.1.0",
       "salt": "browse.create3.v1:TrustedAttesterIndexResolver:2.1.0",
-      "attestationService": "0x37e7021fd6e44d5cdc17847b33388d6d6eff63cd",
+      "attestationService": "0xA722702956694BFF0Ad6689df0505C3e357Bf0F1",
       "trustedAttester": "0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20",
       "schema": "bool compliant,string contentCid,string badgeIconCid,string name",
       "schemaId": 2,
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
       "network": "previewnet-asset-hub",
       "genesisHash": "0xc27c8bf3f13f96dc2130cd2b0a3debe57618fd02521ecc1902bd7dd4ed83d2fe",
-      "deployedAt": "2026-09-15"
+      "deployedAt": "2026-09-21"
     },
     "paseo": {
       "address": "0x8326c11a76Dda4702046e92f73C0ea7E698560a2",
@@ -63,18 +65,20 @@
   "recipientAndAttesterIndexResolver": {
     "note": "Deployed from the identity-bound source at e24f6e6, not from src/. The personhood-gated rewrite in #108 dropped bindIdentity and boundIdentity, which app/src/lib/attestation-service.ts still calls, so deploying src/ as it stands would break every recommendation. Bump the salt version and redeploy once the app speaks the personhood-gated resolver.",
     "previewnet": {
-      "address": "0xAca17c2547f09b3AD0d3bd28Db11EE172604b85b",
-      "version": "2.1.0",
-      "salt": "browse.create3.v1:RecipientAndAttesterIndexResolver:2.1.0",
-      "attestationService": "0x37e7021fd6e44d5cdc17847b33388d6d6eff63cd",
+      "address": "0xE5c4C005093828e12bB0A427A74ECAe1601218b6",
+      "version": "2.1.1",
+      "salt": "browse.create3.v1:RecipientAndAttesterIndexResolver:2.1.1",
+      "attestationService": "0xA722702956694BFF0Ad6689df0505C3e357Bf0F1",
       "schema": "string label",
-      "schemaId": 1,
+      "schemaId": 6,
       "personhoodGated": false,
       "identityGated": true,
       "deployer": "5DfhGyQdFobKM8NsWvEeAKk5EQQgYe9AydgJ7rMB6E1EqRzV",
       "network": "previewnet-asset-hub",
       "genesisHash": "0xc27c8bf3f13f96dc2130cd2b0a3debe57618fd02521ecc1902bd7dd4ed83d2fe",
-      "deployedAt": "2026-09-15"
+      "deployedAt": "2026-09-21",
+      "artifact": "builds/RecipientAndAttesterIndexResolver-e24f6e6.json",
+      "note": "Salt 2.1.0 (0xAca17c25…) holds the src/ build on previewnet since the 2026-09-21 recovery, so the identity-bound build lives at 2.1.1 and the label schema was re-registered against it as id 6."
     },
     "paseo": {
       "address": "0xAca17c2547f09b3AD0d3bd28Db11EE172604b85b",
@@ -93,8 +97,9 @@
   },
   "attestationService": {
     "previewnet": {
-      "address": "0x37e7021fd6e44d5cdc17847b33388d6d6eff63cd",
-      "note": "Deployed from the attestation-protocol repository."
+      "address": "0xA722702956694BFF0Ad6689df0505C3e357Bf0F1",
+      "version": "1.0.0",
+      "note": "attestation-protocol 1.0.0, CREATE3 through the same factory; see that repository's deployments/."
     },
     "paseo": {
       "address": "0x37e7021fd6e44d5cdc17847b33388d6d6eff63cd",
@@ -103,8 +108,9 @@
   },
   "schemaRegistry": {
     "previewnet": {
-      "address": "0xd8af2626d3c5d990ae75077de3c5d9bb5e71de1e",
-      "note": "Deployed from the attestation-protocol repository."
+      "address": "0x90e2a80f6c59C2e1cbd0Be50f60bA56bae4ADE97",
+      "version": "1.0.0",
+      "note": "attestation-protocol 1.0.0, CREATE3 through the same factory; see that repository's deployments/."
     },
     "paseo": {
       "address": "0xd8af2626d3c5d990ae75077de3c5d9bb5e71de1e",

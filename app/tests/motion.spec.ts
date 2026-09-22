@@ -3,6 +3,7 @@ import { type Browser, type Frame, expect, test } from '@playwright/test'
 import { createCachedApps } from './fixtures/cache'
 import { SNAPSHOT_BLOCKS, SNAPSHOT_ONLY_LABEL } from './fixtures/domains-snapshot'
 import { createProductSigner, fundWithNative } from './fixtures/fund'
+import { fundProductAccount } from './fixtures/product-account'
 import { createRevokedAttestation } from './fixtures/revoke-attestation'
 import { seedPreimage } from './fixtures/seed-preimage'
 import {
@@ -218,7 +219,13 @@ test.describe('Motion', () => {
     test.setTimeout(60000)
     await fundWithNative(createProductSigner().address)
     await createRevokedAttestation('chess-clock').catch(() => {})
-    const host = await startSignedHost({ name: identityUsername(), uri: identityUri() })
+    const host = await startSignedHost({
+      name: identityUsername(),
+      uri: identityUri(),
+      username: identityUsername()
+    })
+    // The host derives the account that pays for the recommendation.
+    await fundProductAccount(browser, host.url, 5_000_000_000n)
     const context = await browser.newContext({
       ignoreHTTPSErrors: true,
       reducedMotion: 'no-preference'

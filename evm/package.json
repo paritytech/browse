@@ -4,6 +4,7 @@
   "type": "commonjs",
   "scripts": {
     "verify:config": "tsx --tsconfig scripts/tsconfig.json --env-file-if-exists=../.env scripts/verify-config.ts",
+    "probe:state": "tsx --tsconfig scripts/tsconfig.json --env-file-if-exists=../.env scripts/probe-state.ts",
     "read:contract": "tsx --tsconfig scripts/tsconfig.json --env-file-if-exists=../.env scripts/read-contract.ts",
     "publish": "tsx --tsconfig scripts/tsconfig.json --env-file-if-exists=../.env scripts/publish.ts",
     "deploy:publisher": "forge build && tsx --tsconfig scripts/tsconfig.json --env-file-if-exists=../.env scripts/deploy-publisher.ts",

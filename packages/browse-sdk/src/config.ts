@@ -90,7 +90,7 @@ export const KNOWN_NETWORKS = {
   },
   [PREVIEWNET_ASSETHUB_GENESIS]: {
     MULTICALL3: '0xB4468000abD87D3c56cbFBd153161223D7b109e5',
-    STORE_FACTORY: '0x709A027F446a9e2a4BB9cb9a9c754435b19e32B7',
+    STORE_FACTORY: '0x99605a926FcB40aB520F659c6505E5ff862771f6',
     CONTENT_RESOLVER: '0x7F74D7CD50f5a834270E2ad395a01b01891AB37d',
     REGISTRY: '0xf34054fd76BbF85f216cf9908226D5f0A72E50CA',
     REGISTRAR: '0x4f06E818Ba3d987704fd91cf3d868E4b019106Ab',
@@ -98,20 +98,24 @@ export const KNOWN_NETWORKS = {
     TLD: 'testnet',
     PUBLISHER: [
       {
-        version: '3.0.0',
+        version: '3.1.0',
         address: '0x01167f228A729f8e50f18aa7189f59b659155D09'
       }
     ],
-    SCHEMA_REGISTRY: '0xd8af2626d3c5d990ae75077de3c5d9bb5e71de1e',
-    ATTESTATION_SERVICE: '0x37e7021fd6e44d5cdc17847b33388d6d6eff63cd',
-    ATTESTATION_INDEX_RESOLVER: ['0xAca17c2547f09b3AD0d3bd28Db11EE172604b85b'],
+    // attestation-protocol 1.0.0, CREATE3 through the factory above.
+    SCHEMA_REGISTRY: '0x90e2a80f6c59C2e1cbd0Be50f60bA56bae4ADE97',
+    ATTESTATION_SERVICE: '0xA722702956694BFF0Ad6689df0505C3e357Bf0F1',
+    // The identity-bound resolver, salt 2.1.1; 0xAca17c25… holds the src/
+    // build here since the 2026-09-21 recovery (see evm/deployments.json).
+    ATTESTATION_INDEX_RESOLVER: ['0xE5c4C005093828e12bB0A427A74ECAe1601218b6'],
     TRUSTED_ATTESTER_RESOLVER: '0x8326c11a76Dda4702046e92f73C0ea7E698560a2',
     TRUSTED_ATTESTER: '0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20',
     IPFS_GATEWAY: 'https://previewnet.substrate.dev',
     PRIMARY_WEB_DOMAIN: 'testnet.li',
     SECONDARY_WEB_DOMAIN: 'testnet.li',
     SNAPSHOT_POINTER_DOMAIN: 'browse.testnet',
-    SCHEMA_ID: [1n],
+    // Registered against the 2.1.1 resolver. Ids 1 to 5 are wrong or stale.
+    SCHEMA_ID: [6n],
     COMPLIANCE_SCHEMA_ID: 2n,
     ASSETHUB_RPCS: ['wss://previewnet.substrate.dev/asset-hub'],
     PEOPLE_GENESIS: '0xf720c28fe3315e67fa799a616fc59abad47dd257b1a336af6538435844d35218',

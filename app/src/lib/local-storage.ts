@@ -9,16 +9,28 @@ export function isHosted(): boolean {
 export class LocalStorage {
   async readJSON<T>(key: string): Promise<T | null> {
     try {
-      if (isHosted()) {
-        const store = await getHostLocalStorage()
-        if (store) return (await store.readJSON(key)) as T
-      }
-      const raw = window.localStorage.getItem(key)
-      if (!raw) return null
-      return JSON.parse(raw) as T
+      return await this.readJSONOrThrow<T>(key)
     } catch {
       return null
     }
+  }
+
+  /**
+   * Like {@link readJSON}, but a store that cannot be read raises instead of
+   * reading as an empty one. Callers that delete on "nothing there" need the
+   * difference.
+   */
+  async readJSONOrThrow<T>(key: string): Promise<T | null> {
+    if (isHosted()) {
+      const store = await getHostLocalStorage()
+      // Falling back to the store this page owns would answer for the host
+      // with something that was never written there.
+      if (!store) throw new Error('the host store is unavailable')
+      return (await store.readJSON(key)) as T
+    }
+    const raw = window.localStorage.getItem(key)
+    if (!raw) return null
+    return JSON.parse(raw) as T
   }
 
   async writeJSON<T>(key: string, value: T): Promise<void> {
