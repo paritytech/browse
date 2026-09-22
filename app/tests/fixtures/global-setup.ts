@@ -11,11 +11,23 @@ import { APP_URL } from '../utils'
  * that no dead account has locked and can reveal a name on a first recommend.
  */
 export default async function globalSetup(): Promise<void> {
-  ensureContracts()
-  await ensureFixtureApps()
-  await fundIdentity()
-  await createUsername()
-  await warmClient()
+  const onUncaught = (err: unknown) => {
+    console.error('globalSetup: ignoring an error raised outside the work it belongs to:', err)
+  }
+  // A chain client that fails to tear down reports it through rxjs, which
+  // rethrows on a timer of its own and takes the process with it. Setup work
+  // that already finished should not lose a whole run to a socket it could not
+  // close. Anything the work itself awaits still fails the run.
+  process.on('uncaughtException', onUncaught)
+  try {
+    ensureContracts()
+    await ensureFixtureApps()
+    await fundIdentity()
+    await createUsername()
+    await warmClient()
+  } finally {
+    process.off('uncaughtException', onUncaught)
+  }
 }
 
 /**
