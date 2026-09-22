@@ -68,9 +68,10 @@ export async function persistProductStorage(page: Page): Promise<void> {
         } catch {
           // an unreadable mirror just means a cold start
         }
-        // Merge rather than replace. Every page of the context shares one store,
-        // as they would under a real host, so a page still open from an earlier
-        // test must not write its older view over this one.
+        // Written only as the page goes away, which is the moment the runtime
+        // would otherwise take the store with it. A page that stays open holds
+        // its own view of entries like the label cache, so writing on a timer
+        // would have it overwrite whatever another page has since done.
         const flush = () => {
           try {
             const saved = JSON.parse(localStorage.getItem(mirrorKey) ?? '{}') as Record<
@@ -85,15 +86,8 @@ export async function persistProductStorage(page: Page): Promise<void> {
             // ignore
           }
         }
-        // A reload right after a write would otherwise lose it, since the timer
-        // has not fired yet and the runtime goes with the page.
-        const timer = setInterval(flush, 200)
-        const stop = () => {
-          flush()
-          clearInterval(timer)
-        }
-        window.addEventListener('pagehide', stop)
-        window.addEventListener('beforeunload', stop)
+        window.addEventListener('pagehide', flush)
+        window.addEventListener('beforeunload', flush)
       }
     })
   }, MIRROR_KEY)
