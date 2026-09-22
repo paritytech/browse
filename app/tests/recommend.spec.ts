@@ -103,8 +103,10 @@ test.describe('Recommend works', () => {
   })
 
   test('As a signed user, when I recommend an app, I see the count go up and a confirmation toast', async () => {
-    // The count assertion outlasts a refresh, so the test has to outlast it.
-    test.setTimeout(90_000)
+    // The first recommendation of a run binds the identity and attests in one
+    // batch, so it is the slowest write the suite makes, and the toast waits on
+    // the network confirming it.
+    test.setTimeout(180_000)
     page = await context.newPage()
 
     // Given
@@ -123,7 +125,7 @@ test.describe('Recommend works', () => {
     // Then
     await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 15_000 })
     await expect(frame.locator('.toast--visible')).toContainText('Recommended!', {
-      timeout: 60_000
+      timeout: 120_000
     })
 
     // Then
