@@ -410,13 +410,20 @@ test.describe('App Start', () => {
       )
       await page.reload({ waitUntil: 'commit' })
       frame = await getProductFrame(page, '.category-tab')
+      // Each label refreshes on its own, so wait for the bookmarked one rather
+      // than for whichever finishes first.
       await page.waitForFunction(
-        (key) => {
+        ({ key, label }) => {
           const raw = window.__TEST_HOST__?.getProductStorage()[key]
-          const arr = (raw ? JSON.parse(raw) : []) as Array<{ fetchedAt?: number }>
-          return arr.length > 0 && arr.some((l) => (l.fetchedAt ?? 0) > 1000)
+          const arr = (raw ? JSON.parse(raw) : []) as Array<{
+            label: string
+            name: string | null
+            fetchedAt?: number
+          }>
+          const entry = arr.find((l) => l.label === label)
+          return entry !== undefined && (entry.fetchedAt ?? 0) > 1000 && entry.name !== null
         },
-        productStorageKey(LABELS_KEY),
+        { key: productStorageKey(LABELS_KEY), label: target },
         { timeout: 60_000 }
       )
 
