@@ -28,7 +28,7 @@ import {
   toHex
 } from 'viem'
 import { nameWithTld, PASEONEXTV2_ASSETHUB_GENESIS } from '@parity/browse-sdk'
-import { NETWORK } from '../../src/lib/config'
+import { ASSETHUB_GENESIS, NETWORK } from '../../src/lib/config'
 import { DEV_PHRASE as MASTER_PHRASE } from '../utils'
 
 interface FixtureApp {
@@ -41,7 +41,7 @@ interface FixtureApp {
 }
 
 /**
- * Four published apps are a floor the app-start specs count on; alarm-clock
+ * Four published apps are a floor the app-start specs count on. alarm-clock
  * and countdown-timer stay unpublished so search resolves them live.
  */
 const FIXTURE_APPS: FixtureApp[] = [
@@ -56,24 +56,30 @@ const FIXTURE_APPS: FixtureApp[] = [
 /** Any account works, these only ever dry-run. */
 const DRY_RUN_ORIGIN = '5C4hrfjw9DjXZTzV3MwzrrAr9P1MLDHajjSidz9bR544LEq1'
 
+/** The bulletin-deploy the fixtures build with, pinned so a run is repeatable. */
+const BULLETIN_DEPLOY_VERSION = '0.19.1'
+
 const RESOLVER_ABI = parseAbi(['function contenthash(bytes32 node) view returns (bytes)'])
 const PUBLISHER_ABI = parseAbi(['function isPublished(bytes32 labelhash) view returns (bool)'])
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 const PROJECTS = resolve(ROOT, 'app/tests/fixture-projects')
-const GENESIS = process.env.NETWORK_GENESIS_HASH
-
-/** bulletin-deploy's environment id for the network under test. */
+/**
+ * The bulletin-deploy environment id for the network the app is built against,
+ * read from the config the app itself uses so an unset genesis cannot point the
+ * deploy and the app at different networks.
+ */
 const bulletinEnv = (): string =>
-  GENESIS === PASEONEXTV2_ASSETHUB_GENESIS ? 'paseo-next-v2' : 'preview'
+  ASSETHUB_GENESIS === PASEONEXTV2_ASSETHUB_GENESIS ? 'paseo-next-v2' : 'preview'
 
 type HubApi = TypedApi<typeof previewnethub>
 
-async function view(
-  api: HubApi,
-  address: string,
-  data: `0x${string}`
-): Promise<`0x${string}` | null> {
+/**
+ * Read a contract. A call that could not run raises rather than answering
+ * "nothing there", which would rebuild the whole fixture world over one bad
+ * response.
+ */
+async function view(api: HubApi, address: string, data: `0x${string}`): Promise<`0x${string}`> {
   const result = await api.apis.ReviveApi.call(
     DRY_RUN_ORIGIN,
     address as `0x${string}`,
@@ -83,7 +89,11 @@ async function view(
     Binary.fromHex(data),
     { at: 'best' }
   )
-  if (!result.result.success) return null
+  if (!result.result.success) {
+    throw new Error(`reading ${address} failed: ${JSON.stringify(result.result.value)}`)
+  }
+  // A revert is the contract saying it holds nothing, which is an answer.
+  if (result.result.value.flags !== 0) return '0x'
   // The typed api hands binary back as bytes, hex, or a Binary depending on the field.
   const returned: unknown = result.result.value.data
   const bytes =
@@ -102,7 +112,7 @@ async function hasContent(api: HubApi, label: string): Promise<boolean> {
     NETWORK.CONTENT_RESOLVER,
     encodeFunctionData({ abi: RESOLVER_ABI, functionName: 'contenthash', args: [node] })
   )
-  if (raw === null || raw === '0x') return false
+  if (raw === '0x') return false
   const hash = decodeFunctionResult({ abi: RESOLVER_ABI, functionName: 'contenthash', data: raw })
   return hash !== '0x' && hash.length > 2
 }
@@ -119,7 +129,7 @@ async function isPublished(api: HubApi, label: string): Promise<boolean> {
       args: [keccak256(toHex(label))]
     })
   )
-  if (raw === null || raw === '0x') return false
+  if (raw === '0x') return false
   return decodeFunctionResult({ abi: PUBLISHER_ABI, functionName: 'isPublished', data: raw })
 }
 
@@ -133,9 +143,13 @@ function deployFixture(app: FixtureApp): void {
   const domain = nameWithTld(app.label, NETWORK.TLD)
   console.log(`[fixture-apps] deploying ${domain} from tests/fixture-projects/${app.dir}`)
   run('bun', ['install', '--frozen-lockfile'], cwd)
-  // The config imports bulletin-deploy; install it beside the project without
-  // touching its manifest or lockfile.
-  run('npm', ['install', '--no-save', '--no-package-lock', 'bulletin-deploy@latest'], cwd)
+  // The config imports bulletin-deploy, so install it beside the project
+  // without touching its manifest or lockfile.
+  run(
+    'npm',
+    ['install', '--no-save', '--no-package-lock', `bulletin-deploy@${BULLETIN_DEPLOY_VERSION}`],
+    cwd
+  )
   run('bun', ['run', 'build'], cwd, { MANIFEST_DOMAIN: domain })
   run(
     resolve(cwd, 'node_modules/.bin/bulletin-deploy'),
@@ -162,7 +176,7 @@ function publishFixture(app: FixtureApp): void {
     LABEL: app.label,
     MNEMONIC: STD_DEV_PHRASE,
     DERIVATION_PATH: '',
-    NETWORK_GENESIS_HASH: GENESIS ?? ''
+    NETWORK_GENESIS_HASH: ASSETHUB_GENESIS
   })
 }
 
