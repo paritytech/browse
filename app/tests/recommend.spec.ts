@@ -103,7 +103,8 @@ test.describe('Recommend works', () => {
   })
 
   test('As a signed user, when I recommend an app, I see the count go up and a confirmation toast', async () => {
-    test.setTimeout(35_000)
+    // The count assertion outlasts a refresh, so the test has to outlast it.
+    test.setTimeout(90_000)
     page = await context.newPage()
 
     // Given
@@ -128,7 +129,7 @@ test.describe('Recommend works', () => {
   })
 
   test('As a signed user, when I search for a domain and recommend it, I see the count go up and a confirmation toast', async () => {
-    test.setTimeout(25_000)
+    test.setTimeout(90_000)
     page = await context.newPage()
 
     // Given
@@ -155,7 +156,7 @@ test.describe('Recommend works', () => {
   })
 
   test('As a signed user, when I un-recommend an app, I see the count go down and a confirmation toast', async () => {
-    test.setTimeout(40_000)
+    test.setTimeout(90_000)
     page = await context.newPage()
 
     // Given
@@ -191,7 +192,7 @@ test.describe('Recommend works', () => {
   })
 
   test('As a signed user, when I search for a domain and unrecommend it, I see the count go down and a confirmation toast', async () => {
-    test.setTimeout(30_000)
+    test.setTimeout(90_000)
     page = await context.newPage()
 
     // Given

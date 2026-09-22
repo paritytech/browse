@@ -182,8 +182,12 @@ export async function navigateToTestHost(page: Page, hostUrl: string): Promise<v
   )
 }
 
-export async function getProductFrame(page: Page, readySelector = '.product-card'): Promise<Frame> {
-  const deadline = Date.now() + 90_000
+export async function getProductFrame(
+  page: Page,
+  readySelector = '.product-card',
+  timeoutMs = 90_000
+): Promise<Frame> {
+  const deadline = Date.now() + timeoutMs
   while (Date.now() < deadline) {
     const frames = page.frames()
     const productFrame = frames.find((f) => f !== page.mainFrame() && f.url().includes('localhost'))

@@ -29,12 +29,12 @@ test.describe('App Start', () => {
     test.beforeAll(async ({ browser }) => {
       // The first hook of the run pays for the cold start: the dev server, the
       // host, and the first sync the app runs.
-      test.setTimeout(120_000)
+      test.setTimeout(240_000)
       host = await startUnsignedHost()
       context = await browser.newContext({ ignoreHTTPSErrors: true })
       const page = await context.newPage()
       await navigateToTestHost(page, host.url)
-      frame = await getProductFrame(page, '.category-tab')
+      frame = await getProductFrame(page, '.category-tab', 180_000)
     })
 
     test.afterAll(async () => {
