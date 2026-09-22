@@ -54,7 +54,17 @@ async function flushLabelBatch(
     // `published` is derived from the current Publisher set, not from hydration:
     // bookmarked labels are refreshed too but stay out of the All list.
     for (const entry of entries) {
-      labels.set(entry.label, { ...entry, published: publishedNames.has(entry.label) })
+      const cached = labels.get(entry.label)
+      labels.set(entry.label, {
+        ...entry,
+        // A refresh that could not read the manifest carries no name or icon.
+        // Keeping what the cache holds leaves the card as the user last saw it,
+        // rather than falling back to the bare domain.
+        name: entry.name ?? cached?.name ?? null,
+        description: entry.name === null && cached ? cached.description : entry.description,
+        iconCid: entry.iconCid ?? cached?.iconCid ?? null,
+        published: publishedNames.has(entry.label)
+      })
     }
     onProgress?.(materialize(labels))
 
