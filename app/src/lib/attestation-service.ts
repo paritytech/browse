@@ -472,7 +472,12 @@ export class AttestationService {
         options: { gasLimit: GAS, storageDepositLimit: STORAGE }
       })
       if (!bindDry.success) {
-        throw new Error(`bindIdentity dry-run failed: ${JSON.stringify(bindDry.value, bigStr)}`)
+        const detail = JSON.stringify(bindDry.value, bigStr)
+        console.warn(
+          'debug network connection',
+          JSON.stringify({ event: 'bindIdentityAndAttest:bindDryRunFailed', recipient, detail })
+        )
+        throw new Error(`bindIdentity dry-run failed: ${detail}`)
       }
       const contract = await this.getContract()
       const bindCall = await bindDry.value.send().decodedCall
@@ -484,7 +489,21 @@ export class AttestationService {
 
       const api = (await this.client()).getUnsafeApi()
       const batch = api.tx.Utility.batch_all({ calls: [bindCall, attestCall] })
-      return this.submitTx(() => batch as never, signer, track)
+      try {
+        return await this.submitTx(() => batch as never, signer, track)
+      } catch (err) {
+        console.warn(
+          'debug network connection',
+          JSON.stringify({
+            event: 'bindIdentityAndAttest:batchFailed',
+            recipient,
+            dotns: SELF_DOTNS,
+            origin,
+            err: String(err)
+          })
+        )
+        throw err
+      }
     }, onBroadcast)
   }
 
@@ -647,6 +666,17 @@ export class AttestationService {
     if (this.truapi) {
       const permission = await requestPermission({ tag: 'ChainSubmit', value: undefined })
       const permitted = permission.ok ? permission.value : false
+      // The host denies `createTransaction` with a bare `PermissionDenied` for
+      // either a missing ChainSubmit grant or a product account belonging to
+      // another product. Recording the grant here is what tells the two apart.
+      console.warn(
+        'debug network connection',
+        JSON.stringify({
+          event: 'submitTx:chainSubmitPermission',
+          permitted,
+          err: permission.ok ? null : formatHostError(permission.error)
+        })
+      )
       if (!permitted) throw new Error('Transaction submit permission denied')
     }
 
