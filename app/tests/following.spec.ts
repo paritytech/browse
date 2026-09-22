@@ -29,7 +29,8 @@ test.describe('Following', () => {
   let recommendContext: BrowserContext
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(70_000)
+    // Seeds the attestations these specs read, so it waits on the network.
+    test.setTimeout(180_000)
     await fundWithPgas(createDevSigner('Alice').address)
     await createRevokedAttestation('calculator').catch(() => {})
     await createRevokedAttestation('stopwatch').catch(() => {})
