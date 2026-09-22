@@ -9,6 +9,7 @@ import { expect, test } from '@playwright/test'
 
 import { createCachedApps } from './fixtures/cache'
 import {
+  BOOKMARKS_KEY,
   LABELS_KEY,
   productStorageKey,
   readProductStorage,
@@ -150,31 +151,51 @@ test.describe('App Start', () => {
       const cards = frame.locator('.product-card[data-label]')
       expect(await cards.count()).toBeGreaterThan(1)
 
-      const domOrder = await cards.evaluateAll((els) =>
-        els.map((el) => el.getAttribute('data-label'))
-      )
-      const apps = await frame.evaluate(() => {
-        const qc = (
-          window as unknown as { __queryClient?: { getQueryData: (key: unknown[]) => unknown } }
-        ).__queryClient
-        return (qc?.getQueryData(['apps', 'all']) as unknown[] | undefined) ?? []
-      })
-      const orderBy = (sort: 'relevant' | 'new') =>
-        filterApps(apps as AppEntry[], '', 'all', undefined, undefined, undefined, sort)
+      const domOrder = () =>
+        cards.evaluateAll((els) => els.map((el) => el.getAttribute('data-label')))
+      // A sync that lands a publishedAt re-sorts the list, so read both sides
+      // together and let them settle rather than catching a frame in between.
+      const orderedAs = async (sort: 'relevant' | 'new') => {
+        const dom = await domOrder()
+        const apps = await frame.evaluate(() => {
+          const qc = (
+            window as unknown as { __queryClient?: { getQueryData: (key: unknown[]) => unknown } }
+          ).__queryClient
+          return (qc?.getQueryData(['apps', 'all']) as unknown[] | undefined) ?? []
+        })
+        const expected = filterApps(
+          apps as AppEntry[],
+          '',
+          'all',
+          undefined,
+          undefined,
+          undefined,
+          sort
+        )
           .map((app) => app.label)
-          .filter((label) => domOrder.includes(label))
-      // The default sort is New.
-      expect(domOrder).toEqual(orderBy('new'))
+          .filter((label) => dom.includes(label))
+        return { dom, expected }
+      }
+      // The default sort is Relevant.
+      await expect
+        .poll(async () => {
+          const { dom, expected } = await orderedAs('relevant')
+          return dom.join() === expected.join()
+        })
+        .toBe(true)
 
       // When
       await frame.locator('.customize-trigger').click()
       await frame.locator('.customize-nav-row', { hasText: 'Order by' }).click()
-      await frame.locator('.order-panel__option', { hasText: 'Relevant' }).click()
+      await frame.locator('.order-panel__option', { hasText: 'New' }).click()
 
       // Then
       await expect
-        .poll(() => cards.evaluateAll((els) => els.map((el) => el.getAttribute('data-label'))))
-        .toEqual(orderBy('relevant'))
+        .poll(async () => {
+          const { dom, expected } = await orderedAs('new')
+          return dom.join() === expected.join()
+        })
+        .toBe(true)
 
       // Then
       const labelCount =
@@ -364,9 +385,22 @@ test.describe('App Start', () => {
       await expect(card).toBeVisible({ timeout: 20_000 })
       await expect(card.locator('.product-card__name')).toHaveText('Alarm Clock')
       await card.locator('.product-card__bookmark').click()
-      await page.waitForTimeout(500)
+      // The write crosses the host bridge, and the reload below drops whatever
+      // has not landed.
+      await expect
+        .poll(async () => (await readProductStorage<string[]>(page, BOOKMARKS_KEY)) ?? [])
+        .toContain(target)
 
       // When
+      // The searched label is written on its own round trip, and rewriting the
+      // cache before it lands would drop it.
+      await expect
+        .poll(async () =>
+          ((await readProductStorage<Array<{ label: string }>>(page, LABELS_KEY)) ?? []).map(
+            (l) => l.label
+          )
+        )
+        .toContain(target)
       const cached =
         (await readProductStorage<Array<{ fetchedAt?: number }>>(page, LABELS_KEY)) ?? []
       await writeProductStorage(
