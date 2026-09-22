@@ -2,6 +2,7 @@ import { createUsername } from './create-username'
 import { ensureContracts } from './ensure-contracts'
 import { ensureFixtureApps } from './ensure-fixture-apps'
 import { fundIdentity } from './fund'
+import { APP_URL } from '../utils'
 
 /**
  * Prepare the per-run identity once before the suite: fund it native and PGAS
@@ -14,4 +15,7 @@ export default async function globalSetup(): Promise<void> {
   await ensureFixtureApps()
   await fundIdentity()
   await createUsername()
+  // The dev server builds the client on its first request, which the first spec
+  // would otherwise wait out on top of its own cold start.
+  await fetch(APP_URL).catch(() => undefined)
 }

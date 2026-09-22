@@ -122,10 +122,20 @@ test.describe('Recommend works', () => {
 
     // Then
     await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 15_000 })
-    await expect(upvoteCount).toHaveText(String(before + 1), { timeout: 45_000 })
     await expect(frame.locator('.toast--visible')).toContainText('Recommended!', {
       timeout: 25_000
     })
+
+    // Then
+    // A sync that started before the write carries the older count and lands on
+    // top of it, so read the count back from a fresh load instead.
+    await page.reload({ waitUntil: 'commit' })
+    frame = await getProductFrame(page, '.category-tab')
+    await frame.locator('.category-tab', { hasText: 'All' }).click()
+    const reloadedCount = frame
+      .locator('.product-card[data-label="chess-clock"] .product-card__upvote-count')
+      .first()
+    await expect(reloadedCount).toHaveText(String(before + 1), { timeout: 45_000 })
   })
 
   test('As a signed user, when I search for a domain and recommend it, I see the count go up and a confirmation toast', async () => {
