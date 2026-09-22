@@ -222,7 +222,7 @@ async function main() {
     }
     console.log(`\n✅ Published ${label}.${config.TLD}`);
   } finally {
-    // Teardown throws when a chain-head read is still in flight; the work is
+    // Teardown throws when a chain-head read is still in flight. The work is
     // done by then.
     try {
       client.destroy();

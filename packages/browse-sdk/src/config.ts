@@ -114,7 +114,7 @@ export const KNOWN_NETWORKS = {
     PRIMARY_WEB_DOMAIN: 'testnet.li',
     SECONDARY_WEB_DOMAIN: 'testnet.li',
     SNAPSHOT_POINTER_DOMAIN: 'browse.testnet',
-    // Registered against the 2.1.1 resolver; ids 1 to 5 are wrong or stale.
+    // Registered against the 2.1.1 resolver. Ids 1 to 5 are wrong or stale.
     SCHEMA_ID: [6n],
     COMPLIANCE_SCHEMA_ID: 2n,
     ASSETHUB_RPCS: ['wss://previewnet.substrate.dev/asset-hub'],
