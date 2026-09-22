@@ -36,7 +36,11 @@ export const LABELS_KEY = 'browse:labels'
 /** The labels the user bookmarked. */
 export const BOOKMARKS_KEY = 'browse:bookmarks'
 
-/** Where the mirror lives in the host page's own `localStorage`. */
+/**
+ * Where the mirror lives in the host page's own `localStorage`. One key per
+ * browser context, as a real host keeps one store per user and product however
+ * many pages read it.
+ */
 export const MIRROR_KEY = 'e2e:product-storage'
 
 const installed = new WeakSet<Page>()
@@ -78,6 +82,23 @@ export async function persistProductStorage(page: Page): Promise<void> {
         window.addEventListener('beforeunload', flush)
       }
     })
+  }, MIRROR_KEY)
+}
+
+/**
+ * Start this page with an empty store, whatever an earlier test in the context
+ * left behind. Only the first load is cleared, so a reload still finds what the
+ * page itself wrote.
+ */
+export async function resetProductStorage(page: Page): Promise<void> {
+  await page.addInitScript((mirrorKey) => {
+    try {
+      if (sessionStorage.getItem(`${mirrorKey}:reset`)) return
+      sessionStorage.setItem(`${mirrorKey}:reset`, '1')
+      localStorage.removeItem(mirrorKey)
+    } catch {
+      // no storage, nothing to clear
+    }
   }, MIRROR_KEY)
 }
 

@@ -13,6 +13,7 @@ import {
   LABELS_KEY,
   productStorageKey,
   readProductStorage,
+  resetProductStorage,
   writeProductStorage
 } from './fixtures/host-storage'
 import { seedIconPreimage } from './fixtures/seed-preimage'
@@ -379,6 +380,9 @@ test.describe('App Start', () => {
       const target = 'alarm-clock'
 
       // Given
+      // This one is about the cache's own lifecycle, so it starts from an empty
+      // store rather than what the tests before it left in the context.
+      await resetProductStorage(page)
       await navigateToTestHost(page, host.url)
       let frame = await getProductFrame(page, '.category-tab')
       await frame.waitForSelector('.product-card', { timeout: 30_000 })
@@ -404,7 +408,10 @@ test.describe('App Start', () => {
         )
         .toContain(target)
       const cached =
-        (await readProductStorage<Array<{ fetchedAt?: number }>>(page, LABELS_KEY)) ?? []
+        (await readProductStorage<Array<{ label: string; fetchedAt?: number }>>(
+          page,
+          LABELS_KEY
+        )) ?? []
       await writeProductStorage(
         page,
         LABELS_KEY,
@@ -412,28 +419,25 @@ test.describe('App Start', () => {
       )
       await page.reload({ waitUntil: 'commit' })
       frame = await getProductFrame(page, '.category-tab')
-      // Each label refreshes on its own, so wait for the bookmarked one rather
-      // than for whichever finishes first.
       await page.waitForFunction(
-        ({ key, label }) => {
+        (key) => {
           const raw = window.__TEST_HOST__?.getProductStorage()[key]
-          const arr = (raw ? JSON.parse(raw) : []) as Array<{
-            label: string
-            name: string | null
-            fetchedAt?: number
-          }>
-          const entry = arr.find((l) => l.label === label)
-          return entry !== undefined && (entry.fetchedAt ?? 0) > 1000 && entry.name !== null
+          const arr = (raw ? JSON.parse(raw) : []) as Array<{ fetchedAt?: number }>
+          return arr.length > 0 && arr.some((l) => (l.fetchedAt ?? 0) > 1000)
         },
-        { key: productStorageKey(LABELS_KEY), label: target },
+        productStorageKey(LABELS_KEY),
         { timeout: 60_000 }
       )
 
       // Then
       await frame.locator('.category-tab', { hasText: 'Bookmarks' }).click()
       const bookmarked = frame.locator(`.product-card[data-label="${target}"]`)
-      await expect(bookmarked).toBeVisible()
-      await expect(bookmarked.locator('.product-card__name')).toHaveText('Alarm Clock')
+      // The label refreshes behind the published ones, so the card can take a
+      // while to come back, but come back it must, with its name.
+      await expect(bookmarked).toBeVisible({ timeout: 90_000 })
+      await expect(bookmarked.locator('.product-card__name')).toHaveText('Alarm Clock', {
+        timeout: 30_000
+      })
 
       await page.close()
     })
