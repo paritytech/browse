@@ -26,6 +26,8 @@ test.describe('App Start', () => {
     let frame: Frame
 
     test.beforeAll(async ({ browser }) => {
+      // A host and a cold first sync, which the default hook budget does not cover.
+      test.setTimeout(60_000)
       host = await startUnsignedHost()
       context = await browser.newContext({ ignoreHTTPSErrors: true })
       const page = await context.newPage()

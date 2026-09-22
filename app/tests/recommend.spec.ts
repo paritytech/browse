@@ -4,7 +4,7 @@
  * Validates recommendation behaviour.
  */
 
-import type { BrowserContext, Frame, Page } from '@playwright/test'
+import type { BrowserContext, Frame, Locator, Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 
 import { bindIdentityAndAttest } from './fixtures/bind-identity-and-attest'
@@ -28,6 +28,26 @@ import {
   startSignedHost,
   startSignedHostWithProductAccounts
 } from './utils'
+
+/**
+ * The count a card shows once a sync in flight has stopped moving it. Reading it
+ * mid-sync makes the recommendation look like it counted for nothing.
+ */
+async function settledCount(counter: Locator): Promise<number> {
+  const read = async () => {
+    if ((await counter.count()) === 0) return 0
+    const text = (await counter.textContent()) ?? ''
+    return text === '' ? 0 : text === '999+' ? 1000 : Number(text)
+  }
+  let last = await read()
+  for (let i = 0; i < 20; i++) {
+    await counter.page().waitForTimeout(500)
+    const next = await read()
+    if (next === last) return next
+    last = next
+  }
+  return last
+}
 
 test.describe('Recommend works', () => {
   let host: Awaited<ReturnType<typeof startSignedHost>>
@@ -92,9 +112,7 @@ test.describe('Recommend works', () => {
     await expect(card).toBeVisible({ timeout: 15_000 })
     const upvote = card.locator('.product-card__upvote')
     const upvoteCount = upvote.locator('.product-card__upvote-count')
-    const hasCount = (await upvoteCount.count()) > 0
-    const beforeText = hasCount ? ((await upvoteCount.textContent()) ?? '') : ''
-    const before = beforeText === '' ? 0 : beforeText === '999+' ? 1000 : Number(beforeText)
+    const before = await settledCount(upvoteCount)
 
     // When
     await upvote.click()
