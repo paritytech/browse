@@ -76,7 +76,7 @@ async function flushLabelBatch(
 export async function syncAllApps(
   cachedLabels: LabelEntry[],
   onProgress?: (apps: AppEntry[]) => void,
-  protectedLabels: ReadonlySet<string> = new Set()
+  protectedLabels: ReadonlySet<string> | null = new Set()
 ): Promise<AppEntry[]> {
   const t0 = performance.now()
   hiddenLog(`Starting synchronization - cache holds ${cachedLabels.length} labels`)
@@ -104,10 +104,13 @@ export async function syncAllApps(
   const labelByHash = await resolveLabels(published, labels)
   const publishedNames = new Set<string>(labelByHash.values())
 
-  // Drop cached labels no longer in the published set, except bookmarked/followed
-  // ones.
-  for (const name of [...labels.keys()]) {
-    if (!publishedNames.has(name) && !protectedLabels.has(name)) labels.delete(name)
+  // Drop cached labels no longer in the published set, except bookmarked and
+  // followed ones. A null set means the bookmarks could not be read, and
+  // pruning then would throw away a bookmarked app's name and icon for good.
+  if (protectedLabels) {
+    for (const name of [...labels.keys()]) {
+      if (!publishedNames.has(name) && !protectedLabels.has(name)) labels.delete(name)
+    }
   }
 
   // `published` is recomputed every sync from the current Publisher set. A kept

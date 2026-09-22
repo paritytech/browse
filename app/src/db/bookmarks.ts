@@ -8,6 +8,11 @@ export async function readBookmarks(): Promise<Bookmarks> {
   return (await localStorage.readJSON<Bookmarks>(KEY)) ?? []
 }
 
+/** The bookmarks, raising when the store cannot be read at all. */
+export async function readBookmarksOrThrow(): Promise<Bookmarks> {
+  return (await localStorage.readJSONOrThrow<Bookmarks>(KEY)) ?? []
+}
+
 export async function createBookmark(label: string): Promise<void> {
   const labels = await readBookmarks()
   if (!labels.includes(label)) {
