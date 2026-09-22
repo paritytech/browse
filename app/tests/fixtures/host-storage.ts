@@ -68,9 +68,19 @@ export async function persistProductStorage(page: Page): Promise<void> {
         } catch {
           // an unreadable mirror just means a cold start
         }
+        // Merge rather than replace. Every page of the context shares one store,
+        // as they would under a real host, so a page still open from an earlier
+        // test must not write its older view over this one.
         const flush = () => {
           try {
-            localStorage.setItem(mirrorKey, JSON.stringify(value.getProductStorage()))
+            const saved = JSON.parse(localStorage.getItem(mirrorKey) ?? '{}') as Record<
+              string,
+              string
+            >
+            localStorage.setItem(
+              mirrorKey,
+              JSON.stringify({ ...saved, ...value.getProductStorage() })
+            )
           } catch {
             // ignore
           }
