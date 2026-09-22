@@ -10,7 +10,7 @@
 import type { Browser } from '@playwright/test'
 
 import { getProductFrame, navigateToTestHost } from '../utils'
-import { fundAddressWithPgas, fundWithNative } from './fund'
+import { fundWithNative, fundWithPgas } from './fund'
 
 /**
  * What a product account is given, in PGAS. Sized per host: a write costs
@@ -49,7 +49,7 @@ export async function fundProductAccount(
         })
     )
     await fundWithNative(address)
-    await fundAddressWithPgas(address, pgas)
+    await fundWithPgas(address, pgas)
     return address
   } finally {
     await context.close()

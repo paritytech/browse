@@ -212,16 +212,8 @@ export async function ensureFunderPgas(from: Credentials = createMasterSigner())
   })
 }
 
-export async function fundWithPgas(
-  toAccount = 'Charlie',
-  amount: bigint = DEFAULT_PGAS_AMOUNT,
-  from: Credentials = createMasterSigner()
-): Promise<FundResult> {
-  return fundAddressWithPgas(createDevSigner(toAccount).address, amount, from)
-}
-
 /** Top up any address with PGAS from `from`, skipping when already funded. */
-export async function fundAddressWithPgas(
+export async function fundWithPgas(
   toAddress: string,
   amount: bigint = DEFAULT_PGAS_AMOUNT,
   from: Credentials = createMasterSigner()
@@ -397,8 +389,8 @@ export async function fundWithNative(
   })
 }
 
-// The per-run identity signs the fixture attests across a suite. The app's own
-// writes come out of the product account now, so this covers seeding alone, and
+// The per-run identity signs the fixture attests across a suite. Writes made by
+// the app come out of the product account now, so this covers seeding alone, and
 // whatever it does not spend goes back to the funder at teardown.
 const IDENTITY_PGAS_AMOUNT = 18_000_000_000n
 
@@ -413,7 +405,7 @@ export async function fundIdentity(): Promise<void> {
   await ensureFunderPgas(master)
   if (identity.address === master.address) return
   await fundWithNative(identity.address)
-  await fundAddressWithPgas(identity.address, IDENTITY_PGAS_AMOUNT, master)
+  await fundWithPgas(identity.address, IDENTITY_PGAS_AMOUNT, master)
   await ensureIdentityBound(identity)
 }
 

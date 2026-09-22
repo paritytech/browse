@@ -9,7 +9,7 @@ import { expect, test } from '@playwright/test'
 
 import { createAttestation } from './fixtures/attest'
 import { createCachedApps } from './fixtures/cache'
-import { createProductSigner, fundWithPgas } from './fixtures/fund'
+import { createDevSigner, createProductSigner, fundWithPgas } from './fixtures/fund'
 import { createRevokedAttestation } from './fixtures/revoke-attestation'
 import { seedPreimage } from './fixtures/seed-preimage'
 import { SNAPSHOT_USERNAME, USERNAME_SNAPSHOT_BLOCKS } from './fixtures/usernames-snapshot'
@@ -30,7 +30,7 @@ test.describe('Following', () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(70_000)
-    await fundWithPgas('Alice')
+    await fundWithPgas(createDevSigner('Alice').address)
     await createRevokedAttestation('calculator').catch(() => {})
     await createRevokedAttestation('stopwatch').catch(() => {})
     await createAttestation('calculator')

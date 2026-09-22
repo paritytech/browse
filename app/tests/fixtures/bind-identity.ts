@@ -31,7 +31,7 @@ export async function createUnboundProductAccount(): Promise<UnboundProduct> {
   await fundWithNative(product.address)
   await mapAccount(tag)
   // Fund the account so it can pay its first-recommend batch fee in PGAS.
-  await fundWithPgas(tag, PGAS_SEED_AMOUNT)
+  await fundWithPgas(createDevSigner(tag).address, PGAS_SEED_AMOUNT)
   return {
     tag,
     productAccounts: {
