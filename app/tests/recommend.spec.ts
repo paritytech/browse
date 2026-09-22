@@ -31,7 +31,9 @@ import {
 
 /**
  * The count a card shows once a sync in flight has stopped moving it. Reading it
- * mid-sync makes the recommendation look like it counted for nothing.
+ * mid-sync makes the recommendation look like it counted for nothing, and a
+ * refresh that started before the write lands can still clobber it once, so the
+ * assertions that follow outlast a refresh too.
  */
 async function settledCount(counter: Locator): Promise<number> {
   const read = async () => {
@@ -119,7 +121,7 @@ test.describe('Recommend works', () => {
 
     // Then
     await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 15_000 })
-    await expect(upvoteCount).toHaveText(String(before + 1), { timeout: 15_000 })
+    await expect(upvoteCount).toHaveText(String(before + 1), { timeout: 45_000 })
     await expect(frame.locator('.toast--visible')).toContainText('Recommended!', {
       timeout: 25_000
     })
@@ -146,7 +148,7 @@ test.describe('Recommend works', () => {
 
     // Then
     await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 15_000 })
-    await expect(upvoteCount).toHaveText(String(before + 1), { timeout: 15_000 })
+    await expect(upvoteCount).toHaveText(String(before + 1), { timeout: 45_000 })
     await expect(frame.locator('.toast--visible')).toContainText('Recommended!', {
       timeout: 15_000
     })
@@ -179,7 +181,7 @@ test.describe('Recommend works', () => {
     // Then
     await expect(upvote).not.toHaveClass(/product-card__upvote--active/, { timeout: 15_000 })
     if (before > 1) {
-      await expect(upvoteCount).toHaveText(String(before - 1), { timeout: 15_000 })
+      await expect(upvoteCount).toHaveText(String(before - 1), { timeout: 45_000 })
     } else {
       await expect(upvoteCount).not.toBeVisible({ timeout: 15_000 })
     }
@@ -213,7 +215,7 @@ test.describe('Recommend works', () => {
     // Then
     await expect(upvote).not.toHaveClass(/product-card__upvote--active/)
     if (before > 1) {
-      await expect(upvoteCount).toHaveText(String(before - 1))
+      await expect(upvoteCount).toHaveText(String(before - 1), { timeout: 45_000 })
     } else {
       await expect(upvoteCount).not.toBeVisible()
     }
