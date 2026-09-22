@@ -22,7 +22,7 @@ import { RecommendPrompt } from './components/recommend-prompt'
 import { SearchBar } from './components/search-bar'
 import { Toast } from './components/toast'
 import { ToastContext } from './components/toast/context'
-import { createBookmark, deleteBookmark, readBookmarks } from './db/bookmarks'
+import { createBookmark, deleteBookmark, readBookmarksWithRetry } from './db/bookmarks'
 import { upsertLabel } from './db/labels'
 import { readSortMode, writeSortMode } from './db/sort-preference'
 import { useEvent } from './hooks/use-event'
@@ -684,11 +684,20 @@ export function App() {
       // account before this loaded has none left to report, so ask once for the
       // account we would sign with. A host with no account connected leaves
       // that request unanswered, which is the unsigned state we start in.
-      const account = await provider.getProductAccount(SELF_DOTNS, 0)
-      if (!cancelled && !reported) setSigned(account.isOk())
+      const account = await provider
+        .getProductAccount(SELF_DOTNS, 0)
+        .match(
+          (value) => value,
+          () => null
+        )
+        .catch(() => null)
+      if (cancelled) return
+      if (!reported) setSigned(account !== null)
       // The host derives this account rather than being told it, so nothing
       // outside the product can work out which account pays for a write.
-      if (account.isOk()) window.__productAccount = AccountId().dec(account.value.publicKey)
+      if (import.meta.env?.DEV && account) {
+        window.__productAccount = AccountId().dec(account.publicKey)
+      }
     })
     return () => {
       cancelled = true
@@ -705,10 +714,12 @@ export function App() {
   }, [allError, showToast])
   // Load bookmarks and the following list on mount.
   useEffect(() => {
-    readBookmarks().then((bookmark) => {
-      setBookmarkedApps(new Set(bookmark))
-      setBookmarkedAppsLoaded(true)
-    })
+    readBookmarksWithRetry()
+      .catch(() => [])
+      .then((bookmark) => {
+        setBookmarkedApps(new Set(bookmark))
+        setBookmarkedAppsLoaded(true)
+      })
     getFollowing().then(setFollowing)
     readSortMode().then(setSortMode)
   }, [])
