@@ -45,6 +45,10 @@ async function codeBytes(api: any, address: string): Promise<number> {
   return (hex.length - 2) / 2;
 }
 
+/**
+ * Read a contract. A call that could not run raises: read as "nothing there" it
+ * would have the deploy register a schema the registry already holds.
+ */
 async function view(api: any, address: string, data: `0x${string}`) {
   const result = await api.apis.ReviveApi.call(
     DRY_RUN_ORIGIN,
@@ -55,7 +59,13 @@ async function view(api: any, address: string, data: `0x${string}`) {
     Binary.fromHex(data),
     { at: "best" },
   );
-  if (!result.result.success) return null;
+  if (!result.result.success) {
+    throw new Error(
+      `reading ${address} failed: ${JSON.stringify(result.result.value, (_, v) => (typeof v === "bigint" ? v.toString() : v))}`,
+    );
+  }
+  // A revert is the contract saying it holds nothing, which is an answer.
+  if (result.result.value.flags !== 0) return null;
   const returned = result.result.value.data;
   return (
     typeof returned === "string" ? returned : returned.asHex()

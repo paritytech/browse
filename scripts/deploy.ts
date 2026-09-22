@@ -9,7 +9,7 @@
  * do not depend on who deploys, and the constructor inputs below are pinned,
  * so any funded account produces the same stack.
  *
- * `--contracts-only` stops before the client build and publish; the e2e suite
+ * `--contracts-only` stops before the client build and publish. The e2e suite
  * runs it that way in its global setup.
  */
 
@@ -97,11 +97,11 @@ function probe(): NetworkState {
 }
 
 /**
- * The version in a contract's recorded CREATE3 salt on this network, from
+ * The version in the CREATE3 salt recorded for a contract on this network, from
  * evm/deployments.json. The salt is what fixes the address, so a redeploy
  * after a chain reset must reuse it rather than the version the source
- * declares today; a deliberately new version is a new record, and a new
- * config entry, not a wipe recovery.
+ * declares today. A deliberately new version is a new record, and a new config
+ * entry, not a wipe recovery.
  */
 function recordedVersion(record: string): string {
   const records = JSON.parse(
@@ -172,7 +172,7 @@ function ensureContract(
 /**
  * A schema stage. Ids are assigned by registration order on the shared
  * registry, so a schema is only registered while its expected id is the next
- * one; an id already taken by something else needs a config change, not a
+ * one. An id already taken by something else needs a config change, not a
  * deploy.
  */
 function ensureSchema(
@@ -197,7 +197,9 @@ function ensureSchema(
   if (next !== BigInt(expected.id)) {
     stage(label, () => {
       throw new Error(
-        `the registry would assign id ${next}, the config expects ${expected.id}`,
+        `the registry would assign id ${next}, the config expects ${expected.id}. ` +
+          `A registry that was wiped hands out ids from 1 again, so point the config at ${next} ` +
+          `in packages/browse-sdk/src/config.ts before deploying, or the app reads the wrong schema.`,
       );
     });
   }
