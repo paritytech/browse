@@ -63,8 +63,8 @@ test.describe('Recommend works', () => {
   let frame: Frame
 
   test.beforeAll(async ({ browser }) => {
-    // Two hosts to fund, each read from a browser the app has to start in.
-    test.setTimeout(240_000)
+    // Seeds two hosts and half a dozen writes, each waiting on the network.
+    test.setTimeout(480_000)
     await fundWithNative(createProductSigner().address)
     await createRevokedAttestation('chess-clock').catch(() => {})
     await createRevokedAttestation('calculator').catch(() => {})
