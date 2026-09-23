@@ -79,6 +79,8 @@ Prefer invoking a skill over reimplementing from source:
 To see the app at all it needs a Host around it: `bun scripts/mock-host.ts` wraps a
 running dev server and prints a URL to open. `localhost:<port>` on its own only shows
 "Not Running Inside Host".
+To drive the real host API instead, `truapi-host dev --network previewnet -- bun run dev:previewnet`
+from `app/` starts a local signing host and the dev server loads its bridge. See `app/README.md`.
 
 Agents: `code-architect`, `staff-reviewer`, `verify-app`, `code-simplifier`, and the design set (`design-director`, `design-system-steward`, `visual-designer`).
 
