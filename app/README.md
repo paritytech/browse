@@ -36,22 +36,6 @@ bun install
 bun dev                 # default network
 ```
 
-### Local signing host
-
-`truapi-host dev` starts a signing host on loopback, then runs the dev server with
-that host already live, so the app works in a plain browser tab:
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/paritytech/host-rust-core/main/scripts/truapi-host-installer.sh | bash
-
-truapi-host dev --network previewnet -- bun run dev:previewnet
-```
-
-Open http://localhost:3000. The dev server loads the bridge script the host serves
-at `http://127.0.0.1:9955/bootstrap.js`, and builds never include it.
-Confirmations are approved automatically, so the host signs whatever the app asks
-for. Host and app have to serve the same network.
-
 ## Deploy
 
 Install deployment CLI.
