@@ -63,8 +63,8 @@ test.describe('Recommend works', () => {
   let frame: Frame
 
   test.beforeAll(async ({ browser }) => {
-    // Two hosts to fund, each read from a browser the app has to start in.
-    test.setTimeout(240_000)
+    // Seeds two hosts and half a dozen writes, each waiting on the network.
+    test.setTimeout(480_000)
     await fundWithNative(createProductSigner().address)
     await createRevokedAttestation('chess-clock').catch(() => {})
     await createRevokedAttestation('calculator').catch(() => {})
@@ -120,13 +120,16 @@ test.describe('Recommend works', () => {
     const before = await settledCount(upvoteCount)
 
     // When
+    // The toast comes and goes on its own, so watch for it before the click
+    // rather than looking once the write has already settled.
+    const toast = expect(frame.locator('.toast--visible')).toContainText('Recommended!', {
+      timeout: 120_000
+    })
     await upvote.click()
 
     // Then
     await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 15_000 })
-    await expect(frame.locator('.toast--visible')).toContainText('Recommended!', {
-      timeout: 120_000
-    })
+    await toast
 
     // Then
     // A sync that started before the write carries the older count and lands on
@@ -157,14 +160,15 @@ test.describe('Recommend works', () => {
     const before = beforeText === '' ? 0 : beforeText === '999+' ? 1000 : Number(beforeText)
 
     // When
+    const toast = expect(frame.locator('.toast--visible')).toContainText('Recommended!', {
+      timeout: 120_000
+    })
     await upvote.click()
 
     // Then
     await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 15_000 })
     await expect(upvoteCount).toHaveText(String(before + 1), { timeout: 45_000 })
-    await expect(frame.locator('.toast--visible')).toContainText('Recommended!', {
-      timeout: 15_000
-    })
+    await toast
   })
 
   test('As a signed user, when I un-recommend an app, I see the count go down and a confirmation toast', async () => {
@@ -189,6 +193,9 @@ test.describe('Recommend works', () => {
     expect(before).toBeGreaterThan(0)
 
     // When
+    const toast = expect(frame.locator('.toast--visible')).toContainText('Unrecommended!', {
+      timeout: 120_000
+    })
     await upvote.click()
 
     // Then
@@ -198,9 +205,7 @@ test.describe('Recommend works', () => {
     } else {
       await expect(upvoteCount).not.toBeVisible({ timeout: 15_000 })
     }
-    await expect(frame.locator('.toast--visible')).toContainText('Unrecommended!', {
-      timeout: 60_000
-    })
+    await toast
   })
 
   test('As a signed user, when I search for a domain and unrecommend it, I see the count go down and a confirmation toast', async () => {
@@ -223,6 +228,9 @@ test.describe('Recommend works', () => {
     expect(before).toBeGreaterThan(0)
 
     // When
+    const toast = expect(frame.locator('.toast--visible')).toContainText('Unrecommended!', {
+      timeout: 120_000
+    })
     await upvote.click()
 
     // Then
@@ -232,9 +240,7 @@ test.describe('Recommend works', () => {
     } else {
       await expect(upvoteCount).not.toBeVisible()
     }
-    await expect(frame.locator('.toast--visible')).toContainText('Unrecommended!', {
-      timeout: 60_000
-    })
+    await toast
   })
 
   test('As a first-time user, when I recommend an app, I reveal my primary identity and recommend in a single signature', async () => {
@@ -252,13 +258,14 @@ test.describe('Recommend works', () => {
     const upvote = card.locator('.product-card__upvote')
 
     // When
+    const toast = expect(unboundFrame.locator('.toast--visible')).toContainText('Recommended!', {
+      timeout: 120_000
+    })
     await upvote.click()
 
     // Then
     await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 25_000 })
-    await expect(unboundFrame.locator('.toast--visible')).toContainText('Recommended!', {
-      timeout: 60_000
-    })
+    await toast
   })
 })
 

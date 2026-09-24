@@ -216,7 +216,8 @@ test.describe('Motion', () => {
   })
 
   test('Recommending an app bubbles when the network confirms', async ({ browser }) => {
-    test.setTimeout(60000)
+    // Funds the account the host derived, then waits for the network to confirm.
+    test.setTimeout(180_000)
     await fundWithNative(createProductSigner().address)
     await createRevokedAttestation('chess-clock').catch(() => {})
     const host = await startSignedHost({

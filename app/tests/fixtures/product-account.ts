@@ -9,7 +9,7 @@
  */
 import type { Browser } from '@playwright/test'
 
-import { getProductFrame, navigateToTestHost } from '../utils'
+import { navigateToTestHost } from '../utils'
 import { fundWithNative, fundWithPgas } from './fund'
 
 /**
@@ -33,11 +33,22 @@ export async function fundProductAccount(
   try {
     const page = await context.newPage()
     await navigateToTestHost(page, hostUrl)
-    const frame = await getProductFrame(page, '.category-tab')
+    // The app asks the host for this account as it boots, long before the first
+    // sync fills the tabs, so waiting for the tabs here would pay for a cold
+    // start twice over.
+    const frame = await page.waitForSelector('iframe').then(() => {
+      const productFrame = page
+        .frames()
+        .find(
+          (candidate) => candidate !== page.mainFrame() && candidate.url().includes('localhost')
+        )
+      if (!productFrame) throw new Error('the product frame never loaded')
+      return productFrame
+    })
     const address = await frame.evaluate(
       () =>
         new Promise<string>((resolve, reject) => {
-          const deadline = Date.now() + 20_000
+          const deadline = Date.now() + 60_000
           const poll = () => {
             const account = window.__productAccount
             if (account) return resolve(account)
