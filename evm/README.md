@@ -70,7 +70,7 @@ Version 2.2.0:
 
 #### Previewnet AssetHub
 
-Genesis `0xc27c8bf3f13f96dc2130cd2b0a3debe57618fd02521ecc1902bd7dd4ed83d2fe`.
+Genesis `0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210`.
 
 TLD `.testnet`.
 
