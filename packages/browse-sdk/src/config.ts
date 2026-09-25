@@ -50,8 +50,10 @@ export interface NetworkConfig {
 export const PASEONEXTV2_ASSETHUB_GENESIS =
   '0x4349b00e54897e21196fd331015fc5be0f14e118beb0375ed2bb1793737bb57a' as const
 
+// The iOS host chain registry keys previewnet Asset Hub by this hash, not the
+// c27c8bf3 genesis the node reports, and routes it to the same RPC.
 export const PREVIEWNET_ASSETHUB_GENESIS =
-  '0xc27c8bf3f13f96dc2130cd2b0a3debe57618fd02521ecc1902bd7dd4ed83d2fe' as const
+  '0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210' as const
 
 export const KNOWN_NETWORKS = {
   [PASEONEXTV2_ASSETHUB_GENESIS]: {
