@@ -226,12 +226,6 @@ export function FollowingManager({
                   // keyboard away.
                   e.preventDefault()
                   e.currentTarget.blur()
-                } else if (e.key === 'Backspace' && input === '' && following.length > 0) {
-                  // Pull the last-followed username back into the field so it can
-                  // be edited rather than dropped outright.
-                  const last = following[following.length - 1]
-                  onRemove(last.address)
-                  setInput(last.username ?? last.address)
                 } else if (e.key === 'Escape') {
                   onOpenChange(false)
                 }
