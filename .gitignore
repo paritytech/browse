@@ -46,3 +46,7 @@ app/tests/results/
 
 # Lychee link-check cache
 .lycheecache
+
+# Local truapi-host CLI state and its dev-only lockdown shim (see AGENTS.md)
+.truapi-host/
+app/public/lockdown-shim.js
