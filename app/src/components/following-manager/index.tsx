@@ -78,11 +78,17 @@ export function FollowingManager({
     return () => clearTimeout(id)
   }, [query])
 
-  // Drop the caret into the field as it expands from the + button, and reset
-  // the draft whenever the field closes, including a close from the parent.
+  // Drop the caret into the field as it expands from the + button, folding any
+  // opened avatar back into the stack, and reset the draft whenever the field
+  // closes, including a close from the parent.
   useEffect(() => {
-    if (open) inputRef.current?.focus()
-    else setInput('')
+    if (open) {
+      setExpandedAddress(null)
+      setExpandedAll(false)
+      inputRef.current?.focus()
+    } else {
+      setInput('')
+    }
   }, [open])
 
   // Prefix autocomplete from the verifiable username snapshot, mirroring the
@@ -171,7 +177,7 @@ export function FollowingManager({
   )
 
   return (
-    <div class='following-panel'>
+    <div class={`following-panel${open ? ' following-panel--adding' : ''}`}>
       <div class='following-panel__row'>
         {stack}
         {overflow > 0 && !expandedAll && (

@@ -201,23 +201,31 @@
   opacity: 1;
 }
 
+/* Hover stays off while adding, since the + sliding right as it grows can
+   leave the pointer resting on the last avatar. */
 @media (hover: hover) {
-  .following-panel__chip:hover {
+  .following-panel:not(.following-panel--adding) .following-panel__chip:hover {
     background: var(--surface-3);
     padding-right: 6px;
   }
 
-  .following-panel__chip + .following-panel__chip:hover {
+  .following-panel:not(.following-panel--adding)
+    .following-panel__chip
+    + .following-panel__chip:hover {
     margin-left: 2px;
   }
 
-  .following-panel__chip:hover .following-panel__chip-label {
+  .following-panel:not(.following-panel--adding)
+    .following-panel__chip:hover
+    .following-panel__chip-label {
     max-width: 160px;
     margin-left: 8px;
     opacity: 1;
   }
 
-  .following-panel__chip:hover .following-panel__chip-remove {
+  .following-panel:not(.following-panel--adding)
+    .following-panel__chip:hover
+    .following-panel__chip-remove {
     max-width: 18px;
     margin-left: 4px;
     opacity: 1;
