@@ -508,6 +508,9 @@ export function App() {
       setToastMessage(message)
     }
   )
+  const openApp = useEvent((label: string) => {
+    navigateToDomain(label, (message) => showToast(message, true))
+  })
   const handleSort = useEvent((sort: SortMode) => {
     setSortMode(sort)
     void writeSortMode(sort)
@@ -818,7 +821,7 @@ export function App() {
       bookmarked={bookmarkedApps.has(app.label)}
       isSignedIn={signed}
       showMenu
-      onClick={navigateToDomain}
+      onClick={openApp}
       onBookmark={handleBookmark}
       onShare={handleShare}
       onAttestationSettled={() => commitOrder(app.label)}
@@ -918,7 +921,7 @@ export function App() {
                     <PlaceholderCard
                       label={typedLabel(query)}
                       target={destination}
-                      onGo={navigateToDomain}
+                      onGo={openApp}
                     />
                   ))}
                 {coldStart ? (
