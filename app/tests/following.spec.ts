@@ -212,7 +212,7 @@ test.describe('Following', () => {
     await stackContext.close()
   })
 
-  test('As a signed user, when I type a username nobody has, No results stays up as I keep typing', async ({
+  test('As a signed user, when I keep typing a username nobody has, I keep seeing the no results message', async ({
     browser
   }) => {
     test.setTimeout(30_000)
