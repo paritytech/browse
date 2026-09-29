@@ -34,7 +34,8 @@
     "papi:schema-registry": "npx papi sol add src/lib/abis/SchemaRegistry.json schema_registry",
     "test:e2e": "bun run test:e2e:previewnet",
     "test:e2e:previewnet": "APP_PGAS_FUNDING_TIMEOUT=1000 NETWORK_GENESIS_HASH=0xbac97e23fc8f4bccae72a98f8aeb2bcab20bf755862304e4b46ad6473456e896 playwright test --config tests/playwright.config.ts",
-    "test:e2e:paseo": "APP_PGAS_FUNDING_TIMEOUT=1000 NETWORK_GENESIS_HASH=0x4349b00e54897e21196fd331015fc5be0f14e118beb0375ed2bb1793737bb57a playwright test --config tests/playwright.config.ts"
+    "test:e2e:paseo": "APP_PGAS_FUNDING_TIMEOUT=1000 NETWORK_GENESIS_HASH=0x4349b00e54897e21196fd331015fc5be0f14e118beb0375ed2bb1793737bb57a playwright test --config tests/playwright.config.ts",
+    "test:e2e:soak": "for i in 1 2 3; do bun run test:e2e --workers=1 --retries=0 || exit 1; done"
   },
   "dependencies": {
     "@ensdomains/content-hash": "^3.0.0",
