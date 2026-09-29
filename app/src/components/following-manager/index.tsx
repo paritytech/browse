@@ -19,8 +19,11 @@ function isValidSS58(addr: string): boolean {
 
 interface FollowingManagerProps {
   following: FollowedAccount[]
-  /** Whether the @username input is expanded. Owned by the parent so it can
-      hide the app list while someone is being added. */
+  /**
+   * Whether the @username input is expanded.
+   *
+   * Owned by the parent so it can hide the app list while someone is being added.
+   */
   open: boolean
   onOpenChange: (open: boolean) => void
   onAdd: (address: string, username?: string) => void
@@ -43,10 +46,10 @@ function accountLabel(account: FollowedAccount): string {
  * rest it is one compact row: the followed accounts as a stack of avatars with
  * a + button tucked on as the next slot.
  *
- * An avatar expands to its name and an unfollow cross on hover (desktop) or tap
- * (touch). Past three avatars the stack truncates into a +N circle that fans
- * every name out. The + grows into the @username input, right of the stack,
- * with snapshot autocomplete.
+ * An avatar expands to its name and an unfollow cross on mouse hover or on tap.
+ * Past STACK_LIMIT avatars the stack truncates into a +N circle that fans every
+ * name out. The + grows into the @username input, right of the stack, with
+ * snapshot autocomplete.
  */
 export function FollowingManager({
   following,
@@ -219,11 +222,8 @@ export function FollowingManager({
               onInput={(e) => setInput((e.target as HTMLInputElement).value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  // Done typing, and nothing more. Return used to follow the first
-                  // result, which arrives asynchronously, so pressing it early
-                  // followed whoever happened to be there. Choosing an account is
-                  // a choice, so it takes a tap. Blurring is what puts a phone
-                  // keyboard away.
+                  // Return only puts the phone keyboard away. Results arrive
+                  // asynchronously, so following one always takes a tap.
                   e.preventDefault()
                   e.currentTarget.blur()
                 } else if (e.key === 'Escape') {

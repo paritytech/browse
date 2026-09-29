@@ -1,6 +1,6 @@
 /* The follow panel sits inline between the category tabs and the app list. The
-   28px left inset lines the avatars (and the suggestion rows below) up with the
-   tab labels, 16px tabs inset plus their 12px pill padding. */
+   left inset is the tabs inset plus their pill padding, so the avatars and the
+   suggestion rows line up with the tab labels. */
 .following-panel {
   display: flex;
   flex-direction: column;
@@ -44,7 +44,7 @@
 }
 
 /* Each avatar tucks under the one before it, with a ring in the page background
-   so the overlap reads as a stack (mirrors the badge issuer stack). */
+   so the overlap reads as a stack, mirroring the badge issuer stack. */
 .following-panel__stack {
   display: flex;
   align-items: center;
@@ -121,8 +121,8 @@
   opacity: 1;
 }
 
-/* Expanded (tap, or hover below): the chip grows into a pill with the name and
-   an unfollow cross, and leaves the overlap so it reads on its own. */
+/* Expanded by a tap or the hover rules below, the chip grows into a pill with
+   the name and an unfollow cross, and leaves the overlap so it reads on its own. */
 .following-panel__chip--expanded {
   background: var(--surface-3);
   padding-right: 6px;
@@ -141,9 +141,9 @@
   height: 28px;
   border-radius: 50%;
   box-shadow: 0 0 0 2px var(--bg-surface-main);
-  /* Background is set inline, seeded by the name (see avatarBg). */
+  /* Background is set inline, seeded by the name through avatarBg. */
   background: var(--surface-4);
-  /* Always white, seeded colored disc below. Constant across themes, not fg. */
+  /* White on the seeded disc in every theme, not the foreground color. */
   color: #fff;
   font-family: var(--font-sans);
   font-size: var(--type-body-sm-size);
@@ -267,7 +267,7 @@
   margin-left: -8px;
 }
 
-/* 36px matches the search bar, so the follow input never outranks it. */
+/* Matches the search bar height, so the follow input never outranks it. */
 .following-panel__field--open {
   max-width: 100vw;
   height: 36px;
@@ -392,9 +392,9 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  /* Background is set inline, seeded by the name (see avatarBg). */
+  /* Background is set inline, seeded by the name through avatarBg. */
   background: var(--surface-4);
-  /* Always white, seeded colored disc below. Constant across themes, not fg. */
+  /* White on the seeded disc in every theme, not the foreground color. */
   color: #fff;
   font-family: var(--font-sans);
   font-size: var(--type-title-sm-size);
