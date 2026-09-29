@@ -80,6 +80,15 @@ To see the app at all it needs a Host around it: `bun scripts/mock-host.ts` wrap
 running dev server and prints a URL to open. `localhost:<port>` on its own only shows
 "Not Running Inside Host".
 
+The `truapi-host` CLI (`truapi-host dev --network previewnet --port <p> --app-port <app>`)
+is the other way in, and browse has no bridge hook for it yet. Add
+`<script src="http://127.0.0.1:<p>/bootstrap.js">` before `main.tsx` in `app/index.html`,
+locally only. Its container lockdown turns built-in methods into getters without the
+`originalValue` tag, which breaks `get-intrinsic` in the Node polyfills and blanks the page
+with "`regex` must be a RegExp", so a local shim that tags those getters has to load right
+after it. Pick a free host port, since another run often holds 9955, and take the bootstrap
+tag out again before running e2e.
+
 Agents: `code-architect`, `staff-reviewer`, `verify-app`, `code-simplifier`, and the design set (`design-director`, `design-system-steward`, `visual-designer`).
 
 ## Conventions
