@@ -6,7 +6,7 @@
  */
 
 import { MIN_PREFIX_LENGTH, type UsernameEntry } from '@parity/browse-sdk/snapshots'
-import { useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 
 import { usernameService } from './snapshot-services'
 
@@ -17,13 +17,15 @@ export type { UsernameEntry }
  * Suggest username matches for a prefix.
  *
  * The prefix must already be normalized, lowercased with any leading `@`
- * stripped. Yields `[]` rather than throwing on any failure.
+ * stripped. Yields `[]` rather than throwing on any failure. While a new prefix
+ * loads, the previous result stays as placeholder data so the list never blanks.
  */
 export function useUsernameSuggestions(prefix: string) {
   return useQuery<UsernameEntry[]>({
     queryKey: ['usernameSuggestions', prefix],
     queryFn: ({ signal }) => usernameService.suggest(prefix, signal),
     enabled: prefix.length >= MIN_PREFIX_LENGTH,
-    staleTime: 60_000
+    staleTime: 60_000,
+    placeholderData: keepPreviousData
   })
 }

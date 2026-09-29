@@ -33,6 +33,9 @@ interface FollowingManagerProps {
 /** Avatars shown before the stack truncates into a +N circle. */
 const STACK_LIMIT = 3
 
+/** How long a lookup runs before "Searching…" replaces the blank line. */
+const SEARCHING_DELAY_MS = 300
+
 function truncateAddress(addr: string): string {
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`
 }
@@ -96,16 +99,44 @@ export function FollowingManager({
 
   // Prefix autocomplete from the verifiable username snapshot, mirroring the
   // domain search bar. A raw SS58 paste is handled directly below instead.
-  const { data: suggestions = [], isFetching } = useUsernameSuggestions(
-    ss58 ? '' : suggestionPrefix
-  )
+  const {
+    data: suggestions = [],
+    isFetching,
+    isPlaceholderData
+  } = useUsernameSuggestions(ss58 ? '' : suggestionPrefix)
+  // Held rows from the previous prefix are narrowed to the current query, so a
+  // row that no longer matches never shows while the next prefix loads.
   const results = useMemo(
-    () => suggestions.filter((entry) => !isFollowing(entry.account)),
-    [suggestions, following]
+    () =>
+      suggestions.filter(
+        (entry) => entry.username.toLowerCase().startsWith(query) && !isFollowing(entry.account)
+      ),
+    [suggestions, following, query]
   )
-  // The debounced prefix trailing the query, or a fetch in flight, both mean a
-  // result is still pending, so hold the "No results" state until it settles.
-  const searching = isFetching || suggestionPrefix !== query
+  const pending = isFetching || suggestionPrefix !== query
+
+  // A prefix with no matches has none for any longer prefix either, so typing on
+  // past it keeps "No results" up instead of cycling through "Searching…".
+  const [emptyPrefix, setEmptyPrefix] = useState<string | null>(null)
+  const settledEmpty = !ss58 && !isFetching && !isPlaceholderData && suggestions.length === 0
+  useEffect(() => {
+    if (settledEmpty && suggestionPrefix.length >= MIN_PREFIX_LENGTH) {
+      setEmptyPrefix(suggestionPrefix)
+    }
+  }, [settledEmpty, suggestionPrefix])
+  const knownEmpty = emptyPrefix !== null && query.startsWith(emptyPrefix)
+
+  // "Searching…" only appears once a lookup outlasts a short delay, so a quick
+  // one never flashes it.
+  const [showSearching, setShowSearching] = useState(false)
+  useEffect(() => {
+    if (!pending) {
+      setShowSearching(false)
+      return
+    }
+    const id = setTimeout(() => setShowSearching(true), SEARCHING_DELAY_MS)
+    return () => clearTimeout(id)
+  }, [pending])
 
   // Collapse back to the stack on follow: the new avatar appearing there is the
   // confirmation, and following more people is one tap away.
@@ -277,10 +308,14 @@ export function FollowingManager({
                 <span class='following-panel__row-label'>{entry.username}</span>
               </button>
             ))
-          ) : searching ? (
+          ) : knownEmpty || !pending ? (
+            <p class='following-panel__state'>No results for “{query}”</p>
+          ) : showSearching ? (
             <p class='following-panel__state'>Searching…</p>
           ) : (
-            <p class='following-panel__state'>No results for “{query}”</p>
+            <p class='following-panel__state' aria-hidden='true'>
+              {'\u00a0'}
+            </p>
           )}
         </div>
       )}
