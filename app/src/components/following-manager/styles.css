@@ -1,9 +1,10 @@
-/* The follow panel sits inline between the category tabs and the app list, so
-   it shares the tabs 16px inset rather than bringing its own chrome. */
+/* The follow panel sits inline between the category tabs and the app list. The
+   28px left inset lines the avatars (and the suggestion rows below) up with the
+   tab labels, 16px tabs inset plus their 12px pill padding. */
 .following-panel {
   display: flex;
   flex-direction: column;
-  margin: 6px 16px 4px;
+  margin: 6px 16px 4px 28px;
 }
 
 /* The resting state: the followed avatars as one row, the + button tucked on
@@ -14,33 +15,32 @@
   min-height: 32px;
 }
 
+/* The + overlays the collapsed field and fades away as it expands. */
 .following-panel__add {
-  flex: none;
-  display: inline-flex;
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  background: var(--surface-3);
+  background: none;
   border: none;
-  border-radius: 50%;
-  box-shadow: 0 0 0 2px var(--bg-surface-main);
   color: var(--fg-3);
   cursor: pointer;
   transition:
-    background 150ms ease,
-    color 150ms ease;
-}
-
-.following-panel__stack + .following-panel__add {
-  margin-left: -8px;
+    color 150ms ease,
+    opacity 150ms ease;
 }
 
 @media (hover: hover) {
   .following-panel__add:hover {
-    background: var(--surface-4);
     color: var(--fg-primary);
   }
+}
+
+.following-panel__field--open .following-panel__add {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* Each avatar tucks under the one before it, with a ring in the page background
@@ -63,6 +63,62 @@
 
 .following-panel__chip + .following-panel__chip {
   margin-left: -8px;
+}
+
+/* The +N circle truncating a stack past its limit, in the overflow-count style
+   of the badge issuer stack. Tapping it fans the whole stack out. */
+.following-panel__more {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-left: -8px;
+  background: var(--bg-surface-container);
+  border: 1px solid rgb(var(--fg-rgb) / 0.12);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--bg-surface-main);
+  color: var(--fg-secondary);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 150ms ease;
+}
+
+@media (hover: hover) {
+  .following-panel__more:hover {
+    border-color: rgb(var(--fg-rgb) / 0.24);
+  }
+}
+
+/* The fanned-out stack: every chip expanded to its name and cross, wrapping
+   instead of overlapping, and any chip tap folds it back. */
+.following-panel__stack--expanded {
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+
+.following-panel__stack--expanded .following-panel__chip {
+  background: var(--surface-3);
+  padding-right: 6px;
+}
+
+.following-panel__stack--expanded .following-panel__chip + .following-panel__chip {
+  margin-left: 4px;
+}
+
+.following-panel__stack--expanded .following-panel__chip-label {
+  max-width: 160px;
+  margin-left: 8px;
+  opacity: 1;
+}
+
+.following-panel__stack--expanded .following-panel__chip-remove {
+  max-width: 18px;
+  margin-left: 4px;
+  opacity: 1;
 }
 
 /* Expanded (tap, or hover below): the chip grows into a pill with the name and
@@ -173,27 +229,67 @@
 }
 
 /* Mirror the domain search bar: subtle surface-container fill, faint border,
-   pill radius, not a heavy solid-gray box. It takes the room right of the
-   stack rather than the whole row. */
+   pill radius, not a heavy solid-gray box. Collapsed it is the + slot at the
+   end of the stack. Open it grows rightward into the input, taking the room
+   right of the stack rather than the whole row. */
 .following-panel__field {
+  position: relative;
   flex: 1;
   min-width: 0;
+  max-width: 28px;
   display: flex;
   align-items: center;
-  height: 40px;
-  padding: 0 14px;
+  height: 28px;
+  padding: 0;
+  overflow: hidden;
   background: var(--bg-surface-container);
   border: 1px solid rgb(var(--fg-rgb) / 0.12);
   border-radius: var(--radius-full);
-  transition: border-color 150ms ease;
+  box-shadow: 0 0 0 2px var(--bg-surface-main);
+  transition:
+    max-width 250ms cubic-bezier(0.22, 1, 0.36, 1),
+    height 250ms cubic-bezier(0.22, 1, 0.36, 1),
+    padding 250ms cubic-bezier(0.22, 1, 0.36, 1),
+    margin-left 250ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 150ms ease;
 }
 
-.following-panel__stack + .following-panel__field {
+.following-panel__stack + .following-panel__field,
+.following-panel__more + .following-panel__field {
+  margin-left: -8px;
+}
+
+/* 36px matches the search bar, so the follow input never outranks it. */
+.following-panel__field--open {
+  max-width: 100vw;
+  height: 36px;
+  padding: 0 14px;
+}
+
+.following-panel__stack + .following-panel__field--open,
+.following-panel__more + .following-panel__field--open {
   margin-left: 12px;
 }
 
 .following-panel__field:focus-within {
   border-color: rgb(var(--fg-rgb) / 0.24);
+}
+
+/* The field contents ride the expansion: hidden in the collapsed slot, faded
+   in once the pill has most of its width. */
+.following-panel__at,
+.following-panel__input,
+.following-panel__close {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease 80ms;
+}
+
+.following-panel__field--open .following-panel__at,
+.following-panel__field--open .following-panel__input,
+.following-panel__field--open .following-panel__close {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .following-panel__at {
@@ -233,7 +329,9 @@
   border: none;
   color: var(--fg-5);
   cursor: pointer;
-  transition: color 150ms ease;
+  transition:
+    color 150ms ease,
+    opacity 150ms ease 80ms;
 }
 
 @media (hover: hover) {
@@ -262,8 +360,8 @@
   align-items: center;
   gap: 10px;
   width: 100%;
-  /* Left inset centers the 30px avatar under the input `@` glyph. */
-  padding: 8px 14px 8px 8px;
+  /* Flush left so the result avatars line up with the stack above. */
+  padding: 8px 14px 8px 0;
   background: none;
   border: none;
   border-radius: var(--radius-small-increased);

@@ -27,6 +27,9 @@ interface FollowingManagerProps {
   onRemove: (address: string) => void
 }
 
+/** Avatars shown before the stack truncates into a +N circle. */
+const STACK_LIMIT = 3
+
 function truncateAddress(addr: string): string {
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`
 }
@@ -38,9 +41,12 @@ function accountLabel(account: FollowedAccount): string {
 /**
  * The follow panel inlined under the category tabs on the Following tab. At
  * rest it is one compact row: the followed accounts as a stack of avatars with
- * a + button tucked on as the next slot. An avatar expands to its name and an
- * unfollow cross on hover (desktop) or tap (touch). The + swaps into the
- * @username input, right of the stack, with snapshot autocomplete.
+ * a + button tucked on as the next slot.
+ *
+ * An avatar expands to its name and an unfollow cross on hover (desktop) or tap
+ * (touch). Past three avatars the stack truncates into a +N circle that fans
+ * every name out. The + grows into the @username input, right of the stack,
+ * with snapshot autocomplete.
  */
 export function FollowingManager({
   following,
@@ -51,8 +57,11 @@ export function FollowingManager({
 }: FollowingManagerProps) {
   // The avatar expanded by tap. Hover expansion is pure CSS on top of this.
   const [expandedAddress, setExpandedAddress] = useState<string | null>(null)
+  // Whether the whole stack is fanned out to names, from tapping the +N circle.
+  const [expandedAll, setExpandedAll] = useState(false)
   const [input, setInput] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
+  const stackRef = useRef<HTMLDivElement>(null)
 
   const trimmed = input.trim()
   const ss58 = isValidSS58(trimmed)
@@ -101,16 +110,41 @@ export function FollowingManager({
   // reaches the snapshot shard-key length, so shorter input shows nothing yet.
   const showResults = ss58 || query.length >= MIN_PREFIX_LENGTH
 
+  // Past this many the stack truncates into a +N circle that fans the whole
+  // stack out to names. Falling back under it ends the fan-out.
+  const overflow = following.length - STACK_LIMIT
+  useEffect(() => {
+    if (overflow <= 0) setExpandedAll(false)
+  }, [overflow])
+  const shown = expandedAll || overflow <= 0 ? following : following.slice(0, STACK_LIMIT)
+
+  // Any click away from the fanned-out stack folds it back. An unfollow cross
+  // stops propagation, so pruning the fan keeps it open.
+  useEffect(() => {
+    if (!expandedAll) return
+    const onDocClick = (e: MouseEvent) => {
+      if (e.target instanceof Node && stackRef.current?.contains(e.target)) return
+      setExpandedAll(false)
+    }
+    document.addEventListener('click', onDocClick)
+    return () => document.removeEventListener('click', onDocClick)
+  }, [expandedAll])
+
   const stack = following.length > 0 && (
-    <div class='following-panel__stack'>
-      {following.map((account) => (
+    <div
+      ref={stackRef}
+      class={`following-panel__stack${expandedAll ? ' following-panel__stack--expanded' : ''}`}
+    >
+      {shown.map((account) => (
         <div
           key={account.address}
           class={`following-panel__chip${
             expandedAddress === account.address ? ' following-panel__chip--expanded' : ''
           }`}
           onClick={() =>
-            setExpandedAddress(expandedAddress === account.address ? null : account.address)
+            expandedAll
+              ? setExpandedAll(false)
+              : setExpandedAddress(expandedAddress === account.address ? null : account.address)
           }
         >
           <span
@@ -136,69 +170,78 @@ export function FollowingManager({
     </div>
   )
 
-  if (!open) {
-    return (
-      <div class='following-panel'>
-        <div class='following-panel__row'>
-          {stack}
-          <button
-            type='button'
-            class='following-panel__add'
-            aria-label='Follow someone'
-            onClick={() => onOpenChange(true)}
-          >
-            <Plus size={16} />
-          </button>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div class='following-panel'>
       <div class='following-panel__row'>
         {stack}
-        <div class='following-panel__field'>
-          <span class='following-panel__at'>@</span>
-          <input
-            ref={inputRef}
-            class='following-panel__input'
-            type='text'
-            autocomplete='off'
-            spellcheck={false}
-            enterkeyhint='done'
-            placeholder='username'
-            value={input}
-            onInput={(e) => setInput((e.target as HTMLInputElement).value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                // Done typing, and nothing more. Return used to follow the first
-                // result, which arrives asynchronously, so pressing it early
-                // followed whoever happened to be there. Choosing an account is
-                // a choice, so it takes a tap. Blurring is what puts a phone
-                // keyboard away.
-                e.preventDefault()
-                e.currentTarget.blur()
-              } else if (e.key === 'Backspace' && input === '' && following.length > 0) {
-                // Pull the last-followed username back into the field so it can
-                // be edited rather than dropped outright.
-                const last = following[following.length - 1]
-                onRemove(last.address)
-                setInput(last.username ?? last.address)
-              } else if (e.key === 'Escape') {
-                onOpenChange(false)
-              }
-            }}
-          />
+        {overflow > 0 && !expandedAll && (
           <button
             type='button'
-            class='following-panel__close'
-            aria-label='Close'
-            onClick={() => onOpenChange(false)}
+            class='following-panel__more'
+            aria-label={`Show all ${following.length} followed accounts`}
+            onClick={() => setExpandedAll(true)}
           >
-            <X size={16} />
+            +{overflow}
           </button>
-        </div>
+        )}
+        {/* The + is the collapsed input: one element that grows from the last
+            slot of the stack into the field, so the expansion is a single
+            smooth transition instead of a swap. Hidden while the stack is
+            fanned out. */}
+        {!expandedAll && (
+          <div class={`following-panel__field${open ? ' following-panel__field--open' : ''}`}>
+            <button
+              type='button'
+              class='following-panel__add'
+              aria-label='Follow someone'
+              tabIndex={open ? -1 : 0}
+              onClick={() => onOpenChange(true)}
+            >
+              <Plus size={16} />
+            </button>
+            <span class='following-panel__at'>@</span>
+            <input
+              ref={inputRef}
+              class='following-panel__input'
+              type='text'
+              autocomplete='off'
+              spellcheck={false}
+              enterkeyhint='done'
+              placeholder='username'
+              tabIndex={open ? 0 : -1}
+              value={input}
+              onInput={(e) => setInput((e.target as HTMLInputElement).value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  // Done typing, and nothing more. Return used to follow the first
+                  // result, which arrives asynchronously, so pressing it early
+                  // followed whoever happened to be there. Choosing an account is
+                  // a choice, so it takes a tap. Blurring is what puts a phone
+                  // keyboard away.
+                  e.preventDefault()
+                  e.currentTarget.blur()
+                } else if (e.key === 'Backspace' && input === '' && following.length > 0) {
+                  // Pull the last-followed username back into the field so it can
+                  // be edited rather than dropped outright.
+                  const last = following[following.length - 1]
+                  onRemove(last.address)
+                  setInput(last.username ?? last.address)
+                } else if (e.key === 'Escape') {
+                  onOpenChange(false)
+                }
+              }}
+            />
+            <button
+              type='button'
+              class='following-panel__close'
+              aria-label='Close'
+              tabIndex={open ? 0 : -1}
+              onClick={() => onOpenChange(false)}
+            >
+              <X size={16} />
+            </button>
+          </div>
+        )}
       </div>
 
       {showResults && (
