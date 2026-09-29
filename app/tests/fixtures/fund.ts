@@ -141,8 +141,13 @@ async function withAssetHubApi<T>(fn: (api: UnsafeApi) => Promise<T>): Promise<T
   }
 }
 
-async function pgasBalanceOf(api: UnsafeApi, assetId: number, addr: string): Promise<bigint> {
-  const acct = (await api.query.Assets.Account.getValue(assetId, addr as SS58String)) as
+async function pgasBalanceOf(
+  api: UnsafeApi,
+  assetId: number,
+  addr: string,
+  at: 'finalized' | 'best' = 'finalized'
+): Promise<bigint> {
+  const acct = (await api.query.Assets.Account.getValue(assetId, addr as SS58String, { at })) as
     | { balance?: bigint }
     | undefined
   return acct?.balance ?? 0n
@@ -464,7 +469,9 @@ export async function reclaimIdentity(): Promise<void> {
   if (identity.address === master.address) return
   await withAssetHubApi(async (api) => {
     const assetId = (await api.constants.Pgas.PgasAssetId()) as number
-    const pgas = await pgasBalanceOf(api, assetId, identity.address)
+    // Finality trails best by several blocks, so a finalized read still counts
+    // PGAS the last fixture attests spent, and sending that reverts BalanceLow.
+    const pgas = await pgasBalanceOf(api, assetId, identity.address, 'best')
     if (pgas > PGAS_RECLAIM_FEE_BUFFER) {
       await watchTxWithRetry(
         () =>
