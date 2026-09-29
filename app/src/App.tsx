@@ -57,7 +57,12 @@ import {
   useCertificateAuthorities,
   useSelectedCertificateAuthorities
 } from './state/certificate-authorities/queries'
-import { follow, type FollowedAccount, getFollowing, unfollow } from './state/following/api'
+import {
+  follow,
+  type FollowedAccount,
+  getFollowingWithRetry,
+  unfollow
+} from './state/following/api'
 import { describeError, useAttestProduct } from './state/recommendations/mutations'
 import {
   useGetAttestationsByFollowing,
@@ -720,7 +725,9 @@ export function App() {
         setBookmarkedApps(new Set(bookmark))
         setBookmarkedAppsLoaded(true)
       })
-    getFollowing().then(setFollowing)
+    getFollowingWithRetry()
+      .catch(() => [])
+      .then(setFollowing)
     readSortMode().then(setSortMode)
   }, [])
   useEffect(() => {
