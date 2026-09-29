@@ -197,16 +197,9 @@ export function App() {
   } = useGetAllApps(queryClient)
   const { data: labelDb } = useLabelsStorage()
   const followingAddresses = useMemo(() => following.map((account) => account.address), [following])
-  const {
-    data: followingApps = new Set<string>(),
-    isLoading: followingAppsLoading,
-    isPlaceholderData: followingAppsPlaceholder,
-    isFetching: followingAppsFetching
-  } = useGetAttestationsByFollowing(allApps, followingLoaded ? followingAddresses : null)
-  // The placeholder is the previous following set's result, so while the new
-  // set fetches it is not an answer for the accounts now followed.
-  const followingLoading =
-    !followingLoaded || followingAppsLoading || (followingAppsPlaceholder && followingAppsFetching)
+  const { data: followingApps = new Set<string>(), isLoading: followingAppsLoading } =
+    useGetAttestationsByFollowing(allApps, followingLoaded ? followingAddresses : null)
+  const followingLoading = !followingLoaded || followingAppsLoading
   // Apps the current user identity has recommended, matched the same way as the
   // following set. The recommend button treats these as recommended, and the
   // attest and revoke mutations keep the set fresh optimistically.
