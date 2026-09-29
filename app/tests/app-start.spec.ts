@@ -293,10 +293,21 @@ test.describe('App Start', () => {
 
       // Given
       await frame.locator('.category-tab', { hasText: 'All' }).click()
-      await expect(frame.locator('.loading-dots')).toBeVisible()
       await frame.waitForSelector('.product-card', { timeout: 30_000 })
       await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
       const cardCountBefore = await frame.locator('.product-card').count()
+      const updatedAt = () =>
+        frame.evaluate(
+          () => window.__queryClient?.getQueryState(['apps', 'all'])?.dataUpdatedAt ?? 0
+        )
+      await expect
+        .poll(() =>
+          frame.evaluate(
+            () => window.__queryClient?.getQueryState(['apps', 'all'])?.fetchStatus ?? 'fetching'
+          )
+        )
+        .toBe('idle')
+      const updatedBefore = await updatedAt()
 
       // When
       await frame.evaluate(() => {
@@ -313,8 +324,10 @@ test.describe('App Start', () => {
       })
 
       // Then
+      // A refetch can finish between two looks for the loading dots, so the
+      // query's update time is what proves it ran.
       await expect(frame.locator('.product-card').first()).toBeVisible()
-      await expect(frame.locator('.loading-dots')).toBeVisible()
+      await expect.poll(updatedAt, { timeout: 30_000 }).toBeGreaterThan(updatedBefore)
       await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
       const cardCountAfter = await frame.locator('.product-card').count()
       expect(cardCountAfter).toBe(cardCountBefore)

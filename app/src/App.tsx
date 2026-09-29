@@ -57,7 +57,12 @@ import {
   useCertificateAuthorities,
   useSelectedCertificateAuthorities
 } from './state/certificate-authorities/queries'
-import { follow, type FollowedAccount, getFollowing, unfollow } from './state/following/api'
+import {
+  follow,
+  type FollowedAccount,
+  getFollowingWithRetry,
+  unfollow
+} from './state/following/api'
 import { describeError, useAttestProduct } from './state/recommendations/mutations'
 import {
   useGetAttestationsByFollowing,
@@ -121,6 +126,7 @@ export function App() {
   )
   const [signed, setSigned] = useState(false)
   const [following, setFollowing] = useState<FollowedAccount[]>([])
+  const [followingLoaded, setFollowingLoaded] = useState(false)
   // The ⋮ trigger at the trailing edge of the category tabs opens a small
   // anchored popover. The back arrow returns to the menu.
   // The cross closes the whole popover.
@@ -191,8 +197,9 @@ export function App() {
   } = useGetAllApps(queryClient)
   const { data: labelDb } = useLabelsStorage()
   const followingAddresses = useMemo(() => following.map((account) => account.address), [following])
-  const { data: followingApps = new Set<string>(), isLoading: followingLoading } =
-    useGetAttestationsByFollowing(allApps, followingAddresses)
+  const { data: followingApps = new Set<string>(), isLoading: followingAppsLoading } =
+    useGetAttestationsByFollowing(allApps, followingLoaded ? followingAddresses : null)
+  const followingLoading = !followingLoaded || followingAppsLoading
   // Apps the current user identity has recommended, matched the same way as the
   // following set. The recommend button treats these as recommended, and the
   // attest and revoke mutations keep the set fresh optimistically.
@@ -720,7 +727,12 @@ export function App() {
         setBookmarkedApps(new Set(bookmark))
         setBookmarkedAppsLoaded(true)
       })
-    getFollowing().then(setFollowing)
+    getFollowingWithRetry()
+      .catch(() => [])
+      .then((accounts) => {
+        setFollowing(accounts)
+        setFollowingLoaded(true)
+      })
     readSortMode().then(setSortMode)
   }, [])
   useEffect(() => {
@@ -856,7 +868,11 @@ export function App() {
   )
   const emptyBookmarks = currentMode === 'bookmarks' && filtered.length === 0 && !query
   const emptyFollowingNobody =
-    currentMode === 'following' && following.length === 0 && filtered.length === 0 && !query
+    currentMode === 'following' &&
+    followingLoaded &&
+    following.length === 0 &&
+    filtered.length === 0 &&
+    !query
   const emptyFollowingNoMatches =
     currentMode === 'following' &&
     following.length > 0 &&

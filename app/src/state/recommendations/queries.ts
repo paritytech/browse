@@ -103,20 +103,30 @@ async function getFollowedApps(
 }
 
 /** The apps at least one followed account has recommended, for the Following tab. */
-export function useGetAttestationsByFollowing(apps: AppEntry[], followingAddresses: string[]) {
-  const sorted = [...followingAddresses].sort()
+/**
+ * The published apps the followed accounts have recommended.
+ *
+ * Pass `null` while the following list is still being read. Running on an empty
+ * list first would resolve to nobody followed, and `keepPreviousData` would
+ * then show that empty set as settled data while the real set loads.
+ */
+export function useGetAttestationsByFollowing(
+  apps: AppEntry[],
+  followingAddresses: string[] | null
+) {
+  const sorted = [...(followingAddresses ?? [])].sort()
 
   return useQuery<Set<string>>({
     queryKey: ['attestations', 'following', sorted],
     queryFn: async () => {
-      const result = await getFollowedApps(apps, followingAddresses)
+      const result = await getFollowedApps(apps, sorted)
       setCachedFollowed([...result])
       return result
     },
     // Run even with nobody followed, which returns an empty set immediately.
     // Unfollowing the last account must resolve to empty so the caller can fade
     // its cards out, rather than leaving the query disabled on stale data.
-    enabled: apps.length > 0,
+    enabled: apps.length > 0 && followingAddresses !== null,
     // Keep the last resolved set on screen while the following set refetches, so
     // unfollowing never blanks the tab into skeletons. The caller fades the
     // dropped apps out once the new set resolves.

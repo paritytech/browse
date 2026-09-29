@@ -10,6 +10,7 @@ import { expect, test } from '@playwright/test'
 import { createAttestation } from './fixtures/attest'
 import { createCachedApps } from './fixtures/cache'
 import { createDevSigner, createProductSigner, fundWithPgas } from './fixtures/fund'
+import { FOLLOWING_KEY, readProductStorage, saveProductStorage } from './fixtures/host-storage'
 import { createRevokedAttestation } from './fixtures/revoke-attestation'
 import { seedPreimage } from './fixtures/seed-preimage'
 import { SNAPSHOT_USERNAME, USERNAME_SNAPSHOT_BLOCKS } from './fixtures/usernames-snapshot'
@@ -20,6 +21,9 @@ import { getProductFrame, navigateToTestHost, startSignedHost } from './utils'
 // following that account is what surfaces its recommendations.
 const IDENTITY_ADDRESS = createProductSigner().address
 
+// A loading tab shows skeleton cards, which share the card class.
+const CARD = '.product-card:not(.product-card--skeleton)'
+
 test.describe('Following', () => {
   test.describe.configure({ timeout: 15_000 })
   let host: Awaited<ReturnType<typeof startSignedHost>>
@@ -29,7 +33,8 @@ test.describe('Following', () => {
   let recommendContext: BrowserContext
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(70_000)
+    // A funding and three chain writes, which outlasted 70s in CI on 2026-09-29.
+    test.setTimeout(150_000)
     await fundWithPgas(createDevSigner('Alice').address)
     await createRevokedAttestation('calculator').catch(() => {})
     await createRevokedAttestation('stopwatch').catch(() => {})
@@ -99,11 +104,16 @@ test.describe('Following', () => {
 
     // Then
     await expect(frame.locator('.customize-popover')).toHaveCount(0)
-    await expect(frame.locator('.product-card').first()).toBeVisible({ timeout: 15_000 })
-    const cards = frame.locator('.product-card')
+    await expect(frame.locator(CARD).first()).toBeVisible({ timeout: 15_000 })
+    const cards = frame.locator(CARD)
     expect(await cards.count()).toBeGreaterThan(0)
     await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
 
+    // The reload test below reads this follow back from a fresh page.
+    await expect
+      .poll(async () => (await readProductStorage<unknown[]>(page, FOLLOWING_KEY))?.length ?? 0)
+      .toBe(1)
+    await saveProductStorage(page)
     await page.close()
   })
 
@@ -121,7 +131,7 @@ test.describe('Following', () => {
 
     // Then
     await expect(frame.locator('.empty-state')).not.toBeVisible()
-    await expect(frame.locator('.product-card').first()).toBeVisible({ timeout: 15_000 })
+    await expect(frame.locator(CARD).first()).toBeVisible({ timeout: 15_000 })
 
     await page.close()
   })
@@ -144,8 +154,8 @@ test.describe('Following', () => {
     await frame.locator('.customize-drill__icon[aria-label="Close"]').click()
 
     // Then
-    await expect(frame.locator('.product-card').first()).toBeVisible({ timeout: 20_000 })
-    await expect(frame.locator('.product-card')).toHaveCount(1)
+    await expect(frame.locator(CARD).first()).toBeVisible({ timeout: 20_000 })
+    await expect(frame.locator(CARD)).toHaveCount(1)
     await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
 
     await page.close()
@@ -166,8 +176,8 @@ test.describe('Following', () => {
     await frame.locator('.category-tab', { hasText: 'Following' }).click()
 
     // Then
-    await expect(frame.locator('.product-card').first()).toBeVisible({ timeout: 20_000 })
-    await expect(frame.locator('.product-card')).toHaveCount(2)
+    await expect(frame.locator(CARD).first()).toBeVisible({ timeout: 20_000 })
+    await expect(frame.locator(CARD)).toHaveCount(2)
 
     await page.close()
 
