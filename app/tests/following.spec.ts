@@ -125,32 +125,6 @@ test.describe('Following', () => {
     await frame.locator('.category-tab', { hasText: 'Following' }).click()
     await frame.waitForTimeout(300)
 
-    // DIAGNOSTIC, remove before merge
-    for (const at of [0, 3000]) {
-      await frame.waitForTimeout(at)
-      const emptyText = await frame
-        .locator('.empty-state')
-        .allInnerTexts()
-        .catch((e) => [`err ${String(e)}`])
-      const hostFollowing = await readProductStorage<unknown[]>(page, FOLLOWING_KEY).catch(
-        (e) => `err ${String(e)}`
-      )
-      const mirror = await page.evaluate(() => {
-        const raw = localStorage.getItem('e2e:product-storage')
-        if (!raw) return 'no mirror'
-        const parsed = JSON.parse(raw) as Record<string, string>
-        return Object.fromEntries(Object.entries(parsed).filter(([k]) => k.includes('follow')))
-      })
-      const tab = await frame.locator('.category-tab').allInnerTexts()
-      const active = await frame
-        .locator('.category-tab[aria-selected="true"], .category-tab--active')
-        .allInnerTexts()
-      console.log(
-        'DIAG following reload',
-        JSON.stringify({ at, emptyText, hostFollowing, mirror, tab, active, url: frame.url() })
-      )
-    }
-
     // Then
     await expect(frame.locator('.empty-state')).not.toBeVisible()
     await expect(frame.locator('.product-card').first()).toBeVisible({ timeout: 15_000 })
