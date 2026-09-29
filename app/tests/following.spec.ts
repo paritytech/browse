@@ -162,4 +162,53 @@ test.describe('Following', () => {
     // Cleanup
     await createRevokedAttestation('stopwatch').catch(() => {})
   })
+
+  test('As a signed user, when I follow more than three people, the stack truncates and stays folded while I add another', async ({
+    browser
+  }) => {
+    test.setTimeout(40_000)
+    const stackContext = await browser.newContext({ ignoreHTTPSErrors: true })
+    const page = await stackContext.newPage()
+    const addresses = ['Alice', 'Bob', 'Charlie', 'Dave'].map(
+      (name) => createDevSigner(name).address
+    )
+
+    // Given
+    await navigateToTestHost(page, host.url)
+    const frame = await getProductFrame(page, '.category-tab')
+    await frame.locator('.category-tab', { hasText: 'Following' }).click()
+    for (const address of addresses) {
+      await frame.locator('.following-panel__add').click()
+      await frame.locator('.following-panel__input').fill(address)
+      await frame.locator('.following-panel__option').click()
+    }
+
+    // Then
+    await expect(frame.locator('.following-panel__chip')).toHaveCount(3)
+    await expect(frame.locator('.following-panel__more')).toHaveText('+1')
+
+    // When
+    await frame.locator('.following-panel__chip').first().click()
+    await expect(frame.locator('.following-panel__chip--expanded')).toHaveCount(1)
+    await frame.locator('.following-panel__add').click()
+
+    // Then
+    await expect(frame.locator('.following-panel__chip--expanded')).toHaveCount(0)
+    await expect(frame.locator('#app-list')).toBeHidden()
+
+    // When
+    await frame.locator('.following-panel__input').press('Backspace')
+
+    // Then
+    await expect(frame.locator('.following-panel__input')).toHaveValue('')
+    await expect(frame.locator('.following-panel__more')).toHaveText('+1')
+
+    // When
+    await frame.locator('.following-panel__input').press('Escape')
+
+    // Then
+    await expect(frame.locator('#app-list')).toBeVisible()
+
+    await stackContext.close()
+  })
 })
