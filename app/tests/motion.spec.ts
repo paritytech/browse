@@ -2,18 +2,8 @@ import { type Browser, type Frame, expect, test } from '@playwright/test'
 
 import { createCachedApps } from './fixtures/cache'
 import { SNAPSHOT_BLOCKS, SNAPSHOT_ONLY_LABEL } from './fixtures/domains-snapshot'
-import { createProductSigner, fundWithNative } from './fixtures/fund'
-import { fundProductAccount } from './fixtures/product-account'
-import { createRevokedAttestation } from './fixtures/revoke-attestation'
 import { seedPreimage } from './fixtures/seed-preimage'
-import {
-  identityUsername,
-  getProductFrame,
-  identityUri,
-  navigateToTestHost,
-  startSignedHost,
-  startUnsignedHost
-} from './utils'
+import { getProductFrame, navigateToTestHost, startSignedHost, startUnsignedHost } from './utils'
 import { SHUFFLE_MAX_MS, SHUFFLE_MIN_MS } from '../src/hooks/use-flip'
 import type { AppEntry } from '../src/state/apps/types'
 
@@ -213,48 +203,6 @@ test.describe('Motion', () => {
     expect(farMove.durationMs).toBeGreaterThan(swap1.durationMs)
 
     await close()
-  })
-
-  test('Recommending an app bubbles when the network confirms', async ({ browser }) => {
-    test.setTimeout(60000)
-    await fundWithNative(createProductSigner().address)
-    await createRevokedAttestation('chess-clock').catch(() => {})
-    const host = await startSignedHost({
-      name: identityUsername(),
-      uri: identityUri(),
-      username: identityUsername()
-    })
-    // The host derives the account that pays for the recommendation.
-    await fundProductAccount(browser, host.url, 5_000_000_000n)
-    const context = await browser.newContext({
-      ignoreHTTPSErrors: true,
-      reducedMotion: 'no-preference'
-    })
-    const page = await context.newPage()
-
-    // Given
-    await navigateToTestHost(page, host.url)
-    const frame = await getProductFrame(page, '.category-tab')
-    await frame.locator('.category-tab', { hasText: 'All' }).click()
-    const card = frame.locator('.product-card[data-label="chess-clock"]')
-    await expect(card).toBeVisible({ timeout: 15000 })
-    const upvote = card.locator('.product-card__upvote')
-
-    // When
-    await upvote.click()
-
-    // Then
-    await Promise.all([
-      expect(card.locator('.product-card__bubble').first()).toBeVisible({ timeout: 15000 }),
-      expect(frame.locator('.toast--visible')).toContainText('Recommended!', { timeout: 15000 })
-    ])
-
-    // Linger in headed runs so the bubbling is watchable; no-op in CI.
-    if (process.env.HEADED === '1') await frame.waitForTimeout(4000)
-
-    await page.close()
-    await context.close()
-    await host.close()
   })
 
   test('As a user searching, when the matching apps change as I type, the cards settle in place instead of replaying their entry animation', async ({

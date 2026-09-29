@@ -9,6 +9,10 @@ import { USERNAMES_SNAPSHOT_CID } from './fixtures/usernames-snapshot'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const PORT = process.env.PORT ?? '5173'
 
+// A local run gets its own identity like a CI run does. The bare wallet they
+// would otherwise share keeps every one-per-identity lock an aborted run left.
+process.env.E2E_RUN_ID ??= String(Date.now() % 1e9)
+
 export default defineConfig({
   testDir: '.',
   globalSetup: './fixtures/global-setup.ts',

@@ -345,3 +345,46 @@ test.describe('Recommendation fails', () => {
     await expect(upvote).toHaveClass(/product-card__upvote--active/)
   })
 })
+
+// Every test that recommends as the run identity lives in this file, so one
+// worker runs them in order. Only the host holds the key that signs a
+// recommendation, so no fixture can revoke one, and this test takes
+// unit-converter, which the un-recommend test above leaves clean.
+test.describe('Recommend motion', () => {
+  test('Recommending an app bubbles when the network confirms', async ({ browser }) => {
+    test.setTimeout(60_000)
+    await fundWithNative(createProductSigner().address)
+    const host = await startSignedHost(IDENTITY_ACCOUNT)
+    // The host derives the account that pays for the recommendation.
+    await fundProductAccount(browser, host.url, 5_000_000_000n)
+    const context = await browser.newContext({
+      ignoreHTTPSErrors: true,
+      reducedMotion: 'no-preference'
+    })
+    const page = await context.newPage()
+
+    // Given
+    await navigateToTestHost(page, host.url)
+    const frame = await getProductFrame(page, '.category-tab')
+    await frame.locator('.category-tab', { hasText: 'All' }).click()
+    const card = frame.locator('.product-card[data-label="unit-converter"]')
+    await expect(card).toBeVisible({ timeout: 15_000 })
+    const upvote = card.locator('.product-card__upvote')
+
+    // When
+    await upvote.click()
+
+    // Then
+    await Promise.all([
+      expect(card.locator('.product-card__bubble').first()).toBeVisible({ timeout: 15_000 }),
+      expect(frame.locator('.toast--visible')).toContainText('Recommended!', { timeout: 15_000 })
+    ])
+
+    // Linger in headed runs so the bubbling is watchable. CI never sets HEADED.
+    if (process.env.HEADED === '1') await frame.waitForTimeout(4000)
+
+    await page.close()
+    await context.close()
+    await host.close()
+  })
+})
