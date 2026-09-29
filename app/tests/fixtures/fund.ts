@@ -272,8 +272,9 @@ export async function mapAccount(tag: string): Promise<void> {
 
 // An account holding only PGAS pays the reclaim fee in PGAS, so sending the
 // whole balance leaves nothing to settle with and the transfer reverts with
-// `Assets.BalanceLow`. Hold this much back and the rest recycles.
-const PGAS_RECLAIM_FEE_BUFFER = 2_000_000_000n
+// `Assets.BalanceLow`. The fee measured about 10 to 20 million on previewnet in
+// September 2026, so this covers it several times over and strands little.
+const PGAS_RECLAIM_FEE_BUFFER = 100_000_000n
 
 /**
  * Send the PGAS balance of `fromTag` to `to`, less the fee buffer, so the pool
