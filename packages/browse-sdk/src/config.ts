@@ -50,10 +50,8 @@ export interface NetworkConfig {
 export const PASEONEXTV2_ASSETHUB_GENESIS =
   '0x4349b00e54897e21196fd331015fc5be0f14e118beb0375ed2bb1793737bb57a' as const
 
-// The iOS host chain registry keys previewnet Asset Hub by this hash, not the
-// c27c8bf3 genesis the node reports, and routes it to the same RPC.
 export const PREVIEWNET_ASSETHUB_GENESIS =
-  '0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210' as const
+  '0xbac97e23fc8f4bccae72a98f8aeb2bcab20bf755862304e4b46ad6473456e896' as const
 
 export const KNOWN_NETWORKS = {
   [PASEONEXTV2_ASSETHUB_GENESIS]: {
@@ -120,7 +118,7 @@ export const KNOWN_NETWORKS = {
     SCHEMA_ID: [6n],
     COMPLIANCE_SCHEMA_ID: 2n,
     ASSETHUB_RPCS: ['wss://previewnet.substrate.dev/asset-hub'],
-    PEOPLE_GENESIS: '0xf720c28fe3315e67fa799a616fc59abad47dd257b1a336af6538435844d35218',
+    PEOPLE_GENESIS: '0x55e3e689ecfa9d2fffcf7d309b8011956671493982230bfd0420c683542249e9',
     PEOPLE_RPCS: ['wss://previewnet.substrate.dev/people'],
     BULLETIN_RPCS: ['wss://previewnet.substrate.dev/bulletin']
   }

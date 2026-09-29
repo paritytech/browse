@@ -24,8 +24,8 @@ function runId(): string | undefined {
  * Derives the wallet path for the per-run identity, off `smalltava.08`. Each CI
  * run gets a unique identity so a dead account leaving a stuck one-per-identity
  * lock on one run never blocks another, and concurrent runs never contend on the
- * same identity. Locally it falls back to the bare wallet, where a single actor
- * needs no isolation.
+ * same identity. playwright.config.ts gives local runs an id too, so only a
+ * fixture script run by hand falls back to the bare wallet.
  */
 export function identityPath(): string {
   const id = runId()
