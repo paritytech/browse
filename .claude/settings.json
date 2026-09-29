@@ -97,7 +97,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "npm run format 2>/dev/null || npx prettier --write \"$CLAUDE_FILE_PATH\" 2>/dev/null || true"
+            "command": "f=$(jq -r '.tool_response.filePath // .tool_input.file_path // empty'); case \"$f\" in \"$CLAUDE_PROJECT_DIR\"/*) ;; *) exit 0 ;; esac; [ -f \"$f\" ] || exit 0; cd \"$CLAUDE_PROJECT_DIR\" || exit 0; npx prettier --find-config-path \"$f\" >/dev/null 2>&1 || exit 0; npx prettier --write --ignore-unknown \"$f\" >/dev/null 2>&1 || true"
           }
         ]
       }
