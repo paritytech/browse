@@ -36,6 +36,9 @@ export const LABELS_KEY = 'browse:labels'
 /** The labels the user bookmarked. */
 export const BOOKMARKS_KEY = 'browse:bookmarks'
 
+/** The accounts the user follows. */
+export const FOLLOWING_KEY = 'browse:following'
+
 /**
  * Where the mirror lives in the `localStorage` of the host page. One key per
  * browser context, as a real host keeps one store per user and product however
@@ -90,6 +93,22 @@ export async function persistProductStorage(page: Page): Promise<void> {
         window.addEventListener('beforeunload', flush)
       }
     })
+  }, MIRROR_KEY)
+}
+
+/**
+ * Write the store the host holds into the mirror now.
+ *
+ * The mirror is otherwise written as the page goes away, and `page.close()`
+ * can end the page before that write lands. A test whose next page has to find
+ * what this one wrote saves it first.
+ */
+export async function saveProductStorage(page: Page): Promise<void> {
+  await page.evaluate((mirrorKey) => {
+    const host = window.__TEST_HOST__
+    if (!host) throw new Error('no test host on this page')
+    const saved = JSON.parse(localStorage.getItem(mirrorKey) ?? '{}') as Record<string, string>
+    localStorage.setItem(mirrorKey, JSON.stringify({ ...saved, ...host.getProductStorage() }))
   }, MIRROR_KEY)
 }
 

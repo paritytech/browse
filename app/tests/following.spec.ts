@@ -10,6 +10,7 @@ import { expect, test } from '@playwright/test'
 import { createAttestation } from './fixtures/attest'
 import { createCachedApps } from './fixtures/cache'
 import { createDevSigner, createProductSigner, fundWithPgas } from './fixtures/fund'
+import { FOLLOWING_KEY, readProductStorage, saveProductStorage } from './fixtures/host-storage'
 import { createRevokedAttestation } from './fixtures/revoke-attestation'
 import { seedPreimage } from './fixtures/seed-preimage'
 import { SNAPSHOT_USERNAME, USERNAME_SNAPSHOT_BLOCKS } from './fixtures/usernames-snapshot'
@@ -104,6 +105,11 @@ test.describe('Following', () => {
     expect(await cards.count()).toBeGreaterThan(0)
     await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
 
+    // The reload test below reads this follow back from a fresh page.
+    await expect
+      .poll(async () => (await readProductStorage<unknown[]>(page, FOLLOWING_KEY))?.length ?? 0)
+      .toBe(1)
+    await saveProductStorage(page)
     await page.close()
   })
 
