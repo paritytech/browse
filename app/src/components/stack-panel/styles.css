@@ -1,22 +1,22 @@
-/* The follow panel sits inline between the category tabs and the app list. The
+/* A stack panel sits inline between the category tabs and the app list. The
    left inset is the tabs inset plus their pill padding, so the avatars and the
-   suggestion rows line up with the tab labels. */
-.following-panel {
+   result rows line up with the tab labels. */
+.stack-panel {
   display: flex;
   flex-direction: column;
   margin: 6px 16px 4px 28px;
 }
 
-/* The resting state: the followed avatars as one row, the + button tucked on
-   at the trailing edge as the next slot in the stack. */
-.following-panel__row {
+/* The resting state: the avatars as one row, the + button tucked on at the
+   trailing edge as the next slot in the stack. */
+.stack-panel__row {
   display: flex;
   align-items: center;
   min-height: 32px;
 }
 
 /* The + overlays the collapsed field and fades away as it expands. */
-.following-panel__add {
+.stack-panel__add {
   position: absolute;
   inset: 0;
   z-index: 1;
@@ -33,24 +33,24 @@
 }
 
 @media (hover: hover) {
-  .following-panel__add:hover {
+  .stack-panel__add:hover {
     color: var(--fg-primary);
   }
 }
 
-.following-panel__field--open .following-panel__add {
+.stack-panel__field--open .stack-panel__add {
   opacity: 0;
   pointer-events: none;
 }
 
 /* Each avatar tucks under the one before it, with a ring in the page background
-   so the overlap reads as a stack, mirroring the badge issuer stack. */
-.following-panel__stack {
+   so the overlap reads as a stack. */
+.stack-panel__stack {
   display: flex;
   align-items: center;
 }
 
-.following-panel__chip {
+.stack-panel__chip {
   display: inline-flex;
   align-items: center;
   border-radius: var(--radius-full);
@@ -61,13 +61,13 @@
     padding-right 200ms ease;
 }
 
-.following-panel__chip + .following-panel__chip {
+.stack-panel__chip + .stack-panel__chip {
   margin-left: -8px;
 }
 
-/* The +N circle truncating a stack past its limit, in the overflow-count style
-   of the badge issuer stack. Tapping it fans the whole stack out. */
-.following-panel__more {
+/* The +N circle truncating a stack past its limit. Tapping it fans the whole
+   stack out. */
+.stack-panel__more {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -88,34 +88,34 @@
 }
 
 @media (hover: hover) {
-  .following-panel__more:hover {
+  .stack-panel__more:hover {
     border-color: rgb(var(--fg-rgb) / 0.24);
   }
 }
 
 /* The fanned-out stack: every chip expanded to its name and cross, wrapping
    instead of overlapping, and any chip tap folds it back. */
-.following-panel__stack--expanded {
+.stack-panel__stack--expanded {
   flex-wrap: wrap;
   row-gap: 6px;
 }
 
-.following-panel__stack--expanded .following-panel__chip {
+.stack-panel__stack--expanded .stack-panel__chip {
   background: var(--surface-3);
   padding-right: 6px;
 }
 
-.following-panel__stack--expanded .following-panel__chip + .following-panel__chip {
+.stack-panel__stack--expanded .stack-panel__chip + .stack-panel__chip {
   margin-left: 4px;
 }
 
-.following-panel__stack--expanded .following-panel__chip-label {
+.stack-panel__stack--expanded .stack-panel__chip-label {
   max-width: 160px;
   margin-left: 8px;
   opacity: 1;
 }
 
-.following-panel__stack--expanded .following-panel__chip-remove {
+.stack-panel__stack--expanded .stack-panel__chip-remove {
   max-width: 18px;
   margin-left: 4px;
   opacity: 1;
@@ -123,16 +123,16 @@
 
 /* Expanded by a tap or the hover rules below, the chip grows into a pill with
    the name and an unfollow cross, and leaves the overlap so it reads on its own. */
-.following-panel__chip--expanded {
+.stack-panel__chip--expanded {
   background: var(--surface-3);
   padding-right: 6px;
 }
 
-.following-panel__chip + .following-panel__chip--expanded {
+.stack-panel__chip + .stack-panel__chip--expanded {
   margin-left: 2px;
 }
 
-.following-panel__chip-avatar {
+.stack-panel__chip-avatar {
   flex: none;
   display: flex;
   align-items: center;
@@ -151,9 +151,18 @@
   user-select: none;
 }
 
+/* An image avatar, such as a badge icon, fills the disc instead of a letter. */
+.stack-panel__chip-avatar img,
+.stack-panel__avatar img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 /* The name and the cross are collapsed to nothing at rest and revealed by the
    expanded state, so the stack stays a row of plain avatars. */
-.following-panel__chip-label {
+.stack-panel__chip-label {
   max-width: 0;
   overflow: hidden;
   opacity: 0;
@@ -169,7 +178,7 @@
     opacity 150ms ease;
 }
 
-.following-panel__chip-remove {
+.stack-panel__chip-remove {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -189,13 +198,13 @@
     color 150ms ease;
 }
 
-.following-panel__chip--expanded .following-panel__chip-label {
+.stack-panel__chip--expanded .stack-panel__chip-label {
   max-width: 160px;
   margin-left: 8px;
   opacity: 1;
 }
 
-.following-panel__chip--expanded .following-panel__chip-remove {
+.stack-panel__chip--expanded .stack-panel__chip-remove {
   max-width: 18px;
   margin-left: 4px;
   opacity: 1;
@@ -204,34 +213,28 @@
 /* Hover stays off while adding, since the + sliding right as it grows can
    leave the pointer resting on the last avatar. */
 @media (hover: hover) {
-  .following-panel:not(.following-panel--adding) .following-panel__chip:hover {
+  .stack-panel:not(.stack-panel--adding) .stack-panel__chip:hover {
     background: var(--surface-3);
     padding-right: 6px;
   }
 
-  .following-panel:not(.following-panel--adding)
-    .following-panel__chip
-    + .following-panel__chip:hover {
+  .stack-panel:not(.stack-panel--adding) .stack-panel__chip + .stack-panel__chip:hover {
     margin-left: 2px;
   }
 
-  .following-panel:not(.following-panel--adding)
-    .following-panel__chip:hover
-    .following-panel__chip-label {
+  .stack-panel:not(.stack-panel--adding) .stack-panel__chip:hover .stack-panel__chip-label {
     max-width: 160px;
     margin-left: 8px;
     opacity: 1;
   }
 
-  .following-panel:not(.following-panel--adding)
-    .following-panel__chip:hover
-    .following-panel__chip-remove {
+  .stack-panel:not(.stack-panel--adding) .stack-panel__chip:hover .stack-panel__chip-remove {
     max-width: 18px;
     margin-left: 4px;
     opacity: 1;
   }
 
-  .following-panel__chip-remove:hover {
+  .stack-panel__chip-remove:hover {
     color: var(--fg-primary);
   }
 }
@@ -240,7 +243,7 @@
    pill radius, not a heavy solid-gray box. Collapsed it is the + slot at the
    end of the stack. Open it grows rightward into the input, taking the room
    right of the stack rather than the whole row. */
-.following-panel__field {
+.stack-panel__field {
   position: relative;
   flex: 1;
   min-width: 0;
@@ -262,45 +265,45 @@
     border-color 150ms ease;
 }
 
-.following-panel__stack + .following-panel__field,
-.following-panel__more + .following-panel__field {
+.stack-panel__stack + .stack-panel__field,
+.stack-panel__more + .stack-panel__field {
   margin-left: -8px;
 }
 
 /* Matches the search bar height, so the follow input never outranks it. */
-.following-panel__field--open {
+.stack-panel__field--open {
   max-width: 100vw;
   height: 36px;
   padding: 0 14px;
 }
 
-.following-panel__stack + .following-panel__field--open,
-.following-panel__more + .following-panel__field--open {
+.stack-panel__stack + .stack-panel__field--open,
+.stack-panel__more + .stack-panel__field--open {
   margin-left: 12px;
 }
 
-.following-panel__field:focus-within {
+.stack-panel__field:focus-within {
   border-color: rgb(var(--fg-rgb) / 0.24);
 }
 
 /* The field contents ride the expansion: hidden in the collapsed slot, faded
    in once the pill has most of its width. */
-.following-panel__at,
-.following-panel__input,
-.following-panel__close {
+.stack-panel__prefix,
+.stack-panel__input,
+.stack-panel__close {
   opacity: 0;
   pointer-events: none;
   transition: opacity 150ms ease 80ms;
 }
 
-.following-panel__field--open .following-panel__at,
-.following-panel__field--open .following-panel__input,
-.following-panel__field--open .following-panel__close {
+.stack-panel__field--open .stack-panel__prefix,
+.stack-panel__field--open .stack-panel__input,
+.stack-panel__field--open .stack-panel__close {
   opacity: 1;
   pointer-events: auto;
 }
 
-.following-panel__at {
+.stack-panel__prefix {
   flex: none;
   margin-right: 2px;
   color: var(--fg-5);
@@ -308,7 +311,7 @@
   font-size: var(--type-body-md-size);
 }
 
-.following-panel__input {
+.stack-panel__input {
   flex: 1;
   min-width: 0;
   height: 100%;
@@ -321,12 +324,12 @@
   outline: none;
 }
 
-.following-panel__input::placeholder {
+.stack-panel__input::placeholder {
   color: var(--fg-5);
 }
 
 /* Collapses the field back to the resting row. */
-.following-panel__close {
+.stack-panel__close {
   flex: none;
   display: inline-flex;
   align-items: center;
@@ -343,18 +346,18 @@
 }
 
 @media (hover: hover) {
-  .following-panel__close:hover {
+  .stack-panel__close:hover {
     color: var(--fg-primary);
   }
 }
 
-.following-panel__results {
+.stack-panel__results {
   margin-top: 8px;
   max-height: 320px;
   overflow-y: auto;
 }
 
-.following-panel__state {
+.stack-panel__state {
   margin: 20px 8px;
   text-align: center;
   color: var(--fg-5);
@@ -363,7 +366,7 @@
   line-height: var(--type-body-md-line);
 }
 
-.following-panel__option {
+.stack-panel__option {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -379,12 +382,12 @@
 }
 
 @media (hover: hover) {
-  .following-panel__option:hover {
+  .stack-panel__option:hover {
     background: var(--surface-3);
   }
 }
 
-.following-panel__avatar {
+.stack-panel__avatar {
   flex: none;
   display: flex;
   align-items: center;
@@ -402,7 +405,7 @@
   user-select: none;
 }
 
-.following-panel__row-label {
+.stack-panel__row-label {
   flex: 1;
   min-width: 0;
   overflow: hidden;
