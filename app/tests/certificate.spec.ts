@@ -77,4 +77,52 @@ test.describe('Certificate', () => {
 
     await page.close()
   })
+
+  test('As a user, when I switch a trusted badge off under Relevant, it leaves the card until I switch it back on', async () => {
+    const page = await context.newPage()
+
+    // Given
+    await createCachedApps(page, {
+      overrides: {
+        calculator: {
+          certificates: [
+            {
+              resolver: NETWORK.TRUSTED_ATTESTER_RESOLVER,
+              attester: '0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20',
+              name: CERTIFICATE_NAME,
+              contentCid: null,
+              badgeIconCid: null,
+              id: `0x${'ab'.repeat(32)}`,
+              issuedAt: 1_715_212_320,
+              expiresAt: 0
+            }
+          ]
+        }
+      }
+    })
+    await navigateToTestHost(page, host.url)
+    const frame = await getProductFrame(page, '.category-tab')
+
+    await frame.locator('.category-tab', { hasText: 'All' }).click()
+    await frame.waitForSelector('.product-card', { timeout: 10_000 })
+    await frame.locator('.customize-trigger').click()
+    await frame.locator('.order-panel__option', { hasText: 'Relevant' }).click()
+    const row = frame.locator('.trust-list__row', { hasText: CERTIFICATE_NAME })
+    await expect(row).toBeVisible({ timeout: 15_000 })
+    await expect(frame.locator('.product-card__certified')).toHaveCount(1)
+
+    // When
+    await row.locator('.switch').click()
+
+    // Then
+    await expect(frame.locator('.product-card__certified')).toHaveCount(0)
+
+    // When
+    await row.locator('.switch').click()
+
+    // Then
+    await expect(frame.locator('.product-card__certified')).toHaveCount(1)
+
+    await page.close()
+  })
 })

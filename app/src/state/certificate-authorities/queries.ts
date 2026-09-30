@@ -45,6 +45,19 @@ const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
  */
 const COMPLIANCE_SCHEMA_SPEC = 'bool compliant,string contentCid,string badgeIconCid,string name'
 
+/**
+ * The identity of the built-in certificate, from the repo certificates/ folder.
+ *
+ * An authority reads its name and badge off one of its attestations, so until the
+ * built-in one has certified anything it would show as unnamed. These CIDs are the
+ * blake2b-256 raw CIDs `evm/scripts/upload-certificate-content.ts` stores.
+ */
+const BUILTIN_CERTIFICATE_IDENTITY = {
+  name: 'Parity User Interface Compliance',
+  contentCid: 'bafk2bzaceba5zm52srzef7ao2hztv3w3n75wb6gqxx4xmg3aif33vnko36yry',
+  badgeIconCid: 'bafk2bzacebfges2hsgkafd4c57j5qrnhmidnefktczzszpwy6iuu7i7qo55oc'
+}
+
 /** The network built-in authority from config, known even before discovery runs. */
 function builtinCertificateAuthority(): CertificateAuthority | null {
   const resolver = NETWORK.TRUSTED_ATTESTER_RESOLVER?.toLowerCase()
@@ -53,9 +66,7 @@ function builtinCertificateAuthority(): CertificateAuthority | null {
     resolver,
     attester: NETWORK.TRUSTED_ATTESTER,
     schemaId: NETWORK.COMPLIANCE_SCHEMA_ID.toString(),
-    name: null,
-    contentCid: null,
-    badgeIconCid: null
+    ...BUILTIN_CERTIFICATE_IDENTITY
   }
 }
 
@@ -109,10 +120,15 @@ export async function discoverCertificateAuthorities(): Promise<CertificateAutho
   const authorities = [...byResolver.values()]
   await sampleCertificateMetadata(authorities)
 
-  // Always include the built-in authority, even if the schema scan missed it.
+  // Always include the built-in authority, even if the schema scan missed it, and
+  // fill its identity when no attestation of its own supplied one.
   const builtin = builtinCertificateAuthority()
-  if (builtin && !authorities.some((a) => a.resolver === builtin.resolver)) {
-    authorities.unshift(builtin)
+  const found = builtin && authorities.find((a) => a.resolver === builtin.resolver)
+  if (builtin && !found) authorities.unshift(builtin)
+  if (found) {
+    found.name ??= BUILTIN_CERTIFICATE_IDENTITY.name
+    found.contentCid ??= BUILTIN_CERTIFICATE_IDENTITY.contentCid
+    found.badgeIconCid ??= BUILTIN_CERTIFICATE_IDENTITY.badgeIconCid
   }
 
   hiddenLog(`Discovered ${authorities.length} certificate authorities`)
@@ -179,7 +195,17 @@ export async function knownCertificateAuthorities(): Promise<CertificateAuthorit
 
   const builtin = builtinCertificateAuthority()
   if (builtin) byResolver.set(builtin.resolver, builtin)
-  for (const authority of discovered) byResolver.set(authority.resolver.toLowerCase(), authority)
+  for (const authority of discovered) {
+    const resolver = authority.resolver.toLowerCase()
+    const fallback = byResolver.get(resolver)
+    // A snapshot saved before the built-in identity existed still reads unnamed.
+    byResolver.set(resolver, {
+      ...authority,
+      name: authority.name ?? fallback?.name ?? null,
+      contentCid: authority.contentCid ?? fallback?.contentCid ?? null,
+      badgeIconCid: authority.badgeIconCid ?? fallback?.badgeIconCid ?? null
+    })
+  }
 
   return [...byResolver.values()]
 }
@@ -197,8 +223,14 @@ export function useKnownCertificateAuthorities() {
   })
 }
 
-/** All authorities for the manager, from discovery, falling back to the cached snapshot. */
+/**
+ * All authorities, from discovery, falling back to the cached snapshot.
+ *
+ * Discovery reads the chain and takes seconds, so the snapshot it saved last time
+ * stands in while it runs, and a returning user never waits on an empty list.
+ */
 export function useCertificateAuthorities() {
+  const { data: known } = useKnownCertificateAuthorities()
   return useQuery<CertificateAuthority[]>({
     queryKey: CERTIFICATE_AUTHORITIES_KEY,
     queryFn: async () => {
@@ -211,6 +243,7 @@ export function useCertificateAuthorities() {
         return builtin ? [builtin] : []
       }
     },
+    placeholderData: known,
     staleTime: 5 * 60_000
   })
 }

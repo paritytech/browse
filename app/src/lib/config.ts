@@ -30,7 +30,8 @@ export const ACTIVE_SCHEMA_ID = activeSchemaId(NETWORK)
 /**
  * Lowercased certificate authority resolver addresses trusted by default.
  *
- * Their badges show until the user disables them in the manager. Read as a
+ * Their badges show and earn the Relevant boost until the user switches them off
+ * under Relevant in the Order by popover. Read as a
  * comma-separated list from `APP_DEFAULT_CERTIFICATES`, falling back to the
  * network built-in trusted-attester resolver so the bundled authority is trusted
  * out of the box.

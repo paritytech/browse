@@ -66,24 +66,24 @@ test.describe('Following', () => {
 
     // Then
     await expect(frame.locator('.empty-state')).toBeVisible()
-    await expect(frame.locator('.following-panel__add')).toBeVisible()
+    await expect(frame.locator('.stack-panel__add')).toBeVisible()
 
     // When
-    await frame.locator('.following-panel__add').click()
-    const input = frame.locator('.following-panel__input')
+    await frame.locator('.stack-panel__add').click()
+    const input = frame.locator('.stack-panel__input')
     await input.fill('zzauto')
 
     // Then
     await expect(
-      frame.locator('.following-panel__option', { hasText: SNAPSHOT_USERNAME })
+      frame.locator('.stack-panel__option', { hasText: SNAPSHOT_USERNAME })
     ).toBeVisible({ timeout: 15_000 })
 
     // When
     await input.fill(IDENTITY_ADDRESS)
-    await frame.locator('.following-panel__option').click()
+    await frame.locator('.stack-panel__option').click()
 
     // Then
-    await expect(frame.locator('.following-panel__chip')).toHaveCount(1)
+    await expect(frame.locator('.stack-panel__chip')).toHaveCount(1)
     await expect(frame.locator(CARD).first()).toBeVisible({ timeout: 15_000 })
     const cards = frame.locator(CARD)
     expect(await cards.count()).toBeGreaterThan(0)
@@ -127,9 +127,9 @@ test.describe('Following', () => {
     // When
     await frame.locator('.category-tab', { hasText: 'Following' }).click()
     await frame.waitForTimeout(300)
-    await frame.locator('.following-panel__add').click()
-    await frame.locator('.following-panel__input').fill(IDENTITY_ADDRESS)
-    await frame.locator('.following-panel__option').click()
+    await frame.locator('.stack-panel__add').click()
+    await frame.locator('.stack-panel__input').fill(IDENTITY_ADDRESS)
+    await frame.locator('.stack-panel__option').click()
 
     // Then
     await expect(frame.locator(CARD).first()).toBeVisible({ timeout: 20_000 })
@@ -178,33 +178,33 @@ test.describe('Following', () => {
     const frame = await getProductFrame(page, '.category-tab')
     await frame.locator('.category-tab', { hasText: 'Following' }).click()
     for (const address of addresses) {
-      await frame.locator('.following-panel__add').click()
-      await frame.locator('.following-panel__input').fill(address)
-      await frame.locator('.following-panel__option').click()
+      await frame.locator('.stack-panel__add').click()
+      await frame.locator('.stack-panel__input').fill(address)
+      await frame.locator('.stack-panel__option').click()
     }
 
     // Then
-    await expect(frame.locator('.following-panel__chip')).toHaveCount(3)
-    await expect(frame.locator('.following-panel__more')).toHaveText('+1')
+    await expect(frame.locator('.stack-panel__chip')).toHaveCount(3)
+    await expect(frame.locator('.stack-panel__more')).toHaveText('+1')
 
     // When
-    await frame.locator('.following-panel__chip').first().click()
-    await expect(frame.locator('.following-panel__chip--expanded')).toHaveCount(1)
-    await frame.locator('.following-panel__add').click()
+    await frame.locator('.stack-panel__chip').first().click()
+    await expect(frame.locator('.stack-panel__chip--expanded')).toHaveCount(1)
+    await frame.locator('.stack-panel__add').click()
 
     // Then
-    await expect(frame.locator('.following-panel__chip--expanded')).toHaveCount(0)
+    await expect(frame.locator('.stack-panel__chip--expanded')).toHaveCount(0)
     await expect(frame.locator('#app-list')).toBeHidden()
 
     // When
-    await frame.locator('.following-panel__input').press('Backspace')
+    await frame.locator('.stack-panel__input').press('Backspace')
 
     // Then
-    await expect(frame.locator('.following-panel__input')).toHaveValue('')
-    await expect(frame.locator('.following-panel__more')).toHaveText('+1')
+    await expect(frame.locator('.stack-panel__input')).toHaveValue('')
+    await expect(frame.locator('.stack-panel__more')).toHaveText('+1')
 
     // When
-    await frame.locator('.following-panel__input').press('Escape')
+    await frame.locator('.stack-panel__input').press('Escape')
 
     // Then
     await expect(frame.locator('#app-list')).toBeVisible()
@@ -224,17 +224,17 @@ test.describe('Following', () => {
     const frame = await getProductFrame(page, '.category-tab')
     for (const block of USERNAME_SNAPSHOT_BLOCKS) await seedPreimage(page, block)
     await frame.locator('.category-tab', { hasText: 'Following' }).click()
-    await frame.locator('.following-panel__add').click()
-    const input = frame.locator('.following-panel__input')
+    await frame.locator('.stack-panel__add').click()
+    const input = frame.locator('.stack-panel__input')
     await input.fill('zzq')
-    await expect(frame.locator('.following-panel__state')).toHaveText('No results for “zzq”', {
+    await expect(frame.locator('.stack-panel__state')).toHaveText('No results for “zzq”', {
       timeout: 15_000
     })
-    await frame.locator('.following-panel').evaluate((panel) => {
+    await frame.locator('.stack-panel').evaluate((panel) => {
       const seen: string[] = []
       ;(window as unknown as { seenStates: string[] }).seenStates = seen
       new MutationObserver(() => {
-        for (const state of panel.querySelectorAll('.following-panel__state')) {
+        for (const state of panel.querySelectorAll('.stack-panel__state')) {
           seen.push(state.textContent ?? '')
         }
       }).observe(panel, { subtree: true, childList: true, characterData: true })
@@ -244,7 +244,7 @@ test.describe('Following', () => {
     await input.pressSequentially('xyz', { delay: 250 })
 
     // Then
-    await expect(frame.locator('.following-panel__state')).toHaveText('No results for “zzqxyz”')
+    await expect(frame.locator('.stack-panel__state')).toHaveText('No results for “zzqxyz”')
     const seen = await frame.evaluate(
       () => (window as unknown as { seenStates: string[] }).seenStates
     )

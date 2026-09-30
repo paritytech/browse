@@ -188,7 +188,6 @@ test.describe('App Start', () => {
 
       // When
       await frame.locator('.customize-trigger').click()
-      await frame.locator('.customize-nav-row', { hasText: 'Order by' }).click()
       await frame.locator('.order-panel__option', { hasText: 'New' }).click()
 
       // Then
