@@ -12,6 +12,7 @@
     "deploy:trusted-resolver": "forge build && tsx --tsconfig scripts/tsconfig.json --env-file-if-exists=../.env scripts/deploy-trusted-resolver.ts",
     "register:schema": "tsx --tsconfig scripts/tsconfig.json --env-file-if-exists=../.env scripts/register-schema.ts",
     "attest:compliance": "tsx --tsconfig scripts/tsconfig.json --env-file-if-exists=../.env scripts/attest-compliance.ts",
+    "certify": "tsx --tsconfig scripts/tsconfig.json --env-file-if-exists=../.env scripts/certify.ts",
     "upload:certificate-content": "tsx --tsconfig scripts/tsconfig.json --env-file-if-exists=../.env scripts/upload-certificate-content.ts"
   },
   "dependencies": {
