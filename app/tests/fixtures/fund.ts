@@ -492,6 +492,10 @@ export async function reclaimIdentity(): Promise<void> {
         'identity PGAS reclaim'
       ).catch((e) => console.error('identity PGAS reclaim failed:', e))
     }
+    const native = (await api.query.System.Account.getValue(identity.address as SS58String, {
+      at: 'best'
+    })) as { data: { free: bigint } }
+    if (native.data.free === 0n) return
     await watchTxWithRetry(
       () =>
         api.tx.Balances.transfer_all({
