@@ -127,11 +127,14 @@ export function App() {
   const [signed, setSigned] = useState(false)
   const [following, setFollowing] = useState<FollowedAccount[]>([])
   const [followingLoaded, setFollowingLoaded] = useState(false)
+  // Whether the inline follow input under the tabs is expanded. Held here so
+  // the app list can hide while someone is being added.
+  const [followInputOpen, setFollowInputOpen] = useState(false)
   // The ⋮ trigger at the trailing edge of the category tabs opens a small
   // anchored popover. The back arrow returns to the menu.
   // The cross closes the whole popover.
   const [menuOpen, setMenuOpen] = useState(false)
-  const [view, setView] = useState<'menu' | 'following' | 'badges' | 'order'>('menu')
+  const [view, setView] = useState<'menu' | 'badges' | 'order'>('menu')
   // Fixed viewport coordinates for the popover, measured off the trigger on open.
   const [anchor, setAnchor] = useState<{ top: number; right: number } | null>(null)
   // The popover height, animated to the measured content height of the active
@@ -179,7 +182,7 @@ export function App() {
   const drillInnerRef = useRef<HTMLDivElement>(null)
   // Holds the last drilled view while collapsing back to the menu so its content
   // doesn't blank mid-transition.
-  const lastDrillRef = useRef<'following' | 'badges' | 'order'>('following')
+  const lastDrillRef = useRef<'badges' | 'order'>('order')
 
   // Derived state and query data. This is one dependency chain, not a reorderable
   // set: each query feeds a memo that feeds the next, so the kinds necessarily
@@ -627,11 +630,10 @@ export function App() {
     const rect = triggerRef.current?.getBoundingClientRect()
     if (rect) setAnchor({ top: rect.bottom + 8, right: window.innerWidth - rect.right })
   }
-  // Open the popover under the ⋮. `next` lets the empty-state button expand
-  // straight into Following.
-  const openMenu = (next: 'menu' | 'following' = 'menu') => {
+  // Open the popover under the ⋮.
+  const openMenu = () => {
     anchorToTrigger()
-    setView(next)
+    setView('menu')
     setMenuOpen(true)
   }
 
@@ -837,7 +839,7 @@ export function App() {
     const observer = new ResizeObserver(measure)
     observer.observe(inner)
     return () => observer.disconnect()
-  }, [menuOpen, view, following.length, enabledCertificateAuthorities.length])
+  }, [menuOpen, view, enabledCertificateAuthorities.length])
   // Pushing past the end of the list fully re-establishes the chain connection
   // (resetBrowseSdk) and re-syncs. Disabled while a sync runs, while searching,
   // or on the local bookmarks tab.
@@ -900,30 +902,54 @@ export function App() {
                 />
               </div>
               {!searchMatches && (
-                <div class='tabs-row'>
-                  <CategoryTabs
-                    active={coldStart ? ['all'] : [currentMode]}
-                    disabled={coldStart}
-                    onSwitch={(mode) => {
-                      setCurrentMode(mode)
-                      setMenuOpen(false)
-                    }}
-                  />
-                  <button
-                    type='button'
-                    ref={triggerRef}
-                    class='customize-trigger'
-                    aria-label='Customize'
-                    aria-haspopup='menu'
-                    aria-expanded={menuOpen}
-                    onClick={() => openMenu()}
-                  >
-                    <MoreVertical size={20} />
-                  </button>
-                </div>
+                <>
+                  <div class='tabs-row'>
+                    <CategoryTabs
+                      active={coldStart ? ['all'] : [currentMode]}
+                      disabled={coldStart}
+                      onSwitch={(mode) => {
+                        setCurrentMode(mode)
+                        setMenuOpen(false)
+                        setFollowInputOpen(false)
+                      }}
+                    />
+                    <button
+                      type='button'
+                      ref={triggerRef}
+                      class='customize-trigger'
+                      aria-label='Customize'
+                      aria-haspopup='menu'
+                      aria-expanded={menuOpen}
+                      onClick={() => openMenu()}
+                    >
+                      <MoreVertical size={20} />
+                    </button>
+                  </div>
+                  {currentMode === 'following' && !coldStart && (
+                    <FollowingManager
+                      following={following}
+                      open={followInputOpen}
+                      onOpenChange={setFollowInputOpen}
+                      onAdd={handleFollow}
+                      onRemove={handleUnfollow}
+                    />
+                  )}
+                </>
               )}
 
-              <div class='app-list' id='app-list' ref={appListRef}>
+              {/* Hidden while a follow is being typed, so the username results
+                  never push the cards around. */}
+              <div
+                class='app-list'
+                id='app-list'
+                ref={appListRef}
+                style={{
+                  display:
+                    followInputOpen && currentMode === 'following' && !searchMatches && !coldStart
+                      ? 'none'
+                      : undefined
+                }}
+              >
                 {/* The typed address, first in the list and otherwise an ordinary
                     card. A placeholder until it resolves to something published.
                     Never conditional on the search result. */}
@@ -960,9 +986,6 @@ export function App() {
                       Follow people to see what they recommend{' '}
                       <ArrowUp size={14} class='empty-state__inline-icon' />
                     </p>
-                    <button class='empty-state__btn' onClick={() => openMenu('following')}>
-                      Add Person
-                    </button>
                   </div>
                 ) : emptyFollowingNoMatches ? (
                   <div class='empty-state'>
@@ -1062,14 +1085,6 @@ export function App() {
                     <button
                       type='button'
                       class='customize-nav-row'
-                      onClick={() => setView('following')}
-                    >
-                      <span class='customize-nav-row__label'>Following</span>
-                      <span class='customize-nav-row__count'>{following.length}</span>
-                    </button>
-                    <button
-                      type='button'
-                      class='customize-nav-row'
                       onClick={() => setView('badges')}
                     >
                       <span class='customize-nav-row__label'>Badges</span>
@@ -1111,11 +1126,7 @@ export function App() {
                         <ArrowLeft size={20} />
                       </button>
                       <span class='customize-drill__title'>
-                        {drill === 'following'
-                          ? 'Following'
-                          : drill === 'order'
-                            ? 'Order by'
-                            : 'Badges'}
+                        {drill === 'order' ? 'Order by' : 'Badges'}
                       </span>
                       <button
                         type='button'
@@ -1126,16 +1137,7 @@ export function App() {
                         <X size={20} />
                       </button>
                     </div>
-                    {drill === 'following' ? (
-                      <FollowingManager
-                        embedded
-                        visible={menuOpen && view === 'following'}
-                        following={following}
-                        onAdd={handleFollow}
-                        onRemove={handleUnfollow}
-                        onDismiss={() => setMenuOpen(false)}
-                      />
-                    ) : drill === 'order' ? (
+                    {drill === 'order' ? (
                       <div class='order-panel' role='radiogroup' aria-label='Order by'>
                         {SORT_OPTIONS.map((option) => (
                           <button

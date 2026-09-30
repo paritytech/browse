@@ -66,44 +66,24 @@ test.describe('Following', () => {
 
     // Then
     await expect(frame.locator('.empty-state')).toBeVisible()
-    await expect(frame.locator('.empty-state__btn')).toBeVisible()
+    await expect(frame.locator('.following-panel__add')).toBeVisible()
 
     // When
-    await frame.locator('.empty-state__btn').click()
-
-    // Then
-    await expect(frame.locator('.customize-popover')).toBeVisible()
-
-    // When
-    await frame.locator('.following-modal__input').click()
-    await page.setViewportSize({ width: 1280, height: 420 })
-    await frame.waitForTimeout(500)
-
-    // Then
-    await expect(frame.locator('.following-modal__input')).toBeVisible()
-
-    // When
-    await page.setViewportSize({ width: 1280, height: 720 })
-    const input = frame.locator('.following-modal__input')
+    await frame.locator('.following-panel__add').click()
+    const input = frame.locator('.following-panel__input')
     await input.fill('zzauto')
 
     // Then
     await expect(
-      frame.locator('.following-modal__option', { hasText: SNAPSHOT_USERNAME })
+      frame.locator('.following-panel__option', { hasText: SNAPSHOT_USERNAME })
     ).toBeVisible({ timeout: 15_000 })
 
     // When
     await input.fill(IDENTITY_ADDRESS)
-    await frame.locator('.following-modal__option').click()
+    await frame.locator('.following-panel__option').click()
 
     // Then
-    await expect(frame.locator('.following-modal__row')).toHaveCount(1)
-
-    // When
-    await frame.locator('.customize-drill__icon[aria-label="Close"]').click()
-
-    // Then
-    await expect(frame.locator('.customize-popover')).toHaveCount(0)
+    await expect(frame.locator('.following-panel__chip')).toHaveCount(1)
     await expect(frame.locator(CARD).first()).toBeVisible({ timeout: 15_000 })
     const cards = frame.locator(CARD)
     expect(await cards.count()).toBeGreaterThan(0)
@@ -147,11 +127,9 @@ test.describe('Following', () => {
     // When
     await frame.locator('.category-tab', { hasText: 'Following' }).click()
     await frame.waitForTimeout(300)
-    await frame.locator('.empty-state__btn').click()
-    await expect(frame.locator('.customize-popover')).toBeVisible()
-    await frame.locator('.following-modal__input').fill(IDENTITY_ADDRESS)
-    await frame.locator('.following-modal__option').click()
-    await frame.locator('.customize-drill__icon[aria-label="Close"]').click()
+    await frame.locator('.following-panel__add').click()
+    await frame.locator('.following-panel__input').fill(IDENTITY_ADDRESS)
+    await frame.locator('.following-panel__option').click()
 
     // Then
     await expect(frame.locator(CARD).first()).toBeVisible({ timeout: 20_000 })
@@ -183,5 +161,95 @@ test.describe('Following', () => {
 
     // Cleanup
     await createRevokedAttestation('stopwatch').catch(() => {})
+  })
+
+  test('As a signed user, when I follow more than three people, the stack truncates and stays folded while I add another', async ({
+    browser
+  }) => {
+    test.setTimeout(40_000)
+    const stackContext = await browser.newContext({ ignoreHTTPSErrors: true })
+    const page = await stackContext.newPage()
+    const addresses = ['Alice', 'Bob', 'Charlie', 'Dave'].map(
+      (name) => createDevSigner(name).address
+    )
+
+    // Given
+    await navigateToTestHost(page, host.url)
+    const frame = await getProductFrame(page, '.category-tab')
+    await frame.locator('.category-tab', { hasText: 'Following' }).click()
+    for (const address of addresses) {
+      await frame.locator('.following-panel__add').click()
+      await frame.locator('.following-panel__input').fill(address)
+      await frame.locator('.following-panel__option').click()
+    }
+
+    // Then
+    await expect(frame.locator('.following-panel__chip')).toHaveCount(3)
+    await expect(frame.locator('.following-panel__more')).toHaveText('+1')
+
+    // When
+    await frame.locator('.following-panel__chip').first().click()
+    await expect(frame.locator('.following-panel__chip--expanded')).toHaveCount(1)
+    await frame.locator('.following-panel__add').click()
+
+    // Then
+    await expect(frame.locator('.following-panel__chip--expanded')).toHaveCount(0)
+    await expect(frame.locator('#app-list')).toBeHidden()
+
+    // When
+    await frame.locator('.following-panel__input').press('Backspace')
+
+    // Then
+    await expect(frame.locator('.following-panel__input')).toHaveValue('')
+    await expect(frame.locator('.following-panel__more')).toHaveText('+1')
+
+    // When
+    await frame.locator('.following-panel__input').press('Escape')
+
+    // Then
+    await expect(frame.locator('#app-list')).toBeVisible()
+
+    await stackContext.close()
+  })
+
+  test('As a signed user, when I keep typing a username nobody has, I keep seeing the no results message', async ({
+    browser
+  }) => {
+    test.setTimeout(30_000)
+    const typingContext = await browser.newContext({ ignoreHTTPSErrors: true })
+    const page = await typingContext.newPage()
+
+    // Given
+    await navigateToTestHost(page, host.url)
+    const frame = await getProductFrame(page, '.category-tab')
+    for (const block of USERNAME_SNAPSHOT_BLOCKS) await seedPreimage(page, block)
+    await frame.locator('.category-tab', { hasText: 'Following' }).click()
+    await frame.locator('.following-panel__add').click()
+    const input = frame.locator('.following-panel__input')
+    await input.fill('zzq')
+    await expect(frame.locator('.following-panel__state')).toHaveText('No results for “zzq”', {
+      timeout: 15_000
+    })
+    await frame.locator('.following-panel').evaluate((panel) => {
+      const seen: string[] = []
+      ;(window as unknown as { seenStates: string[] }).seenStates = seen
+      new MutationObserver(() => {
+        for (const state of panel.querySelectorAll('.following-panel__state')) {
+          seen.push(state.textContent ?? '')
+        }
+      }).observe(panel, { subtree: true, childList: true, characterData: true })
+    })
+
+    // When
+    await input.pressSequentially('xyz', { delay: 250 })
+
+    // Then
+    await expect(frame.locator('.following-panel__state')).toHaveText('No results for “zzqxyz”')
+    const seen = await frame.evaluate(
+      () => (window as unknown as { seenStates: string[] }).seenStates
+    )
+    expect(seen.filter((text) => !text.startsWith('No results'))).toEqual([])
+
+    await typingContext.close()
   })
 })

@@ -36,6 +36,11 @@ const DEFAULT_NATIVE_AMOUNT = 100_000_000_000n
 
 // A top-up is skipped when the recipient already holds at least this much.
 const PGAS_TOPUP_THRESHOLD = 1_000_000_000n
+
+// A sweep over every claim slot takes minutes once the day is spent, and every
+// PGAS funding call used to repeat it, which ran the recommend beforeAll past
+// its timeout. One sweep per process is enough, since slots only reset daily.
+const fundersWithSpentClaims = new Set<string>()
 const NATIVE_TOPUP_THRESHOLD = 50_000_000_000n
 
 function signerFor(miniSecret: Uint8Array, path: string) {
@@ -141,8 +146,13 @@ async function withAssetHubApi<T>(fn: (api: UnsafeApi) => Promise<T>): Promise<T
   }
 }
 
-async function pgasBalanceOf(api: UnsafeApi, assetId: number, addr: string): Promise<bigint> {
-  const acct = (await api.query.Assets.Account.getValue(assetId, addr as SS58String)) as
+async function pgasBalanceOf(
+  api: UnsafeApi,
+  assetId: number,
+  addr: string,
+  at: 'finalized' | 'best' = 'finalized'
+): Promise<bigint> {
+  const acct = (await api.query.Assets.Account.getValue(assetId, addr as SS58String, { at })) as
     | { balance?: bigint }
     | undefined
   return acct?.balance ?? 0n
@@ -195,6 +205,7 @@ export interface FundResult {
  * claim needs the funder in a lite ring, which it registers itself for.
  */
 export async function ensureFunderPgas(from: Credentials = createMasterSigner()): Promise<void> {
+  if (fundersWithSpentClaims.has(from.address)) return
   await withAssetHubApi(async (api) => {
     const assetId = (await api.constants.Pgas.PgasAssetId()) as number
     let balance = await pgasBalanceOf(api, assetId, from.address)
@@ -209,6 +220,7 @@ export async function ensureFunderPgas(from: Credentials = createMasterSigner())
       }
       balance = await pgasBalanceOf(api, assetId, from.address)
     }
+    if (balance < FUNDER_PGAS_FLOOR) fundersWithSpentClaims.add(from.address)
   })
 }
 
@@ -267,8 +279,9 @@ export async function mapAccount(tag: string): Promise<void> {
 
 // An account holding only PGAS pays the reclaim fee in PGAS, so sending the
 // whole balance leaves nothing to settle with and the transfer reverts with
-// `Assets.BalanceLow`. Hold this much back and the rest recycles.
-const PGAS_RECLAIM_FEE_BUFFER = 2_000_000_000n
+// `Assets.BalanceLow`. The fee measured about 10 to 20 million on previewnet in
+// September 2026, so this covers it several times over and strands little.
+const PGAS_RECLAIM_FEE_BUFFER = 100_000_000n
 
 /**
  * Send the PGAS balance of `fromTag` to `to`, less the fee buffer, so the pool
@@ -464,7 +477,9 @@ export async function reclaimIdentity(): Promise<void> {
   if (identity.address === master.address) return
   await withAssetHubApi(async (api) => {
     const assetId = (await api.constants.Pgas.PgasAssetId()) as number
-    const pgas = await pgasBalanceOf(api, assetId, identity.address)
+    // Finality trails best by several blocks, so a finalized read still counts
+    // PGAS the last fixture attests spent, and sending that reverts BalanceLow.
+    const pgas = await pgasBalanceOf(api, assetId, identity.address, 'best')
     if (pgas > PGAS_RECLAIM_FEE_BUFFER) {
       await watchTxWithRetry(
         () =>
