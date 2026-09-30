@@ -1,17 +1,16 @@
 import { type VNode } from 'preact'
 
 import { useDeferredValue } from 'preact/compat'
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'preact/hooks'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 
 import { nameWithTld, stripTld } from '@parity/browse-sdk'
 import { getAccountsProvider, type HostSubscription } from '@parity/product-sdk/host'
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, ArrowUp, Bookmark, Check, MoreVertical, Package, X } from 'lucide-preact'
+import { ArrowUp, ArrowUpDown, Bookmark, Check, Package } from 'lucide-preact'
 import { AccountId } from 'polkadot-api'
 
+import { BadgesPanel } from './components/badges-panel'
 import { CategoryTabs } from './components/category-tabs'
-import { CertificateAuthorityManager } from './components/certificate-authority-manager'
-import { CertificateBadge } from './components/certificate-badge'
 import { CertificateModal } from './components/certificate-modal'
 import { FollowingManager } from './components/following-manager'
 import { FOLLOW_ICON, SEARCH_ICON } from './components/icons'
@@ -53,10 +52,7 @@ import {
   isFilterMode,
   type SortMode
 } from './state/apps/types'
-import {
-  useCertificateAuthorities,
-  useSelectedCertificateAuthorities
-} from './state/certificate-authorities/queries'
+import { useSelectedCertificateAuthorities } from './state/certificate-authorities/queries'
 import {
   follow,
   type FollowedAccount,
@@ -71,12 +67,8 @@ import {
 
 const SEARCH_GROUP_PRIORITY: FilterMode[] = ['bookmarks', 'following', 'all']
 
-// Number of certificate-authority badge marks shown in the menu before the rest
-// collapse into a `+N` chip.
-const MENU_BADGE_LIMIT = 3
-
-// The sort options shown in the drilled Order by view, each with a short
-// description of what it does.
+// The sort options in the Order by popover, each with a short description of
+// what it does.
 const SORT_OPTIONS: { key: SortMode; name: string; description: string }[] = [
   {
     key: 'relevant',
@@ -130,17 +122,13 @@ export function App() {
   // Whether the inline follow input under the tabs is expanded. Held here so
   // the app list can hide while someone is being added.
   const [followInputOpen, setFollowInputOpen] = useState(false)
-  // The ⋮ trigger at the trailing edge of the category tabs opens a small
-  // anchored popover. The back arrow returns to the menu.
-  // The cross closes the whole popover.
+  // Whether the inline badge search on the All tab is expanded, for the same reason.
+  const [badgesInputOpen, setBadgesInputOpen] = useState(false)
+  // The sort trigger at the trailing edge of the category tabs opens a small
+  // anchored Order by popover.
   const [menuOpen, setMenuOpen] = useState(false)
-  const [view, setView] = useState<'menu' | 'badges' | 'order'>('menu')
   // Fixed viewport coordinates for the popover, measured off the trigger on open.
   const [anchor, setAnchor] = useState<{ top: number; right: number } | null>(null)
-  // The popover height, animated to the measured content height of the active
-  // view so the modal expands and collapses smoothly between the menu and a
-  // manager.
-  const [popoverHeight, setPopoverHeight] = useState<number>()
   const [suggestionPrefix, setSuggestionPrefix] = useState('')
   // Touch devices get a minimum-visible hold on the dots after a pull-refresh.
   const [pullRefreshFloor, setPullRefreshFloor] = useState(false)
@@ -176,13 +164,6 @@ export function App() {
   const orderSourceRef = useRef<AppEntry[]>([])
   const triggerRef = useRef<HTMLButtonElement>(null)
   const popoverRef = useRef<HTMLDivElement>(null)
-  // Natural-height inner of each view, measured to animate the popover height as
-  // it expands from the menu into a manager and back.
-  const menuInnerRef = useRef<HTMLDivElement>(null)
-  const drillInnerRef = useRef<HTMLDivElement>(null)
-  // Holds the last drilled view while collapsing back to the menu so its content
-  // doesn't blank mid-transition.
-  const lastDrillRef = useRef<'badges' | 'order'>('order')
 
   // Derived state and query data. This is one dependency chain, not a reorderable
   // set: each query feeds a memo that feeds the next, so the kinds necessarily
@@ -240,19 +221,23 @@ export function App() {
   }, [followingApps])
   // Selection is a display filter. Hydration caches every known authority
   // certificate, and only selected ones render as badges. Toggling an authority
-  // in the manager updates this set and re-filters instantly, with no re-sync.
+  // in the badges panel updates this set and re-filters instantly, with no re-sync.
   const { data: selectedAuthorities = [] } = useSelectedCertificateAuthorities()
-  const { data: certificateAuthorities = [] } = useCertificateAuthorities()
   const selectedResolvers = useMemo(
     () => new Set(selectedAuthorities.map((resolver) => resolver.toLowerCase())),
     [selectedAuthorities]
   )
-  // Enabled authorities: the catalog filtered to the selected resolver set. Used
-  // to render the stacked badge images on the menu's Badges row.
-  const enabledCertificateAuthorities = useMemo(
-    () => certificateAuthorities.filter((ca) => selectedResolvers.has(ca.resolver.toLowerCase())),
-    [certificateAuthorities, selectedResolvers]
-  )
+  // The authority catalog has no name for some resolvers, while the certificates
+  // they issued carry one, so the badges panel labels its chips from these.
+  const certificateNames = useMemo(() => {
+    const names = new Map<string, string>()
+    for (const app of allApps) {
+      for (const certificate of app.certificates) {
+        if (certificate.name) names.set(certificate.resolver.toLowerCase(), certificate.name)
+      }
+    }
+    return names
+  }, [allApps])
   /**
    * Trim an entry to what this user should see.
    *
@@ -623,17 +608,15 @@ export function App() {
     heroLabelRef.current = label
     setOrderNonce((n) => n + 1)
   })
-  // Right-align the popover under the ⋮ by measuring the trigger. These are
+  // Right-align the popover under the sort trigger by measuring it. These are
   // viewport coordinates on a fixed element, so anything that moves the trigger
   // has to measure again or the popover floats detached.
   const anchorToTrigger = () => {
     const rect = triggerRef.current?.getBoundingClientRect()
     if (rect) setAnchor({ top: rect.bottom + 8, right: window.innerWidth - rect.right })
   }
-  // Open the popover under the ⋮.
   const openMenu = () => {
     anchorToTrigger()
-    setView('menu')
     setMenuOpen(true)
   }
 
@@ -785,31 +768,18 @@ export function App() {
     const id = setTimeout(() => setDebouncedQuery(query), 500)
     return () => clearTimeout(id)
   }, [query])
-  // Reopen on the menu view at its natural height. Clearing the measured height
-  // on close means the next open starts at the menu height instead of animating
-  // down from the taller Badges height.
-  useEffect(() => {
-    if (!menuOpen) {
-      setView('menu')
-      setPopoverHeight(undefined)
-    }
-  }, [menuOpen])
   // Light-dismiss the popover on Escape or on a page scroll, which is what a
   // dropdown anchored to a scrolling page should do. Scroll is captured so a
   // scroll inside the app list, not just the window, also closes it. A resize
-  // re-measures instead of closing, because on a phone the resize is the
-  // on-screen keyboard opening for a field in the popover itself. Outside clicks
-  // close via the transparent catcher rendered under the popover.
+  // re-measures so the popover stays under the trigger. Outside clicks close via
+  // the transparent catcher rendered under the popover.
   useEffect(() => {
     if (!menuOpen) return
     const onScroll = (e: Event) => {
-      // Ignore scrolling inside the popover itself, and the scroll a focused
-      // embedded input triggers as it settles. Only the page scrolling out from
-      // under the trigger should close it.
+      // Only the page scrolling out from under the trigger closes it, not a
+      // scroll inside the popover itself.
       const target = e.target
       if (target instanceof Node && popoverRef.current?.contains(target)) return
-      const active = document.activeElement
-      if (active instanceof Node && popoverRef.current?.contains(active)) return
       setMenuOpen(false)
     }
     const onKey = (e: KeyboardEvent) => {
@@ -824,22 +794,6 @@ export function App() {
       window.removeEventListener('resize', anchorToTrigger)
     }
   }, [menuOpen])
-  // Animate the popover height to the natural content height of the active view,
-  // so it expands as a view drills in and collapses on the way back. A
-  // ResizeObserver keeps it in step as the embedded managers load their data.
-  useLayoutEffect(() => {
-    if (!menuOpen) return
-    const inner = view === 'menu' ? menuInnerRef.current : drillInnerRef.current
-    if (!inner) return
-    // offsetHeight, not getBoundingClientRect: the latter is scaled by the
-    // popover entrance animation, which would measure the height ~8% short and
-    // clip the bottom padding.
-    const measure = () => setPopoverHeight(inner.offsetHeight)
-    measure()
-    const observer = new ResizeObserver(measure)
-    observer.observe(inner)
-    return () => observer.disconnect()
-  }, [menuOpen, view, enabledCertificateAuthorities.length])
   // Pushing past the end of the list fully re-establishes the chain connection
   // (resetBrowseSdk) and re-syncs. Disabled while a sync runs, while searching,
   // or on the local bookmarks tab.
@@ -883,10 +837,12 @@ export function App() {
     !followingLoading
   const emptyAll = currentMode === 'all' && filtered.length === 0 && !query && !allFetching
 
-  // The drill pane always renders one manager: the active drill view, or the last
-  // one while collapsing back to the menu so it doesn't blank mid-transition.
-  if (view !== 'menu') lastDrillRef.current = view
-  const drill = view === 'menu' ? lastDrillRef.current : view
+  // The app list hides while an inline panel input is open, so its results never
+  // push the cards around.
+  const panelInputOpen =
+    !searchMatches &&
+    !coldStart &&
+    ((followInputOpen && currentMode === 'following') || (badgesInputOpen && currentMode === 'all'))
 
   return (
     <ToastContext.Provider value={{ showToast }}>
@@ -911,20 +867,28 @@ export function App() {
                         setCurrentMode(mode)
                         setMenuOpen(false)
                         setFollowInputOpen(false)
+                        setBadgesInputOpen(false)
                       }}
                     />
                     <button
                       type='button'
                       ref={triggerRef}
                       class='customize-trigger'
-                      aria-label='Customize'
+                      aria-label='Order by'
                       aria-haspopup='menu'
                       aria-expanded={menuOpen}
                       onClick={() => openMenu()}
                     >
-                      <MoreVertical size={20} />
+                      <ArrowUpDown size={20} />
                     </button>
                   </div>
+                  {currentMode === 'all' && !coldStart && (
+                    <BadgesPanel
+                      open={badgesInputOpen}
+                      onOpenChange={setBadgesInputOpen}
+                      certificateNames={certificateNames}
+                    />
+                  )}
                   {currentMode === 'following' && !coldStart && (
                     <FollowingManager
                       following={following}
@@ -937,18 +901,11 @@ export function App() {
                 </>
               )}
 
-              {/* Hidden while a follow is being typed, so the username results
-                  never push the cards around. */}
               <div
                 class='app-list'
                 id='app-list'
                 ref={appListRef}
-                style={{
-                  display:
-                    followInputOpen && currentMode === 'following' && !searchMatches && !coldStart
-                      ? 'none'
-                      : undefined
-                }}
+                style={{ display: panelInputOpen ? 'none' : undefined }}
               >
                 {/* The typed address, first in the list and otherwise an ordinary
                     card. A placeholder until it resolves to something published.
@@ -1062,107 +1019,31 @@ export function App() {
             <div class='customize-popover-catcher' onClick={() => setMenuOpen(false)} />
             <div
               ref={popoverRef}
-              class={`customize-popover${view === 'badges' ? ' customize-popover--wide' : ''}`}
+              class='customize-popover'
               role='dialog'
-              aria-label='Customize'
-              style={{ top: anchor.top, right: anchor.right, height: popoverHeight }}
+              aria-label='Order by'
+              style={{ top: anchor.top, right: anchor.right }}
             >
-              <div
-                class={`customize-nav-track${view === 'menu' ? '' : ' customize-nav-track--drill'}`}
-              >
-                <div class='customize-pane' aria-hidden={view !== 'menu'}>
-                  <div class='customize-pane__inner' ref={menuInnerRef}>
-                    <button
-                      type='button'
-                      class='customize-nav-row'
-                      onClick={() => setView('order')}
-                    >
-                      <span class='customize-nav-row__label'>Order by</span>
-                      <span class='customize-nav-row__value'>
-                        {sortMode === 'new' ? 'New' : 'Relevant'}
-                      </span>
-                    </button>
-                    <button
-                      type='button'
-                      class='customize-nav-row'
-                      onClick={() => setView('badges')}
-                    >
-                      <span class='customize-nav-row__label'>Badges</span>
-                      <span class='issuer-stack__marks'>
-                        {enabledCertificateAuthorities.length === 0 ? (
-                          <span class='issuer-stack__chip'>
-                            <CertificateBadge cid={null} size={20} />
-                          </span>
-                        ) : (
-                          <>
-                            {enabledCertificateAuthorities.slice(0, MENU_BADGE_LIMIT).map((ca) => (
-                              <span key={ca.resolver} class='issuer-stack__chip'>
-                                <CertificateBadge cid={ca.badgeIconCid} size={20} />
-                              </span>
-                            ))}
-                            {enabledCertificateAuthorities.length > MENU_BADGE_LIMIT && (
-                              <span class='issuer-stack__chip issuer-stack__chip--more'>
-                                +{enabledCertificateAuthorities.length - MENU_BADGE_LIMIT}
-                              </span>
-                            )}
-                          </>
-                        )}
-                      </span>
-                    </button>
-                  </div>
-                </div>
-                <div class='customize-pane' aria-hidden={view === 'menu'}>
-                  <div
-                    class={`customize-pane__inner customize-pane__inner--drill${drill === 'order' ? ' customize-pane__inner--fit' : ''}`}
-                    ref={drillInnerRef}
+              <div class='order-panel' role='radiogroup' aria-label='Order by'>
+                {SORT_OPTIONS.map((option) => (
+                  <button
+                    key={option.key}
+                    type='button'
+                    role='radio'
+                    aria-checked={sortMode === option.key}
+                    class='order-panel__option'
+                    onClick={() => {
+                      handleSort(option.key)
+                      setMenuOpen(false)
+                    }}
                   >
-                    <div class='customize-drill__header'>
-                      <button
-                        type='button'
-                        class='customize-drill__icon'
-                        aria-label='Back'
-                        onClick={() => setView('menu')}
-                      >
-                        <ArrowLeft size={20} />
-                      </button>
-                      <span class='customize-drill__title'>
-                        {drill === 'order' ? 'Order by' : 'Badges'}
-                      </span>
-                      <button
-                        type='button'
-                        class='customize-drill__icon'
-                        aria-label='Close'
-                        onClick={() => setMenuOpen(false)}
-                      >
-                        <X size={20} />
-                      </button>
-                    </div>
-                    {drill === 'order' ? (
-                      <div class='order-panel' role='radiogroup' aria-label='Order by'>
-                        {SORT_OPTIONS.map((option) => (
-                          <button
-                            key={option.key}
-                            type='button'
-                            role='radio'
-                            aria-checked={sortMode === option.key}
-                            class='order-panel__option'
-                            onClick={() => handleSort(option.key)}
-                          >
-                            <span class='order-panel__text'>
-                              <span class='order-panel__name'>{option.name}</span>
-                              <span class='order-panel__desc'>{option.description}</span>
-                            </span>
-                            {sortMode === option.key && (
-                              <Check size={18} class='order-panel__check' />
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    ) : (
-                      <CertificateAuthorityManager embedded />
-                    )}
-                  </div>
-                </div>
+                    <span class='order-panel__text'>
+                      <span class='order-panel__name'>{option.name}</span>
+                      <span class='order-panel__desc'>{option.description}</span>
+                    </span>
+                    {sortMode === option.key && <Check size={18} class='order-panel__check' />}
+                  </button>
+                ))}
               </div>
             </div>
           </>

@@ -77,4 +77,54 @@ test.describe('Certificate', () => {
 
     await page.close()
   })
+
+  test('As a user, when I hide a badge from the All tab stack, it leaves the card until I show it again', async () => {
+    const page = await context.newPage()
+
+    // Given
+    await createCachedApps(page, {
+      overrides: {
+        calculator: {
+          certificates: [
+            {
+              resolver: NETWORK.TRUSTED_ATTESTER_RESOLVER,
+              attester: '0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20',
+              name: CERTIFICATE_NAME,
+              contentCid: null,
+              badgeIconCid: null,
+              id: `0x${'ab'.repeat(32)}`,
+              issuedAt: 1_715_212_320,
+              expiresAt: 0
+            }
+          ]
+        }
+      }
+    })
+    await navigateToTestHost(page, host.url)
+    const frame = await getProductFrame(page, '.category-tab')
+    await frame.locator('.category-tab', { hasText: 'All' }).click()
+    await frame.waitForSelector('.product-card', { timeout: 10_000 })
+    const panel = frame.locator('.stack-panel--badges')
+    const chip = panel.locator('.stack-panel__chip', { hasText: CERTIFICATE_NAME })
+    await expect(chip).toHaveCount(1, { timeout: 15_000 })
+    await expect(frame.locator('.product-card__certified')).toHaveCount(1)
+
+    // When
+    await chip.click()
+    await chip.locator('.stack-panel__chip-remove').click()
+
+    // Then
+    await expect(chip).toHaveCount(0)
+    await expect(frame.locator('.product-card__certified')).toHaveCount(0)
+
+    // When
+    await panel.locator('.stack-panel__add').click()
+    await panel.locator('.stack-panel__option', { hasText: CERTIFICATE_NAME }).click()
+
+    // Then
+    await expect(chip).toHaveCount(1)
+    await expect(frame.locator('.product-card__certified')).toHaveCount(1)
+
+    await page.close()
+  })
 })
