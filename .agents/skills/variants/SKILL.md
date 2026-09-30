@@ -21,16 +21,20 @@ mistake, not building slowly.
 
 Keep it to what a person can hold in their head. Five is a lot already.
 
-## Phase 2: One worktree per option, all off main
+## Phase 2: One worktree per option, all off one base
 
 ```sh
 git fetch origin
-git worktree add ../<repo>-<id> -b variant/<id> origin/main
+git worktree add ../<repo>-<id> -b variant/<id> <base>
 cd ../<repo>-<id> && bun install
 ```
 
-Off `origin/main`, never off the current branch: a variant that inherits unrelated
-in-flight work cannot be judged, and cannot be landed on its own.
+The base is `origin/main` unless the options extend UI that only exists on an open
+branch. Then base every variant on that branch head, and carry any uncommitted
+work there over as one patch applied in each. On 2026-09-30 the options extended a
+sort popover that only PR #135 had, so `origin/main` would have had nothing to vary.
+Never base a variant on unrelated in-flight work: it cannot be judged, and cannot be
+landed on its own.
 
 `bun install` per worktree is unavoidable and takes about 30 seconds each. Run them
 in parallel.
@@ -55,6 +59,21 @@ the final table which port went where.
 These apps blank outside a Host webview, so each port also needs a Host in front of
 it. `app/scripts/mock-host.ts` does that for one port. For several, one process can
 hold several hosts, which keeps the process count down.
+
+For a real signing host in a plain tab, run each variant under `truapi-host dev`,
+which is `~/.local/bin/truapi-host` and not on the Bash tool PATH. Give each one
+its own bridge port and state directory, and point the dev-only Vite plugin at it
+with `APP_TRUAPI_BRIDGE_PORT`:
+
+```sh
+cd <worktree>/app && APP_TRUAPI_BRIDGE_PORT=<b> NETWORK_GENESIS_HASH=<genesis> \
+  nohup ~/.local/bin/truapi-host dev --network previewnet --base-path /tmp/truapi-host-<id> \
+  --app-port <port> --port <b> -- bunx vite --port <port> --strictPort > /tmp/variant-<id>.log 2>&1 &
+```
+
+Port 9955, the default bridge port, is often taken by another project. A blank page
+that throws "`regex` must be a RegExp" means the container getter workaround in
+`app/vite.config.ts` is missing from that worktree.
 
 ## Phase 4: Report as a table, and do not open anything
 
