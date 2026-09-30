@@ -1,6 +1,7 @@
 import { useState } from 'preact/hooks'
 
 import { useQueryClient } from '@tanstack/react-query'
+import { EyeOff, ShieldCheck } from 'lucide-preact'
 
 import { setCertificateAuthoritySelected } from '../../db/certificate-authorities'
 import { ALL_APPS_KEY } from '../../state/apps/queries'
@@ -76,6 +77,8 @@ export function BadgesPanel({ open, onOpenChange, certificateNames }: BadgesPane
       removeLabel={(item) => `Hide ${item.label} badge`}
       moreLabel={(count) => `Show all ${count} badges`}
       placeholder='badge'
+      prefix={<ShieldCheck size={16} />}
+      removeIcon={<EyeOff size={14} />}
     >
       {open &&
         (isLoading && authorities.length === 0 ? (

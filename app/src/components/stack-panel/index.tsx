@@ -33,7 +33,9 @@ interface StackPanelProps {
   moreLabel: (count: number) => string
   placeholder: string
   /** A glyph shown before the typed text, such as the `@` of a username. */
-  prefix?: string
+  prefix?: ComponentChildren
+  /** The icon on the remove button of an expanded chip. Defaults to a cross. */
+  removeIcon?: ComponentChildren
   /** The result rows under the row, built from the classes in this stylesheet. */
   children?: ComponentChildren
 }
@@ -63,6 +65,7 @@ export function StackPanel({
   moreLabel,
   placeholder,
   prefix,
+  removeIcon = <X size={14} />,
   children
 }: StackPanelProps) {
   // The avatar expanded by tap. Hover expansion is pure CSS on top of this.
@@ -132,7 +135,7 @@ export function StackPanel({
               onRemove(item.key)
             }}
           >
-            <X size={14} />
+            {removeIcon}
           </button>
         </div>
       ))}
