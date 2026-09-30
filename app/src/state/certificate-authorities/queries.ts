@@ -195,7 +195,17 @@ export async function knownCertificateAuthorities(): Promise<CertificateAuthorit
 
   const builtin = builtinCertificateAuthority()
   if (builtin) byResolver.set(builtin.resolver, builtin)
-  for (const authority of discovered) byResolver.set(authority.resolver.toLowerCase(), authority)
+  for (const authority of discovered) {
+    const resolver = authority.resolver.toLowerCase()
+    const fallback = byResolver.get(resolver)
+    // A snapshot saved before the built-in identity existed still reads unnamed.
+    byResolver.set(resolver, {
+      ...authority,
+      name: authority.name ?? fallback?.name ?? null,
+      contentCid: authority.contentCid ?? fallback?.contentCid ?? null,
+      badgeIconCid: authority.badgeIconCid ?? fallback?.badgeIconCid ?? null
+    })
+  }
 
   return [...byResolver.values()]
 }
@@ -213,8 +223,14 @@ export function useKnownCertificateAuthorities() {
   })
 }
 
-/** All authorities for the manager, from discovery, falling back to the cached snapshot. */
+/**
+ * All authorities, from discovery, falling back to the cached snapshot.
+ *
+ * Discovery reads the chain and takes seconds, so the snapshot it saved last time
+ * stands in while it runs, and a returning user never waits on an empty list.
+ */
 export function useCertificateAuthorities() {
+  const { data: known } = useKnownCertificateAuthorities()
   return useQuery<CertificateAuthority[]>({
     queryKey: CERTIFICATE_AUTHORITIES_KEY,
     queryFn: async () => {
@@ -227,6 +243,7 @@ export function useCertificateAuthorities() {
         return builtin ? [builtin] : []
       }
     },
+    placeholderData: known,
     staleTime: 5 * 60_000
   })
 }

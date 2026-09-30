@@ -25,7 +25,7 @@ interface TrustListProps {
  */
 export function TrustList({ open, certificateNames }: TrustListProps) {
   const queryClient = useQueryClient()
-  const { data: authorities = [] } = useCertificateAuthorities()
+  const { data: authorities = [], isPending } = useCertificateAuthorities()
   const { data: selected = [] } = useSelectedCertificateAuthorities()
   const selectedSet = new Set(selected.map((resolver) => resolver.toLowerCase()))
 
@@ -38,6 +38,12 @@ export function TrustList({ open, certificateNames }: TrustListProps) {
     <div class={`trust-slide${open ? ' trust-slide--open' : ''}`} aria-hidden={!open} inert={!open}>
       <div class='trust-slide__inner'>
         <div class='trust-list'>
+          {isPending && authorities.length === 0 && (
+            <div class='trust-list__row' aria-busy='true'>
+              <span class='trust-list__icon skeleton-pulse' />
+              <span class='trust-list__name skeleton-pulse'>Loading badges…</span>
+            </div>
+          )}
           {authorities.map((authority) => {
             const name =
               authority.name ?? certificateNames.get(authority.resolver) ?? 'Unnamed badge'
