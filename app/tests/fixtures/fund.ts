@@ -36,6 +36,11 @@ const DEFAULT_NATIVE_AMOUNT = 100_000_000_000n
 
 // A top-up is skipped when the recipient already holds at least this much.
 const PGAS_TOPUP_THRESHOLD = 1_000_000_000n
+
+// A sweep over every claim slot takes minutes once the day is spent, and every
+// PGAS funding call used to repeat it, which ran the recommend beforeAll past
+// its timeout. One sweep per process is enough, since slots only reset daily.
+const fundersWithSpentClaims = new Set<string>()
 const NATIVE_TOPUP_THRESHOLD = 50_000_000_000n
 
 function signerFor(miniSecret: Uint8Array, path: string) {
@@ -200,6 +205,7 @@ export interface FundResult {
  * claim needs the funder in a lite ring, which it registers itself for.
  */
 export async function ensureFunderPgas(from: Credentials = createMasterSigner()): Promise<void> {
+  if (fundersWithSpentClaims.has(from.address)) return
   await withAssetHubApi(async (api) => {
     const assetId = (await api.constants.Pgas.PgasAssetId()) as number
     let balance = await pgasBalanceOf(api, assetId, from.address)
@@ -214,6 +220,7 @@ export async function ensureFunderPgas(from: Credentials = createMasterSigner())
       }
       balance = await pgasBalanceOf(api, assetId, from.address)
     }
+    if (balance < FUNDER_PGAS_FLOOR) fundersWithSpentClaims.add(from.address)
   })
 }
 
