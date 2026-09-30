@@ -1,4 +1,4 @@
-import { type VNode } from 'preact'
+import { Fragment, type VNode } from 'preact'
 
 import { useDeferredValue } from 'preact/compat'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
@@ -9,7 +9,6 @@ import { useQueryClient } from '@tanstack/react-query'
 import { ArrowUp, ArrowUpDown, Bookmark, Check, Package } from 'lucide-preact'
 import { AccountId } from 'polkadot-api'
 
-import { BadgesPanel } from './components/badges-panel'
 import { CategoryTabs } from './components/category-tabs'
 import { CertificateModal } from './components/certificate-modal'
 import { FollowingManager } from './components/following-manager'
@@ -21,6 +20,7 @@ import { RecommendPrompt } from './components/recommend-prompt'
 import { SearchBar } from './components/search-bar'
 import { Toast } from './components/toast'
 import { ToastContext } from './components/toast/context'
+import { TrustList } from './components/trust-list'
 import { createBookmark, deleteBookmark, readBookmarksWithRetry } from './db/bookmarks'
 import { upsertLabel } from './db/labels'
 import { readSortMode, writeSortMode } from './db/sort-preference'
@@ -122,8 +122,6 @@ export function App() {
   // Whether the inline follow input under the tabs is expanded. Held here so
   // the app list can hide while someone is being added.
   const [followInputOpen, setFollowInputOpen] = useState(false)
-  // Whether the inline badge search on the All tab is expanded, for the same reason.
-  const [badgesInputOpen, setBadgesInputOpen] = useState(false)
   // The sort trigger at the trailing edge of the category tabs opens a small
   // anchored Order by popover.
   const [menuOpen, setMenuOpen] = useState(false)
@@ -219,16 +217,15 @@ export function App() {
     }, 400)
     return () => clearTimeout(timer)
   }, [followingApps])
-  // Selection is a display filter. Hydration caches every known authority
-  // certificate, and only selected ones render as badges. Toggling an authority
-  // in the badges panel updates this set and re-filters instantly, with no re-sync.
+  // Hydration caches every known authority certificate, and only the trusted
+  // ones count, set from the Relevant sort in the Order by popover.
   const { data: selectedAuthorities = [] } = useSelectedCertificateAuthorities()
   const selectedResolvers = useMemo(
     () => new Set(selectedAuthorities.map((resolver) => resolver.toLowerCase())),
     [selectedAuthorities]
   )
   // The authority catalog has no name for some resolvers, while the certificates
-  // they issued carry one, so the badges panel labels its chips from these.
+  // they issued carry one, so the trusted developers list takes names from these.
   const certificateNames = useMemo(() => {
     const names = new Map<string, string>()
     for (const app of allApps) {
@@ -837,12 +834,10 @@ export function App() {
     !followingLoading
   const emptyAll = currentMode === 'all' && filtered.length === 0 && !query && !allFetching
 
-  // The app list hides while an inline panel input is open, so its results never
-  // push the cards around.
+  // The app list hides while the follow input is open, so its results never push
+  // the cards around.
   const panelInputOpen =
-    !searchMatches &&
-    !coldStart &&
-    ((followInputOpen && currentMode === 'following') || (badgesInputOpen && currentMode === 'all'))
+    !searchMatches && !coldStart && followInputOpen && currentMode === 'following'
 
   return (
     <ToastContext.Provider value={{ showToast }}>
@@ -867,7 +862,6 @@ export function App() {
                         setCurrentMode(mode)
                         setMenuOpen(false)
                         setFollowInputOpen(false)
-                        setBadgesInputOpen(false)
                       }}
                     />
                     <button
@@ -882,13 +876,6 @@ export function App() {
                       <ArrowUpDown size={20} />
                     </button>
                   </div>
-                  {currentMode === 'all' && !coldStart && (
-                    <BadgesPanel
-                      open={badgesInputOpen}
-                      onOpenChange={setBadgesInputOpen}
-                      certificateNames={certificateNames}
-                    />
-                  )}
                   {currentMode === 'following' && !coldStart && (
                     <FollowingManager
                       following={following}
@@ -1026,23 +1013,31 @@ export function App() {
             >
               <div class='order-panel' role='radiogroup' aria-label='Order by'>
                 {SORT_OPTIONS.map((option) => (
-                  <button
-                    key={option.key}
-                    type='button'
-                    role='radio'
-                    aria-checked={sortMode === option.key}
-                    class='order-panel__option'
-                    onClick={() => {
-                      handleSort(option.key)
-                      setMenuOpen(false)
-                    }}
-                  >
-                    <span class='order-panel__text'>
-                      <span class='order-panel__name'>{option.name}</span>
-                      <span class='order-panel__desc'>{option.description}</span>
-                    </span>
-                    {sortMode === option.key && <Check size={18} class='order-panel__check' />}
-                  </button>
+                  <Fragment key={option.key}>
+                    <button
+                      type='button'
+                      role='radio'
+                      aria-checked={sortMode === option.key}
+                      class='order-panel__option'
+                      onClick={() => {
+                        handleSort(option.key)
+                        // Relevant stays open so its trusted developers slide in.
+                        if (option.key !== 'relevant') setMenuOpen(false)
+                      }}
+                    >
+                      <span class='order-panel__text'>
+                        <span class='order-panel__name'>{option.name}</span>
+                        <span class='order-panel__desc'>{option.description}</span>
+                      </span>
+                      {sortMode === option.key && <Check size={18} class='order-panel__check' />}
+                    </button>
+                    {option.key === 'relevant' && (
+                      <TrustList
+                        open={sortMode === 'relevant'}
+                        certificateNames={certificateNames}
+                      />
+                    )}
+                  </Fragment>
                 ))}
               </div>
             </div>

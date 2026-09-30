@@ -151,24 +151,6 @@
   user-select: none;
 }
 
-/* An image avatar, such as a badge icon, fills the disc instead of a letter. */
-.stack-panel__chip-avatar img,
-.stack-panel__avatar img {
-  width: 100%;
-  height: 100%;
-  border-radius: inherit;
-  object-fit: cover;
-}
-
-/* Badges are squircles and people stay round, so the two stacks never read as
-   the same kind of thing. The radius approximates a continuous corner. */
-.stack-panel--badges .stack-panel__chip-avatar,
-.stack-panel--badges .stack-panel__avatar {
-  border-radius: 30%;
-  background: var(--bg-surface-container);
-  color: var(--fg-secondary);
-}
-
 /* The name and the cross are collapsed to nothing at rest and revealed by the
    expanded state, so the stack stays a row of plain avatars. */
 .stack-panel__chip-label {

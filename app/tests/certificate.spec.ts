@@ -78,7 +78,7 @@ test.describe('Certificate', () => {
     await page.close()
   })
 
-  test('As a user, when I hide a badge from the All tab stack, it leaves the card until I show it again', async () => {
+  test('As a user, when I switch a trusted badge off under Relevant, it leaves the card until I switch it back on', async () => {
     const page = await context.newPage()
 
     // Given
@@ -102,27 +102,25 @@ test.describe('Certificate', () => {
     })
     await navigateToTestHost(page, host.url)
     const frame = await getProductFrame(page, '.category-tab')
+
     await frame.locator('.category-tab', { hasText: 'All' }).click()
     await frame.waitForSelector('.product-card', { timeout: 10_000 })
-    const panel = frame.locator('.stack-panel--badges')
-    const chip = panel.locator('.stack-panel__chip', { hasText: CERTIFICATE_NAME })
-    await expect(chip).toHaveCount(1, { timeout: 15_000 })
+    await frame.locator('.customize-trigger').click()
+    await frame.locator('.order-panel__option', { hasText: 'Relevant' }).click()
+    const row = frame.locator('.trust-list__row', { hasText: CERTIFICATE_NAME })
+    await expect(row).toBeVisible({ timeout: 15_000 })
     await expect(frame.locator('.product-card__certified')).toHaveCount(1)
 
     // When
-    await chip.click()
-    await chip.locator('.stack-panel__chip-remove').click()
+    await row.locator('.switch').click()
 
     // Then
-    await expect(chip).toHaveCount(0)
     await expect(frame.locator('.product-card__certified')).toHaveCount(0)
 
     // When
-    await panel.locator('.stack-panel__add').click()
-    await panel.locator('.stack-panel__option', { hasText: CERTIFICATE_NAME }).click()
+    await row.locator('.switch').click()
 
     // Then
-    await expect(chip).toHaveCount(1)
     await expect(frame.locator('.product-card__certified')).toHaveCount(1)
 
     await page.close()
