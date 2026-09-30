@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { nameWithTld, stripTld } from '@parity/browse-sdk'
 import { getAccountsProvider, type HostSubscription } from '@parity/product-sdk/host'
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowUp, ArrowUpDown, Bookmark, Check, Package } from 'lucide-preact'
+import { ArrowUpDown, Bookmark, Check, Package } from 'lucide-preact'
 import { AccountId } from 'polkadot-api'
 
 import { CategoryTabs } from './components/category-tabs'
@@ -926,16 +926,12 @@ export function App() {
                 ) : emptyFollowingNobody ? (
                   <div class='empty-state'>
                     <div class='empty-state__icon empty-state__icon--faint'>{FOLLOW_ICON}</div>
-                    <p class='empty-state__text'>
-                      Follow people to see what they recommend{' '}
-                      <ArrowUp size={14} class='empty-state__inline-icon' />
-                    </p>
+                    <p class='empty-state__text'>Follow people to see what they recommend</p>
                   </div>
                 ) : emptyFollowingNoMatches ? (
                   <div class='empty-state'>
                     <p class='empty-state__text'>
-                      None of the people you follow have recommended{' '}
-                      <ArrowUp size={14} class='empty-state__inline-icon' /> any products yet
+                      None of the people you follow have recommended any products yet
                     </p>
                   </div>
                 ) : searchMatches && searchEntries.length > 0 ? (

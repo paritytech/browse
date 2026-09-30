@@ -281,13 +281,6 @@ input {
   text-align: center;
 }
 
-.empty-state__inline-icon {
-  display: inline-block;
-  vertical-align: middle;
-  margin: -2px 1px 0;
-  color: rgb(var(--fg-rgb) / 0.6);
-}
-
 .empty-state__link {
   color: var(--color-secondary);
   cursor: pointer;

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 
-import { ArrowBigUp, Bookmark, MoreHorizontal, Share2 } from 'lucide-preact'
+import { Bookmark, MoreHorizontal, Share2, Star } from 'lucide-preact'
 
 import './styles.css'
 
@@ -71,7 +71,7 @@ export function CardMenu({
           </button>
           {onRecommend && (
             <button class='card-menu__item' onClick={pick(onRecommend)} role='menuitem'>
-              <ArrowBigUp size={16} fill={recommended ? 'currentColor' : 'none'} />
+              <Star size={16} fill={recommended ? 'currentColor' : 'none'} />
               <span>{recommended ? 'Remove recommendation' : 'Recommend'}</span>
             </button>
           )}
