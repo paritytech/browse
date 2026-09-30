@@ -35,9 +35,7 @@ export function BadgesPanel({ open, onOpenChange, certificateNames }: BadgesPane
   const [input, setInput] = useState('')
 
   const authorityLabel = (authority: CertificateAuthority) =>
-    authority.name ??
-    certificateNames.get(authority.resolver) ??
-    `${authority.resolver.slice(0, 6)}…${authority.resolver.slice(-4)}`
+    authority.name ?? certificateNames.get(authority.resolver) ?? 'Unnamed badge'
   const toStackItem = (authority: CertificateAuthority): StackItem => ({
     key: authority.resolver,
     label: authorityLabel(authority),
