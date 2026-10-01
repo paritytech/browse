@@ -79,8 +79,8 @@ const SORT_OPTIONS: { key: SortMode; name: string; description: string }[] = [
   { key: 'new', name: 'New', description: 'The most recently published apps first.' }
 ]
 
-// Minimum time the pull-refresh spinner stays up, so the gesture has visible
-// feedback even when the connection reset resolves instantly.
+// Minimum time the sync indicator stays up after a touch refresh, so the gesture
+// has visible feedback even when the connection reset resolves instantly.
 const PULL_REFRESH_MIN_VISIBLE_MS = 2000
 
 // Longest the loading dots or the pull-refresh spinner stay up, whatever the
@@ -130,7 +130,7 @@ export function App() {
   // Fixed viewport coordinates for the popover, measured off the trigger on open.
   const [anchor, setAnchor] = useState<{ top: number; right: number } | null>(null)
   const [suggestionPrefix, setSuggestionPrefix] = useState('')
-  // Holds the pull-refresh spinner for a minimum window after a pull.
+  // Holds the sync indicator for a minimum window after a touch refresh.
   const [pullRefreshFloor, setPullRefreshFloor] = useState(false)
   // Whether the sync indicator is the pull-refresh spinner instead of the dots.
   const [pullRefreshing, setPullRefreshing] = useState(false)
@@ -587,15 +587,15 @@ export function App() {
   })
   // Completely re-establish the chain connection: drop the cached SDK (destroys
   // the papi client + chain socket) so the next query rebuilds a fresh
-  // connection, then refetch. Driven by the pull-refresh gesture. A pull holds
-  // its spinner for a minimum window so it always reads as feedback even if the
-  // reset resolves instantly.
+  // connection, then refetch. Driven by the refresh gestures. A touch gesture
+  // holds its indicator for a minimum window so it always reads as feedback even
+  // if the reset resolves instantly. A pull shows the spinner, a push the dots.
   const refreshConnection = useEvent((gesture: RefreshGesture) => {
     console.warn('debug network connection', JSON.stringify({ event: 'refreshConnection' }))
     resetBrowseSdk()
-    if (gesture === 'pull') {
+    if (gesture !== 'scroll') {
       clearTimeout(pullFloorTimer.current)
-      setPullRefreshing(true)
+      setPullRefreshing(gesture === 'pull')
       setPullRefreshFloor(true)
       pullFloorTimer.current = setTimeout(
         () => setPullRefreshFloor(false),

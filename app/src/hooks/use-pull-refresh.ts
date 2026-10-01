@@ -10,12 +10,13 @@ const HOLD_OFFSET = 60
 const RUBBER_BAND = 0.55
 const SETTLE_MS = 350
 const SETTLE_EASING = 'cubic-bezier(0.25, 1, 0.5, 1)'
-// How much wheel past the bottom counts as a deliberate push, so a stray tick
-// at the end does not trigger.
+// How much drag or wheel past the bottom counts as a deliberate push, so a
+// stray scroll at the end does not trigger.
 const PUSH_THRESHOLD = 120
 const AT_EDGE_EPS = 2
 
-export type RefreshGesture = 'pull' | 'push'
+/** A touch pull at the top, a touch push past the bottom, or a wheel or key push past it. */
+export type RefreshGesture = 'pull' | 'push' | 'scroll'
 
 interface PullRefreshOptions {
   contentRef: RefObject<HTMLElement>
@@ -33,14 +34,13 @@ function rubberBand(distance: number, dimension: number) {
 
 /**
  * Refreshes on a pull down from the top of the page, in the manner of the iOS
- * refresh control, or on a wheel, PageDown or End push past the bottom.
+ * refresh control, or on a drag, wheel, PageDown or End push past the bottom.
  *
  * The pull moves `contentRef` with rubber-band resistance while the ticks in
  * `indicatorRef` appear one by one. Crossing the trigger fires `onRefresh`
  * with the finger still down and taps the haptic where the platform has one.
  * On release the content rests at a smaller offset with the spinner turning
- * until `refreshing` turns false, then settles back. The push is for pointer
- * devices and moves nothing.
+ * until `refreshing` turns false, then settles back. The push moves nothing.
  */
 export function usePullRefresh({
   contentRef,
@@ -63,7 +63,10 @@ export function usePullRefresh({
 
     let phase: 'idle' | 'pulling' | 'refreshing' | 'settling' = 'idle'
     let startY: number | null = null
+    let lastY = 0
     let tracking = false
+    let pushed = 0
+    let pushFired = false
     let settleTimer: ReturnType<typeof setTimeout> | undefined
 
     const render = (offset: number, animate: boolean) => {
@@ -124,9 +127,16 @@ export function usePullRefresh({
         content.contains(e.target as Node) &&
         atTop()
       startY = canPull ? (e.touches[0]?.clientY ?? null) : null
+      lastY = e.touches[0]?.clientY ?? 0
+      pushed = 0
+      pushFired = false
     }
 
     const onTouchMove = (e: TouchEvent) => {
+      const y = e.touches[0]?.clientY ?? lastY
+      const rise = lastY - y
+      lastY = y
+      if (!tracking && rise > 0) push(rise, 'push')
       if (startY === null) return
       const distance = (e.touches[0]?.clientY ?? startY) - startY
       if (!tracking) {
@@ -153,9 +163,7 @@ export function usePullRefresh({
       else finish()
     }
 
-    let pushed = 0
-    let pushFired = false
-    const push = (delta: number) => {
+    const push = (delta: number, gesture: RefreshGesture) => {
       if (!atBottom()) {
         pushed = 0
         return
@@ -164,12 +172,12 @@ export function usePullRefresh({
       pushed += delta
       if (pushed >= PUSH_THRESHOLD) {
         pushFired = true
-        latest.current.onRefresh('push')
+        latest.current.onRefresh(gesture)
       }
     }
 
     const onWheel = (e: WheelEvent) => {
-      if (e.deltaY > 0) push(e.deltaY)
+      if (e.deltaY > 0) push(e.deltaY, 'scroll')
     }
 
     const onScroll = () => {
@@ -182,7 +190,7 @@ export function usePullRefresh({
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return
-      if ((e.key === 'PageDown' || e.key === 'End') && atBottom()) push(PUSH_THRESHOLD)
+      if ((e.key === 'PageDown' || e.key === 'End') && atBottom()) push(PUSH_THRESHOLD, 'scroll')
     }
 
     window.addEventListener('touchstart', onTouchStart, { passive: true })
