@@ -1,0 +1,55 @@
+.pull-refresh {
+  --pull-offset: 0px;
+  --pull-progress: 0;
+  position: absolute;
+  inset: 0 0 auto;
+  height: calc(3rem + var(--pull-offset));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.pull-refresh__spinner {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  transition:
+    scale 350ms ease-out,
+    opacity 350ms ease-out;
+}
+
+.pull-refresh__tick {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 2.5px;
+  height: 6.5px;
+  margin-left: -1.25px;
+  border-radius: 1.25px;
+  background: var(--fg-secondary);
+  transform-origin: 50% 11px;
+  transform: rotate(calc(var(--tick) * 45deg));
+  /* Ticks appear one by one, clockwise from twelve, as the pull nears the trigger. */
+  opacity: clamp(0, calc(var(--pull-progress) * 8 - var(--tick)), 1);
+}
+
+.pull-refresh--spinning .pull-refresh__spinner {
+  animation: pullRefreshSpin 0.8s steps(8) infinite;
+}
+
+/* The leading tick is brightest and the ones behind it fade, like UIActivityIndicatorView. */
+.pull-refresh--spinning .pull-refresh__tick {
+  opacity: calc(0.25 + var(--tick) * 0.75 / 7);
+}
+
+.pull-refresh--ending .pull-refresh__spinner {
+  opacity: 0;
+  scale: 0.4;
+}
+
+@keyframes pullRefreshSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
