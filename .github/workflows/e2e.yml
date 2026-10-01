@@ -1,11 +1,7 @@
-name: E2E Tests
+name: Tests
 
 on:
   push:
-    branches: [main]
-    paths-ignore:
-      - '**.md'
-  pull_request:
     branches: [main]
     paths-ignore:
       - '**.md'
@@ -14,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: e2e-${{ github.event.pull_request.number || github.ref }}
+  group: e2e-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -47,7 +43,7 @@ jobs:
     uses: ./.github/workflows/build.yml
 
   test:
-    name: Test
+    name: E2E
     needs: [check, build]
     if: always() && needs.check.result == 'success' && (needs.build.result == 'success' || needs.build.result == 'skipped')
     runs-on: ubuntu-latest
