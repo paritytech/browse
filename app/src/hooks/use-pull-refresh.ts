@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'preact/hooks'
 
 // The offsets and rubber band follow the stock iOS refresh control, which Nova
 // Wallet uses unstyled. Refresh fires once the content has moved this far.
-const TRIGGER_OFFSET = 100
+const TRIGGER_OFFSET = 130
 // Where the content rests while the refresh runs, leaving room for the spinner.
 const HOLD_OFFSET = 60
 const RUBBER_BAND = 0.55

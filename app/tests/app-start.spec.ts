@@ -369,7 +369,7 @@ test.describe('App Start', () => {
         type: 'touchStart',
         touchPoints: [{ x, y: startY }]
       })
-      for (let y = startY; y <= startY + 300; y += 10) {
+      for (let y = startY; y <= startY + 400; y += 10) {
         await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y }] })
       }
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
