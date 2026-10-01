@@ -334,6 +334,56 @@ test.describe('App Start', () => {
       await page.close()
     })
 
+    test('As a signed user, when I pull down from the top, the spinner holds until the apps are refetched', async ({
+      browser
+    }) => {
+      test.setTimeout(150_000)
+      const touchContext = await browser.newContext({ ignoreHTTPSErrors: true, hasTouch: true })
+      const page = await touchContext.newPage()
+      await navigateToTestHost(page, host.url)
+      const frame = await getProductFrame(page, '.category-tab')
+
+      // Given
+      await frame.locator('.category-tab', { hasText: 'All' }).click()
+      await frame.waitForSelector('.product-card', { timeout: 30_000 })
+      const updatedAt = () =>
+        frame.evaluate(
+          () => window.__queryClient?.getQueryState(['apps', 'all'])?.dataUpdatedAt ?? 0
+        )
+      await expect
+        .poll(() =>
+          frame.evaluate(
+            () => window.__queryClient?.getQueryState(['apps', 'all'])?.fetchStatus ?? 'fetching'
+          )
+        )
+        .toBe('idle')
+      const updatedBefore = await updatedAt()
+      const box = await frame.locator('.app-list').boundingBox()
+      if (!box) throw new Error('app list has no box')
+      const x = box.x + box.width / 2
+      const startY = box.y + 10
+      const cdp = await touchContext.newCDPSession(page)
+
+      // When
+      await cdp.send('Input.dispatchTouchEvent', {
+        type: 'touchStart',
+        touchPoints: [{ x, y: startY }]
+      })
+      for (let y = startY; y <= startY + 300; y += 10) {
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x, y }] })
+      }
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+
+      // Then
+      await expect(frame.locator('.pull-refresh--spinning')).toBeVisible()
+      await expect(frame.locator('.loading-dots')).not.toBeVisible()
+      await expect.poll(updatedAt, { timeout: 30_000 }).toBeGreaterThan(updatedBefore)
+      await expect(frame.locator('.pull-refresh--spinning')).toHaveCount(0, { timeout: 10_000 })
+      await expect(frame.locator('.main')).not.toHaveAttribute('style', /translateY/)
+
+      await touchContext.close()
+    })
+
     test('As a user, when I close and reopen the app, it finishes loading instead of spinning forever', async () => {
       test.setTimeout(180_000)
       const page = await context.newPage()

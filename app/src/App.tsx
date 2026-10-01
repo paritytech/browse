@@ -16,6 +16,7 @@ import { FOLLOW_ICON, SEARCH_ICON } from './components/icons'
 import { PlaceholderCard } from './components/placeholder-card'
 import { ProductCardWithAttestation } from './components/product-card/product-card-with-attestation'
 import { ProductCardSkeleton } from './components/product-card/skeleton'
+import { PullRefreshIndicator } from './components/pull-refresh'
 import { RecommendPrompt } from './components/recommend-prompt'
 import { SearchBar } from './components/search-bar'
 import { Toast } from './components/toast'
@@ -26,7 +27,7 @@ import { upsertLabel } from './db/labels'
 import { readSortMode, writeSortMode } from './db/sort-preference'
 import { useEvent } from './hooks/use-event'
 import { useFlipReorder } from './hooks/use-flip'
-import { useOverscrollSync } from './hooks/use-overscroll-sync'
+import { type RefreshGesture, usePullRefresh } from './hooks/use-pull-refresh'
 import { resetBrowseSdk } from './lib/client'
 import { NETWORK, SELF_DOTNS, SELF_LABEL } from './lib/config'
 import { setupDebugConsole } from './lib/debug'
@@ -78,11 +79,12 @@ const SORT_OPTIONS: { key: SortMode; name: string; description: string }[] = [
   { key: 'new', name: 'New', description: 'The most recently published apps first.' }
 ]
 
-// Minimum time the loading dots stay up after a mobile pull-refresh, so the
-// gesture has visible feedback even when the connection reset resolves instantly.
+// Minimum time the pull-refresh spinner stays up, so the gesture has visible
+// feedback even when the connection reset resolves instantly.
 const PULL_REFRESH_MIN_VISIBLE_MS = 2000
 
-// Longest the loading dots stay up, whatever the sync is still doing.
+// Longest the loading dots or the pull-refresh spinner stay up, whatever the
+// sync is still doing.
 const SYNC_DOTS_MAX_VISIBLE_MS = 3000
 
 /**
@@ -128,8 +130,10 @@ export function App() {
   // Fixed viewport coordinates for the popover, measured off the trigger on open.
   const [anchor, setAnchor] = useState<{ top: number; right: number } | null>(null)
   const [suggestionPrefix, setSuggestionPrefix] = useState('')
-  // Touch devices get a minimum-visible hold on the dots after a pull-refresh.
+  // Holds the pull-refresh spinner for a minimum window after a pull.
   const [pullRefreshFloor, setPullRefreshFloor] = useState(false)
+  // Whether the sync indicator is the pull-refresh spinner instead of the dots.
+  const [pullRefreshing, setPullRefreshing] = useState(false)
   // True once the dots have been up for their whole allowance.
   const [syncDotsExpired, setSyncDotsExpired] = useState(false)
   // Nonce that commits the current display order into a sticky snapshot.
@@ -154,6 +158,8 @@ export function App() {
 
   const rootRef = useRef<HTMLDivElement>(null)
   const appListRef = useRef<HTMLDivElement>(null)
+  const mainRef = useRef<HTMLDivElement>(null)
+  const pullIndicatorRef = useRef<HTMLDivElement>(null)
   const pullFloorTimer = useRef<ReturnType<typeof setTimeout>>()
   const initialTabPicked = useRef(false)
   const heroLabelRef = useRef<string | null>(null)
@@ -165,12 +171,7 @@ export function App() {
 
   // Derived state and query data. This is one dependency chain, not a reorderable
   // set: each query feeds a memo that feeds the next, so the kinds necessarily
-  // interleave. Coarse-pointer / no-hover device scopes the pull-refresh hold to
-  // touch. Search renders product cards on every form factor.
-  const isMobile = useMemo(
-    () => !window.matchMedia?.('(hover: hover) and (pointer: fine)').matches,
-    []
-  )
+  // interleave. Search renders product cards on every form factor.
   const deferredQuery = useDeferredValue(query)
   const {
     data: allApps = [],
@@ -410,11 +411,12 @@ export function App() {
       : currentMode === 'following'
         ? followingLoading
         : allFetching
-  // Loading dots track the live sync. A mobile pull-refresh additionally holds
-  // them for a minimum window so the gesture doesn't flash.
+  // The sync indicator tracks the live sync. A pull-refresh additionally holds
+  // it for a minimum window so the gesture doesn't flash.
   const syncDotsWanted = (isLoading && !query && filtered.length > 0) || pullRefreshFloor
-  // Capped, so they never outstay {@link SYNC_DOTS_MAX_VISIBLE_MS}.
-  const showSyncDots = syncDotsWanted && !syncDotsExpired
+  // Capped, so it never outstays {@link SYNC_DOTS_MAX_VISIBLE_MS}.
+  const showSyncIndicator = syncDotsWanted && !syncDotsExpired
+  const showSyncDots = showSyncIndicator && !pullRefreshing
   // Showing skeletons.
   const coldStart = isLoading && filtered.length === 0 && !query
   const membershipKey = useMemo(
@@ -585,14 +587,15 @@ export function App() {
   })
   // Completely re-establish the chain connection: drop the cached SDK (destroys
   // the papi client + chain socket) so the next query rebuilds a fresh
-  // connection, then refetch. Driven by the overscroll-at-bottom gesture. On
-  // touch, hold the loading dots for a minimum window so the pull always reads
-  // as feedback even if the reset resolves instantly.
-  const refreshConnection = useEvent(() => {
+  // connection, then refetch. Driven by the pull-refresh gesture. A pull holds
+  // its spinner for a minimum window so it always reads as feedback even if the
+  // reset resolves instantly.
+  const refreshConnection = useEvent((gesture: RefreshGesture) => {
     console.warn('debug network connection', JSON.stringify({ event: 'refreshConnection' }))
     resetBrowseSdk()
-    if (isMobile) {
+    if (gesture === 'pull') {
       clearTimeout(pullFloorTimer.current)
+      setPullRefreshing(true)
       setPullRefreshFloor(true)
       pullFloorTimer.current = setTimeout(
         () => setPullRefreshFloor(false),
@@ -616,6 +619,10 @@ export function App() {
     anchorToTrigger()
     setMenuOpen(true)
   }
+
+  useEffect(() => {
+    if (!showSyncIndicator) setPullRefreshing(false)
+  }, [showSyncIndicator])
 
   // Start the dots allowance when they go up, and reset it when they come down so
   // the next refresh gets a full window of its own.
@@ -791,10 +798,16 @@ export function App() {
       window.removeEventListener('resize', anchorToTrigger)
     }
   }, [menuOpen])
-  // Pushing past the end of the list fully re-establishes the chain connection
-  // (resetBrowseSdk) and re-syncs. Disabled while a sync runs, while searching,
-  // or on the local bookmarks tab.
-  useOverscrollSync(refreshConnection, allFetching || !!query || currentMode === 'bookmarks')
+  // Pulling down from the top, or pushing past the end of the list, fully
+  // re-establishes the chain connection (resetBrowseSdk) and re-syncs. Disabled
+  // while a sync runs, while searching, or on the local bookmarks tab.
+  usePullRefresh({
+    contentRef: mainRef,
+    indicatorRef: pullIndicatorRef,
+    onRefresh: refreshConnection,
+    disabled: allFetching || !!query || currentMode === 'bookmarks',
+    refreshing: pullRefreshing && showSyncIndicator
+  })
   useFlipReorder(appListRef, flipKey, heroLabelRef)
 
   const renderCard = (app: AppEntry, i: number) => (
@@ -842,7 +855,8 @@ export function App() {
   return (
     <ToastContext.Provider value={{ showToast }}>
       <div class='page' ref={rootRef}>
-        <div class='main'>
+        <PullRefreshIndicator indicatorRef={pullIndicatorRef} />
+        <div class='main' ref={mainRef}>
           <div class='card-flip' id='card-flip'>
             <div class='card front' id='card-front'>
               <div class='topbar'>
