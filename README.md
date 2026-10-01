@@ -25,30 +25,6 @@ This repository hosts the source for its 3 components.
 | **[Smart contracts](evm/)** | Deploy a publishing registry and its supporting contracts. |
 | **[`browse-sdk`](packages/browse-sdk/)** | A Node.js package that lets third-party components easily access browse functionality. |
 
-## Run locally against a host
-
-The app only runs inside a Host. The `truapi-host` CLI provides one on your machine.
-
-Install it with the installer from [host-rust-core](https://github.com/paritytech/host-rust-core#install-the-cli), and make sure it is on your `PATH`:
-
-```sh
-curl -fsSL https://raw.githubusercontent.com/paritytech/host-rust-core/main/scripts/truapi-host-installer.sh | bash
-```
-
-Then, from `app/`, run one of
-
-```sh
-bun run dev:host             # previewnet
-bun run dev:host:previewnet
-bun run dev:host:paseo
-```
-
-The script starts a signing host, waits for its signer, then serves the app at `http://localhost:3000`. The first run registers a username on chain and takes a few minutes.
-
-These scripts are tested with `truapi-host` 0.23.0. The CLI must speak the same wire format as the `@parity/truapi` the app bundles. A mismatch shows up as the host dropping frames with `unknown wire discriminant pair`.
-
-The host listens on port 9955 and the app on port 3000. Set `APP_TRUAPI_BRIDGE_PORT` or `DEV_PORT` to move them, and `TRUAPI_HOST_BASE_PATH` to give a second host its own state.
-
 ## Deploy
 
 Set variables in `.env` (copy it from [.env.example](.env.example)), then run
