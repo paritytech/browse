@@ -16,12 +16,15 @@
 import type { JsonRpcProvider } from '@polkadot-api/json-rpc-provider'
 import { AccountId, Binary, createClient, type PolkadotClient, type SS58String } from 'polkadot-api'
 
-import { decodeBytes, decodeString } from './abi/codec.js'
+import { decodeAttestation, decodeBytes, decodeString, decodeUintArray } from './abi/codec.js'
 import { decodeIpfsContenthash } from './abi/contenthash.js'
 import {
+  ATTESTATION_PAGE_LIMIT,
   encodeContenthash,
+  encodeGetAttestationById,
   encodeGetPublished,
   encodeLabelOf,
+  encodeListByRecipientAndSchema,
   encodeText
 } from './abi/contracts.js'
 import {
@@ -31,14 +34,17 @@ import {
   type MulticallTarget,
   tryDecode
 } from './abi/multicall.js'
-import { labelhashToTokenId, namehash } from './abi/namehash.js'
+import { labelhashToTokenId, namehash, nodeToSubject } from './abi/namehash.js'
 import { nameWithTld } from './name.js'
 import { decodeBytes32Array } from './abi/codec.js'
-import type { NetworkConfig } from './config.js'
+import { attestationVersions, type NetworkConfig } from './config.js'
 import { parseRootManifest } from './manifest.js'
 import type { AppListing, Modality } from './types.js'
 
 type EncodedBytes = ReturnType<typeof Binary.fromHex>
+
+/** One recommendation of a label: who made it and when, in epoch milliseconds. */
+export type Recommendation = { id: bigint; attester: `0x${string}`; at: number }
 
 /** Pallet-revive's `AccountId32Mapper` derives an AccountId32 from an H160 by
  *  padding with 12 bytes of 0xee. Such accounts are implicitly mapped, so we
@@ -272,6 +278,56 @@ export class BrowseSdk {
       apps.push({ label, contentHash: cid, manifest })
     }
     return apps
+  }
+
+  /**
+   * Every recommendation of a label, oldest first.
+   *
+   * A recommendation is an attestation on the label node. The resolver and
+   * schema are versioned, so this pages each deployment the network still reads
+   * and unions the ids, then reads each attestation for its timestamp. Revoked
+   * attestations leave the resolver index, so they never appear here.
+   */
+  async listRecommendations(label: string): Promise<Recommendation[]> {
+    const subject = nodeToSubject(namehash(nameWithTld(label, this.network.TLD)))
+    const ids = new Set<bigint>()
+    for (const { resolver, schemaId } of attestationVersions(this.network)) {
+      for (let offset = 0n; ; offset += ATTESTATION_PAGE_LIMIT) {
+        let page: bigint[]
+        try {
+          page = decodeUintArray(
+            await this.reviveCall(
+              resolver,
+              encodeListByRecipientAndSchema(subject, schemaId, offset, ATTESTATION_PAGE_LIMIT)
+            )
+          )
+        } catch {
+          break
+        }
+        for (const id of page) ids.add(id)
+        if (page.length < Number(ATTESTATION_PAGE_LIMIT)) break
+      }
+    }
+    if (ids.size === 0) return []
+
+    const list = [...ids]
+    const results = await this.multicall(
+      list.map((id) => ({
+        target: this.network.ATTESTATION_SERVICE,
+        callData: encodeGetAttestationById(id)
+      }))
+    )
+    const out: Recommendation[] = []
+    for (let i = 0; i < list.length; i++) {
+      const attestation = tryDecode(results[i], decodeAttestation)
+      if (!attestation) continue
+      out.push({
+        id: attestation.id,
+        attester: attestation.attester,
+        at: Number(attestation.time) * 1000
+      })
+    }
+    return out.sort((a, b) => a.at - b.at)
   }
 
   /** Tear down the underlying client. Safe to call multiple times. */

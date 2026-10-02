@@ -164,6 +164,7 @@ export function encodeCountBySchema(schemaId: bigint): Hex {
 
 const ATTESTATION_ABI = parseAbi([
   'function countByRecipientAndSchema(address recipient, uint256 schemaId) view returns (uint64)',
+  'function listByRecipientAndSchema(address recipient, uint256 schemaId, uint64 offset, uint64 limit) view returns (uint256[])',
   'function isActiveAny(address recipient, uint256 schemaId, address[] attesters) view returns (bool)',
   'function isActive(address recipient, uint256 schemaId) view returns (bool)',
   'function identityHasAttested(address recipient, uint256 schemaId, address identity) view returns (bool)'
@@ -176,6 +177,30 @@ export function encodeCountByRecipientAndSchema(recipient: Address, schemaId: bi
     args: [recipient, schemaId]
   })
 }
+
+/**
+ * `RecipientAndAttesterIndexResolver.listByRecipientAndSchema`, one page of
+ * attestation ids for a recipient.
+ *
+ * The resolver caps a page at `MAX_PAGE_SIZE`, which is {@link
+ * ATTESTATION_PAGE_LIMIT} here, and reverts above it. Order is not stable across
+ * blocks, so page through to completion rather than relying on position.
+ */
+export function encodeListByRecipientAndSchema(
+  recipient: Address,
+  schemaId: bigint,
+  offset: bigint,
+  limit: bigint
+): Hex {
+  return encodeFunctionData({
+    abi: ATTESTATION_ABI,
+    functionName: 'listByRecipientAndSchema',
+    args: [recipient, schemaId, offset, limit]
+  })
+}
+
+/** The largest page `listByRecipientAndSchema` accepts, the resolver `MAX_PAGE_SIZE`. */
+export const ATTESTATION_PAGE_LIMIT = 100n
 
 export function encodeIsActiveAny(recipient: Address, schemaId: bigint, attesters: Address[]): Hex {
   return encodeFunctionData({
