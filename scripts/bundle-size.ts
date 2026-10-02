@@ -5,21 +5,23 @@
  *
  * `record` appends a snapshot of the built app to the history file that main
  * carries in a workflow artifact. `comment` measures the same way and renders
- * the chart a pull request comment shows, the history of main as a line and
- * this build as a single dot. `seed` fills an empty history from the builds
- * main already has as artifacts.
+ * the chart a pull request comment shows, one point per week of main and this
+ * build as a single dot.
  *
- * The dot is a bar series squashed by `themeCSS`, with every bar before the
- * last one hidden. Mermaid line plots draw no point markers and every series
- * starts at the first category, so a lone marker has no other way to land on
- * the right category.
+ * History reaches further back than the artifact does. `bundle-size-history.json`
+ * holds the weekly builds measured when this was written, and the artifact
+ * carries what main has recorded since.
+ *
+ * The dots are bar series squashed by `themeCSS`. Mermaid line plots draw no
+ * point markers, and every series starts at the first category, so the dot for
+ * this build has no other way to land on the right category.
  */
 
 import { execFileSync } from "node:child_process";
 import { gzipSync } from "node:zlib";
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 /** The build `make -C app deploy` uploads to Bulletin. */
 const PUBLISHED_TARGET = "spa";
@@ -41,8 +43,8 @@ const CHART_POINTS = 12;
 /** Snapshots the history file keeps. */
 const HISTORY_LIMIT = 200;
 
-/** Builds of main the seed reaches back for when there is no history yet. */
-const SEED_BUILDS = 10;
+/** Weekly builds measured once, so the chart has a trend from the first run. */
+const SEED_FILE = join(dirname(fileURLToPath(import.meta.url)), "bundle-size-history.json");
 
 const CHART_WIDTH = 820;
 const CHART_HEIGHT = 280;
@@ -113,14 +115,19 @@ function commitDate(sha: string): string {
   }
 }
 
-/**
- * Formats a snapshot timestamp as the tick the chart puts under a point.
- *
- * The time is part of it because mermaid maps points by tick text, so two
- * builds sharing a tick would stack on one spot.
- */
+/** Formats a snapshot timestamp as the `MM-DD` tick under a point. */
 function axisLabel(date: string): string {
-  return `${date.slice(5, 10)} ${date.slice(11, 16)}`;
+  return new Date(date).toISOString().slice(5, 10);
+}
+
+/** The ISO week a snapshot belongs to, which is the bucket the chart plots. */
+function isoWeek(date: string): string {
+  const day = new Date(date);
+  day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7) + 3);
+  const firstThursday = new Date(Date.UTC(day.getUTCFullYear(), 0, 4));
+  firstThursday.setUTCDate(firstThursday.getUTCDate() - ((firstThursday.getUTCDay() + 6) % 7) + 3);
+  const week = 1 + Math.round((day.getTime() - firstThursday.getTime()) / (7 * 86400000));
+  return `${day.getUTCFullYear()}-W${String(week).padStart(2, "0")}`;
 }
 
 interface ChartScale {
@@ -189,7 +196,7 @@ function chart(history: Snapshot[], current: number): string {
     "```mermaid",
     `%%{init: ${JSON.stringify(init)}}%%`,
     "xychart-beta",
-    `    title "Bundle published to Bulletin"`,
+    `    title "Evolution of the bundle published to Bulletin, last ${history.length} weeks"`,
     `    x-axis [${categories.map((label) => `"${label}"`).join(", ")}]`,
     `    y-axis "${scale.unit}" 0 --> ${point(high)}`,
     `    line [${trend.join(", ")}]`,
@@ -199,95 +206,20 @@ function chart(history: Snapshot[], current: number): string {
   ].join("\n");
 }
 
-/** Drops snapshots that would share a tick with a later one. */
-function plottable(history: Snapshot[]): Snapshot[] {
-  const byLabel = new Map<string, Snapshot>();
-  for (const snapshot of history) byLabel.set(axisLabel(snapshot.date), snapshot);
-  return [...byLabel.values()];
+/** Reduces the history to the last build of each week. */
+function weekly(history: Snapshot[]): Snapshot[] {
+  const byWeek = new Map<string, Snapshot>();
+  for (const snapshot of history) byWeek.set(isoWeek(snapshot.date), snapshot);
+  return [...byWeek.values()];
 }
 
 function renderComment(current: Snapshot, history: Snapshot[]): string {
-  const plotted = plottable(history).slice(-CHART_POINTS);
+  const plotted = weekly(history).slice(-CHART_POINTS);
   const body =
     plotted.length > 0
       ? chart(plotted, current.raw)
       : `This build publishes ${formatBytes(current.raw)} to Bulletin. There is no history to chart yet.`;
-  return `${[MARKER, "### Bundle size", "", body].join("\n")}\n`;
-}
-
-interface Artifact {
-  id: number;
-  name: string;
-  expired: boolean;
-  created_at: string;
-  workflow_run?: { head_branch: string; head_sha: string };
-}
-
-function repoSlug(): string {
-  return process.env.GITHUB_REPOSITORY ?? "paritytech/browse";
-}
-
-async function github(path: string): Promise<Response> {
-  const token = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN;
-  const response = await fetch(`https://api.github.com/repos/${repoSlug()}/${path}`, {
-    headers: {
-      accept: "application/vnd.github+json",
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
-    },
-  });
-  if (!response.ok) throw new Error(`GET ${path} returned ${response.status}`);
-  return response;
-}
-
-/** Unpacks a build artifact and hands back the directory holding its targets. */
-async function unpack(artifact: Artifact): Promise<string> {
-  const dir = mkdtempSync(join(tmpdir(), "bundle-size-"));
-  const zip = join(dir, "dist.zip");
-  const response = await github(`actions/artifacts/${artifact.id}/zip`);
-  writeFileSync(zip, Buffer.from(await response.arrayBuffer()));
-  execFileSync("unzip", ["-q", "-o", zip, "-d", dir]);
-  return dir;
-}
-
-/**
- * Measures the builds main already has as artifacts, newest last.
- *
- * Build artifacts expire after a week, so this reaches back about that far. It
- * runs once, to give the chart a trend before main has recorded anything.
- */
-async function seed(limit: number): Promise<Snapshot[]> {
-  const { artifacts } = (await (await github("actions/artifacts?per_page=100")).json()) as {
-    artifacts: Artifact[];
-  };
-
-  const builds = new Map<string, Artifact>();
-  for (const artifact of artifacts) {
-    if (artifact.name !== "dist" || artifact.expired) continue;
-    if (artifact.workflow_run?.head_branch !== "main") continue;
-    const sha = artifact.workflow_run.head_sha;
-    const known = builds.get(sha);
-    if (!known || known.created_at > artifact.created_at) builds.set(sha, artifact);
-  }
-
-  const newest = [...builds.values()]
-    .sort((a, b) => b.created_at.localeCompare(a.created_at))
-    .slice(0, limit)
-    .reverse();
-
-  const snapshots: Snapshot[] = [];
-  for (const artifact of newest) {
-    try {
-      const dist = await unpack(artifact);
-      snapshots.push({
-        date: artifact.created_at,
-        sha: artifact.workflow_run!.head_sha,
-        ...measure(dist),
-      });
-    } catch (error) {
-      console.warn(`skipped artifact ${artifact.id}: ${(error as Error).message}`);
-    }
-  }
-  return snapshots;
+  return `${[MARKER, "### How much the bundle size changes", "", body].join("\n")}\n`;
 }
 
 function merge(history: Snapshot[], incoming: Snapshot[]): Snapshot[] {
@@ -306,19 +238,11 @@ function parseArgs(argv: string[]): Record<string, string> {
   return args;
 }
 
-async function main(): Promise<void> {
+function main(): void {
   const [command, ...rest] = process.argv.slice(2);
   const args = parseArgs(rest);
   const historyPath = args.history ?? ".bundle-size/history.json";
-  const history = readHistory(historyPath);
-
-  if (command === "seed") {
-    const seeded = await seed(Number(args.limit ?? SEED_BUILDS));
-    writeHistory(historyPath, { snapshots: merge(history.snapshots, seeded) });
-    console.log(`seeded ${seeded.length} builds of main`);
-    return;
-  }
-
+  const recorded = readHistory(historyPath).snapshots;
   const sha = args.sha ?? headSha();
   const snapshot: Snapshot = {
     date: args.date ?? commitDate(sha),
@@ -327,20 +251,20 @@ async function main(): Promise<void> {
   };
 
   if (command === "record") {
-    writeHistory(historyPath, { snapshots: merge(history.snapshots, [snapshot]) });
+    writeHistory(historyPath, { snapshots: merge(recorded, [snapshot]) });
     console.log(`recorded ${formatBytes(snapshot.raw)} at ${snapshot.sha.slice(0, 7)}`);
     return;
   }
 
   if (command === "comment") {
-    const out = args.out ?? "bundle-size-comment.md";
-    writeFileSync(out, renderComment(snapshot, history.snapshots));
-    console.log(`wrote ${out}`);
+    const history = merge(readHistory(SEED_FILE).snapshots, recorded);
+    writeFileSync(args.out ?? "bundle-size-comment.md", renderComment(snapshot, history));
+    console.log("wrote the comment");
     return;
   }
 
-  console.error("usage: bundle-size.ts <seed|record|comment> [--dist=dir] [--history=file]");
+  console.error("usage: bundle-size.ts <record|comment> [--dist=dir] [--history=file] [--out=file]");
   process.exit(1);
 }
 
-await main();
+main();

@@ -50,14 +50,6 @@ jobs:
           workflow_conclusion: success
           if_no_artifact_found: warn
 
-      # The first run of all has nothing to chart. Build artifacts live for a
-      # week, so the recent builds of main stand in until main records its own.
-      - name: Seed the history from recent builds of main
-        if: hashFiles('.bundle-size/history.json') == ''
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: bun scripts/bundle-size.ts seed --history=.bundle-size/history.json
-
       - name: Measure the pull request
         if: github.event_name == 'pull_request'
         run: >
