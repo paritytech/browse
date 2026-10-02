@@ -1,6 +1,6 @@
-import { useIconBlob } from '../../state/apps/icon'
-import { type AppEntry, displayName } from '../../state/apps/types'
-import { Identicon } from '../identicon'
+import { Identicon } from '@browse/client/components/identicon'
+import { useIconBlob } from '@browse/client/state/apps/icon'
+import { type AppEntry, displayName } from '@browse/client/state/apps/types'
 import './styles.css'
 
 interface WidgetCardProps {

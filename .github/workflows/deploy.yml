@@ -41,7 +41,7 @@ jobs:
 
       - name: Compute source hash
         id: source-hash
-        run: echo "hash=$(git ls-files app/src/ app/package.json app/vite.config.ts app/tsconfig.json app/index.html app/widget.html bun.lock | xargs sha256sum | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+        run: echo "hash=$(git ls-files app/src/ app/package.json app/vite.config.ts app/tsconfig.json app/index.html apps/widget/src/ apps/widget/index.html apps/widget/package.json apps/widget/vite.config.ts bun.lock | xargs sha256sum | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
       - name: Check deployment cache
         id: cache-check

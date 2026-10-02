@@ -1,6 +1,6 @@
 import { ArrowUpRight } from 'lucide-preact'
 
-import { APP_STACK } from '../icons/app-stack'
+import { APP_STACK } from '@browse/client/components/icons/app-stack'
 import '../widget-card/styles.css'
 import './styles.css'
 

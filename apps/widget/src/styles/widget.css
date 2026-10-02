@@ -82,7 +82,7 @@ body {
 
 /*
  * Columns are fixed per preset; the row count and per-row max height are set
- * inline from the tile count (widget.tsx). `align-content: start` keeps any
+ * inline from the tile count (main.tsx). `align-content: start` keeps any
  * leftover height at the bottom rather than stretching the rows, so a tall
  * preset with few apps shows normal-sized cards instead of inflated ones.
  */

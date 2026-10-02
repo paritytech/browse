@@ -63,7 +63,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: app/dist
-          key: build-${{ hashFiles('app/src/**', 'app/index.html', 'app/widget.html', 'app/package.json', 'app/vite.config.ts', 'app/tsconfig.json', 'bun.lock', 'app/.papi/**') }}-${{ steps.snapshot-cid.outputs.cid }}-${{ steps.usernames-cid.outputs.cid }}
+          key: build-${{ hashFiles('app/src/**', 'app/index.html', 'app/package.json', 'app/vite.config.ts', 'app/tsconfig.json', 'apps/widget/src/**', 'apps/widget/index.html', 'apps/widget/package.json', 'apps/widget/vite.config.ts', 'bun.lock', 'app/.papi/**') }}-${{ steps.snapshot-cid.outputs.cid }}-${{ steps.usernames-cid.outputs.cid }}
 
       - name: Install dependencies
         if: steps.cache.outputs.cache-hit != 'true'

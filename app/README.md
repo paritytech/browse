@@ -20,7 +20,7 @@
 Browse is published in 2 modalities:
 
 - **Single-page Application (SPA)** is the full standalone app.
-- **widget** is a compact, embeddable build you can place inside another app.
+- **widget** is a compact, embeddable build you can place inside another app. Its source lives in `apps/widget` and builds into `dist/widget` here.
 
 ## Compatibility
 

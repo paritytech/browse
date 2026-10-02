@@ -3,10 +3,10 @@ name: Lint
 on:
   push:
     branches: [main]
-    paths: ['app/**', 'packages/**']
+    paths: ['app/**', 'apps/**', 'packages/**']
   pull_request:
     branches: [main]
-    paths: ['app/**', 'packages/**']
+    paths: ['app/**', 'apps/**', 'packages/**']
 
 concurrency:
   group: lint-${{ github.ref }}
@@ -14,11 +14,15 @@ concurrency:
 
 jobs:
   lint:
-    name: Lint
+    name: Lint (${{ matrix.dir }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dir: [app, apps/widget, apps/developer-portal]
     defaults:
       run:
-        working-directory: app
+        working-directory: ${{ matrix.dir }}
     steps:
       - uses: actions/checkout@v4
 
