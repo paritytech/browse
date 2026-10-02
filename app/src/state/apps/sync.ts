@@ -21,6 +21,15 @@ import type { CertificateAuthority } from '../certificate-authorities/types'
 const METADATA_TTL_MS = 60 * 1000
 
 /**
+ * The published set could not be read, so the network is unreachable.
+ *
+ * Thrown rather than answered with the cached labels, because an empty cache
+ * would otherwise read as an empty registry and tell the user nothing is
+ * published when the truth is that nothing could be asked.
+ */
+export class PublishedSetUnreadableError extends Error {}
+
+/**
  * Collapse a label cache into the live {@link AppEntry} list for the All tab.
  */
 export function materialize(labels: Map<string, LabelEntry>): AppEntry[] {
@@ -81,7 +90,8 @@ async function flushLabelBatch(
  *
  * Reads the published set, resolves labelhashes to strings, evicts cached
  * labels no longer present, hydrates the new + TTL-stale labels, and
- * materialises the result. Progress callbacks fire after every chunk.
+ * materialises the result. Progress callbacks fire after every chunk. Throws
+ * {@link PublishedSetUnreadableError} when the published set cannot be read.
  */
 export async function syncAllApps(
   cachedLabels: LabelEntry[],
@@ -107,7 +117,7 @@ export async function syncAllApps(
     published = await readPublishedLabelhashes()
   } catch (err) {
     hiddenLog(`Failed to fetch published set: ${err}`, 'error')
-    return materialize(labels)
+    throw new PublishedSetUnreadableError('Published set unreadable', { cause: err })
   }
 
   // Resolve labelhashes to label strings (cache hit avoids the labelOf call).

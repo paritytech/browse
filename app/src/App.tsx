@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import { nameWithTld, stripTld } from '@parity/browse-sdk'
 import { getAccountsProvider, type HostSubscription } from '@parity/product-sdk/host'
 import { useQueryClient } from '@tanstack/react-query'
-import { ArrowUpDown, Bookmark, Check, Package } from 'lucide-preact'
+import { ArrowUpDown, Bookmark, Check, Package, WifiOff } from 'lucide-preact'
 import { AccountId } from 'polkadot-api'
 
 import { CategoryTabs } from './components/category-tabs'
@@ -87,6 +87,12 @@ const PULL_REFRESH_MIN_VISIBLE_MS = 2000
 // sync is still doing.
 const SYNC_DOTS_MAX_VISIBLE_MS = 3000
 
+// Longest the All tab shows skeletons before saying the network is unavailable.
+// It sits under the roughly 17 seconds a dead network takes to fail the
+// published-set read, so the user hears at a fixed time rather than whenever
+// the sync gives up.
+const SKELETON_MAX_VISIBLE_MS = 15_000
+
 /**
  * Render a snapshot-only search result as a product card, lazily resolving its
  * name and icon, since the snapshot carries only the domain. Published entries
@@ -136,6 +142,8 @@ export function App() {
   const [pullRefreshing, setPullRefreshing] = useState(false)
   // True once the dots have been up for their whole allowance.
   const [syncDotsExpired, setSyncDotsExpired] = useState(false)
+  // True once the skeletons have been up for their whole allowance.
+  const [skeletonsExpired, setSkeletonsExpired] = useState(false)
   // Nonce that commits the current display order into a sticky snapshot.
   const [orderNonce, setOrderNonce] = useState(0)
   const [certificateModalOpen, setCertificateModalOpen] = useState(false)
@@ -417,8 +425,9 @@ export function App() {
   // Capped, so it never outstays {@link SYNC_DOTS_MAX_VISIBLE_MS}.
   const showSyncIndicator = syncDotsWanted && !syncDotsExpired
   const showSyncDots = showSyncIndicator && !pullRefreshing
-  // Showing skeletons.
-  const coldStart = isLoading && filtered.length === 0 && !query
+  const skeletonsWanted = isLoading && filtered.length === 0 && !query
+  // Showing skeletons. The All tab stops after {@link SKELETON_MAX_VISIBLE_MS}.
+  const coldStart = skeletonsWanted && !(currentMode === 'all' && skeletonsExpired)
   const membershipKey = useMemo(
     () =>
       `${currentMode}:${sortMode}:${filtered
@@ -635,6 +644,15 @@ export function App() {
     return () => clearTimeout(id)
   }, [syncDotsWanted])
 
+  useEffect(() => {
+    if (!skeletonsWanted) {
+      setSkeletonsExpired(false)
+      return
+    }
+    const id = setTimeout(() => setSkeletonsExpired(true), SKELETON_MAX_VISIBLE_MS)
+    return () => clearTimeout(id)
+  }, [skeletonsWanted])
+
   // Debounce the snapshot-suggestion prefix ~150ms behind the raw query.
   useEffect(() => {
     const id = setTimeout(() => setSuggestionPrefix(suggestionPrefixSource), 150)
@@ -845,7 +863,9 @@ export function App() {
     filtered.length === 0 &&
     !query &&
     !followingLoading
-  const emptyAll = currentMode === 'all' && filtered.length === 0 && !query && !allFetching
+  const allEmpty = currentMode === 'all' && filtered.length === 0 && !query
+  const unreachableAll = allEmpty && (allError || skeletonsExpired)
+  const emptyAll = allEmpty && !allFetching && !allError
 
   // The app list hides while the follow input is open, so its results never push
   // the cards around.
@@ -923,6 +943,13 @@ export function App() {
                   ))}
                 {coldStart ? (
                   Array.from({ length: 6 }, (_, i) => <ProductCardSkeleton key={`sk-${i}`} />)
+                ) : unreachableAll ? (
+                  <div class='empty-state'>
+                    <div class='empty-state__icon'>
+                      <WifiOff size={32} />
+                    </div>
+                    <p class='empty-state__text'>Network unavailable</p>
+                  </div>
                 ) : emptyAll ? (
                   <div class='empty-state'>
                     <div class='empty-state__icon'>
