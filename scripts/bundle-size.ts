@@ -270,11 +270,12 @@ function totalsTable(current: Snapshot, before?: Snapshot): string[] {
       const was = before?.targets[target];
       return `| ${title} | ${formatBytes(measured.raw)} | ${formatBytes(measured.gzip)} | ${formatDelta(measured.gzip, was?.gzip)} |`;
     });
+  const delta = formatDelta(current.gzip, before?.gzip);
   return [
     "| Target | Raw | Gzip | Change |",
     "| --- | ---: | ---: | ---: |",
     ...rows,
-    `| **Total** | **${formatBytes(current.raw)}** | **${formatBytes(current.gzip)}** | **${formatDelta(current.gzip, before?.gzip)}** |`,
+    `| **Total** | **${formatBytes(current.raw)}** | **${formatBytes(current.gzip)}** | ${delta && `**${delta}**`} |`,
   ];
 }
 
