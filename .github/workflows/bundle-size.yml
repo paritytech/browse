@@ -3,10 +3,10 @@ name: Bundle Size
 on:
   push:
     branches: [main]
-    paths: ['apps/registry/**', 'apps/widget/**']
+    paths: ['apps/registry/**', 'apps/widget/**', 'packages/**', 'scripts/bundle-size.ts', '.github/workflows/bundle-size.yml']
   pull_request:
     branches: [main]
-    paths: ['apps/registry/**', 'apps/widget/**']
+    paths: ['apps/registry/**', 'apps/widget/**', 'packages/**', 'scripts/bundle-size.ts', '.github/workflows/bundle-size.yml']
 
 concurrency:
   group: bundle-size-${{ github.ref }}
@@ -17,19 +17,20 @@ jobs:
     name: Build
     uses: ./.github/workflows/build.yml
 
-  bundle-size:
-    name: Benchmark
+  report:
+    name: Report
     needs: build
     runs-on: ubuntu-latest
     permissions:
       contents: read
       actions: read
       pull-requests: write
-    defaults:
-      run:
-        working-directory: apps/registry
     steps:
       - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
 
       - name: Download build
         uses: actions/download-artifact@v4
@@ -37,120 +38,34 @@ jobs:
           name: dist
           path: apps/registry/dist/
 
-      - name: Generate size report
-        id: size
-        run: |
-          {
-            echo 'report<<EOF'
-            for target in spa widget; do
-              case $target in
-                spa) title='App' ;;
-                widget) title='Widget' ;;
-              esac
-              echo "#### $title"
-              echo ''
-              echo '| File | Raw | Gzip |'
-              echo '|------|-----|------|'
-              sub_raw=0
-              sub_gz=0
-              for f in dist/$target/assets/*.{js,css}; do
-                [ -f "$f" ] || continue
-                name=$(basename "$f")
-                raw=$(wc -c < "$f" | xargs)
-                gz=$(gzip -c "$f" | wc -c | xargs)
-                raw_kb=$(echo "scale=1; $raw / 1024" | bc)
-                gz_kb=$(echo "scale=1; $gz / 1024" | bc)
-                echo "| \`$name\` | ${raw_kb} KB | ${gz_kb} KB |"
-                sub_raw=$((sub_raw + raw))
-                sub_gz=$((sub_gz + gz))
-              done
-              sub_raw_kb=$(echo "scale=1; $sub_raw / 1024" | bc)
-              sub_gz_kb=$(echo "scale=1; $sub_gz / 1024" | bc)
-              echo ''
-              echo "**$title total: ${sub_raw_kb} KB raw / ${sub_gz_kb} KB gzip**"
-              echo ''
-            done
-            echo 'EOF'
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Save baseline
-        if: github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@v4
-        with:
-          name: bundle-baseline
-          path: |
-            apps/registry/dist/spa/assets/
-            apps/registry/dist/widget/assets/
-          retention-days: 30
-
-      - name: Download baseline
-        if: github.event_name == 'pull_request'
+      # Every run on main re-uploads the whole history, so the newest artifact
+      # holds every snapshot. Absent until main has built once.
+      - name: Download size history
         uses: dawidd6/action-download-artifact@v6
         with:
-          name: bundle-baseline
-          path: /tmp/baseline
+          name: bundle-size-history
+          path: .bundle-size
           branch: main
+          workflow: bundle-size.yml
           workflow_conclusion: success
           if_no_artifact_found: warn
 
-      - name: Compare with baseline
+      - name: Measure the pull request
         if: github.event_name == 'pull_request'
-        id: compare
-        run: |
-          if [ ! -d /tmp/baseline ]; then
-            echo "diff=_No baseline found — first run on main will generate it._" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
+        run: >
+          bun scripts/bundle-size.ts comment
+          --dist=apps/registry/dist
+          --history=.bundle-size/history.json
+          --out=bundle-size-comment.md
+          --sha=${{ github.event.pull_request.head.sha }}
 
-          {
-            echo 'diff<<EOF'
-            for target in spa widget; do
-              case $target in
-                spa) title='App' ;;
-                widget) title='Widget' ;;
-              esac
-              base_gz=0
-              for f in /tmp/baseline/$target/assets/*.{js,css}; do
-                [ -f "$f" ] || continue
-                gz=$(gzip -c "$f" | wc -c | xargs)
-                base_gz=$((base_gz + gz))
-              done
-              cur_gz=0
-              for f in dist/$target/assets/*.{js,css}; do
-                [ -f "$f" ] || continue
-                gz=$(gzip -c "$f" | wc -c | xargs)
-                cur_gz=$((cur_gz + gz))
-              done
-              delta=$((cur_gz - base_gz))
-              delta_kb=$(echo "scale=1; $delta / 1024" | bc)
-              if [ $delta -gt 0 ]; then
-                echo "- **$title:** +${delta_kb} KB gzip vs main"
-              elif [ $delta -lt 0 ]; then
-                echo "- **$title:** ${delta_kb} KB gzip vs main"
-              else
-                echo "- **$title:** no change vs main"
-              fi
-            done
-            echo 'EOF'
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Post PR comment
+      - name: Post the report
         if: github.event_name == 'pull_request'
         uses: actions/github-script@v7
-        env:
-          REPORT: ${{ steps.size.outputs.report }}
-          DIFF: ${{ steps.compare.outputs.diff }}
         with:
           script: |
+            const body = require('fs').readFileSync('bundle-size-comment.md', 'utf8')
             const marker = '<!-- bundle-size -->'
-            const body = [
-              marker,
-              '### Bundle Size',
-              '',
-              process.env.REPORT,
-              '',
-              process.env.DIFF,
-            ].join('\n')
 
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
@@ -174,3 +89,18 @@ jobs:
                 body,
               })
             }
+
+      - name: Record the snapshot
+        if: github.event_name == 'push'
+        run: >
+          bun scripts/bundle-size.ts record
+          --dist=apps/registry/dist
+          --history=.bundle-size/history.json
+
+      - name: Upload size history
+        if: github.event_name == 'push'
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-size-history
+          path: .bundle-size/history.json
+          retention-days: 90
