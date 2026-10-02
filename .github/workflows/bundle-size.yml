@@ -3,10 +3,10 @@ name: Bundle Size
 on:
   push:
     branches: [main]
-    paths: ['app/**', 'packages/**']
+    paths: ['app/**', 'packages/**', 'scripts/bundle-size.ts', '.github/workflows/bundle-size.yml']
   pull_request:
     branches: [main]
-    paths: ['app/**', 'packages/**']
+    paths: ['app/**', 'packages/**', 'scripts/bundle-size.ts', '.github/workflows/bundle-size.yml']
 
 concurrency:
   group: bundle-size-${{ github.ref }}
