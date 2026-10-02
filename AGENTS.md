@@ -14,6 +14,7 @@ Bun workspace monorepo (`workspaces: ["app", "packages/*"]`, `packageManager: bu
 | `evm/` | Solidity (Foundry and Hardhat): the Publisher registry and attestation-index resolvers. Uses its own npm lockfile, not bun. OpenZeppelin is a submodule under `evm/lib/`. |
 | `docs/` | Design docs: `one-deployment.md`, `publishing-registry.md`, `ranking-algorithm.md`, `local-storage.md`. |
 | `scripts/deploy.ts` | Root deploy pipeline (see the `deploy` skill). |
+| `scripts/bundle-size.ts` | Measures a build, keeps the size history main carries in a workflow artifact, and renders the pull request comment with the chart. |
 
 ## Build / test / lint
 
