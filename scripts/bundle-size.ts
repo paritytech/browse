@@ -196,7 +196,6 @@ function chart(history: Snapshot[], current: number): string {
     "```mermaid",
     `%%{init: ${JSON.stringify(init)}}%%`,
     "xychart-beta",
-    `    title "Evolution of the bundle published to Bulletin, last ${history.length} weeks"`,
     `    x-axis [${categories.map((label) => `"${label}"`).join(", ")}]`,
     `    y-axis "${scale.unit}" 0 --> ${point(high)}`,
     `    line [${trend.join(", ")}]`,
