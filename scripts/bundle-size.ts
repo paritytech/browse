@@ -16,7 +16,8 @@
 
 import { execFileSync } from "node:child_process";
 import { gzipSync } from "node:zlib";
-import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
 const TARGETS = { spa: "App", widget: "Widget" } as const;
@@ -47,6 +48,9 @@ const CHART_POINTS = 12;
 
 /** Snapshots the history file keeps. */
 const HISTORY_LIMIT = 200;
+
+/** Builds of main the seed reaches back for when there is no history yet. */
+const SEED_BUILDS = 10;
 
 /** Files the visible table lists before the rest fold into a details block. */
 const TABLE_ROWS = 15;
@@ -222,8 +226,7 @@ function chart(history: Snapshot[], current: number): string {
 }
 
 function repoUrl(): string {
-  const slug = process.env.GITHUB_REPOSITORY ?? "paritytech/browse";
-  return `https://github.com/${slug}`;
+  return `https://github.com/${repoSlug()}`;
 }
 
 function fileRows(current: TargetSnapshot, before?: TargetSnapshot): string[] {
@@ -301,6 +304,88 @@ function renderComment(current: Snapshot, history: Snapshot[]): string {
   return `${lines.join("\n").trimEnd()}\n`;
 }
 
+interface Artifact {
+  id: number;
+  name: string;
+  expired: boolean;
+  created_at: string;
+  workflow_run?: { head_branch: string; head_sha: string };
+}
+
+function repoSlug(): string {
+  return process.env.GITHUB_REPOSITORY ?? "paritytech/browse";
+}
+
+async function github(path: string): Promise<Response> {
+  const token = process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN;
+  const response = await fetch(`https://api.github.com/repos/${repoSlug()}/${path}`, {
+    headers: {
+      accept: "application/vnd.github+json",
+      ...(token ? { authorization: `Bearer ${token}` } : {}),
+    },
+  });
+  if (!response.ok) throw new Error(`GET ${path} returned ${response.status}`);
+  return response;
+}
+
+/** Unpacks a build artifact and hands back the directory holding its targets. */
+async function unpack(artifact: Artifact): Promise<string> {
+  const dir = mkdtempSync(join(tmpdir(), "bundle-size-"));
+  const zip = join(dir, "dist.zip");
+  const response = await github(`actions/artifacts/${artifact.id}/zip`);
+  writeFileSync(zip, Buffer.from(await response.arrayBuffer()));
+  execFileSync("unzip", ["-q", "-o", zip, "-d", dir]);
+  return dir;
+}
+
+/**
+ * Measures the builds main already has as artifacts, newest last.
+ *
+ * Build artifacts expire after a week, so this reaches back about that far. It
+ * runs once, to give the chart a trend before main has recorded anything.
+ */
+async function seed(limit: number): Promise<Snapshot[]> {
+  const { artifacts } = (await (await github("actions/artifacts?per_page=100")).json()) as {
+    artifacts: Artifact[];
+  };
+
+  const builds = new Map<string, Artifact>();
+  for (const artifact of artifacts) {
+    if (artifact.name !== "dist" || artifact.expired) continue;
+    if (artifact.workflow_run?.head_branch !== "main") continue;
+    const sha = artifact.workflow_run.head_sha;
+    const known = builds.get(sha);
+    if (!known || known.created_at > artifact.created_at) builds.set(sha, artifact);
+  }
+
+  const newest = [...builds.values()]
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    .slice(0, limit)
+    .reverse();
+
+  const snapshots: Snapshot[] = [];
+  for (const artifact of newest) {
+    try {
+      const dist = await unpack(artifact);
+      snapshots.push({
+        date: artifact.created_at,
+        sha: artifact.workflow_run!.head_sha,
+        ...measure(dist),
+      });
+    } catch (error) {
+      console.warn(`skipped artifact ${artifact.id}: ${(error as Error).message}`);
+    }
+  }
+  return snapshots;
+}
+
+function merge(history: Snapshot[], incoming: Snapshot[]): Snapshot[] {
+  const shas = new Set(incoming.map((snapshot) => snapshot.sha));
+  return [...history.filter((snapshot) => !shas.has(snapshot.sha)), ...incoming]
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-HISTORY_LIMIT);
+}
+
 function parseArgs(argv: string[]): Record<string, string> {
   const args: Record<string, string> = {};
   for (const arg of argv) {
@@ -310,20 +395,28 @@ function parseArgs(argv: string[]): Record<string, string> {
   return args;
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const [command, ...rest] = process.argv.slice(2);
   const args = parseArgs(rest);
-  const dist = args.dist ?? "app/dist";
   const historyPath = args.history ?? ".bundle-size/history.json";
   const history = readHistory(historyPath);
+
+  if (command === "seed") {
+    const seeded = await seed(Number(args.limit ?? SEED_BUILDS));
+    writeHistory(historyPath, { snapshots: merge(history.snapshots, seeded) });
+    console.log(`seeded ${seeded.length} builds of main`);
+    return;
+  }
+
   const sha = args.sha ?? headSha();
-  const snapshot: Snapshot = { date: args.date ?? commitDate(sha), sha, ...measure(dist) };
+  const snapshot: Snapshot = {
+    date: args.date ?? commitDate(sha),
+    sha,
+    ...measure(args.dist ?? "app/dist"),
+  };
 
   if (command === "record") {
-    const snapshots = history.snapshots.filter((entry) => entry.sha !== snapshot.sha);
-    snapshots.push(snapshot);
-    snapshots.sort((a, b) => a.date.localeCompare(b.date));
-    writeHistory(historyPath, { snapshots: snapshots.slice(-HISTORY_LIMIT) });
+    writeHistory(historyPath, { snapshots: merge(history.snapshots, [snapshot]) });
     console.log(`recorded ${formatBytes(snapshot.gzip)} gzip at ${snapshot.sha.slice(0, 7)}`);
     return;
   }
@@ -335,8 +428,8 @@ function main(): void {
     return;
   }
 
-  console.error("usage: bundle-size.ts <record|comment> [--dist=dir] [--history=file] [--out=file]");
+  console.error("usage: bundle-size.ts <seed|record|comment> [--dist=dir] [--history=file] [--out=file]");
   process.exit(1);
 }
 
-main();
+await main();
