@@ -23,10 +23,8 @@ const METADATA_TTL_MS = 60 * 1000
 /**
  * The published set could not be read.
  *
- * The cause may be the network or the host. Thrown rather than answered with
- * the cached labels, because an empty cache would otherwise read as an empty
- * registry and tell the user nothing is published when the truth is that the
- * question went unanswered.
+ * The cause may be the network or the host. It is thrown rather than answered
+ * with the cached labels, so an empty cache never reads as an empty registry.
  */
 export class PublishedSetUnreadableError extends Error {}
 

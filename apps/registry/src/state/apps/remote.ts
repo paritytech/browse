@@ -110,8 +110,8 @@ export function labelhashOf(label: string): `0x${string}` {
  * configured for the active network.
  *
  * There is no retry here. Each read already rebuilds the SDK and tries again
- * inside {@link reviveCall}, so a second pass only doubled the wait before a
- * failed read was reported.
+ * inside {@link reviveCall}, so a second pass would only double the wait
+ * before a failed read is reported.
  */
 export async function readPublishedLabelhashes(): Promise<`0x${string}`[]> {
   const publishers = publisherReadAddresses(NETWORK)

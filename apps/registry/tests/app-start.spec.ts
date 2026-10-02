@@ -538,7 +538,7 @@ test.describe('App Start', () => {
       const page = await context.newPage()
 
       // A chain socket that accepts frames and never answers, which is how a
-      // dead network looks from inside the host.
+      // dead network or a stuck host looks from inside the app.
       const gate = { drop: true }
       await page.routeWebSocket(/substrate\.dev|polkadot\.io/, (ws) => {
         const server = ws.connectToServer()
@@ -559,8 +559,6 @@ test.describe('App Start', () => {
       const frame = await getProductFrame(page, '.empty-state')
 
       // Then
-      // The skeletons give up after 15 seconds whatever the sync is doing, so
-      // the answer cannot wait on how long the network takes to fail.
       expect(Date.now() - opened).toBeLessThan(25_000)
       await expect(frame.locator('.empty-state__text')).toHaveText(
         'Could not load apps. Please install a compatible version.'
@@ -569,9 +567,9 @@ test.describe('App Start', () => {
       await expect(frame.locator('.product-card--skeleton')).toHaveCount(0)
 
       // When
+      gate.drop = false
       // The test host never answers the chain subscriptions whose replies were
       // dropped, so a fresh load stands in for a host rebuilding its socket.
-      gate.drop = false
       await page.reload({ waitUntil: 'commit' })
       const recovered = await getProductFrame(page, '.product-card[data-label]')
 

@@ -722,7 +722,7 @@ export function App() {
   }, [])
   useEffect(() => subscribeHostTheme(), [])
   useEffect(() => () => clearTimeout(pullFloorTimer.current), [])
-  // Surface a network failure as a (non-error) toast.
+  // Surface a failed sync as a toast that is not styled as an error.
   useEffect(() => {
     if (allError) {
       showToast('Network connection failed')
