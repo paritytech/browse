@@ -53,7 +53,7 @@ comparing two windows onto the same variant. Pick from the free list, and say in
 the final table which port went where.
 
 These apps blank outside a Host webview, so each port also needs a Host in front of
-it. `app/scripts/mock-host.ts` does that for one port. For several, one process can
+it. `apps/registry/scripts/mock-host.ts` does that for one port. For several, one process can
 hold several hosts, which keeps the process count down.
 
 ## Phase 4: Report as a table, and do not open anything

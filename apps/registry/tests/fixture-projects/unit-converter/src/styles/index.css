@@ -1,0 +1,129 @@
+:root {
+  /* Backgrounds */
+  --color-bg: #050505;
+  --color-surface: #0e0e0e;
+  --color-surface-deep: #080808;
+
+  /* Borders */
+  --color-border: #252525;
+  --color-border-subtle: #1a1a1a;
+
+  /* Text */
+  --color-heading: #ffffff;
+  --color-text: #d0d0d0;
+  --color-secondary: #777777;
+  --color-tertiary: #555555;
+  --color-muted: #444444;
+
+  /* Accent */
+  --color-accent: #ffffff;
+  --color-accent-glow: rgba(255, 255, 255, 0.18);
+  --color-accent-bg: rgba(255, 255, 255, 0.07);
+
+  /* Semantic */
+  --color-best: #6bcf7f;
+  --color-worst: #ff6b6b;
+
+  /* Typography */
+  --font-heading: 'DM Serif Display', Georgia, serif;
+  --font-body: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', ui-monospace, monospace;
+
+  /* Radius */
+  --radius-card: 12px;
+  --radius-btn: 14px;
+  --radius-pill: 20px;
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-med: 250ms ease;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+}
+
+.converter {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 48px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.converter h1 {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-weight: 400;
+  color: var(--color-heading);
+}
+
+.families {
+  display: flex;
+  gap: 8px;
+}
+
+.family {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface);
+  color: var(--color-secondary);
+  font: inherit;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.family--on {
+  background: var(--color-accent-bg);
+  border-color: var(--color-accent);
+  color: var(--color-heading);
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+}
+
+.row input,
+.row select {
+  flex: 1;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  background: var(--color-surface-deep);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.result {
+  padding: 20px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  color: var(--color-heading);
+  font-family: var(--font-mono);
+  font-size: 28px;
+  text-align: center;
+  min-height: 34px;
+}
+
+.swap {
+  padding: 12px 18px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-btn);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+}

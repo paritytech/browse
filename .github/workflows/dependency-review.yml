@@ -7,8 +7,8 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'app/package.json'
-      - 'app/bun.lockb'
+      - 'apps/registry/package.json'
+      - 'apps/registry/bun.lockb'
 
 permissions:
   contents: read

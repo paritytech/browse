@@ -9,7 +9,7 @@ import {
 
 import { connect, ensureMapped, getSigner, waitBestBlock } from "./lib.ts";
 
-// The single .dot domain to certify, passed as a CLI argument. No default.
+// The single domain to certify, passed as a CLI argument. No default.
 const DOMAIN = process.argv[2];
 if (!DOMAIN) {
   console.error(
@@ -17,7 +17,7 @@ if (!DOMAIN) {
   );
   process.exit(1);
 }
-const label = DOMAIN.toLowerCase().replace(/\.dot$/, "");
+const label = DOMAIN.toLowerCase().replace(/\.(dot|paseo|testnet)$/, "");
 
 // The certificate payload. All optional (empty string when unset):
 // contentCid = markdown doc, badgeIconCid = badge image, name = certificate name.
@@ -29,9 +29,9 @@ const ABI = parseAbi([
   "function attest((uint256 schema, (address recipient, uint64 expirationTime, bool revocable, uint256 refId, bytes data) data) request) returns (uint256)"
 ]);
 
-/** Low 20 bytes of the namehash — the EAS subject form (matches the app). */
-function recipientOf(label: string): `0x${string}` {
-  return `0x${namehash(`${label}.dot`).slice(-40)}` as `0x${string}`;
+/** Low 20 bytes of the namehash under the network TLD, the subject form the app reads. */
+function recipientOf(name: string): `0x${string}` {
+  return `0x${namehash(name).slice(-40)}` as `0x${string}`;
 }
 
 /** The pallet-revive EVM address an SS58 account controls: keccak256(accountId)[12..]. */
@@ -54,11 +54,12 @@ async function main() {
   const ATTESTATION_SERVICE = (process.env.ATTESTATION_SERVICE ??
     config.ATTESTATION_SERVICE) as `0x${string}`;
   const SCHEMA_ID = config.COMPLIANCE_SCHEMA_ID;
+  const name = `${label}.${config.TLD}`;
 
   console.log(`Caller (trusted attester): ${address}`);
   console.log(`AttestationService: ${ATTESTATION_SERVICE}`);
   console.log(`Compliance schema ID: ${SCHEMA_ID}`);
-  console.log(`Domain: ${label}.dot`);
+  console.log(`Domain: ${name}`);
 
   if (!SCHEMA_ID || SCHEMA_ID === 0n) {
     console.error("COMPLIANCE_SCHEMA_ID is not set for this network.");
@@ -80,9 +81,9 @@ async function main() {
       [{ type: "bool" }, { type: "string" }, { type: "string" }, { type: "string" }],
       [true, CONTENT_CID, BADGE_ICON_CID, CERTIFICATE_NAME]
     );
-    const recipient = recipientOf(label);
+    const recipient = recipientOf(name);
     console.log(
-      `\nAttesting "${label}.dot" to recipient ${recipient}` +
+      `\nAttesting "${name}" to recipient ${recipient}` +
         (CERTIFICATE_NAME ? ` as "${CERTIFICATE_NAME}"` : "")
     );
 
@@ -112,7 +113,7 @@ async function main() {
     });
 
     await waitBestBlock(tx, signer, `attest ${label}`);
-    console.log(`  ✅ ${label}.dot certified`);
+    console.log(`  ✅ ${name} certified`);
   } finally {
     client.destroy();
   }

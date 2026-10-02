@@ -2,7 +2,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { encodeAbiParameters, namehash, parseAbiParameters } from "viem";
+import { AccountId } from "polkadot-api";
+import { encodeAbiParameters, keccak256, namehash, parseAbiParameters } from "viem";
 
 import { contractVersion, deploy } from "./create3.ts";
 import { connect, ensureMapped, getSigner } from "./lib.ts";
@@ -10,6 +11,11 @@ import { connect, ensureMapped, getSigner } from "./lib.ts";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const OUT_DIR = path.resolve(__dirname, "../out");
 const SRC_DIR = path.resolve(__dirname, "../src");
+
+/** The pallet-revive EVM address an SS58 account controls: keccak256(accountId)[12..]. */
+function evmAddressOf(ss58: string): `0x${string}` {
+  return `0x${keccak256(AccountId().enc(ss58)).slice(-40)}` as `0x${string}`;
+}
 
 async function main() {
   const { signer, address } = getSigner();
@@ -32,9 +38,14 @@ async function main() {
         "utf-8"
       )
     );
+    // The owner is passed in rather than inferred from the signer. A CREATE3
+    // deploy runs the constructor from an ephemeral factory proxy, so a contract
+    // taking `msg.sender` ends up owned by an address nobody holds.
+    const owner = (process.env.PUBLISHER_OWNER ?? evmAddressOf(address)) as `0x${string}`;
+    console.log(`Owner:     ${owner}`);
     const constructorArgs = encodeAbiParameters(
-      parseAbiParameters("address, bytes32"),
-      [registrar as `0x${string}`, node]
+      parseAbiParameters("address, bytes32, address"),
+      [registrar as `0x${string}`, node, owner]
     );
     const bytecodeWithArgs =
       artifact.bytecode.object + constructorArgs.replace(/^0x/, "");

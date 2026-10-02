@@ -13,7 +13,7 @@
 
 import { readFileSync } from "node:fs";
 
-import { blake2b } from "@noble/hashes/blake2b";
+import { blake2b } from "@noble/hashes/blake2.js";
 import { sr25519CreateDerive } from "@polkadot-labs/hdkd";
 import {
   entropyToMiniSecret,
@@ -113,14 +113,18 @@ function digestToCid(digest: Uint8Array): string {
 function hexToBytes(hex: string): Uint8Array {
   const h = hex.replace(/^0x/, "");
   const out = new Uint8Array(h.length / 2);
-  for (let i = 0; i < out.length; i++) out[i] = parseInt(h.slice(i * 2, i * 2 + 2), 16);
+  for (let i = 0; i < out.length; i++)
+    out[i] = parseInt(h.slice(i * 2, i * 2 + 2), 16);
   return out;
 }
 {
   const ref = digestToCid(
-    hexToBytes("0xb5cc1a4d8efe1d0911c1a75e64bddaeee72c9791910d24af95736611e86d3ee8"),
+    hexToBytes(
+      "0xb5cc1a4d8efe1d0911c1a75e64bddaeee72c9791910d24af95736611e86d3ee8",
+    ),
   );
-  const expected = "bafk2bzacec24ygsnr37b2cirygtv4zf53lxoolexsgiq2jfpsvzwmepinu7oq";
+  const expected =
+    "bafk2bzacec24ygsnr37b2cirygtv4zf53lxoolexsgiq2jfpsvzwmepinu7oq";
   if (ref !== expected) {
     throw new Error(`CID encoding self-check failed: ${ref} !== ${expected}`);
   }

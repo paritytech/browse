@@ -1,0 +1,262 @@
+import { type Browser, type Frame, expect, test } from '@playwright/test'
+
+import { createCachedApps } from './fixtures/cache'
+import { SNAPSHOT_BLOCKS, SNAPSHOT_ONLY_LABEL } from './fixtures/domains-snapshot'
+import { seedPreimage } from './fixtures/seed-preimage'
+import { getProductFrame, navigateToTestHost, startSignedHost, startUnsignedHost } from './utils'
+import { SHUFFLE_MAX_MS, SHUFFLE_MIN_MS } from '../src/hooks/use-flip'
+import type { AppEntry } from '../src/state/apps/types'
+
+type TestQueryClient = {
+  cancelQueries: (filters: { queryKey: unknown[] }) => Promise<void>
+  setQueryData: (key: unknown[], data: unknown) => void
+  getQueryState: (key: unknown[]) => { fetchStatus: string } | undefined
+}
+
+function entry(label: string, name: string, attestationCount: number): AppEntry {
+  return {
+    label,
+    name,
+    description: `${name} description`,
+    iconCid: null,
+    contentHash: `ipfs://Qm${label}`,
+    isLive: true,
+    attestationCount,
+    hasUserAttested: false,
+    certificates: [],
+    publishedAt: null
+  }
+}
+
+function domOrder(frame: Frame): Promise<(string | null)[]> {
+  return frame
+    .locator('.product-card')
+    .evaluateAll((els) => els.map((el) => el.getAttribute('data-label')))
+}
+
+// Replace the All-tab data through the same query the background sync writes to,
+// after stopping any in-flight fetch so it can't clobber the value.
+async function syncApps(frame: Frame, apps: AppEntry[]): Promise<void> {
+  await frame.evaluate(async (apps) => {
+    const qc = (window as unknown as { __queryClient?: TestQueryClient }).__queryClient
+    if (!qc) throw new Error('window.__queryClient is not exposed (dev build only)')
+    await qc.cancelQueries({ queryKey: ['apps', 'all'] })
+    qc.setQueryData(['apps', 'all'], apps)
+  }, apps)
+}
+
+// Drive one reshuffle and report the order before/after and the duration of the
+// longest glide that carried a card from the old order to the new one.
+async function reshuffle(
+  frame: Frame,
+  apps: AppEntry[]
+): Promise<{ before: (string | null)[]; after: (string | null)[]; durationMs: number }> {
+  const before = await domOrder(frame)
+  await syncApps(frame, apps)
+  const flipDetail = await frame.evaluate(async () => {
+    const cards = () => Array.from(document.querySelectorAll('.product-card[data-label]'))
+    const flipsOf = (card: Element) => card.getAnimations().filter((a) => a.id === 'flip-reorder')
+    const start = performance.now()
+    while (cards().every((c) => flipsOf(c).length === 0) && performance.now() - start < 3000) {
+      await new Promise((r) => requestAnimationFrame(r))
+    }
+    return cards()
+      .map((c) => ({
+        label: c.getAttribute('data-label'),
+        dur: Math.max(
+          0,
+          ...flipsOf(c).map((a) => Number(a.effect?.getComputedTiming().duration ?? 0))
+        )
+      }))
+      .filter((x) => x.dur > 0)
+  })
+  const durationMs = flipDetail.reduce((m, f) => Math.max(m, f.dur), 0)
+  // Wait for the layout to go fully static (no flip OR entry animation still
+  // running), so the next reshuffle measures distances from a settled layout, not
+  // a mid-glide one. Finished `fill` animations stay listed, so check playState.
+  await frame.waitForFunction(
+    () =>
+      Array.from(document.querySelectorAll('.product-card[data-label]')).every((card) =>
+        card.getAnimations().every((a) => a.playState !== 'running')
+      ),
+    { timeout: 6000 }
+  )
+  const after = await domOrder(frame)
+  return { before, after, durationMs }
+}
+
+async function openApp(browser: Browser) {
+  const host = await startSignedHost('alice')
+  const context = await browser.newContext({ ignoreHTTPSErrors: true })
+  const page = await context.newPage()
+  await createCachedApps(page, {
+    overrides: {
+      calculator: { attestationCount: 3 },
+      'e2e-test-app-beta': { attestationCount: 2 },
+      stopwatch: { attestationCount: 1 }
+    }
+  })
+  await navigateToTestHost(page, host.url)
+  const frame = await getProductFrame(page, '.product-card')
+  await frame.locator('.category-tab', { hasText: 'All' }).click()
+  // Settle the real background sync so it can't overwrite the data we drive.
+  await frame.waitForFunction(
+    () => {
+      const qc = (window as unknown as { __queryClient?: TestQueryClient }).__queryClient
+      return !!qc && qc.getQueryState(['apps', 'all'])?.fetchStatus === 'idle'
+    },
+    { timeout: 30000 }
+  )
+  const close = async () => {
+    await page.close()
+    await context.close()
+    await host.close()
+  }
+  return { frame, close }
+}
+
+test.describe('Motion', () => {
+  test('As a returning user, when a background sync reorders my apps, the cards glide to their new positions', async ({
+    browser
+  }) => {
+    test.setTimeout(60000)
+    const { frame, close } = await openApp(browser)
+
+    // Given
+    await reshuffle(frame, [entry('alpha', 'Alpha', 3), entry('beta', 'Beta', 2)])
+
+    // When
+    const { before, after, durationMs } = await reshuffle(frame, [
+      entry('gamma', 'Gamma', 9),
+      entry('alpha', 'Alpha', 3),
+      entry('beta', 'Beta', 2)
+    ])
+
+    // Then
+    expect(after).not.toEqual(before)
+    expect(after).toEqual(['gamma', 'alpha', 'beta'])
+    expect(durationMs).toBeGreaterThanOrEqual(SHUFFLE_MIN_MS)
+    expect(durationMs).toBeLessThanOrEqual(SHUFFLE_MAX_MS)
+
+    await close()
+  })
+
+  test('An identical reshuffle always takes the same time, and a longer move takes proportionally longer', async ({
+    browser
+  }) => {
+    test.setTimeout(60000)
+    const { frame, close } = await openApp(browser)
+
+    // The same one-row swap (eee/fff), measured twice from the same base, then a
+    // top-to-bottom move of aaa. Toggling zzz's membership forces each re-sort to
+    // commit.
+    const base = [
+      entry('aaa', 'Aaa', 12),
+      entry('bbb', 'Bbb', 10),
+      entry('ccc', 'Ccc', 8),
+      entry('ddd', 'Ddd', 6),
+      entry('eee', 'Eee', 4),
+      entry('fff', 'Fff', 2)
+    ]
+    const swapped = [
+      entry('aaa', 'Aaa', 12),
+      entry('bbb', 'Bbb', 10),
+      entry('ccc', 'Ccc', 8),
+      entry('ddd', 'Ddd', 6),
+      entry('eee', 'Eee', 2),
+      entry('fff', 'Fff', 4),
+      entry('zzz', 'Zzz', 1)
+    ]
+    const aaaLast = [
+      entry('bbb', 'Bbb', 10),
+      entry('ccc', 'Ccc', 8),
+      entry('ddd', 'Ddd', 6),
+      entry('eee', 'Eee', 4),
+      entry('fff', 'Fff', 2),
+      entry('aaa', 'Aaa', 1),
+      entry('zzz', 'Zzz', 0)
+    ]
+
+    // Given
+    await reshuffle(frame, base)
+    // The first reshuffle after cards mount measures from entry-animated
+    // positions, so run one swap cycle to settle before measuring.
+    await reshuffle(frame, swapped)
+    await reshuffle(frame, base)
+
+    // When
+    const swap1 = await reshuffle(frame, swapped)
+    await reshuffle(frame, base)
+    const swap2 = await reshuffle(frame, swapped)
+    await reshuffle(frame, base)
+    const farMove = await reshuffle(frame, aaaLast)
+
+    // Then
+    for (const shuffle of [swap1, swap2, farMove]) {
+      expect(shuffle.after).not.toEqual(shuffle.before)
+      expect(shuffle.durationMs).toBeGreaterThanOrEqual(SHUFFLE_MIN_MS)
+      expect(shuffle.durationMs).toBeLessThanOrEqual(SHUFFLE_MAX_MS)
+    }
+    // The same move takes the same time every time.
+    expect(swap2.durationMs).toBe(swap1.durationMs)
+    // A move across the whole list travels farther, so it takes longer.
+    expect(farMove.durationMs).toBeGreaterThan(swap1.durationMs)
+
+    await close()
+  })
+
+  test('As a user searching, when the matching apps change as I type, the cards settle in place instead of replaying their entry animation', async ({
+    browser
+  }) => {
+    test.setTimeout(45_000)
+    const host = await startUnsignedHost()
+    const context = await browser.newContext({ ignoreHTTPSErrors: true })
+    const page = await context.newPage()
+    await navigateToTestHost(page, host.url)
+    const frame = await getProductFrame(page, '.category-tab')
+    for (const block of SNAPSHOT_BLOCKS) await seedPreimage(page, block)
+    const input = frame.locator('.search-bar__input')
+
+    // Given
+    await input.fill('zz')
+    await frame.waitForSelector(`.product-card[data-label="${SNAPSHOT_ONLY_LABEL}"]`)
+    // Let the first paint finish so the watch catches replays, not the initial
+    // entry animation.
+    await frame.waitForTimeout(900)
+    // Flag any card that restarts the entry slide from now on.
+    await frame.evaluate(() => {
+      const w = window as unknown as { entryReplayed: boolean; raf: number }
+      w.entryReplayed = false
+      const tick = () => {
+        for (const card of document.querySelectorAll('.product-card[data-label]')) {
+          const sliding = card
+            .getAnimations()
+            .some(
+              (a) =>
+                (a as CSSAnimation).animationName === 'productCardIn' && a.playState === 'running'
+            )
+          if (sliding) w.entryReplayed = true
+        }
+        w.raf = requestAnimationFrame(tick)
+      }
+      tick()
+    })
+
+    // When
+    // "zzs" drops zzautocomplete and leaves zzstopwatch as the first card.
+    await input.pressSequentially('s', { delay: 150 })
+    await frame.waitForTimeout(600)
+
+    // Then
+    const entryReplayed = await frame.evaluate(() => {
+      const w = window as unknown as { entryReplayed: boolean; raf: number }
+      cancelAnimationFrame(w.raf)
+      return w.entryReplayed
+    })
+    expect(entryReplayed).toBe(false)
+
+    await page.close()
+    await context.close()
+    await host.close()
+  })
+})

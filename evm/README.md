@@ -43,7 +43,7 @@ deployment records live in [deployments.json](deployments.json).
 
 #### Paseo AssetHubNextV2
 
-Genesis `0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6`.
+Genesis `0x4349b00e54897e21196fd331015fc5be0f14e118beb0375ed2bb1793737bb57a`.
 
 TLD `.paseo`.
 
@@ -70,17 +70,17 @@ Version 2.2.0:
 
 #### Previewnet AssetHub
 
-Genesis `0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210`.
+Genesis `0xbac97e23fc8f4bccae72a98f8aeb2bcab20bf755862304e4b46ad6473456e896`.
 
-TLD `.dot`.
+TLD `.testnet`.
 
-Publisher 3.0.0:
+Publisher 3.1.0:
 
 * **Publisher**:
   * Contract: `0x01167f228A729f8e50f18aa7189f59b659155D09`
   * Deployment and ABI: [Publisher.sol](src/Publisher.sol)
-  * Second in the SDK `PUBLISHER` array. Reads union every entry, writes go to the first, and this
-    one starts empty while 2.1.0 still holds the published set.
+  * Only entry in the SDK `PUBLISHER` array. The operator, the substrate dev root, publishes any
+    label; the 2.1.0 set below predates the network reset.
 
 Version 2.1.0:
 

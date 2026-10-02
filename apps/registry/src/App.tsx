@@ -1,0 +1,1076 @@
+import { Fragment, type VNode } from 'preact'
+
+import { useDeferredValue } from 'preact/compat'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks'
+
+import { nameWithTld, stripTld } from '@parity/browse-sdk'
+import { getAccountsProvider, type HostSubscription } from '@parity/product-sdk/host'
+import { useQueryClient } from '@tanstack/react-query'
+import { ArrowUpDown, Bookmark, Check, Package } from 'lucide-preact'
+import { AccountId } from 'polkadot-api'
+
+import { CategoryTabs } from './components/category-tabs'
+import { CertificateModal } from './components/certificate-modal'
+import { FollowingManager } from './components/following-manager'
+import { FOLLOW_ICON, SEARCH_ICON } from './components/icons'
+import { PlaceholderCard } from './components/placeholder-card'
+import { ProductCardWithAttestation } from './components/product-card/product-card-with-attestation'
+import { ProductCardSkeleton } from './components/product-card/skeleton'
+import { PullRefreshIndicator } from './components/pull-refresh'
+import { RecommendPrompt } from './components/recommend-prompt'
+import { SearchBar } from './components/search-bar'
+import { Toast } from './components/toast'
+import { ToastContext } from './components/toast/context'
+import { TrustList } from './components/trust-list'
+import { createBookmark, deleteBookmark, readBookmarksWithRetry } from './db/bookmarks'
+import { upsertLabel } from './db/labels'
+import { readSortMode, writeSortMode } from './db/sort-preference'
+import { useEvent } from './hooks/use-event'
+import { useFlipReorder } from './hooks/use-flip'
+import { type RefreshGesture, usePullRefresh } from './hooks/use-pull-refresh'
+import { resetBrowseSdk } from './lib/client'
+import { NETWORK, SELF_DOTNS, SELF_LABEL } from './lib/config'
+import { setupDebugConsole } from './lib/debug'
+import { destinationFromQuery, typedLabel } from './lib/destination'
+import { useDomainSuggestions } from './lib/domains-snapshot'
+import { navigateToDomain } from './lib/navigate'
+import { clearPendingRecommend, readPendingRecommends } from './lib/pending-recommend'
+import { labelFromLink, shareLink } from './lib/share-link'
+import { subscribeHostTheme } from './lib/theme'
+import {
+  ALL_APPS_KEY,
+  LABELS_KEY,
+  useGetAllApps,
+  useLabelsStorage,
+  useResolveLabel
+} from './state/apps/queries'
+import {
+  type AppCertificate,
+  type AppEntry,
+  DEFAULT_SORT_MODE,
+  filterApps,
+  type FilterMode,
+  isFilterMode,
+  type SortMode
+} from './state/apps/types'
+import { useSelectedCertificateAuthorities } from './state/certificate-authorities/queries'
+import {
+  follow,
+  type FollowedAccount,
+  getFollowingWithRetry,
+  unfollow
+} from './state/following/api'
+import { describeError, useAttestProduct } from './state/recommendations/mutations'
+import {
+  useGetAttestationsByFollowing,
+  useGetMyRecommendations
+} from './state/recommendations/queries'
+
+const SEARCH_GROUP_PRIORITY: FilterMode[] = ['bookmarks', 'following', 'all']
+
+// The sort options in the Order by popover, each with a short description of
+// what it does.
+const SORT_OPTIONS: { key: SortMode; name: string; description: string }[] = [
+  {
+    key: 'relevant',
+    name: 'Relevant',
+    description: 'Ranked by recommendations, badges, and how recently it was published.'
+  },
+  { key: 'new', name: 'New', description: 'The most recently published apps first.' }
+]
+
+// Minimum time the sync indicator stays up after a touch refresh, so the gesture
+// has visible feedback even when the connection reset resolves instantly.
+const PULL_REFRESH_MIN_VISIBLE_MS = 2000
+
+// Longest the loading dots or the pull-refresh spinner stay up, whatever the
+// sync is still doing.
+const SYNC_DOTS_MAX_VISIBLE_MS = 3000
+
+/**
+ * Render a snapshot-only search result as a product card, lazily resolving its
+ * name and icon, since the snapshot carries only the domain. Published entries
+ * already have their metadata and render directly via `renderCard`.
+ */
+function LazyResolvedCard({
+  app,
+  render
+}: {
+  app: AppEntry
+  render: (app: AppEntry) => VNode
+}): VNode {
+  const { data } = useResolveLabel(app.label, true)
+  return render(data ?? app)
+}
+
+export function App() {
+  const queryClient = useQueryClient()
+  const attestProduct = useAttestProduct()
+
+  const [currentMode, setCurrentMode] = useState<FilterMode>('all')
+  const [sortMode, setSortMode] = useState<SortMode>(DEFAULT_SORT_MODE)
+  const [query, setQuery] = useState('')
+  const [debouncedQuery, setDebouncedQuery] = useState('')
+  const [bookmarkedApps, setBookmarkedApps] = useState<Set<string>>(() => new Set())
+  const [bookmarkedAppsLoaded, setBookmarkedAppsLoaded] = useState(false)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
+  const [toastIsError, setToastIsError] = useState(false)
+  const [toastAction, setToastAction] = useState<{ label: string; onClick: () => void } | null>(
+    null
+  )
+  const [signed, setSigned] = useState(false)
+  const [following, setFollowing] = useState<FollowedAccount[]>([])
+  const [followingLoaded, setFollowingLoaded] = useState(false)
+  // Whether the inline follow input under the tabs is expanded. Held here so
+  // the app list can hide while someone is being added.
+  const [followInputOpen, setFollowInputOpen] = useState(false)
+  // The sort trigger at the trailing edge of the category tabs opens a small
+  // anchored Order by popover.
+  const [menuOpen, setMenuOpen] = useState(false)
+  // Fixed viewport coordinates for the popover, measured off the trigger on open.
+  const [anchor, setAnchor] = useState<{ top: number; right: number } | null>(null)
+  const [suggestionPrefix, setSuggestionPrefix] = useState('')
+  // Holds the sync indicator for a minimum window after a touch refresh.
+  const [pullRefreshFloor, setPullRefreshFloor] = useState(false)
+  // Whether the sync indicator is the pull-refresh spinner instead of the dots.
+  const [pullRefreshing, setPullRefreshing] = useState(false)
+  // True once the dots have been up for their whole allowance.
+  const [syncDotsExpired, setSyncDotsExpired] = useState(false)
+  // Nonce that commits the current display order into a sticky snapshot.
+  const [orderNonce, setOrderNonce] = useState(0)
+  const [certificateModalOpen, setCertificateModalOpen] = useState(false)
+  // The last-opened certificate subject and attestation details. Kept after
+  // close so the content stays put through the collapse animation instead of
+  // clearing mid-transition.
+  const [certificateView, setCertificateView] = useState<{
+    subjectName: string | null
+    subjectDomain: string
+    certificate: AppCertificate | null
+  } | null>(null)
+  // A deferred "did you like it?" prompt for an app the user was sent to from a
+  // share link, surfaced on a later visit (see the pending-recommend store).
+  const [recommendPrompt, setRecommendPrompt] = useState<{
+    label: string
+    from?: string
+  } | null>(null)
+  const recommendPromptRef = useRef(recommendPrompt)
+  recommendPromptRef.current = recommendPrompt
+
+  const rootRef = useRef<HTMLDivElement>(null)
+  const appListRef = useRef<HTMLDivElement>(null)
+  const mainRef = useRef<HTMLDivElement>(null)
+  const pullIndicatorRef = useRef<HTMLDivElement>(null)
+  const pullFloorTimer = useRef<ReturnType<typeof setTimeout>>()
+  const initialTabPicked = useRef(false)
+  const heroLabelRef = useRef<string | null>(null)
+  // Live source for the sticky order, refreshed each render below, read (not
+  // depended on) by orderedLabels.
+  const orderSourceRef = useRef<AppEntry[]>([])
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const popoverRef = useRef<HTMLDivElement>(null)
+
+  // Derived state and query data. This is one dependency chain, not a reorderable
+  // set: each query feeds a memo that feeds the next, so the kinds necessarily
+  // interleave. Search renders product cards on every form factor.
+  const deferredQuery = useDeferredValue(query)
+  const {
+    data: allApps = [],
+    isFetching: allFetching,
+    isError: allError
+  } = useGetAllApps(queryClient)
+  const { data: labelDb } = useLabelsStorage()
+  const followingAddresses = useMemo(() => following.map((account) => account.address), [following])
+  const { data: followingApps = new Set<string>(), isLoading: followingAppsLoading } =
+    useGetAttestationsByFollowing(allApps, followingLoaded ? followingAddresses : null)
+  const followingLoading = !followingLoaded || followingAppsLoading
+  // Apps the current user identity has recommended, matched the same way as the
+  // following set. The recommend button treats these as recommended, and the
+  // attest and revoke mutations keep the set fresh optimistically.
+  const { data: myRecommendations = new Set<string>() } = useGetMyRecommendations(allApps)
+  // The following set actually shown. Additions land immediately. Removals from
+  // unfollowing fade their cards out before leaving, like unbookmarking, so the
+  // tab never blanks into skeletons.
+  const [followingDisplay, setFollowingDisplay] = useState<Set<string>>(() => new Set())
+  const followingDisplayRef = useRef(followingDisplay)
+  followingDisplayRef.current = followingDisplay
+  useEffect(() => {
+    const shown = followingDisplayRef.current
+    const added = [...followingApps].filter((label) => !shown.has(label))
+    const removed = [...shown].filter((label) => !followingApps.has(label))
+    if (added.length > 0) {
+      setFollowingDisplay((prev) => {
+        const next = new Set(prev)
+        for (const label of added) next.add(label)
+        return next
+      })
+    }
+    if (removed.length === 0) return
+    for (const label of removed) {
+      const card = rootRef.current?.querySelector(`[data-label="${label}"]`) as HTMLElement | null
+      card?.classList.add('product-card--removing')
+    }
+    const timer = setTimeout(() => {
+      setFollowingDisplay((prev) => {
+        const next = new Set(prev)
+        for (const label of removed) next.delete(label)
+        return next
+      })
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [followingApps])
+  // Hydration caches every known authority certificate, and only the trusted
+  // ones count, set from the Relevant sort in the Order by popover.
+  const { data: selectedAuthorities = [] } = useSelectedCertificateAuthorities()
+  const selectedResolvers = useMemo(
+    () => new Set(selectedAuthorities.map((resolver) => resolver.toLowerCase())),
+    [selectedAuthorities]
+  )
+  // The authority catalog has no name for some resolvers, while the certificates
+  // they issued carry one, so the trusted developers list takes names from these.
+  const certificateNames = useMemo(() => {
+    const names = new Map<string, string>()
+    for (const app of allApps) {
+      for (const certificate of app.certificates) {
+        if (certificate.name) names.set(certificate.resolver.toLowerCase(), certificate.name)
+      }
+    }
+    return names
+  }, [allApps])
+  /**
+   * Trim an entry to what this user should see.
+   *
+   * Badges from selected authorities only, since hydration caches them all, plus
+   * the recommend state this identity already holds. Every card goes through this,
+   * including the one built from a resolved address, or a typed address would show
+   * badges the user switched off and a recommend button that forgot itself.
+   */
+  const scopeToUser = useCallback(
+    (app: AppEntry): AppEntry => {
+      const visible = app.certificates.filter((c) =>
+        selectedResolvers.has(c.resolver.toLowerCase())
+      )
+      const scoped =
+        visible.length === app.certificates.length ? app : { ...app, certificates: visible }
+      return myRecommendations.has(scoped.label) && !scoped.hasUserAttested
+        ? { ...scoped, hasUserAttested: true }
+        : scoped
+    },
+    [selectedResolvers, myRecommendations]
+  )
+  const appsForFiltering = useMemo(() => {
+    const byLabel = new Map<string, AppEntry>()
+    for (const app of allApps) byLabel.set(app.label, app)
+    const addLabel = (label: string) => {
+      if (byLabel.has(label)) return
+      // Pull metadata from the labels DB when available. Covers labels
+      // outside the Publisher set (bookmarked search results, followed-only).
+      const cached = labelDb?.get(label)
+      byLabel.set(label, {
+        label,
+        name: cached?.name ?? null,
+        description: cached?.description ?? 'No description',
+        iconCid: cached?.iconCid ?? null,
+        contentHash: cached?.contentHash ?? null,
+        isLive: cached?.contentHash != null,
+        attestationCount: cached?.attestationCount ?? null,
+        hasUserAttested: cached?.hasUserAttested ?? false,
+        certificates: cached?.certificates ?? [],
+        publishedAt: cached?.publishedAt ?? null
+      })
+    }
+    for (const label of followingDisplay) addLabel(label)
+    for (const label of bookmarkedApps) addLabel(label)
+    return [...byLabel.values()].map(scopeToUser)
+  }, [allApps, followingDisplay, bookmarkedApps, labelDb, scopeToUser])
+  // Labels from the Publisher set, used to scope the All tab to published apps
+  // only (bookmarked/followed entries belong to their own tabs).
+  const publishedLabels = useMemo(() => new Set(allApps.map((app) => app.label)), [allApps])
+  const filtered = useMemo(() => {
+    const result = filterApps(
+      appsForFiltering,
+      deferredQuery,
+      currentMode,
+      bookmarkedApps,
+      followingDisplay,
+      publishedLabels,
+      sortMode
+    )
+    if (currentMode === 'all' && !deferredQuery.trim()) {
+      return result.filter((app) => app.label !== SELF_LABEL)
+    }
+    return result
+  }, [
+    appsForFiltering,
+    deferredQuery,
+    currentMode,
+    bookmarkedApps,
+    followingDisplay,
+    publishedLabels,
+    sortMode
+  ])
+  orderSourceRef.current = filtered
+  // While the user is typing, search ignores tabs.
+  const searchMatches = useMemo<AppEntry[] | null>(() => {
+    if (!deferredQuery.trim()) return null
+    const seen = new Set<string>()
+    const matches: AppEntry[] = []
+    for (const mode of SEARCH_GROUP_PRIORITY) {
+      const modeMatches = filterApps(
+        appsForFiltering,
+        deferredQuery,
+        mode,
+        bookmarkedApps,
+        followingDisplay,
+        publishedLabels
+      )
+      for (const app of modeMatches) {
+        if (seen.has(app.label)) continue
+        seen.add(app.label)
+        matches.push(app)
+      }
+    }
+    // The app itself (SELF_LABEL, derived from APP_DOTNS_DOMAIN) only belongs in
+    // search on an exact name match, the label or its full name. Never as a
+    // partial/substring hit.
+    const normalizedQuery = stripTld(deferredQuery.trim(), NETWORK.TLD)
+    const exactSelf = normalizedQuery === SELF_LABEL
+    return exactSelf ? matches : matches.filter((app) => app.label !== SELF_LABEL)
+  }, [deferredQuery, appsForFiltering, bookmarkedApps, followingDisplay, publishedLabels])
+  // Non-null is the whole condition for showing a card, so navigating never
+  // depends on what search or the network returned.
+  const destination = destinationFromQuery(query)
+  const debouncedDestination = destinationFromQuery(debouncedQuery)
+  // The local entry for the address, if we hold one at all. `published` is the
+  // finished article and needs no lookup. `cached` may be a bookmarked or followed
+  // label carrying a name and icon but no content, which is still far better than a
+  // placeholder while the resolver runs.
+  const indexed = useMemo(() => {
+    const entry = destination
+      ? (appsForFiltering.find((app) => app.label === destination) ?? null)
+      : null
+    return { published: entry?.contentHash ? entry : null, cached: entry }
+  }, [destination, appsForFiltering])
+  // No length floor. A single character is a registerable name, and gating the lookup would
+  // leave a short address stuck as a placeholder forever. One read per settled
+  // query, cached for a minute, so the cost is bounded by the debounce.
+  const canResolve = destination !== null && indexed.published === null
+  const destinationSettled = destination !== null && debouncedDestination === destination
+  const { data: resolvedDestination } = useResolveLabel(
+    debouncedDestination ?? '',
+    canResolve && destinationSettled
+  )
+  // A resolution describes the debounced address, so a card showing a newer one
+  // must not wear it.
+  const resolvedApp =
+    canResolve && destinationSettled && resolvedDestination
+      ? scopeToUser(resolvedDestination)
+      : null
+  // Best card we can put at the front, in descending order of what we know. The
+  // cached entry ranks last but still beats a placeholder, and ranking it below the
+  // resolver lets a lookup upgrade it.
+  const frontApp = indexed.published ?? resolvedApp ?? indexed.cached
+  // Domain-snapshot suggestion prefix: the raw query (trailing suffix stripped,
+  // lowercased), debounced ~150ms into suggestionPrefix by an effect below. A
+  // local snapshot lookup, independent of the 500ms debouncedQuery.
+  const suggestionPrefixSource = stripTld(query.trim(), NETWORK.TLD)
+  const { data: domainSuggestions = [] } = useDomainSuggestions(suggestionPrefix)
+  // Merge the search results shown while typing: published matches (with real
+  // metadata and icons) first, then every other name from the snapshot
+  // as a minimal entry (Identicon and the full name). Deduped by label.
+  //
+  // The card at the front owns the typed address, so the list never repeats it,
+  // whichever of the three sources it arrived from.
+  const searchEntries = useMemo<{ app: AppEntry; snapshotOnly: boolean }[]>(() => {
+    if (!searchMatches) return []
+    const published = searchMatches.filter((app) => app.label !== destination)
+    const known = new Set(published.map((app) => app.label))
+    known.add(SELF_LABEL)
+    if (destination) known.add(destination)
+    const snapshotOnly = domainSuggestions
+      .filter((label) => !known.has(label))
+      .map((label) => ({
+        app: {
+          label,
+          name: null,
+          description: 'No description',
+          iconCid: null,
+          contentHash: null,
+          isLive: false,
+          attestationCount: null,
+          hasUserAttested: false,
+          certificates: [],
+          publishedAt: null
+        } satisfies AppEntry,
+        snapshotOnly: true
+      }))
+    return [...published.map((app) => ({ app, snapshotOnly: false })), ...snapshotOnly]
+  }, [searchMatches, destination, domainSuggestions])
+  const isLoading =
+    currentMode === 'bookmarks'
+      ? false
+      : currentMode === 'following'
+        ? followingLoading
+        : allFetching
+  // The sync indicator tracks the live sync. A pull-refresh additionally holds
+  // it for a minimum window so the gesture doesn't flash.
+  const syncDotsWanted = (isLoading && !query && filtered.length > 0) || pullRefreshFloor
+  // Capped, so it never outstays {@link SYNC_DOTS_MAX_VISIBLE_MS}.
+  const showSyncIndicator = syncDotsWanted && !syncDotsExpired
+  const showSyncDots = showSyncIndicator && !pullRefreshing
+  // Showing skeletons.
+  const coldStart = isLoading && filtered.length === 0 && !query
+  const membershipKey = useMemo(
+    () =>
+      `${currentMode}:${sortMode}:${filtered
+        .map((app) => app.label)
+        .sort()
+        .join(',')}`,
+    [currentMode, sortMode, filtered]
+  )
+  const orderedLabels = useMemo(
+    () => orderSourceRef.current.map((app) => app.label),
+    [membershipKey, orderNonce]
+  )
+  // Apply the sticky order to the live entries, so counts stay optimistic while
+  // positions hold until commit.
+  // The card at the front owns the typed address here too. `searchEntries` is
+  // derived from the debounced query, so on the first keystroke this list is what
+  // still renders, and without the filter it would repeat that label for a frame.
+  const orderedFiltered = useMemo(() => {
+    const byLabel = new Map(filtered.map((app) => [app.label, app]))
+    return orderedLabels
+      .map((label) => byLabel.get(label))
+      .filter((app): app is AppEntry => app != null && app.label !== destination)
+  }, [orderedLabels, filtered, destination])
+  // Key off what renders, so a search reorder glides under one pass.
+  const flipKey = useMemo(() => {
+    if (searchMatches) {
+      return `s:${searchEntries.map(({ app }) => app.label).join(',')}`
+    }
+    return `f:${currentMode}:${orderedFiltered.map((app) => app.label).join(',')}`
+  }, [searchMatches, searchEntries, currentMode, orderedFiltered])
+
+  // Snapshot the current AppEntry into the labels DB so the bookmark survives
+  // reloads with full metadata.
+  const persistLabelFromApp = useEvent(async (app: AppEntry) => {
+    await upsertLabel({
+      label: app.label,
+      name: app.name,
+      description: app.description,
+      iconCid: app.iconCid,
+      contentHash: app.contentHash,
+      attestationCount: app.attestationCount,
+      hasUserAttested: app.hasUserAttested,
+      certificates: app.certificates,
+      fetchedAt: Date.now()
+    })
+    await queryClient.invalidateQueries({ queryKey: LABELS_KEY })
+  })
+  const handleBookmark = useEvent((label: string) => {
+    if (bookmarkedApps.has(label)) {
+      // Animate card out, then remove from bookmarks
+      const card = rootRef.current?.querySelector(`[data-label="${label}"]`) as HTMLElement | null
+      const doRemove = () => {
+        deleteBookmark(label)
+        setBookmarkedApps((prev) => {
+          const next = new Set(prev)
+          next.delete(label)
+          return next
+        })
+      }
+      if (card && currentMode === 'bookmarks' && !searchMatches) {
+        card.classList.add('product-card--removing')
+        setTimeout(doRemove, 400)
+      } else {
+        doRemove()
+      }
+      setToastIsError(false)
+      setToastAction(null)
+      setToastMessage('App unbookmarked.')
+    } else {
+      createBookmark(label)
+      setBookmarkedApps((prev) => new Set(prev).add(label))
+      setToastIsError(false)
+      setToastAction(null)
+      setToastMessage('App bookmarked.')
+      const app = appsForFiltering.find((entry) => entry.label === label)
+      if (app) void persistLabelFromApp(app)
+    }
+  })
+  const showToast = useEvent(
+    (
+      message: string,
+      isError = false,
+      action: { label: string; onClick: () => void } | null = null
+    ) => {
+      setToastIsError(isError)
+      setToastAction(action)
+      setToastMessage(message)
+    }
+  )
+  const handleSort = useEvent((sort: SortMode) => {
+    setSortMode(sort)
+    void writeSortMode(sort)
+  })
+  const handleFollow = useEvent((address: string, username?: string) => {
+    follow(address, username)
+    setFollowing((prev) => [...prev, { address, username }])
+  })
+  const handleUnfollow = useEvent((address: string) => {
+    unfollow(address)
+    setFollowing((prev) => prev.filter((account) => account.address !== address))
+  })
+  // Sharing hands off a single browse link, e.g. `https://browse.paseo.li?app=calculator`.
+  // Opened, it redirects the recipient straight into the app and arms a later
+  // recommend prompt. No username is attached: reading it from the host is
+  // permission-gated, and sharing must never trigger that prompt.
+  //
+  // Prefer the native share sheet (iOS/Android: Copy, WhatsApp, …). Fall back to
+  // the clipboard where Web Share is unavailable (most desktop browsers) or the
+  // host blocks it.
+  const handleShare = useEvent(async (app: AppEntry) => {
+    const url = shareLink(app.label)
+    if (typeof navigator.share === 'function') {
+      try {
+        await navigator.share({ title: app.name ?? nameWithTld(app.label, NETWORK.TLD), url })
+        return
+      } catch (err) {
+        // The user dismissed the sheet: leave it, don't fall back to a copy.
+        if ((err as Error).name === 'AbortError') return
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(url)
+      showToast('Link copied')
+    } catch {
+      showToast('Could not copy to clipboard', true)
+    }
+  })
+  // Pasting a share or app link into search collapses it to the bare label so
+  // the resolver can find the app; plain search text is left untouched.
+  const handleSearchInput = useEvent((value: string) => {
+    setQuery(labelFromLink(value) ?? value)
+  })
+  // Yes closes the prompt and recommends. Prefer clicking the app's own upvote
+  // button so it blinks and bubbles exactly as a direct click would. Fall back
+  // to firing the recommend when that card is not currently rendered.
+  const confirmRecommend = useEvent(() => {
+    const prompt = recommendPrompt
+    if (!prompt) return
+    clearPendingRecommend(prompt.label)
+    setRecommendPrompt(null)
+    const upvote = rootRef.current?.querySelector(
+      `[data-label="${prompt.label}"] .product-card__upvote`
+    ) as HTMLElement | null
+    if (upvote) {
+      // Clicking the upvote toggles, so only click when it would add a
+      // recommendation.
+      if (!upvote.classList.contains('product-card__upvote--active')) upvote.click()
+      return
+    }
+    if (!signed) {
+      showToast('Sign in to recommend')
+      return
+    }
+    attestProduct.mutate(
+      { label: prompt.label },
+      {
+        onSuccess: () => showToast('Recommended!'),
+        onError: (err) => showToast(describeError(err))
+      }
+    )
+  })
+  // "Not now" clears the record so we don't nag again.
+  const dismissRecommend = useEvent(() => {
+    if (recommendPrompt) clearPendingRecommend(recommendPrompt.label)
+    setRecommendPrompt(null)
+  })
+  // Completely re-establish the chain connection: drop the cached SDK (destroys
+  // the papi client + chain socket) so the next query rebuilds a fresh
+  // connection, then refetch. Driven by the refresh gestures. A touch gesture
+  // holds its indicator for a minimum window so it always reads as feedback even
+  // if the reset resolves instantly. A pull shows the spinner, a push the dots.
+  const refreshConnection = useEvent((gesture: RefreshGesture) => {
+    console.warn('debug network connection', JSON.stringify({ event: 'refreshConnection' }))
+    resetBrowseSdk()
+    if (gesture !== 'scroll') {
+      clearTimeout(pullFloorTimer.current)
+      setPullRefreshing(gesture === 'pull')
+      setPullRefreshFloor(true)
+      pullFloorTimer.current = setTimeout(
+        () => setPullRefreshFloor(false),
+        PULL_REFRESH_MIN_VISIBLE_MS
+      )
+    }
+    void queryClient.invalidateQueries({ queryKey: ALL_APPS_KEY })
+  })
+  const commitOrder = useEvent((label: string) => {
+    heroLabelRef.current = label
+    setOrderNonce((n) => n + 1)
+  })
+  // Right-align the popover under the sort trigger by measuring it. These are
+  // viewport coordinates on a fixed element, so anything that moves the trigger
+  // has to measure again or the popover floats detached.
+  const anchorToTrigger = () => {
+    const rect = triggerRef.current?.getBoundingClientRect()
+    if (rect) setAnchor({ top: rect.bottom + 8, right: window.innerWidth - rect.right })
+  }
+  const openMenu = () => {
+    anchorToTrigger()
+    setMenuOpen(true)
+  }
+
+  useEffect(() => {
+    if (!showSyncIndicator) setPullRefreshing(false)
+  }, [showSyncIndicator])
+
+  // Start the dots allowance when they go up, and reset it when they come down so
+  // the next refresh gets a full window of its own.
+  useEffect(() => {
+    if (!syncDotsWanted) {
+      setSyncDotsExpired(false)
+      return
+    }
+    const id = setTimeout(() => setSyncDotsExpired(true), SYNC_DOTS_MAX_VISIBLE_MS)
+    return () => clearTimeout(id)
+  }, [syncDotsWanted])
+
+  // Debounce the snapshot-suggestion prefix ~150ms behind the raw query.
+  useEffect(() => {
+    const id = setTimeout(() => setSuggestionPrefix(suggestionPrefixSource), 150)
+    return () => clearTimeout(id)
+  }, [suggestionPrefixSource])
+  // Persist resolvedApp into the labels DB so a later bookmark/follow can render
+  // with full metadata even after reload.
+  useEffect(() => {
+    if (!resolvedApp) return
+    void upsertLabel({
+      label: resolvedApp.label,
+      name: resolvedApp.name,
+      description: resolvedApp.description,
+      iconCid: resolvedApp.iconCid,
+      contentHash: resolvedApp.contentHash,
+      attestationCount: resolvedApp.attestationCount,
+      hasUserAttested: resolvedApp.hasUserAttested,
+      certificates: resolvedApp.certificates,
+      fetchedAt: Date.now(),
+      // A resolved search result is NOT confirmed against the Publisher set, so
+      // mark it unpublished. Otherwise materialize() would surface it in the
+      // All tab until the next sync prunes it. A sync flips this to true if it
+      // really is published.
+      published: false
+    }).then(() => queryClient.invalidateQueries({ queryKey: LABELS_KEY }))
+  }, [resolvedApp, queryClient])
+  // Subscribe to account connection status.
+  useEffect(() => {
+    let cancelled = false
+    let sub: HostSubscription | undefined
+    void getAccountsProvider().then(async (provider) => {
+      if (cancelled || !provider) return
+      let reported = false
+      sub = provider.subscribeAccountConnectionStatus((status) => {
+        reported = true
+        console.warn(
+          'debug network connection',
+          JSON.stringify({ event: 'accountConnectionStatus', status })
+        )
+        setSigned(status === 'Connected')
+      })
+      // The subscription reports transitions, and a host that connected the
+      // account before this loaded has none left to report, so ask once for the
+      // account we would sign with. A host with no account connected leaves
+      // that request unanswered, which is the unsigned state we start in.
+      const account = await provider
+        .getProductAccount(SELF_DOTNS, 0)
+        .match(
+          (value) => value,
+          () => null
+        )
+        .catch(() => null)
+      if (cancelled) return
+      if (!reported) setSigned(account !== null)
+      // The host derives this account rather than being told it, so nothing
+      // outside the product can work out which account pays for a write.
+      if (import.meta.env?.DEV && account) {
+        window.__productAccount = AccountId().dec(account.publicKey)
+      }
+    })
+    return () => {
+      cancelled = true
+      sub?.unsubscribe()
+    }
+  }, [])
+  useEffect(() => subscribeHostTheme(), [])
+  useEffect(() => () => clearTimeout(pullFloorTimer.current), [])
+  // Surface a network failure as a (non-error) toast.
+  useEffect(() => {
+    if (allError) {
+      showToast('Network connection failed')
+    }
+  }, [allError, showToast])
+  // Load bookmarks and the following list on mount.
+  useEffect(() => {
+    readBookmarksWithRetry()
+      .catch(() => [])
+      .then((bookmark) => {
+        setBookmarkedApps(new Set(bookmark))
+        setBookmarkedAppsLoaded(true)
+      })
+    getFollowingWithRetry()
+      .catch(() => [])
+      .then((accounts) => {
+        setFollowing(accounts)
+        setFollowingLoaded(true)
+      })
+    readSortMode().then(setSortMode)
+  }, [])
+  useEffect(() => {
+    if (!bookmarkedAppsLoaded || initialTabPicked.current) return
+    initialTabPicked.current = true
+    const hash = location.hash.slice(1).toLowerCase()
+    if (isFilterMode(hash)) return
+    setCurrentMode(bookmarkedApps.size > 0 ? 'bookmarks' : 'all')
+  }, [bookmarkedAppsLoaded, bookmarkedApps])
+  useEffect(() => {
+    function onHashChange() {
+      const segment = location.hash.slice(1).toLowerCase()
+      if (isFilterMode(segment)) setCurrentMode(segment)
+    }
+    onHashChange()
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  }, [])
+  useEffect(() => {
+    setupDebugConsole()
+  }, [])
+  // Surface a deferred recommend prompt for an app the user was sent to from a
+  // share link, once they return to browse. Skip and clear any the user has
+  // already recommended. Re-checked on focus/visibility because inside the host
+  // browse can stay mounted in the background across the app visit.
+  useEffect(() => {
+    // `myRecommendations` is the same state that flips the upvote button active,
+    // so a label in it is one the user already recommended. Skip and clear those,
+    // and retract an open prompt whose app just became recommended.
+    const checkPending = () => {
+      for (const entry of readPendingRecommends()) {
+        if (myRecommendations.has(entry.label)) clearPendingRecommend(entry.label)
+      }
+      setRecommendPrompt((prev) => (prev && myRecommendations.has(prev.label) ? null : prev))
+      if (recommendPromptRef.current) return
+      const next = readPendingRecommends().find((entry) => !myRecommendations.has(entry.label))
+      if (next) setRecommendPrompt((prev) => prev ?? { label: next.label, from: next.from })
+    }
+    checkPending()
+    window.addEventListener('focus', checkPending)
+    document.addEventListener('visibilitychange', checkPending)
+    return () => {
+      window.removeEventListener('focus', checkPending)
+      document.removeEventListener('visibilitychange', checkPending)
+    }
+  }, [myRecommendations])
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedQuery(query), 500)
+    return () => clearTimeout(id)
+  }, [query])
+  // Light-dismiss the popover on Escape or on a page scroll, which is what a
+  // dropdown anchored to a scrolling page should do. Scroll is captured so a
+  // scroll inside the app list, not just the window, also closes it. A resize
+  // re-measures so the popover stays under the trigger. Outside clicks close via
+  // the transparent catcher rendered under the popover.
+  useEffect(() => {
+    if (!menuOpen) return
+    const onScroll = (e: Event) => {
+      // Only the page scrolling out from under the trigger closes it, not a
+      // scroll inside the popover itself.
+      const target = e.target
+      if (target instanceof Node && popoverRef.current?.contains(target)) return
+      setMenuOpen(false)
+    }
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMenuOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('scroll', onScroll, true)
+    window.addEventListener('resize', anchorToTrigger)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('scroll', onScroll, true)
+      window.removeEventListener('resize', anchorToTrigger)
+    }
+  }, [menuOpen])
+  // Pulling down from the top, or pushing past the end of the list, fully
+  // re-establishes the chain connection (resetBrowseSdk) and re-syncs. Disabled
+  // while a sync runs, while searching, or on the local bookmarks tab.
+  usePullRefresh({
+    contentRef: mainRef,
+    indicatorRef: pullIndicatorRef,
+    onRefresh: refreshConnection,
+    disabled: allFetching || !!query || currentMode === 'bookmarks',
+    refreshing: pullRefreshing && showSyncIndicator
+  })
+  useFlipReorder(appListRef, flipKey, heroLabelRef)
+
+  const renderCard = (app: AppEntry, i: number) => (
+    <ProductCardWithAttestation
+      key={app.label}
+      app={app}
+      index={i}
+      bookmarked={bookmarkedApps.has(app.label)}
+      isSignedIn={signed}
+      showMenu
+      onClick={navigateToDomain}
+      onBookmark={handleBookmark}
+      onShare={handleShare}
+      onAttestationSettled={() => commitOrder(app.label)}
+      onClickCertificate={(certificate) => {
+        setCertificateView({
+          subjectName: app.name,
+          subjectDomain: nameWithTld(app.label, NETWORK.TLD),
+          certificate
+        })
+        setCertificateModalOpen(true)
+      }}
+    />
+  )
+  const emptyBookmarks = currentMode === 'bookmarks' && filtered.length === 0 && !query
+  const emptyFollowingNobody =
+    currentMode === 'following' &&
+    followingLoaded &&
+    following.length === 0 &&
+    filtered.length === 0 &&
+    !query
+  const emptyFollowingNoMatches =
+    currentMode === 'following' &&
+    following.length > 0 &&
+    filtered.length === 0 &&
+    !query &&
+    !followingLoading
+  const emptyAll = currentMode === 'all' && filtered.length === 0 && !query && !allFetching
+
+  // The app list hides while the follow input is open, so its results never push
+  // the cards around.
+  const panelInputOpen =
+    !searchMatches && !coldStart && followInputOpen && currentMode === 'following'
+
+  return (
+    <ToastContext.Provider value={{ showToast }}>
+      <div class='page' ref={rootRef}>
+        <PullRefreshIndicator indicatorRef={pullIndicatorRef} />
+        <div class='main' ref={mainRef}>
+          <div class='card-flip' id='card-flip'>
+            <div class='card front' id='card-front'>
+              <div class='topbar'>
+                <SearchBar
+                  value={query}
+                  onInput={handleSearchInput}
+                  onCancel={() => setQuery('')}
+                />
+              </div>
+              {!searchMatches && (
+                <>
+                  <div class='tabs-row'>
+                    <CategoryTabs
+                      active={coldStart ? ['all'] : [currentMode]}
+                      disabled={coldStart}
+                      onSwitch={(mode) => {
+                        setCurrentMode(mode)
+                        setMenuOpen(false)
+                        setFollowInputOpen(false)
+                      }}
+                    />
+                    <button
+                      type='button'
+                      ref={triggerRef}
+                      class='customize-trigger'
+                      aria-label='Order by'
+                      aria-haspopup='menu'
+                      aria-expanded={menuOpen}
+                      onClick={() => openMenu()}
+                    >
+                      <ArrowUpDown size={20} />
+                    </button>
+                  </div>
+                  {currentMode === 'following' && !coldStart && (
+                    <FollowingManager
+                      following={following}
+                      open={followInputOpen}
+                      onOpenChange={setFollowInputOpen}
+                      onAdd={handleFollow}
+                      onRemove={handleUnfollow}
+                    />
+                  )}
+                </>
+              )}
+
+              <div
+                class='app-list'
+                id='app-list'
+                ref={appListRef}
+                style={{ display: panelInputOpen ? 'none' : undefined }}
+              >
+                {/* The typed address, first in the list and otherwise an ordinary
+                    card. A placeholder until it resolves to something published.
+                    Never conditional on the search result. */}
+                {destination &&
+                  (frontApp ? (
+                    renderCard(frontApp, -1)
+                  ) : (
+                    <PlaceholderCard
+                      label={typedLabel(query)}
+                      target={destination}
+                      onGo={navigateToDomain}
+                    />
+                  ))}
+                {coldStart ? (
+                  Array.from({ length: 6 }, (_, i) => <ProductCardSkeleton key={`sk-${i}`} />)
+                ) : emptyAll ? (
+                  <div class='empty-state'>
+                    <div class='empty-state__icon'>
+                      <Package size={32} />
+                    </div>
+                    <p class='empty-state__text'>No apps published yet</p>
+                  </div>
+                ) : emptyBookmarks ? (
+                  <div class='empty-state'>
+                    <div class='empty-state__icon'>
+                      <Bookmark size={32} />
+                    </div>
+                    <p class='empty-state__text'>No bookmarks yet</p>
+                  </div>
+                ) : emptyFollowingNobody ? (
+                  <div class='empty-state'>
+                    <div class='empty-state__icon empty-state__icon--faint'>{FOLLOW_ICON}</div>
+                    <p class='empty-state__text'>Follow people to see what they recommend</p>
+                  </div>
+                ) : emptyFollowingNoMatches ? (
+                  <div class='empty-state'>
+                    <p class='empty-state__text'>
+                      None of the people you follow have recommended any products yet
+                    </p>
+                  </div>
+                ) : searchMatches && searchEntries.length > 0 ? (
+                  // Search results render as product cards on both form factors.
+                  // Snapshot-only labels resolve their name and icon lazily.
+                  // Published entries render directly. Search cards skip the entry
+                  // slide so results do not re-slide while typing.
+                  searchEntries.map(({ app, snapshotOnly }) =>
+                    snapshotOnly ? (
+                      <LazyResolvedCard
+                        key={app.label}
+                        app={app}
+                        render={(resolved) => renderCard(resolved, -1)}
+                      />
+                    ) : (
+                      renderCard(app, -1)
+                    )
+                  )
+                ) : searchMatches && !destination ? (
+                  // Only when the text names no address, since a card above already
+                  // answers. No in-flight variant either: swapping the list for a
+                  // progress message read as the results being taken away.
+                  <div class='empty-state'>
+                    <div class='empty-state__icon'>{SEARCH_ICON}</div>
+                    <p class='empty-state__text'>
+                      No results for
+                      <span class='empty-state__query'>"{query}"</span>
+                    </p>
+                  </div>
+                ) : searchMatches ? null : (
+                  orderedFiltered.map((app, i) => renderCard(app, i))
+                )}
+              </div>
+
+              <div
+                class='loading-dots'
+                id='loading-dots'
+                style={{ display: showSyncDots ? 'flex' : 'none' }}
+              >
+                <span class='loading-dots__dot' />
+                <span class='loading-dots__dot' />
+                <span class='loading-dots__dot' />
+              </div>
+            </div>
+
+            <div class='card back' id='card-back'>
+              <div class='debug-header'>
+                <span class='debug-title'>debug</span>
+                <span class='debug-count' id='debug-count' />
+              </div>
+              <div class='debug-log' id='debug-log' />
+            </div>
+          </div>
+
+          <div class='footer' />
+        </div>
+
+        <CertificateModal
+          visible={certificateModalOpen}
+          subjectName={certificateView?.subjectName ?? null}
+          subjectDomain={certificateView?.subjectDomain ?? null}
+          certificate={certificateView?.certificate ?? null}
+          onDismiss={() => setCertificateModalOpen(false)}
+        />
+
+        {menuOpen && anchor && (
+          <>
+            <div class='customize-popover-catcher' onClick={() => setMenuOpen(false)} />
+            <div
+              ref={popoverRef}
+              class='customize-popover'
+              role='dialog'
+              aria-label='Order by'
+              style={{ top: anchor.top, right: anchor.right }}
+            >
+              <div class='order-panel' role='radiogroup' aria-label='Order by'>
+                {SORT_OPTIONS.map((option) => (
+                  <Fragment key={option.key}>
+                    <button
+                      type='button'
+                      role='radio'
+                      aria-checked={sortMode === option.key}
+                      class='order-panel__option'
+                      onClick={() => {
+                        handleSort(option.key)
+                        // Relevant stays open so its trusted developers slide in.
+                        if (option.key !== 'relevant') setMenuOpen(false)
+                      }}
+                    >
+                      <span class='order-panel__text'>
+                        <span class='order-panel__name'>{option.name}</span>
+                        <span class='order-panel__desc'>{option.description}</span>
+                      </span>
+                      {sortMode === option.key && <Check size={18} class='order-panel__check' />}
+                    </button>
+                    {option.key === 'relevant' && (
+                      <TrustList
+                        open={sortMode === 'relevant'}
+                        certificateNames={certificateNames}
+                      />
+                    )}
+                  </Fragment>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        <RecommendPrompt
+          visible={!!recommendPrompt}
+          label={recommendPrompt?.label ?? ''}
+          onConfirm={confirmRecommend}
+          onDismiss={dismissRecommend}
+        />
+
+        <Toast
+          message={toastMessage}
+          isError={toastIsError}
+          action={toastAction}
+          onDismiss={() => {
+            setToastMessage(null)
+            setToastAction(null)
+          }}
+        />
+      </div>
+    </ToastContext.Provider>
+  )
+}

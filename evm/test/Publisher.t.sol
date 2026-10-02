@@ -32,7 +32,7 @@ contract PublisherTest is Test {
     uint256 internal tokenId;
 
     function setUp() public {
-        publisher = new Publisher(IDotnsRegistrar(registrar), DOT_NODE);
+        publisher = new Publisher(IDotnsRegistrar(registrar), DOT_NODE, address(this));
         labelhash = keccak256(bytes(LABEL));
         labelNode = keccak256(abi.encodePacked(DOT_NODE, labelhash));
         tokenId = uint256(labelNode);
@@ -185,6 +185,17 @@ contract PublisherTest is Test {
         publisher.publish(LABEL, _request(2, ALICE_ALIAS));
     }
 
+    function test_publish_ownerPublishesLabelItDoesNotHold() public {
+        // The registrar says mallory holds the name, and no proof is mocked, so
+        // both gates would reject any other caller. The owner is `address(this)`.
+        _mockOwner(mallory);
+
+        publisher.publish(LABEL, _request(2, ALICE_ALIAS));
+
+        assertTrue(publisher.isPublished(labelhash));
+        assertEq(publisher.publishedCount(), 1);
+    }
+
     function test_publish_revertsWhenProofRejected() public {
         _mockOwner(alice);
         IPersonhood.ProofVerificationRequest memory req = _request(2, ALICE_ALIAS);
@@ -215,7 +226,7 @@ contract PublisherTest is Test {
 
         // Each of the four inputs changes the digest, so a proof minted for one
         // combination is not spendable on any other.
-        Publisher other = new Publisher(IDotnsRegistrar(registrar), DOT_NODE);
+        Publisher other = new Publisher(IDotnsRegistrar(registrar), DOT_NODE, address(this));
         bytes32 here = publisher.getPublishDigest(alice, labelhash);
         assertTrue(other.getPublishDigest(alice, labelhash) != here);
         assertTrue(publisher.getPublishDigest(mallory, labelhash) != here);
@@ -270,7 +281,7 @@ contract PublisherTest is Test {
     }
 
     function test_version_returnsExpectedSemver() public view {
-        assertEq(publisher.version(), "3.0.0");
+        assertEq(publisher.version(), "3.1.0");
     }
 
     function test_constructor_recordsTldNode() public view {
@@ -279,7 +290,7 @@ contract PublisherTest is Test {
 
     function test_constructor_revertsOnZeroTldNode() public {
         vm.expectRevert(IPublisher.EmptyTldNode.selector);
-        new Publisher(IDotnsRegistrar(registrar), bytes32(0));
+        new Publisher(IDotnsRegistrar(registrar), bytes32(0), address(this));
     }
 
     function test_publicationOf_returnsZeroValueForUnknownLabel() public view {
@@ -427,15 +438,50 @@ contract PublisherTest is Test {
         publisher.publish("b", lite);
     }
 
-    // No account is exempt now that the registry has no owner. The contract that
-    // deployed it is gated like anyone else.
-    function test_publish_hasNoPrivilegedAccount() public {
-        IPersonhood.ProofVerificationRequest memory none = _emptyRequest();
-        _mockProof(address(this), LABEL, none, false);
-        _mockOwner(address(this));
+    function test_owner_isDeployer() public view {
+        assertEq(publisher.owner(), address(this));
+    }
 
+    function test_publish_ownerBypassesPersonhoodAndRateLimit() public {
+        // The test contract is the owner. An empty proof reverts for anyone else.
+        IPersonhood.ProofVerificationRequest memory none = _emptyRequest();
+
+        // Publish far past the Full-tier cap within a single window.
+        for (uint256 i = 0; i < 8; ++i) {
+            string memory label = string(abi.encodePacked("app", vm.toString(i)));
+            _mockOwner(_tokenIdOf(label), address(this));
+            publisher.publish(label, none);
+        }
+
+        assertEq(publisher.publishedCount(), 8);
+    }
+
+    function test_publish_privilegeFollowsTwoStepOwnershipTransfer() public {
+        address bob = makeAddr("bob");
+        IPersonhood.ProofVerificationRequest memory none = _emptyRequest();
+
+        // Hand the registry off to bob via the two-step flow.
+        publisher.transferOwnership(bob);
+        // Pending owner is not privileged until acceptance.
+        assertEq(publisher.owner(), address(this));
+        vm.prank(bob);
+        publisher.acceptOwnership();
+        assertEq(publisher.owner(), bob);
+
+        // Bob now publishes past the Full-tier cap with no proof.
+        for (uint256 i = 0; i < 7; ++i) {
+            string memory label = string(abi.encodePacked("bobapp", vm.toString(i)));
+            _mockOwner(_tokenIdOf(label), bob);
+            vm.prank(bob);
+            publisher.publish(label, none);
+        }
+        assertEq(publisher.publishedCount(), 7);
+
+        // The old owner lost the privilege: it is gated again and reverts.
+        _mockProof(address(this), "old", none, false);
+        _mockOwner(_tokenIdOf("old"), address(this));
         vm.expectRevert(IPublisher.NoPersonhood.selector);
-        publisher.publish(LABEL, none);
+        publisher.publish("old", none);
     }
 
     function test_unpublish_revertsWhenLabelEmpty() public {

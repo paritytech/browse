@@ -5,47 +5,37 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 
 import {Attestation, IAttestationService} from "./interfaces/IAttestationService.sol";
 import {IAttestationResolver} from "./interfaces/IAttestationResolver.sol";
-import {ISystem} from "./interfaces/ISystem.sol";
+import {IPersonhood} from "./interfaces/IPersonhood.sol";
 
 /// @title RecipientAndAttesterIndexResolver
 /// @notice Indexes attestations by (recipient, schema) and by attester, admitting only
-///         attestations from a product account bound to an identity, and only once per
-///         (identity, recipient, schema) so one identity recommends a given app once.
+///         attestations carrying a valid proof of personhood, and only once per
+///         (person, recipient, schema) so one person recommends a given app once.
 contract RecipientAndAttesterIndexResolver is IAttestationResolver {
     using EnumerableSet for EnumerableSet.UintSet;
 
     error RecipientAndAttesterIndexResolver__AccessDenied();
     error RecipientAndAttesterIndexResolver__InvalidService();
-    error RecipientAndAttesterIndexResolver__InvalidIdentitySignature();
     error RecipientAndAttesterIndexResolver__PageSizeTooLarge(
         uint64 requested,
         uint64 max
     );
 
-    /// @notice Emitted when a product account is bound to an identity account.
-    /// @param account The product account that submits attestations.
-    /// @param identity The identity account (mapped sr25519 address) it is bound to.
-    event IdentityAccountBound(
-        address indexed account,
-        address indexed identity
-    );
-
     uint64 public constant MAX_PAGE_SIZE = 100;
 
-    // The System precompile exposing sr25519Verify.
-    ISystem private constant SYSTEM =
-        ISystem(0x0000000000000000000000000000000000000900);
+    // The Proof-of-Personhood precompile.
+    address private constant PERSONHOOD =
+        0x000000000000000000000000000000000a010000;
 
-    // Domain tag prepended to the identity-binding message so a signature cannot be replayed
-    // against a different message shape. The per-deployment binding comes from address(this) and
-    // block.chainid in the message body.
-    bytes private constant MESSAGE_PREFIX = "attestation v1\n";
+    // The application identifier passed to the personhood precompile.
+    //
+    // Distinct from the context Publisher pins, so the alias a person recommends under
+    // cannot be linked to the one they publish under. Pinned, not read from the request,
+    // because the context is what makes an alias stable per person.
+    bytes32 private constant PERSONHOOD_CONTEXT = bytes32("browse.recommend");
 
     // The bound attestation service.
     IAttestationService private immutable _service;
-
-    // The identity account each product account proved control of via bindIdentity.
-    mapping(address account => address identity) private _boundIdentity;
 
     // Attestation IDs grouped by (recipient, schema).
     mapping(bytes32 key => EnumerableSet.UintSet ids)
@@ -55,12 +45,12 @@ contract RecipientAndAttesterIndexResolver is IAttestationResolver {
     mapping(address attester => EnumerableSet.UintSet ids)
         private _attestationsByAttester;
 
-    // Whether a bound identity has already attested a given (recipient, schema).
-    mapping(bytes32 key => mapping(address identity => bool used))
-        private _identityAttested;
+    // Whether a person has already attested a given (recipient, schema).
+    mapping(bytes32 key => mapping(bytes32 personAlias => bool used))
+        private _personAttested;
 
-    // The identity recorded for an attestation, so a revoke can release the identity lock.
-    mapping(uint256 id => address identity) private _identityByAttestation;
+    // The person recorded for an attestation, so a revoke can release the per-person lock.
+    mapping(uint256 id => bytes32 personAlias) private _personByAttestation;
 
     /// @dev Creates a new RecipientAndAttesterIndexResolver bound to `service`.
     /// @param service The attestation service authorised to invoke the hooks.
@@ -78,32 +68,28 @@ contract RecipientAndAttesterIndexResolver is IAttestationResolver {
         _;
     }
 
-    /// @notice Binds the calling product account to the identity account that signed for it.
-    /// @dev The identity key signs a message binding this resolver, the chain, and the caller, so
-    ///      the signature cannot authorize a different account or be replayed on another
-    ///      deployment. Verifying the sr25519 signature once here keeps that cost off the
-    ///      per-attestation path. Re-binding overwrites the previous identity. Humanity is not
-    ///      checked here. The onAttest hook enforces it so a later loss of personhood takes effect.
-    /// @param pubKey The sr25519 public key (AccountId32) of the identity account.
-    /// @param signature The 64-byte signature over the binding message.
-    function bindIdentity(bytes32 pubKey, bytes calldata signature) external {
-        if (signature.length != 64) {
-            revert RecipientAndAttesterIndexResolver__InvalidIdentitySignature();
-        }
-        uint8[64] memory sig = _toFixedSignature(signature);
-        bytes memory inner = _bindingMessage(msg.sender);
-        // Accept a signature over either the wrapped or the bare message.
-        bool ok = SYSTEM.sr25519Verify(sig, _wrapBytes(inner), pubKey) ||
-            SYSTEM.sr25519Verify(sig, inner, pubKey);
-        if (!ok) {
-            revert RecipientAndAttesterIndexResolver__InvalidIdentitySignature();
-        }
-        // A native sr25519 account maps to keccak256(publicKey)[12..].
-        address identity = address(
-            uint160(uint256(keccak256(abi.encodePacked(pubKey))))
-        );
-        _boundIdentity[msg.sender] = identity;
-        emit IdentityAccountBound(msg.sender, identity);
+    /// @notice The digest a recommendation's personhood proof must be built over.
+    /// @dev Binds the proof to this resolver, this chain, the attester, and the app and schema
+    ///      being recommended, so a proof lifted from another recommendation does not verify.
+    /// @param attester The account that will submit the attestation.
+    /// @param recipient The app being recommended.
+    /// @param schema The schema ID of the recommendation.
+    /// @return The 32-byte digest to bind into the proof.
+    function getAttestDigest(
+        address attester,
+        address recipient,
+        uint256 schema
+    ) public view returns (bytes32) {
+        return
+            keccak256(
+                abi.encode(
+                    block.chainid,
+                    address(this),
+                    attester,
+                    recipient,
+                    schema
+                )
+            );
     }
 
     /// @notice Returns the bound attestation service.
@@ -112,61 +98,57 @@ contract RecipientAndAttesterIndexResolver is IAttestationResolver {
         return _service;
     }
 
-    /// @notice Returns the identity account a product account is bound to.
-    /// @param account The product account.
-    /// @return The bound identity account, or the zero address when unbound.
-    function boundIdentity(address account) external view returns (address) {
-        return _boundIdentity[account];
-    }
-
     /// @inheritdoc IAttestationResolver
-    /// @dev Admits the attestation only when its attester is bound to an identity that has not
-    ///      already attested this (recipient, schema). Returns false on any failure so the service
-    ///      rejects it.
+    /// @dev Admits the attestation only when it carries a valid personhood proof and that person
+    ///      has not already attested this (recipient, schema). Returns false on either failure so
+    ///      the service rejects it, and reverts when `data` does not decode.
+    ///
+    ///      Keyed on the person alias, not the attester address, because addresses are free to
+    ///      make and one human derives the same alias in this context.
     function onAttest(
         Attestation calldata attestation
     ) external onlyService returns (bool) {
-        address identity = _boundIdentity[attestation.attester];
-        if (identity == address(0)) return false;
+        (bool proven, bytes32 personAlias) = _verifyPersonhood(attestation);
+        if (!proven) return false;
 
         bytes32 key = _compositeKey(attestation.recipient, attestation.schema);
-        if (_identityAttested[key][identity]) return false;
+        if (_personAttested[key][personAlias]) return false;
 
-        _identityAttested[key][identity] = true;
-        _identityByAttestation[attestation.id] = identity;
+        _personAttested[key][personAlias] = true;
+        _personByAttestation[attestation.id] = personAlias;
         _attestationsByRecipientAndSchema[key].add(attestation.id);
         _attestationsByAttester[attestation.attester].add(attestation.id);
         return true;
     }
 
     /// @inheritdoc IAttestationResolver
-    /// @dev Releases the identity lock for the (recipient, schema) so it may attest it again
+    /// @dev Releases the per-person lock for the (recipient, schema) so they may attest it again
     ///      later, then de-indexes the attestation.
     function onRevoke(
         Attestation calldata attestation
     ) external onlyService returns (bool) {
         bytes32 key = _compositeKey(attestation.recipient, attestation.schema);
-        address identity = _identityByAttestation[attestation.id];
-        if (identity != address(0)) {
-            delete _identityAttested[key][identity];
-            delete _identityByAttestation[attestation.id];
+        bytes32 personAlias = _personByAttestation[attestation.id];
+        if (personAlias != bytes32(0)) {
+            delete _personAttested[key][personAlias];
+            delete _personByAttestation[attestation.id];
         }
         _attestationsByRecipientAndSchema[key].remove(attestation.id);
         _attestationsByAttester[attestation.attester].remove(attestation.id);
         return true;
     }
 
-    /// @notice Checks whether a bound identity has already attested the pair.
+    /// @notice Checks whether a person has already attested the pair.
     /// @param recipient The recipient address.
     /// @param schema The schema ID.
-    /// @param identity The bound identity account.
-    /// @return Whether that identity has an attestation recorded for the pair.
-    function identityHasAttested(
+    /// @param personAlias The context alias of the person, from {boundAlias}.
+    /// @return Whether that person has an attestation recorded for the pair.
+    function personHasAttested(
         address recipient,
         uint256 schema,
-        address identity
+        bytes32 personAlias
     ) external view returns (bool) {
-        return _identityAttested[_compositeKey(recipient, schema)][identity];
+        return _personAttested[_compositeKey(recipient, schema)][personAlias];
     }
 
     /// @notice Checks whether any of the provided attesters has an active attestation for the
@@ -269,27 +251,30 @@ contract RecipientAndAttesterIndexResolver is IAttestationResolver {
         return _page(_attestationsByAttester[attester], offset, limit);
     }
 
-    /// @dev Rebuilds the bare message the identity key signs to bind `account`. Binding this
-    ///      resolver (unique per deployment and chain) and the account stops a signature being
-    ///      replayed against another resolver or for a different account.
-    function _bindingMessage(
-        address account
-    ) private view returns (bytes memory) {
-        return abi.encodePacked(MESSAGE_PREFIX, address(this), account);
-    }
+    /// @dev Verifies the proof carried in `data` and returns the context alias it derives.
+    ///
+    /// `message` and `context` are overwritten rather than trusted. The first spends the proof on
+    /// this one recommendation, the second keeps one person to one alias.
+    function _verifyPersonhood(
+        Attestation calldata attestation
+    ) private view returns (bool proven, bytes32 personAlias) {
+        (, IPersonhood.ProofVerificationRequest memory request) = abi.decode(
+            attestation.data,
+            (string, IPersonhood.ProofVerificationRequest)
+        );
+        request.message = abi.encodePacked(
+            getAttestDigest(
+                attestation.attester,
+                attestation.recipient,
+                attestation.schema
+            )
+        );
+        request.context = PERSONHOOD_CONTEXT;
 
-    /// @dev Wraps a payload in the `<Bytes>` tags a host prepends/appends before raw signing.
-    function _wrapBytes(
-        bytes memory inner
-    ) private pure returns (bytes memory) {
-        return abi.encodePacked("<Bytes>", inner, "</Bytes>");
-    }
-
-    /// @dev Widens a 64-byte signature to the uint8[64] the System precompile expects.
-    function _toFixedSignature(
-        bytes calldata signature
-    ) private pure returns (uint8[64] memory out) {
-        for (uint256 i = 0; i < 64; ++i) out[i] = uint8(signature[i]);
+        if (!IPersonhood(PERSONHOOD).personhoodInfoByProof(request)) {
+            return (false, bytes32(0));
+        }
+        return (true, request.expectedAlias);
     }
 
     /// @dev Returns the composite key for a (recipient, schema) pair.

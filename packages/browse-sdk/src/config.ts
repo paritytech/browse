@@ -48,10 +48,10 @@ export interface NetworkConfig {
 }
 
 export const PASEONEXTV2_ASSETHUB_GENESIS =
-  '0x23e730eb1c6fecae09c917439a5038cb6122d0d48980e8b9bbf0ff56f94a2ca6' as const
+  '0x4349b00e54897e21196fd331015fc5be0f14e118beb0375ed2bb1793737bb57a' as const
 
 export const PREVIEWNET_ASSETHUB_GENESIS =
-  '0x4d11c803cc6921429e3876638977ad006ea1bba8cd3976a0bca2f164e7026210' as const
+  '0xbac97e23fc8f4bccae72a98f8aeb2bcab20bf755862304e4b46ad6473456e896' as const
 
 export const KNOWN_NETWORKS = {
   [PASEONEXTV2_ASSETHUB_GENESIS]: {
@@ -64,16 +64,16 @@ export const KNOWN_NETWORKS = {
     TLD: 'paseo',
     PUBLISHER: [
       {
-        version: '2.2.0',
-        address: '0x1875B90A61705917945f9B7C6Ff7819Ad48A198e'
+        version: '3.1.0',
+        address: '0xAa189B1D4F65CF6e5D0baD734F6C876f2E12F984'
       },
       {
         version: '3.0.0',
         address: '0x01167f228A729f8e50f18aa7189f59b659155D09'
       }
     ],
-    SCHEMA_REGISTRY: '0x46fe8c29dece5a882be37a459c6e8ba1b73d3f20',
-    ATTESTATION_SERVICE: '0x36e63233695675fd5b1f957da746602bd234fe19',
+    SCHEMA_REGISTRY: '0xd8af2626d3c5d990ae75077de3c5d9bb5e71de1e',
+    ATTESTATION_SERVICE: '0x37e7021fd6e44d5cdc17847b33388d6d6eff63cd',
     ATTESTATION_INDEX_RESOLVER: ['0xAca17c2547f09b3AD0d3bd28Db11EE172604b85b'],
     TRUSTED_ATTESTER_RESOLVER: '0x8326c11a76Dda4702046e92f73C0ea7E698560a2',
     TRUSTED_ATTESTER: '0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20',
@@ -84,41 +84,41 @@ export const KNOWN_NETWORKS = {
     SCHEMA_ID: [1n],
     COMPLIANCE_SCHEMA_ID: 2n,
     ASSETHUB_RPCS: ['wss://paseo-asset-hub-next-rpc.polkadot.io'],
-    PEOPLE_GENESIS: '0x89a63b11fef2c0273fc72c0d864da0793a665dade5db153e0cab995348c5440f',
+    PEOPLE_GENESIS: '0x4a2b5b737de1da59e209b0000a876ec2fa20035dc34fd292a848da32d255ad48',
     PEOPLE_RPCS: ['wss://paseo-people-next-system-rpc.polkadot.io'],
     BULLETIN_RPCS: ['wss://paseo-bulletin-next-rpc.polkadot.io']
   },
   [PREVIEWNET_ASSETHUB_GENESIS]: {
     MULTICALL3: '0xB4468000abD87D3c56cbFBd153161223D7b109e5',
-    STORE_FACTORY: '0x709A027F446a9e2a4BB9cb9a9c754435b19e32B7',
+    STORE_FACTORY: '0x99605a926FcB40aB520F659c6505E5ff862771f6',
     CONTENT_RESOLVER: '0x7F74D7CD50f5a834270E2ad395a01b01891AB37d',
     REGISTRY: '0xf34054fd76BbF85f216cf9908226D5f0A72E50CA',
     REGISTRAR: '0x4f06E818Ba3d987704fd91cf3d868E4b019106Ab',
     CREATE3_FACTORY: '0x8533c79E058c5a6489CAFeCA86dc600E029D75f5',
-    TLD: 'dot',
+    TLD: 'testnet',
     PUBLISHER: [
       {
-        version: '2.1.0',
-        address: '0x5a3c111278ec98f327466c9ab7a5e0e0f5047acc'
-      },
-      {
-        version: '3.0.0',
+        version: '3.1.0',
         address: '0x01167f228A729f8e50f18aa7189f59b659155D09'
       }
     ],
-    SCHEMA_REGISTRY: '0xccd0a00f015f349264a3d7cd30fa6a05691f01cb',
-    ATTESTATION_SERVICE: '0xb6493705c8280e2200ed799e1b47040fa8753d05',
-    ATTESTATION_INDEX_RESOLVER: ['0x1563d8f5beab796529d1135d1600a3e75476a1da'],
-    TRUSTED_ATTESTER_RESOLVER: '0x956834cd15bf02d3d9bb427e86d7115f5b062927',
+    // attestation-protocol 1.0.0, CREATE3 through the factory above.
+    SCHEMA_REGISTRY: '0x90e2a80f6c59C2e1cbd0Be50f60bA56bae4ADE97',
+    ATTESTATION_SERVICE: '0xA722702956694BFF0Ad6689df0505C3e357Bf0F1',
+    // The identity-bound resolver, salt 2.1.1; 0xAca17c25… holds the src/
+    // build here since the 2026-09-21 recovery (see evm/deployments.json).
+    ATTESTATION_INDEX_RESOLVER: ['0xE5c4C005093828e12bB0A427A74ECAe1601218b6'],
+    TRUSTED_ATTESTER_RESOLVER: '0x8326c11a76Dda4702046e92f73C0ea7E698560a2',
     TRUSTED_ATTESTER: '0x35Cdb23fF7fc86E8DCcd577CA309bFEA9c978D20',
     IPFS_GATEWAY: 'https://previewnet.substrate.dev',
     PRIMARY_WEB_DOMAIN: 'testnet.li',
     SECONDARY_WEB_DOMAIN: 'testnet.li',
-    SNAPSHOT_POINTER_DOMAIN: 'browse.dot',
-    SCHEMA_ID: [3n],
+    SNAPSHOT_POINTER_DOMAIN: 'browse.testnet',
+    // Registered against the 2.1.1 resolver. Ids 1 to 5 are wrong or stale.
+    SCHEMA_ID: [6n],
     COMPLIANCE_SCHEMA_ID: 2n,
     ASSETHUB_RPCS: ['wss://previewnet.substrate.dev/asset-hub'],
-    PEOPLE_GENESIS: '0x3138c6d4ce58c760047a413c2a930e919b4673a841ab4890de59aac3bd037f3d',
+    PEOPLE_GENESIS: '0x55e3e689ecfa9d2fffcf7d309b8011956671493982230bfd0420c683542249e9',
     PEOPLE_RPCS: ['wss://previewnet.substrate.dev/people'],
     BULLETIN_RPCS: ['wss://previewnet.substrate.dev/bulletin']
   }

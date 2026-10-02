@@ -27,12 +27,14 @@ export {
   decodeString,
   decodeStringArray,
   decodeUint,
-  decodeUint64
+  decodeUint64,
+  decodeUintArray
 } from './codec.js'
 export { decodeIpfsContenthash } from './contenthash.js'
 export {
   trustedAttestationId,
   encodeContenthash,
+  ATTESTATION_PAGE_LIMIT,
   encodeCountBySchema,
   encodeCountByRecipientAndSchema,
   encodeGetAttestationById,
@@ -44,6 +46,7 @@ export {
   encodeIsActive,
   encodeIsActiveAny,
   encodeLabelOf,
+  encodeListByRecipientAndSchema,
   encodeListBySchema,
   encodeNodeOwner,
   encodeOwner,

@@ -1,0 +1,41 @@
+{
+  "version": 0,
+  "descriptorPath": ".papi/descriptors",
+  "entries": {
+    "paseohub": {
+      "wsUrl": "wss://paseo-asset-hub-next-rpc.polkadot.io",
+      "metadata": ".papi/metadata/paseohub.scale",
+      "genesis": "0x4349b00e54897e21196fd331015fc5be0f14e118beb0375ed2bb1793737bb57a",
+      "codeHash": "0x8b7a385c789fa051fee48f72492f08b6f031cf67fa8ee996d599d3c6c981ea59"
+    },
+    "previewnethub": {
+      "wsUrl": "wss://previewnet.substrate.dev/asset-hub",
+      "metadata": ".papi/metadata/previewnethub.scale",
+      "genesis": "0xc27c8bf3f13f96dc2130cd2b0a3debe57618fd02521ecc1902bd7dd4ed83d2fe",
+      "codeHash": "0x8b7a385c789fa051fee48f72492f08b6f031cf67fa8ee996d599d3c6c981ea59"
+    },
+    "summithub": {
+      "wsUrl": "wss://summit-asset-hub-rpc.polkadot.io",
+      "metadata": ".papi/metadata/summithub.scale",
+      "genesis": "0xf388dc6d6cdf6fb77eac3c4a91f31bc0c8642b142f1a757512ab7849f9f70660",
+      "codeHash": "0x9ccee8fcad38a5068147eba6f7f62d66d244c883092a9fcb1378e6d0f8258609"
+    },
+    "paseopeople": {
+      "wsUrl": "wss://paseo-people-next-system-rpc.polkadot.io",
+      "metadata": ".papi/metadata/paseopeople.scale",
+      "genesis": "0x4a2b5b737de1da59e209b0000a876ec2fa20035dc34fd292a848da32d255ad48",
+      "codeHash": "0x12c3c05947a1043efc4002dc82f25fed18cc0c78aff9b153db62b432a7602f1d"
+    },
+    "previewnetpeople": {
+      "wsUrl": "wss://previewnet.substrate.dev/people",
+      "metadata": ".papi/metadata/previewnetpeople.scale",
+      "genesis": "0xf720c28fe3315e67fa799a616fc59abad47dd257b1a336af6538435844d35218",
+      "codeHash": "0x12c3c05947a1043efc4002dc82f25fed18cc0c78aff9b153db62b432a7602f1d"
+    }
+  },
+  "sol": {
+    "attestation_registry": ".papi/contracts/attestation_registry.json",
+    "attestation_service": ".papi/contracts/attestation_service.json",
+    "schema_registry": ".papi/contracts/schema_registry.json"
+  }
+}

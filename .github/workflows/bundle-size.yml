@@ -3,10 +3,10 @@ name: Bundle Size
 on:
   push:
     branches: [main]
-    paths: ['app/**', 'packages/**', 'scripts/bundle-size.ts', '.github/workflows/bundle-size.yml']
+    paths: ['apps/registry/**', 'apps/widget/**', 'packages/**', 'scripts/bundle-size.ts', '.github/workflows/bundle-size.yml']
   pull_request:
     branches: [main]
-    paths: ['app/**', 'packages/**', 'scripts/bundle-size.ts', '.github/workflows/bundle-size.yml']
+    paths: ['apps/registry/**', 'apps/widget/**', 'packages/**', 'scripts/bundle-size.ts', '.github/workflows/bundle-size.yml']
 
 concurrency:
   group: bundle-size-${{ github.ref }}
@@ -36,7 +36,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: dist
-          path: app/dist/
+          path: apps/registry/dist/
 
       # Every run on main re-uploads the whole history, so the newest artifact
       # holds every snapshot. Absent until main has built once.
@@ -54,7 +54,7 @@ jobs:
         if: github.event_name == 'pull_request'
         run: >
           bun scripts/bundle-size.ts comment
-          --dist=app/dist
+          --dist=apps/registry/dist
           --history=.bundle-size/history.json
           --out=bundle-size-comment.md
           --sha=${{ github.event.pull_request.head.sha }}
@@ -94,7 +94,7 @@ jobs:
         if: github.event_name == 'push'
         run: >
           bun scripts/bundle-size.ts record
-          --dist=app/dist
+          --dist=apps/registry/dist
           --history=.bundle-size/history.json
 
       - name: Upload size history

@@ -1,0 +1,635 @@
+.product-card {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-medium-increased);
+  min-height: 128px;
+  padding: var(--space-medium-increased);
+  background: var(--bg-surface-container);
+  border-radius: var(--radius-large);
+  cursor: pointer;
+  transition: background 150ms ease;
+  animation: productCardIn 800ms cubic-bezier(0.33, 1, 0.68, 1) both;
+  content-visibility: auto;
+  contain-intrinsic-size: 0 128px;
+}
+
+.product-card--instant {
+  animation: none;
+}
+
+@media (hover: hover) {
+  .product-card:hover {
+    background: var(--bg-selection-container-hover);
+  }
+
+  /* Pointer-only. On touch this fill sticks after a tap navigates away. */
+  .product-card:active {
+    background: var(--bg-selection-container-active);
+  }
+}
+
+@keyframes productCardIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.product-card__thumb {
+  position: relative;
+  width: 96px;
+  height: 96px;
+  flex-shrink: 0;
+  border-radius: var(--radius-medium-increased);
+  background: var(--bg-surface-nested);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.product-card__thumb > svg {
+  display: block;
+}
+
+.product-card__thumb-pulse {
+  position: absolute;
+  inset: 0;
+  background: var(--surface-4);
+  border-radius: var(--radius-medium-increased);
+  /* Pulse (opacity), matching the skeleton cards. Not a moving shimmer. */
+  animation: cardSkeletonPulse 1.5s ease-in-out infinite;
+}
+
+.product-card__thumb-img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-medium-increased);
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 200ms ease;
+}
+
+.product-card__thumb-img--loaded {
+  opacity: 1;
+}
+
+.product-card__body {
+  flex: 1;
+  min-width: 0;
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  /* Tight, so the stack still fits the icon once the domain has a line. */
+  gap: var(--space-tiny);
+}
+
+/* No row gap. The domain hugs the name as one identity block, and the description
+   sets its own space below them. */
+.product-card__text {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.product-card__title-row {
+  display: flex;
+  align-items: center;
+  /* The title line box, so the row never grows taller than its own contents. */
+  min-height: 20px;
+}
+
+/* One scale at every width. 15px is off-token, since our steps are 18/16/14. */
+.product-card__name {
+  font-family: var(--font-sans);
+  font-weight: var(--type-title-md-weight);
+  font-size: 15px;
+  line-height: 20px;
+  letter-spacing: -0.01em;
+  color: var(--fg-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Open, with room for the caption that hangs under it from 768px up. */
+.product-card__open-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-extra-tiny);
+  min-width: 0;
+}
+
+/* A step below the description, told apart by size. The 1.3 line is off-token, since
+   our 10px step pairs with 14px. */
+.product-card__domain {
+  font-family: var(--font-sans);
+  font-weight: var(--type-body-sm-weight);
+  font-size: var(--type-label-sm-size);
+  line-height: 1.3;
+  color: var(--fg-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Two slots, one shown at a time. Phones stack the domain under the name, where a
+   caption column would eat into the title. Desktop hangs it under Open instead. */
+.product-card__domain--caption {
+  display: none;
+}
+
+.product-card__certified {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin-left: var(--space-tiny);
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--fg-primary);
+  cursor: pointer;
+}
+
+.product-card__certified svg {
+  fill: var(--fg-primary);
+}
+
+.product-card__certified svg path:last-of-type {
+  fill: none;
+  stroke: var(--fg-primary-inverted);
+}
+
+/* Smaller than the title line box so it never sets the row height, with the tap area
+   restored by the ::after. */
+.product-card__bookmark {
+  position: relative;
+  margin-left: var(--space-small);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  flex-shrink: 0;
+  border: none;
+  border-radius: var(--radius-small);
+  background: transparent;
+  color: rgb(var(--fg-rgb) / 0.5);
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    color 150ms ease;
+}
+
+@media (hover: hover) {
+  .product-card__bookmark:hover {
+    background: var(--surface-3);
+    color: rgb(var(--fg-rgb) / 0.9);
+  }
+}
+
+/* Widens the tap target past the visual button. */
+.product-card__bookmark::after {
+  content: '';
+  position: absolute;
+  inset: -6px;
+}
+
+.product-card__bookmark--active {
+  color: rgb(var(--fg-rgb) / 0.95);
+}
+
+.product-card__desc {
+  /* Owns the space below the name and domain, since __text has no row gap. */
+  margin: var(--space-tiny) 0 0;
+  font-family: var(--font-sans);
+  font-weight: var(--type-body-sm-weight);
+  font-size: var(--type-body-sm-size);
+  line-height: var(--type-body-sm-line);
+  letter-spacing: 0;
+  color: var(--fg-secondary);
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* No stacked domain leaves a line going spare, so spend it on the description. Keyed
+   on that slot, since the desktop caption always renders. */
+.product-card:not(:has(.product-card__domain--stacked)) .product-card__desc {
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.product-card__footer {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.product-card__footer-end {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+}
+
+.product-card__open {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 999px;
+  background: var(--cta-bg);
+  color: var(--cta-fg);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    transform 150ms ease;
+}
+
+@media (hover: hover) {
+  .product-card__open:hover {
+    background: var(--cta-bg-hover);
+    transform: translateY(-1px);
+  }
+}
+
+.product-card__upvote {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-tiny);
+  height: 32px;
+  padding: 0 var(--space-extra-medium);
+  border: var(--border-default) solid var(--stroke-secondary);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--fg-secondary);
+  font-family: var(--font-sans);
+  font-size: var(--type-title-sm-size);
+  font-weight: var(--type-title-sm-weight);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    border-color 150ms ease,
+    color 150ms ease;
+}
+
+@media (hover: hover) {
+  .product-card__upvote:not(.product-card__upvote--active):hover {
+    background: var(--bg-selection-container-hover);
+    border-color: var(--stroke-tertiary);
+    color: var(--fg-primary);
+  }
+}
+
+.product-card__upvote--active {
+  background: var(--bg-selection-container-active);
+  border-color: var(--stroke-tertiary);
+  color: var(--fg-primary);
+  animation: upvote-pop 280ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* The star is a hollow outline until the user recommends, then it fills solid
+   to read as an engaged state. */
+.product-card__upvote--active .product-card__upvote-icon {
+  fill: currentColor;
+}
+
+/* While the tx is in flight, block re-toggling. The count fills in once the tx
+   broadcasts; the reorder and toast land on confirmation. */
+.product-card__upvote--pending {
+  cursor: progress;
+}
+
+/* Pulse only while waiting for the host to provision the account with PGAS. */
+.product-card__upvote--provisioning {
+  animation: upvote-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes upvote-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .product-card__upvote--provisioning {
+    animation: none;
+  }
+}
+
+.product-card__upvote-count {
+  letter-spacing: 0;
+  animation: upvote-count-in 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* While bursting the button holds the active fill, opaque so it covers the
+   goo's lip where the layer overlaps the button's top edge. The fill is applied
+   instantly (no transition) so the goo never shows through a fading background. */
+.product-card__upvote--bursting {
+  background: var(--bg-selection-container-active);
+  transition-duration: 0s;
+}
+
+/* Positioning context for the goo, which is a sibling of the button so the button's upvote-pop transform can't pull it in front. */
+.product-card__upvote-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+/* Keeps the icon and count painted above the gooey layer. */
+.product-card__upvote-label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-tiny);
+}
+
+/* Gooey bubble layer. The metaball filter is applied to the SVG <g>. As a
+   sibling rendered before the button it paints behind it (no z-index needed),
+   and stays behind even while upvote-pop transforms the button. */
+.product-card__goo-svg {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  bottom: calc(100% - 12px);
+  height: 56px;
+  overflow: visible;
+  pointer-events: none;
+  transform-origin: bottom;
+  /* Slow recede (height shrink) when the burst settles. */
+  transition: transform 2800ms ease;
+}
+
+.product-card__goo-svg--out {
+  transform: scaleY(0);
+}
+
+.product-card__goo-group {
+  fill: var(--stroke-tertiary);
+}
+
+.product-card__bubble {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: bubbleRise var(--bubble-dur) ease-out var(--bubble-delay) infinite;
+}
+
+/* Appear right at the button's edge, then rise and fade. Reaching full
+   opacity early (10%) keeps the spark anchored to the border instead of only
+   becoming visible after it has already drifted up. */
+@keyframes bubbleRise {
+  0% {
+    opacity: 0;
+    transform: translateY(0) scale(0.6);
+  }
+  10% {
+    opacity: 1;
+    transform: translateY(calc(var(--bubble-rise) * 0.06)) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(var(--bubble-rise)) scale(0.45);
+  }
+}
+
+@keyframes upvote-pop {
+  0% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes upvote-count-in {
+  0% {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.product-card__share {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: rgb(var(--fg-rgb) / 0.65);
+  cursor: pointer;
+  transition:
+    background 150ms ease,
+    color 150ms ease;
+}
+
+@media (hover: hover) {
+  .product-card__share:hover {
+    background: var(--surface-3);
+    color: var(--color-heading);
+  }
+}
+
+.product-card--removing {
+  pointer-events: none;
+  animation: productCardOut 400ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+@keyframes productCardOut {
+  to {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+}
+
+/* Cold-start skeleton: placeholders matching the card layout, gently pulsing. */
+.product-card--skeleton {
+  pointer-events: none;
+  animation: none;
+}
+
+.product-card--skeleton .product-card__thumb {
+  background: var(--surface-4);
+  animation: cardSkeletonPulse 1.5s ease-in-out infinite;
+}
+
+.product-card__sk {
+  display: block;
+  background: var(--surface-4);
+  border-radius: var(--radius-small);
+  animation: cardSkeletonPulse 1.5s ease-in-out infinite;
+}
+
+.product-card__sk--title {
+  width: 42%;
+  height: 14px;
+}
+
+.product-card__sk--desc {
+  width: 72%;
+  height: 12px;
+}
+
+.product-card__sk--open {
+  width: 84px;
+  height: 36px;
+  border-radius: var(--radius-full);
+}
+
+.product-card__sk--pill {
+  width: 56px;
+  height: 32px;
+  border-radius: var(--radius-full);
+}
+
+.product-card__sk--circle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+
+@keyframes cardSkeletonPulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+/* Desktop overrides. Mobile (max-width 767px) is untouched. */
+@media (min-width: 768px) {
+  /* Top-align so icon, title, and Open share the top line. */
+  .product-card {
+    align-items: flex-start;
+    gap: var(--space-medium);
+    min-height: 0;
+    padding: var(--space-small) var(--space-extra-medium);
+    border-radius: var(--radius-extra-medium);
+    contain-intrinsic-size: 0 104px;
+  }
+
+  /* Bigger icon on desktop. */
+  .product-card__thumb {
+    width: 88px;
+    height: 88px;
+    border-radius: var(--radius-medium-increased);
+  }
+
+  /* 2-col grid. Open spans both rows on the right so it centers vertically. */
+  .product-card__body {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'text open'
+      'actions open';
+    column-gap: var(--space-medium);
+    row-gap: var(--space-small);
+    align-items: start;
+    min-height: 0;
+  }
+
+  /* Title and description column. */
+  .product-card__text {
+    grid-area: text;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+
+  .product-card__desc {
+    margin-top: var(--space-extra-tiny);
+  }
+
+  .product-card__title-row {
+    min-height: 0;
+  }
+
+  /* Swap the slots, which also leaves the title the whole text column. */
+  .product-card__domain--stacked {
+    display: none;
+  }
+
+  .product-card__domain--caption {
+    display: block;
+    /* May outrun the button, but not far enough to squeeze the description. */
+    max-width: 140px;
+    text-align: center;
+  }
+
+  /* Unwrap so Open and the buttons place into the grid independently. */
+  .product-card__footer {
+    display: contents;
+  }
+
+  /* Recommend and share, below the description. */
+  .product-card__footer-end {
+    grid-area: actions;
+    margin-left: 0;
+    gap: var(--space-extra-small);
+  }
+
+  /* Open on the right, vertically centered. The group takes the grid area, since the
+     caption travels with the button. */
+  .product-card__open-group {
+    grid-area: open;
+    align-self: center;
+  }
+
+  .product-card__open {
+    height: 36px;
+    padding: 0 var(--space-medium-increased);
+  }
+
+  /* Drop the empty actions row, which would otherwise drag Open down to straddle
+     it, and stretch the body so Open centres against the card rather than the
+     text. The title is untouched, so it stays level with neighbouring titles. */
+  .product-card--placeholder .product-card__body {
+    grid-template-areas: 'text open';
+    align-self: stretch;
+  }
+
+  .product-card__upvote {
+    height: 32px;
+  }
+}

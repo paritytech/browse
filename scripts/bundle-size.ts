@@ -23,7 +23,7 @@ import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from "n
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-/** The build `make -C app deploy` uploads to Bulletin. */
+/** The build `make -C apps/registry deploy` uploads to Bulletin. */
 const PUBLISHED_TARGET = "spa";
 
 interface Snapshot {
@@ -246,7 +246,7 @@ function main(): void {
   const snapshot: Snapshot = {
     date: args.date ?? commitDate(sha),
     sha,
-    ...measure(args.dist ?? "app/dist"),
+    ...measure(args.dist ?? "apps/registry/dist"),
   };
 
   if (command === "record") {

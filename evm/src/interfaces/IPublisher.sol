@@ -41,11 +41,11 @@ interface IPublisher is ISemver {
     error NotOwner(address caller, uint256 tokenId);
     error RateLimitExceeded(uint64 nextAvailableAt);
 
-    /// @notice Publishes a label the caller owns as a discoverable app.
+    /// @notice Publishes a label as a discoverable app.
     ///
-    /// Every caller must present a proof of personhood over {getPublishDigest} for
-    /// this label, and the tier it claims sets their daily cap. The registry has no
-    /// owner, so there is no account that can publish without one.
+    /// A caller must hold the label and present a proof of personhood over
+    /// {getPublishDigest} for it, and the tier it claims sets their daily cap. The
+    /// registry operator is exempt from all three.
     function publish(
         string calldata label,
         IPersonhood.ProofVerificationRequest calldata request

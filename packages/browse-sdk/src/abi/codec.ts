@@ -60,6 +60,15 @@ export function decodeAddressArray(data: Hex): Address[] {
   }
 }
 
+export function decodeUintArray(data: Hex): bigint[] {
+  try {
+    const [vals] = decodeAbiParameters([{ type: 'uint256[]' }], data)
+    return [...(vals as readonly bigint[])]
+  } catch {
+    return []
+  }
+}
+
 export function decodeBytes32Array(data: Hex): Hex[] {
   try {
     const [arr] = decodeAbiParameters([{ type: 'bytes32[]' }], data)
