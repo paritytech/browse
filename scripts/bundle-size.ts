@@ -5,8 +5,9 @@
  *
  * `record` appends a snapshot of the built app to the history file that main
  * carries in a workflow artifact. `comment` measures the same way and renders
- * the markdown a pull request comment shows: a chart of that history with this
- * build as a single dot, and the tables behind it.
+ * the chart a pull request comment shows, the history of main as a line and
+ * this build as a single dot. `seed` fills an empty history from the builds
+ * main already has as artifacts.
  *
  * The dot is a bar series squashed by `themeCSS`, with every bar before the
  * last one hidden. Mermaid line plots draw no point markers and every series
@@ -20,23 +21,14 @@ import { mkdirSync, mkdtempSync, readdirSync, readFileSync, statSync, writeFileS
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 
-const TARGETS = { spa: "App", widget: "Widget" } as const;
+/** The build `make -C app deploy` uploads to Bulletin. */
+const PUBLISHED_TARGET = "spa";
 
-type Target = keyof typeof TARGETS;
-
-interface Sizes {
-  raw: number;
-  gzip: number;
-}
-
-interface TargetSnapshot extends Sizes {
-  files: Record<string, Sizes>;
-}
-
-interface Snapshot extends Sizes {
+interface Snapshot {
   date: string;
   sha: string;
-  targets: Partial<Record<Target, TargetSnapshot>>;
+  raw: number;
+  gzip: number;
 }
 
 interface History {
@@ -52,34 +44,20 @@ const HISTORY_LIMIT = 200;
 /** Builds of main the seed reaches back for when there is no history yet. */
 const SEED_BUILDS = 10;
 
-/** Files the visible table lists before the rest fold into a details block. */
-const TABLE_ROWS = 15;
-
 const CHART_WIDTH = 820;
 const CHART_HEIGHT = 280;
-const DOT_SIZE = 12;
+const DOT_SIZE = 13;
+const TREND_DOT_SIZE = 8;
 
 const TREND_COLOR = "#8b949e";
 const DOT_COLOR = "#2f81f7";
 
 const MARKER = "<!-- bundle-size -->";
 
-/** Strips the Vite content hash so a file compares against itself across builds. */
-function stripHash(name: string): string {
-  return name.replace(/-[A-Za-z0-9_-]{8}\./, ".");
-}
-
 function formatBytes(bytes: number): string {
   if (Math.abs(bytes) >= 1024 * 1024) return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
   if (Math.abs(bytes) >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${bytes} B`;
-}
-
-/** Renders a change as a signed size, or an empty cell when nothing moved. */
-function formatDelta(current: number, before?: number): string {
-  if (before === undefined || current === before) return "";
-  const diff = current - before;
-  return `${diff > 0 ? "+" : "-"}${formatBytes(Math.abs(diff))}`;
 }
 
 function walk(dir: string): string[] {
@@ -92,37 +70,20 @@ function walk(dir: string): string[] {
   return files;
 }
 
-function measureTarget(dir: string): TargetSnapshot {
-  const files: Record<string, Sizes> = {};
+/** Sizes the files Bulletin stores, which are the bytes as built. */
+function measure(dist: string): Pick<Snapshot, "raw" | "gzip"> {
+  const dir = join(dist, PUBLISHED_TARGET);
+  if (!statSync(dir, { throwIfNoEntry: false })?.isDirectory()) {
+    throw new Error(`no ${PUBLISHED_TARGET} build found under ${dist}`);
+  }
   let raw = 0;
   let gzip = 0;
-  for (const file of walk(dir).sort()) {
+  for (const file of walk(dir)) {
     const content = readFileSync(file);
-    const size = { raw: content.length, gzip: gzipSync(content).length };
-    files[stripHash(file.slice(dir.length + 1))] = size;
-    raw += size.raw;
-    gzip += size.gzip;
+    raw += content.length;
+    gzip += gzipSync(content).length;
   }
-  return { raw, gzip, files };
-}
-
-/** Measures every build target present under `dist`. */
-function measure(dist: string): Omit<Snapshot, "date" | "sha"> {
-  const targets: Partial<Record<Target, TargetSnapshot>> = {};
-  let raw = 0;
-  let gzip = 0;
-  for (const target of Object.keys(TARGETS) as Target[]) {
-    const dir = join(dist, target);
-    if (!statSync(dir, { throwIfNoEntry: false })?.isDirectory()) continue;
-    const measured = measureTarget(dir);
-    targets[target] = measured;
-    raw += measured.raw;
-    gzip += measured.gzip;
-  }
-  if (Object.keys(targets).length === 0) {
-    throw new Error(`no build targets found under ${dist}`);
-  }
-  return { raw, gzip, targets };
+  return { raw, gzip };
 }
 
 function readHistory(path: string): History {
@@ -152,9 +113,14 @@ function commitDate(sha: string): string {
   }
 }
 
-/** Formats a snapshot timestamp as the `MM-DD` the chart puts under a point. */
+/**
+ * Formats a snapshot timestamp as the tick the chart puts under a point.
+ *
+ * The time is part of it because mermaid maps points by tick text, so two
+ * builds sharing a tick would stack on one spot.
+ */
 function axisLabel(date: string): string {
-  return date.slice(5, 10);
+  return `${date.slice(5, 10)} ${date.slice(11, 16)}`;
 }
 
 interface ChartScale {
@@ -178,130 +144,75 @@ function barWidth(categories: number): number {
   return 0.62 * ((CHART_WIDTH - 75) / categories);
 }
 
+/** Styles one bar series into dots, showing either the last bar or all but it. */
+function dotStyle(plot: number, size: number, squash: string, last: boolean): string {
+  const shape = `height: ${size}px; rx: 50%; ry: 50%; transform-box: fill-box; transform-origin: center; transform: scaleX(${squash})`;
+  return last
+    ? `.bar-plot-${plot} rect { display: none }.bar-plot-${plot} rect:last-of-type { display: block; ${shape} }`
+    : `.bar-plot-${plot} rect { ${shape} }.bar-plot-${plot} rect:last-of-type { display: none }`;
+}
+
 /**
- * Builds the mermaid chart, trend line first and this build as the dot.
+ * Builds the mermaid chart, the history of main as a line of dots and this
+ * build as the dot above the `PR` tick.
  *
- * The line stops one category short of the dot on purpose. A pull request is a
- * proposal, not a point on the branch history the line draws.
+ * The line stops one category short of that dot on purpose. A pull request is
+ * a proposal, not a point on the branch history the line draws.
  */
 function chart(history: Snapshot[], current: number): string {
-  const values = [...history.map((snapshot) => snapshot.gzip), current];
+  const values = [...history.map((snapshot) => snapshot.raw), current];
   const scale = chartScale(Math.max(...values));
   const scaled = values.map((value) => value / scale.divisor);
-  const span = Math.max(...scaled) - Math.min(...scaled);
-  const padding = Math.max(span * 0.25, Math.max(...scaled) * 0.02);
-  const low = Math.max(0, Math.min(...scaled) - padding);
-  const high = Math.max(...scaled) + padding;
+  const high = Math.max(...scaled) * 1.1;
 
   const categories = [...history.map((snapshot) => axisLabel(snapshot.date)), "PR"];
-  const squash = (DOT_SIZE / barWidth(categories.length)).toFixed(3);
-
+  const width = barWidth(categories.length);
   const css = [
-    `.bar-plot-1 rect { display: none }`,
-    `.bar-plot-1 rect:last-of-type { display: block; height: ${DOT_SIZE}px; rx: 50%; ry: 50%;`,
-    ` transform-box: fill-box; transform-origin: center; transform: scaleX(${squash}) }`,
+    dotStyle(1, TREND_DOT_SIZE, (TREND_DOT_SIZE / width).toFixed(3), false),
+    dotStyle(2, DOT_SIZE, (DOT_SIZE / width).toFixed(3), true),
   ].join("");
 
   const init = {
     themeCSS: css,
-    themeVariables: { xyChart: { plotColorPalette: `${TREND_COLOR}, ${DOT_COLOR}` } },
+    themeVariables: {
+      xyChart: { plotColorPalette: `${TREND_COLOR}, ${TREND_COLOR}, ${DOT_COLOR}` },
+    },
     xyChart: { width: CHART_WIDTH, height: CHART_HEIGHT },
   };
 
   const point = (value: number) => value.toFixed(scale.decimals);
   const trend = scaled.slice(0, -1).map(point);
-  const dot = [...trend.map(() => point(low)), point(scaled[scaled.length - 1]!)];
+  const floor = point(0);
+  const dot = [...trend.map(() => floor), point(scaled[scaled.length - 1]!)];
 
   return [
     "```mermaid",
     `%%{init: ${JSON.stringify(init)}}%%`,
     "xychart-beta",
-    `    title "Served bundle size, gzip"`,
+    `    title "Bundle published to Bulletin"`,
     `    x-axis [${categories.map((label) => `"${label}"`).join(", ")}]`,
-    `    y-axis "${scale.unit}" ${point(low)} --> ${point(high)}`,
+    `    y-axis "${scale.unit}" 0 --> ${point(high)}`,
     `    line [${trend.join(", ")}]`,
+    `    bar [${[...trend, floor].join(", ")}]`,
     `    bar [${dot.join(", ")}]`,
     "```",
   ].join("\n");
 }
 
-function repoUrl(): string {
-  return `https://github.com/${repoSlug()}`;
-}
-
-function fileRows(current: TargetSnapshot, before?: TargetSnapshot): string[] {
-  const names = new Set([...Object.keys(current.files), ...Object.keys(before?.files ?? {})]);
-  return [...names]
-    .map((name) => ({ name, size: current.files[name], was: before?.files[name] }))
-    .sort((a, b) => (b.size?.gzip ?? 0) - (a.size?.gzip ?? 0))
-    .map(({ name, size, was }) => {
-      if (!size) return `| \`${name}\` | | removed | ${formatDelta(0, was?.gzip)} |`;
-      return `| \`${name}\` | ${formatBytes(size.raw)} | ${formatBytes(size.gzip)} | ${formatDelta(size.gzip, was?.gzip)} |`;
-    });
-}
-
-function filesSection(current: Snapshot, before?: Snapshot): string[] {
-  const lines: string[] = [];
-  for (const [target, title] of Object.entries(TARGETS) as [Target, string][]) {
-    const measured = current.targets[target];
-    if (!measured) continue;
-    const rows = fileRows(measured, before?.targets[target]);
-    const head = ["| File | Raw | Gzip | Change |", "| --- | ---: | ---: | ---: |"];
-    lines.push(`#### ${title}`, "", ...head, ...rows.slice(0, TABLE_ROWS));
-    if (rows.length > TABLE_ROWS) {
-      lines.push(
-        "",
-        "<details>",
-        `<summary>The remaining ${rows.length - TABLE_ROWS} files</summary>`,
-        "",
-        ...head,
-        ...rows.slice(TABLE_ROWS),
-        "",
-        "</details>",
-      );
-    }
-    lines.push("");
-  }
-  return lines;
-}
-
-function totalsTable(current: Snapshot, before?: Snapshot): string[] {
-  const rows = (Object.entries(TARGETS) as [Target, string][])
-    .filter(([target]) => current.targets[target])
-    .map(([target, title]) => {
-      const measured = current.targets[target]!;
-      const was = before?.targets[target];
-      return `| ${title} | ${formatBytes(measured.raw)} | ${formatBytes(measured.gzip)} | ${formatDelta(measured.gzip, was?.gzip)} |`;
-    });
-  const delta = formatDelta(current.gzip, before?.gzip);
-  return [
-    "| Target | Raw | Gzip | Change |",
-    "| --- | ---: | ---: | ---: |",
-    ...rows,
-    `| **Total** | **${formatBytes(current.raw)}** | **${formatBytes(current.gzip)}** | ${delta && `**${delta}**`} |`,
-  ];
-}
-
-function summaryLine(current: Snapshot, before?: Snapshot): string {
-  const total = formatBytes(current.gzip);
-  if (!before) return `This build serves ${total} gzipped. There is no snapshot of main to compare against yet.`;
-  const diff = current.gzip - before.gzip;
-  const link = `[\`${before.sha.slice(0, 7)}\`](${repoUrl()}/commit/${before.sha})`;
-  if (diff === 0) return `This build serves ${total} gzipped, the same as main at ${link}.`;
-  const change = `${formatBytes(Math.abs(diff))} ${diff > 0 ? "more" : "less"}`;
-  const percent = ((Math.abs(diff) / before.gzip) * 100).toFixed(1);
-  return `This build serves ${total} gzipped, ${change} than main at ${link}. That is ${percent}% ${diff > 0 ? "up" : "down"}.`;
+/** Drops snapshots that would share a tick with a later one. */
+function plottable(history: Snapshot[]): Snapshot[] {
+  const byLabel = new Map<string, Snapshot>();
+  for (const snapshot of history) byLabel.set(axisLabel(snapshot.date), snapshot);
+  return [...byLabel.values()];
 }
 
 function renderComment(current: Snapshot, history: Snapshot[]): string {
-  const before = history[history.length - 1];
-  const plotted = history.slice(-CHART_POINTS);
-  const lines = [MARKER, "### Bundle size", ""];
-  if (plotted.length > 0) lines.push(chart(plotted, current.gzip), "");
-  lines.push(summaryLine(current, before), "");
-  lines.push(...totalsTable(current, before), "");
-  lines.push(...filesSection(current, before));
-  return `${lines.join("\n").trimEnd()}\n`;
+  const plotted = plottable(history).slice(-CHART_POINTS);
+  const body =
+    plotted.length > 0
+      ? chart(plotted, current.raw)
+      : `This build publishes ${formatBytes(current.raw)} to Bulletin. There is no history to chart yet.`;
+  return `${[MARKER, "### Bundle size", "", body].join("\n")}\n`;
 }
 
 interface Artifact {
@@ -417,7 +328,7 @@ async function main(): Promise<void> {
 
   if (command === "record") {
     writeHistory(historyPath, { snapshots: merge(history.snapshots, [snapshot]) });
-    console.log(`recorded ${formatBytes(snapshot.gzip)} gzip at ${snapshot.sha.slice(0, 7)}`);
+    console.log(`recorded ${formatBytes(snapshot.raw)} at ${snapshot.sha.slice(0, 7)}`);
     return;
   }
 
@@ -428,7 +339,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  console.error("usage: bundle-size.ts <seed|record|comment> [--dist=dir] [--history=file] [--out=file]");
+  console.error("usage: bundle-size.ts <seed|record|comment> [--dist=dir] [--history=file]");
   process.exit(1);
 }
 
