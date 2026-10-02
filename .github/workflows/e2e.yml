@@ -26,7 +26,7 @@ jobs:
 
       - name: Compute source hash
         id: source-hash
-        run: echo "hash=$(git ls-files app/src/ app/tests/ app/package.json app/vite.config.ts app/tsconfig.json bun.lock .github/workflows/e2e.yml .github/workflows/build.yml | xargs sha256sum | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+        run: echo "hash=$(git ls-files apps/registry/src/ apps/registry/tests/ apps/registry/package.json apps/registry/vite.config.ts apps/registry/tsconfig.json bun.lock .github/workflows/e2e.yml .github/workflows/build.yml | xargs sha256sum | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
       - name: Check e2e cache
         id: cache-check
@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: app
+        working-directory: apps/registry
 
     steps:
       - name: Skip (content unchanged)

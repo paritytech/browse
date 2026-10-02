@@ -287,10 +287,10 @@ function main(): void {
 
   // Browse Client. Build for the target network, then publish app and widget.
   stage("Deploy client", (spinner) => {
-    sh("make -C app build", { NETWORK_GENESIS_HASH });
+    sh("make -C apps/registry build", { NETWORK_GENESIS_HASH });
     // Release the spinner line so bulletin-deploy's output streams through.
     spinner.stop();
-    shInherit("make -C app deploy");
+    shInherit("make -C apps/registry deploy");
   });
   ora(chalk.green("Completed")).succeed();
 }

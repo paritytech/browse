@@ -12,7 +12,40 @@
         "@types/node": "^25.9.1",
       },
     },
-    "app": {
+    "apps/portal": {
+      "name": "@parity/browse-portal",
+      "version": "0.1.0",
+      "dependencies": {
+        "@fontsource-variable/geist": "^5.3.0",
+        "@fontsource-variable/geist-mono": "^5.3.0",
+        "@parity/browse-sdk": "*",
+        "@parity/product-sdk": "^0.31.0",
+        "polkadot-api": "^2.1.2",
+        "preact": "^10.29.1",
+        "viem": "^2.50.4",
+      },
+      "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "@noble/hashes": "^1.8.0",
+        "@parity/host-api-test-sdk": "^0.15.0",
+        "@playwright/test": "^1.59.1",
+        "@polkadot-labs/hdkd": "^0.0.27",
+        "@polkadot-labs/hdkd-helpers": "^0.0.28",
+        "@preact/preset-vite": "^2.10.5",
+        "@typescript-eslint/eslint-plugin": "^8.58.0",
+        "@typescript-eslint/parser": "^8.58.0",
+        "eslint": "^10.2.0",
+        "eslint-config-prettier": "^10.1.8",
+        "eslint-plugin-import-x": "^4.16.2",
+        "eslint-plugin-prettier": "^5.5.5",
+        "prettier": "^3.8.1",
+        "typescript": "^5.4.0",
+        "typescript-eslint": "^8.58.0",
+        "vite": "^6.0.0",
+        "vite-plugin-node-polyfills": "^0.25.0",
+      },
+    },
+    "apps/registry": {
       "name": "@parity/browse-client",
       "version": "0.1.0",
       "dependencies": {
@@ -63,6 +96,35 @@
         "vite": "^6.0.0",
         "vite-plugin-node-polyfills": "^0.25.0",
         "ws": "^8.20.0",
+      },
+    },
+    "apps/widget": {
+      "name": "@parity/browse-widget",
+      "version": "0.1.0",
+      "dependencies": {
+        "@fontsource-variable/inter": "^5.2.8",
+        "@fontsource-variable/manrope": "^5.2.8",
+        "@fontsource-variable/martian-mono": "^5.2.7",
+        "@parity/browse-client": "*",
+        "@parity/browse-sdk": "*",
+        "@tanstack/react-query": "^5.96.2",
+        "lucide-preact": "^1.8.0",
+        "preact": "^10.29.1",
+      },
+      "devDependencies": {
+        "@eslint/js": "^10.0.1",
+        "@preact/preset-vite": "^2.10.5",
+        "@typescript-eslint/eslint-plugin": "^8.58.0",
+        "@typescript-eslint/parser": "^8.58.0",
+        "eslint": "^10.2.0",
+        "eslint-config-prettier": "^10.1.8",
+        "eslint-plugin-import-x": "^4.16.2",
+        "eslint-plugin-prettier": "^5.5.5",
+        "prettier": "^3.8.1",
+        "typescript": "^5.4.0",
+        "typescript-eslint": "^8.58.0",
+        "vite": "^6.0.0",
+        "vite-plugin-node-polyfills": "^0.25.0",
       },
     },
     "packages/browse-sdk": {
@@ -255,6 +317,10 @@
 
     "@ethereumjs/rlp": ["@ethereumjs/rlp@10.1.1", "", { "bin": { "rlp": "bin/rlp.cjs" } }, "sha512-jbnWTEwcpoY+gE0r+wxfDG9zgiu54DcTcwnc9sX3DsqKR4l5K7x2V8mQL3Et6hURa4DuT9g7z6ukwpBLFchszg=="],
 
+    "@fontsource-variable/geist": ["@fontsource-variable/geist@5.3.0", "", {}, "sha512-j0m+vLQuG5XAYoHtGCVu0spvlGreR3EzpECUVzkFmI1mTVnAO38l/NEPDCFgZ177JxzYJCLSmTQibIiYPilGrA=="],
+
+    "@fontsource-variable/geist-mono": ["@fontsource-variable/geist-mono@5.3.0", "", {}, "sha512-vBbuwDEo9AkrqADMXOrlAR3DFcJi4/JxeuU43FoiQERnNwsfXNnvxvReZG02cQKmyk4DZkZdBZX3oTDvy2zBAw=="],
+
     "@fontsource-variable/inter": ["@fontsource-variable/inter@5.2.8", "", {}, "sha512-kOfP2D+ykbcX/P3IFnokOhVRNoTozo5/JxhAIVYLpea/UBmCQ/YWPBfWIDuBImXX/15KH+eKh4xpEUyS2sQQGQ=="],
 
     "@fontsource-variable/manrope": ["@fontsource-variable/manrope@5.2.8", "", {}, "sha512-nc9lOuCRz73UHnovDE2bwXUdghE2SEOc7Aii0qGe3CLyE03W1a7VnY5Z6euRiapiKbCkGS+eXbY3s/kvWeGeSw=="],
@@ -293,11 +359,15 @@
 
     "@package-json/types": ["@package-json/types@0.0.12", "", {}, "sha512-uu43FGU34B5VM9mCNjXCwLaGHYjXdNincqKLaraaCW+7S2+SmiBg1Nv8bPnmschrIfZmfKNY9f3fC376MRrObw=="],
 
-    "@parity/browse-client": ["@parity/browse-client@workspace:app"],
+    "@parity/browse-client": ["@parity/browse-client@workspace:apps/registry"],
+
+    "@parity/browse-portal": ["@parity/browse-portal@workspace:apps/portal"],
 
     "@parity/browse-sdk": ["@parity/browse-sdk@workspace:packages/browse-sdk"],
 
     "@parity/browse-snapshots": ["@parity/browse-snapshots@workspace:packages/snapshots"],
+
+    "@parity/browse-widget": ["@parity/browse-widget@workspace:apps/widget"],
 
     "@parity/bulletin-sdk": ["@parity/bulletin-sdk@0.3.0", "", { "dependencies": { "@ipld/dag-pb": "^4.1.3", "@noble/hashes": "^2.2.0", "@polkadot-labs/hdkd-helpers": "^0.0.29", "ipfs-unixfs": "^12.0.0" }, "peerDependencies": { "multiformats": "^13.4.1", "polkadot-api": "^2.1.2" } }, "sha512-sxVwBzyH/egXze1muPXbaGwQuOkP8efVB4Lxunshixf18gJ6WT2tedgUy08QOfQ1848BDQS4wVpRRQfPfb09/g=="],
 
@@ -1331,7 +1401,9 @@
 
     "@noble/curves/@noble/hashes": ["@noble/hashes@2.0.1", "", {}, "sha512-XlOlEbQcE9fmuXxrVTXCTlG2nlRXa9Rj3rr5Ue/+tX+nmkgbX720YHh0VR3hBF9xDvwnb8D2shVGOwNx+ulArw=="],
 
-    "@parity/browse-client/@polkadot-api/descriptors": ["@polkadot-api/descriptors@file:app/.papi/descriptors", { "peerDependencies": { "polkadot-api": ">=2.0.0" } }],
+    "@parity/browse-client/@polkadot-api/descriptors": ["@polkadot-api/descriptors@file:apps/registry/.papi/descriptors", { "peerDependencies": { "polkadot-api": ">=2.0.0" } }],
+
+    "@parity/browse-portal/@noble/hashes": ["@noble/hashes@1.8.0", "", {}, "sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A=="],
 
     "@parity/bulletin-sdk/@polkadot-labs/hdkd-helpers": ["@polkadot-labs/hdkd-helpers@0.0.29", "", { "dependencies": { "@noble/curves": "^2.2.0", "@noble/hashes": "^2.2.0", "@scure/base": "^2.0.0", "@scure/sr25519": "^1.0.0", "scale-ts": "^1.6.1" } }, "sha512-yiLm1Gj3j5NrQV+VFMlFzkBgcRBNfq2Sd/U3S8iau2bzhDwgsn4gy6FDt94TRPD5xLxOzi1I3wSLOrgOs2eLVw=="],
 

@@ -3,10 +3,10 @@ name: Bundle Size
 on:
   push:
     branches: [main]
-    paths: ['app/**']
+    paths: ['apps/registry/**', 'apps/widget/**']
   pull_request:
     branches: [main]
-    paths: ['app/**']
+    paths: ['apps/registry/**', 'apps/widget/**']
 
 concurrency:
   group: bundle-size-${{ github.ref }}
@@ -27,7 +27,7 @@ jobs:
       pull-requests: write
     defaults:
       run:
-        working-directory: app
+        working-directory: apps/registry
     steps:
       - uses: actions/checkout@v4
 
@@ -35,7 +35,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: dist
-          path: app/dist/
+          path: apps/registry/dist/
 
       - name: Generate size report
         id: size
@@ -79,8 +79,8 @@ jobs:
         with:
           name: bundle-baseline
           path: |
-            app/dist/spa/assets/
-            app/dist/widget/assets/
+            apps/registry/dist/spa/assets/
+            apps/registry/dist/widget/assets/
           retention-days: 30
 
       - name: Download baseline
