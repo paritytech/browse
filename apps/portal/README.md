@@ -9,9 +9,6 @@ publishing is gated on ownership plus the registry personhood and rate-limit
 rules. A dry-run runs before every write to surface those gates as plain
 messages, and reads run as dry-run calls that need no signature.
 
-For the certificate-authority side (issuing compliance certifications), see
-[ca-portal](../ca-portal/).
-
 ## Develop
 
 ```sh

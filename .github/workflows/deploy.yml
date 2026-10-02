@@ -297,7 +297,7 @@ jobs:
             export NODE_OPTIONS='--max-old-space-size=8192'
             export APP_DOTNS_DOMAIN='${{ steps.domain.outputs.value }}'
             export NETWORK_GENESIS_HASH='${{ matrix.target.genesis }}'
-            cd app
+            cd apps/registry
             bulletin-deploy dist/spa '${{ steps.domain.outputs.value }}' --env '${{ matrix.target.deployment-env }}'
 
       - name: Save deployment to cache
