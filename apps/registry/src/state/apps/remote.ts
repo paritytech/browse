@@ -106,8 +106,12 @@ export function labelhashOf(label: string): `0x${string}` {
  * Read the full published-set labelhashes from `Publisher.getPublished`.
  *
  * Order is not stable across unpublishes (Publisher uses swap-and-pop) so
- * callers should reduce by labelhash. Retries once with a 1s backoff. Empty
- * array when no Publisher is configured for the active network.
+ * callers should reduce by labelhash. Empty array when no Publisher is
+ * configured for the active network.
+ *
+ * There is no retry here. Each read already rebuilds the SDK and tries again
+ * inside {@link reviveCall}, so a second pass only doubled the wait before a
+ * failed read was reported.
  */
 export async function readPublishedLabelhashes(): Promise<`0x${string}`[]> {
   const publishers = publisherReadAddresses(NETWORK)
@@ -115,19 +119,6 @@ export async function readPublishedLabelhashes(): Promise<`0x${string}`[]> {
     hiddenLog('Publisher not deployed on this network; returning empty set', 'error')
     return []
   }
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      return await readPublishedLabelhashesOnce(publishers)
-    } catch (err) {
-      if (attempt === 1) throw err
-      hiddenLog(`getPublished failed (attempt ${attempt + 1}/2): ${err}`, 'error')
-      await sleep(1_000)
-    }
-  }
-  return []
-}
-
-async function readPublishedLabelhashesOnce(publishers: `0x${string}`[]): Promise<`0x${string}`[]> {
   // All publishers page concurrently. The rate gate spaces the sends while the
   // network waits overlap. Deduplicate afterwards in publisher order.
   const pages = await Promise.all(
@@ -398,8 +389,4 @@ export async function readContentByName(label: string): Promise<{
     description: manifest?.description || 'No description',
     iconCid: manifest?.icon.cid ?? null
   }
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms))
 }

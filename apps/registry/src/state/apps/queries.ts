@@ -7,7 +7,7 @@ import { type QueryClient, queryOptions, useQuery } from '@tanstack/react-query'
 
 import { resolveIdentityH160 } from './identity'
 import { hydrateLabelChunk } from './remote'
-import { materialize, syncAllApps } from './sync'
+import { materialize, PublishedSetUnreadableError, syncAllApps } from './sync'
 import { type AppEntry, labelToApp } from './types'
 import { readBookmarksWithRetry } from '../../db/bookmarks'
 import { type LabelEntry, readLabels } from '../../db/labels'
@@ -82,9 +82,12 @@ export function getAllAppsOptions(queryClient: QueryClient) {
     },
     staleTime: 5 * 60_000,
     // A failure here is usually a stale chain connection after a long
-    // background/foreground. Retry with backoff so it
-    // self-heals before surfacing the toast.
-    retry: 1,
+    // background/foreground. Retry with backoff so it self-heals before
+    // surfacing the toast. An unreadable published set is not retried: every
+    // read behind it already rebuilt the SDK and tried again, so another round
+    // only doubles the wait before the user is told.
+    retry: (failureCount, error) =>
+      !(error instanceof PublishedSetUnreadableError) && failureCount < 1,
     retryDelay: (attempt) => Math.min(2000 * 2 ** attempt, 8000)
   })
 }

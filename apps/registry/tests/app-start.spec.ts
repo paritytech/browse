@@ -532,5 +532,54 @@ test.describe('App Start', () => {
 
       await page.close()
     })
+
+    test('As a user with nothing cached, when the chain never answers, I am told the apps could not load rather than that nothing is published', async () => {
+      test.setTimeout(150_000)
+      const page = await context.newPage()
+
+      // A chain socket that accepts frames and never answers, which is how a
+      // dead network looks from inside the host.
+      const gate = { drop: true }
+      await page.routeWebSocket(/substrate\.dev|polkadot\.io/, (ws) => {
+        const server = ws.connectToServer()
+        ws.onMessage((message) => {
+          if (!gate.drop) server.send(message)
+        })
+        server.onMessage((message) => {
+          if (!gate.drop) ws.send(message)
+        })
+      })
+
+      // Given
+      await resetProductStorage(page)
+      const opened = Date.now()
+
+      // When
+      await navigateToTestHost(page, host.url)
+      const frame = await getProductFrame(page, '.empty-state')
+
+      // Then
+      // The skeletons give up after 15 seconds whatever the sync is doing, so
+      // the answer cannot wait on how long the network takes to fail.
+      expect(Date.now() - opened).toBeLessThan(25_000)
+      await expect(frame.locator('.empty-state__text')).toHaveText(
+        'Could not load apps. Please install a compatible version.'
+      )
+      await expect(frame.getByText('No apps published yet')).toHaveCount(0)
+      await expect(frame.locator('.product-card--skeleton')).toHaveCount(0)
+
+      // When
+      // The test host never answers the chain subscriptions whose replies were
+      // dropped, so a fresh load stands in for a host rebuilding its socket.
+      gate.drop = false
+      await page.reload({ waitUntil: 'commit' })
+      const recovered = await getProductFrame(page, '.product-card[data-label]')
+
+      // Then
+      await expect(recovered.locator('.product-card[data-label]').first()).toBeVisible()
+      await expect(recovered.getByText('Could not load apps')).toHaveCount(0)
+
+      await page.close()
+    })
   })
 })
