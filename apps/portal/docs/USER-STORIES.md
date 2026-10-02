@@ -61,7 +61,7 @@ Notes: new `lib/records.ts` read half, reading `text(node, "manifest")`,
 `text(node, "name")`, `text(node, "description")`, and `contenthash(node)`
 against `NETWORK.CONTENT_RESOLVER`, ABI mirrored from
 `packages/browse-sdk/src/abi/contracts.ts`. New `lib/icon.ts` ported from
-`app/src/state/apps/icon.ts`. This story unblocks US3, US5, US6, US7, and US10.
+`apps/registry/src/state/apps/icon.ts`. This story unblocks US3, US5, US6, US7, and US10.
 
 ## US3: Product card parity
 

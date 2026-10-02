@@ -21,7 +21,7 @@ Run in parallel:
 
 Browse has no unit tests; Playwright is the test surface.
 
-- Find the spec most relevant to the change: `app/tests/*.spec.ts`
+- Find the spec most relevant to the change: `apps/registry/tests/*.spec.ts`
 - Run that spec first: `npx playwright test --config tests/playwright.config.ts <spec>`
 - If green, run the full suite: `npm run test:e2e`
 

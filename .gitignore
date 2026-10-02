@@ -28,15 +28,15 @@ evm/lib/
 .DS_Store
 
 # Build output
-app/bundle/
-app/browse.prod
-app/chain-specs/
+apps/registry/bundle/
+apps/registry/browse.prod
+apps/registry/chain-specs/
 *.car
 
 # Testing
 test-results/
 playwright-report/
-app/tests/results/
+apps/registry/tests/results/
 
 # Claude Code
 .claude/settings.local.json

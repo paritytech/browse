@@ -48,7 +48,7 @@ function truapiHostBridge(): Plugin {
 }
 
 // The widget is the second modality of the browse product. It shares the client
-// state, queries, and styles in app/src, and its bundle lands in app/dist/widget
+// state, queries, and styles in apps/registry/src, and its bundle lands in apps/registry/dist/widget
 // beside the SPA so one deploy publishes both under the same name.
 export default defineConfig({
   envDir: resolve(__dirname, '../..'),
@@ -56,7 +56,7 @@ export default defineConfig({
   plugins: [truapiHostBridge(), preact(), nodePolyfills()],
   resolve: {
     alias: {
-      '@browse/client': resolve(__dirname, '../../app/src'),
+      '@browse/client': resolve(__dirname, '../registry/src'),
       // The subpath must precede the bare entry. Alias keys match by prefix, so
       // the bare one would otherwise swallow it and resolve to nothing.
       '@parity/browse-sdk/snapshots': resolve(

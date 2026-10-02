@@ -74,7 +74,7 @@ A boost for a certified app, not a gate, because publishing is permissionless. `
 Quality(app) = (hasIcon and hasDescription and isLive) ? 1.0 : 0.6
 ```
 
-A completeness check that pushes broken or empty listings down without hiding them. All three come from the app entry ([types.ts:17](../app/src/state/apps/types.ts#L17)): an icon, a description, and `isLive`, which is true when `contentHash` is set.
+A completeness check that pushes broken or empty listings down without hiding them. All three come from the app entry ([types.ts:17](../apps/registry/src/state/apps/types.ts#L17)): an icon, a description, and `isLive`, which is true when `contentHash` is set.
 
 ### Notes
 
@@ -118,7 +118,7 @@ The score is a per-app reduction over its active recommends plus three cheap mod
 
 ### Compatibility
 
-The change is to the comparison only. It reuses the existing sticky-order snapshot, so cards do not reshuffle as scores drift: recompute only on a membership change or a `commitOrder` when a recommend settles ([App.tsx:608](../app/src/App.tsx#L608)).
+The change is to the comparison only. It reuses the existing sticky-order snapshot, so cards do not reshuffle as scores drift: recompute only on a membership change or a `commitOrder` when a recommend settles ([App.tsx:608](../apps/registry/src/App.tsx#L608)).
 
 The card for the typed address is outside the ranked set. It renders as the first child of `.app-list`, ahead of the ranked entries and never among them, so no score moves it off the front, and the list never repeats that label. While it is a placeholder it carries no `data-label`, so `useFlipReorder` does not see it and a reorder elsewhere leaves it alone. Once the address resolves it becomes an ordinary labelled card and joins the animation like any other.
 
@@ -131,10 +131,10 @@ The card for the typed address is outside the ranked set. It renders as the firs
 
 The composite follows patterns proven across app and content marketplaces: the App Store and Google Play rank charts on recent install velocity rather than lifetime totals, Product Hunt ranks by weighted votes with time decay, and Steam shows a recent-30-day review score beside the all-time one so the divergence flags a decline. Reviews and trust act as a gate or a nudge everywhere, not as the primary rank, which is why the modifiers here stay small.
 
-- [`filterApps`](../app/src/state/apps/types.ts#L56): where the sort lives today.
-- [types.ts:17](../app/src/state/apps/types.ts#L17): the app entry fields the score reads.
+- [`filterApps`](../apps/registry/src/state/apps/types.ts#L56): where the sort lives today.
+- [types.ts:17](../apps/registry/src/state/apps/types.ts#L17): the app entry fields the score reads.
 - [RecipientAndAttesterIndexResolver.sol](../evm/src/RecipientAndAttesterIndexResolver.sol): one recommend per identity.
-- [certificate-authorities/types.ts](../app/src/state/certificate-authorities/types.ts): the trusted certificate authorities the badge and Trust boost read.
+- [certificate-authorities/types.ts](../apps/registry/src/state/certificate-authorities/types.ts): the trusted certificate authorities the badge and Trust boost read.
 
 ## Unresolved Questions
 

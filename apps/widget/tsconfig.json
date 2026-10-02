@@ -17,10 +17,10 @@
     "jsx": "react-jsx",
     "jsxImportSource": "preact",
     "paths": {
-      "@browse/client/*": ["../../app/src/*"],
+      "@browse/client/*": ["../registry/src/*"],
       "@parity/browse-sdk": ["../../packages/browse-sdk/src/index.ts"],
       "@parity/browse-sdk/snapshots": ["../../packages/browse-sdk/src/snapshots.ts"]
     }
   },
-  "include": ["src", "../../app/src/vite-env.d.ts"]
+  "include": ["src", "../registry/src/vite-env.d.ts"]
 }

@@ -11,7 +11,7 @@ import { DEV_PHRASE as IDENTITY_PHRASE } from '../utils'
  * it is a handful of reads.
  */
 export function ensureContracts(): void {
-  const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
+  const root = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..')
   execFileSync('bun', ['scripts/deploy.ts', '--contracts-only'], {
     cwd: root,
     stdio: 'inherit',

@@ -1,6 +1,6 @@
 import { defineConfig } from 'bulletin-deploy'
 
-import { isKnownGenesis, selectNetwork } from '../packages/browse-sdk/src/config'
+import { isKnownGenesis, selectNetwork } from '../../packages/browse-sdk/src/config'
 
 declare const process: { env?: Record<string, string | undefined> }
 

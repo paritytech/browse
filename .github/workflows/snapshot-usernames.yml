@@ -35,12 +35,12 @@ jobs:
           bun-version: latest
 
       - name: Install dependencies
-        working-directory: app
+        working-directory: apps/registry
         run: bun install --frozen-lockfile
 
       - name: Publish snapshot
         id: snapshot
-        working-directory: app
+        working-directory: apps/registry
         env:
           MNEMONIC: ${{ secrets.MNEMONIC }}
           NETWORK_GENESIS_HASH: ${{ matrix.network.genesis }}

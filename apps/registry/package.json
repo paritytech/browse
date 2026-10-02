@@ -14,7 +14,7 @@
     "dev:host:previewnet": "APP_TRUAPI_BRIDGE_PORT=${APP_TRUAPI_BRIDGE_PORT:-9955} APP_DEBUG=true NETWORK_GENESIS_HASH=0xbac97e23fc8f4bccae72a98f8aeb2bcab20bf755862304e4b46ad6473456e896 truapi-host dev --network previewnet --port ${APP_TRUAPI_BRIDGE_PORT:-9955} --app-port ${DEV_PORT:-3000} -- vite --port ${DEV_PORT:-3000} --strictPort",
     "build": "bun run build:spa && bun run build:widget",
     "build:spa": "vite build --outDir dist/spa --emptyOutDir",
-    "build:widget": "cd ../apps/widget && bun run build",
+    "build:widget": "cd ../widget && bun run build",
     "snapshot:domains": "bun scripts/snapshot-domains.ts",
     "snapshot:domains:paseo": "NETWORK_GENESIS_HASH=0x4349b00e54897e21196fd331015fc5be0f14e118beb0375ed2bb1793737bb57a bun scripts/snapshot-domains.ts",
     "snapshot:domains:previewnet": "NETWORK_GENESIS_HASH=0xbac97e23fc8f4bccae72a98f8aeb2bcab20bf755862304e4b46ad6473456e896 bun scripts/snapshot-domains.ts",

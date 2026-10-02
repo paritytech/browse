@@ -9,7 +9,6 @@
   },
   "bugs": "https://github.com/paritytech/browse/issues",
   "workspaces": [
-    "app",
     "apps/*",
     "packages/*"
   ],

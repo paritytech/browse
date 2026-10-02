@@ -8,8 +8,8 @@ ci:
 app:
   - changed-files:
       - all-globs-to-any-file:
-          - 'app/**'
-          - '!app/package.json'
+          - 'apps/registry/**'
+          - '!apps/registry/package.json'
 
 evm:
   - changed-files:

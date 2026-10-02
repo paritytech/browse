@@ -3,10 +3,10 @@ name: Deploy
 on:
   push:
     branches: [main]
-    paths: ['app/**']
+    paths: ['apps/registry/**', 'apps/widget/**']
   pull_request:
     branches: [main]
-    paths: ['app/**']
+    paths: ['apps/registry/**', 'apps/widget/**']
   workflow_dispatch:
     inputs:
       network:
@@ -41,7 +41,7 @@ jobs:
 
       - name: Compute source hash
         id: source-hash
-        run: echo "hash=$(git ls-files app/src/ app/package.json app/vite.config.ts app/tsconfig.json app/index.html apps/widget/src/ apps/widget/index.html apps/widget/package.json apps/widget/vite.config.ts bun.lock | xargs sha256sum | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+        run: echo "hash=$(git ls-files apps/registry/src/ apps/registry/package.json apps/registry/vite.config.ts apps/registry/tsconfig.json apps/registry/index.html apps/widget/src/ apps/widget/index.html apps/widget/package.json apps/widget/vite.config.ts bun.lock | xargs sha256sum | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
       - name: Check deployment cache
         id: cache-check
@@ -174,7 +174,7 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: dist
-          path: app/dist
+          path: apps/registry/dist
 
       - uses: oven-sh/setup-bun@v2
         if: matrix.target.reuse-artifact != true
@@ -220,7 +220,7 @@ jobs:
 
       - name: Build for ${{ matrix.target.env }}
         if: matrix.target.reuse-artifact != true
-        working-directory: app
+        working-directory: apps/registry
         env:
           NETWORK_GENESIS_HASH: ${{ matrix.target.genesis }}
           APP_DOMAINS_SNAPSHOT_CID: ${{ steps.snapshot-cid.outputs.cid }}
@@ -231,7 +231,7 @@ jobs:
 
       - name: Compute build hash
         id: hash
-        run: echo "hash=$(find app/dist -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+        run: echo "hash=$(find apps/registry/dist -type f -exec sha256sum {} \; | sort | sha256sum | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
 
       - name: Check deploy cache
         id: cache
@@ -280,8 +280,8 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           npm install -g bulletin-deploy@latest
-          mkdir -p app/node_modules
-          ln -sfn "$(npm root -g)/bulletin-deploy" app/node_modules/bulletin-deploy
+          mkdir -p apps/registry/node_modules
+          ln -sfn "$(npm root -g)/bulletin-deploy" apps/registry/node_modules/bulletin-deploy
 
       - name: Deploy
         id: deploy

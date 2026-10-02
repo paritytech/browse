@@ -4,10 +4,10 @@ on:
   workflow_call:
   push:
     branches: [main]
-    paths: ['app/**', 'packages/**']
+    paths: ['apps/registry/**', 'apps/widget/**', 'packages/**']
   pull_request:
     branches: [main]
-    paths: ['app/**', 'packages/**']
+    paths: ['apps/registry/**', 'apps/widget/**', 'packages/**']
 
 jobs:
   build:
@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: app
+        working-directory: apps/registry
     steps:
       - uses: actions/checkout@v4
 
@@ -62,8 +62,8 @@ jobs:
         id: cache
         uses: actions/cache@v4
         with:
-          path: app/dist
-          key: build-${{ hashFiles('app/src/**', 'app/index.html', 'app/package.json', 'app/vite.config.ts', 'app/tsconfig.json', 'apps/widget/src/**', 'apps/widget/index.html', 'apps/widget/package.json', 'apps/widget/vite.config.ts', 'bun.lock', 'app/.papi/**') }}-${{ steps.snapshot-cid.outputs.cid }}-${{ steps.usernames-cid.outputs.cid }}
+          path: apps/registry/dist
+          key: build-${{ hashFiles('apps/registry/src/**', 'apps/registry/index.html', 'apps/registry/package.json', 'apps/registry/vite.config.ts', 'apps/registry/tsconfig.json', 'apps/widget/src/**', 'apps/widget/index.html', 'apps/widget/package.json', 'apps/widget/vite.config.ts', 'bun.lock', 'apps/registry/.papi/**') }}-${{ steps.snapshot-cid.outputs.cid }}-${{ steps.usernames-cid.outputs.cid }}
 
       - name: Install dependencies
         if: steps.cache.outputs.cache-hit != 'true'
@@ -80,5 +80,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dist
-          path: app/dist/
+          path: apps/registry/dist/
           retention-days: 7

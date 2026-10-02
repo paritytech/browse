@@ -44,7 +44,7 @@ const CONTRACTS = {
   ATTESTATION_REGISTRY: '0x4d018C530E01BbC98b042a18A4D4090658BCd8f3'
 }
 
-// keccak256("discovery.rating.v1") — must match app/src/config.ts
+// keccak256("discovery.rating.v1") — must match apps/registry/src/config.ts
 const SCHEMA_RATING = '0x07ebbff6960c1c29233bf2c1109eca1140dd09425365d4acfd62026181add4d3'
 
 // ============================================================================
@@ -137,7 +137,7 @@ function nodeToSubject(node) {
 }
 
 /**
- * Encode rating value into bytes32 (matches app/src/abi.ts encodeRatingValue).
+ * Encode rating value into bytes32 (matches apps/registry/src/abi.ts encodeRatingValue).
  * Layout: version(1) | rating(1) | rated(1) | reserved(1) | reviewDigest(28)
  */
 function encodeRatingValue(rating, explicitlyRated) {

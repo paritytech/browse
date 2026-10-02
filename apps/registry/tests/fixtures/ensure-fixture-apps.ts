@@ -62,8 +62,8 @@ const BULLETIN_DEPLOY_VERSION = '0.19.1'
 const RESOLVER_ABI = parseAbi(['function contenthash(bytes32 node) view returns (bytes)'])
 const PUBLISHER_ABI = parseAbi(['function isPublished(bytes32 labelhash) view returns (bool)'])
 
-const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
-const PROJECTS = resolve(ROOT, 'app/tests/fixture-projects')
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..')
+const PROJECTS = resolve(ROOT, 'apps/registry/tests/fixture-projects')
 /**
  * The bulletin-deploy environment id for the network the app is built against,
  * read from the config the app itself uses so an unset genesis cannot point the
