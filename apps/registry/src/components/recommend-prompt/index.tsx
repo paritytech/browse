@@ -33,6 +33,7 @@ export function RecommendPrompt({ visible, label, onConfirm, onDismiss }: Recomm
       class={`recommend-prompt${visible ? ' recommend-prompt--visible' : ''}`}
       role='dialog'
       aria-label='Recommend this app'
+      inert={!visible}
     >
       <div class='recommend-prompt__body'>
         <p class='recommend-prompt__text'>

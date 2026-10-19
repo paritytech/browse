@@ -118,5 +118,15 @@ test.describe('Share', () => {
       window.localStorage.getItem('browse.pendingRecommend')
     )
     expect(stored ?? '').not.toContain('chess-clock')
+    // The hidden prompt stays in the layout at the bottom of the page, so a tap
+    // where its Yes button sits must reach the page beneath it.
+    const tapReachesPage = await frame
+      .locator('.recommend-prompt__btn', { hasText: 'Yes' })
+      .evaluate((yes) => {
+        const { x, y, width, height } = yes.getBoundingClientRect()
+        const target = document.elementFromPoint(x + width / 2, y + height / 2)
+        return target !== null && !target.closest('.recommend-prompt')
+      })
+    expect(tapReachesPage).toBe(true)
   })
 })

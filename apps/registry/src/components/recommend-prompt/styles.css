@@ -1,6 +1,6 @@
 /* A non-blocking bottom prompt: fixed to the bottom, no scrim. The container
-   ignores pointer events so the rest of browse stays clickable; only the card
-   captures them. */
+   ignores pointer events so the rest of browse stays clickable. Only the card
+   captures them, and only while it shows. */
 .recommend-prompt {
   position: fixed;
   left: 0;
@@ -25,7 +25,6 @@
 }
 
 .recommend-prompt__body {
-  pointer-events: auto;
   display: flex;
   flex-direction: column;
   gap: 14px;
@@ -36,6 +35,10 @@
   border: 1px solid var(--stroke-2);
   border-radius: var(--radius-large);
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.4);
+}
+
+.recommend-prompt--visible .recommend-prompt__body {
+  pointer-events: auto;
 }
 
 .recommend-prompt__text {
