@@ -6,8 +6,14 @@ import {
   requestResourceAllocation
 } from '@parity/product-sdk/host'
 import { contracts } from '@polkadot-api/descriptors'
-import { type AsyncTransaction, createInkSdk, ss58ToEthereum } from '@polkadot-api/sdk-ink'
-import { AccountId, type PolkadotClient, type PolkadotSigner, type SS58String } from 'polkadot-api'
+import { createInkSdk, ss58ToEthereum } from '@polkadot-api/sdk-ink'
+import {
+  AccountId,
+  type PolkadotClient,
+  type SS58String,
+  type Transaction,
+  type TxCreator
+} from 'polkadot-api'
 import { bytesToHex } from 'viem'
 
 import { decodeBool, encodeIdentityHasAttested } from './abi'
@@ -31,7 +37,7 @@ import { signIdentityMessage } from './identity-binding'
 
 export type ClientProvider = () => Promise<PolkadotClient>
 export type SignerProvider = () => Promise<{
-  signer: PolkadotSigner
+  signer: TxCreator
   origin: string
   publicKey: Uint8Array
 }>
@@ -83,7 +89,7 @@ function isStaleNonce(err: unknown): boolean {
 }
 
 async function hostSigner(): Promise<{
-  signer: PolkadotSigner
+  signer: TxCreator
   origin: string
   publicKey: Uint8Array
 }> {
@@ -393,7 +399,7 @@ export class AttestationService {
         }
         throw new Error(`attest dry-run failed: ${JSON.stringify(dryRun.value, bigStr)}`)
       }
-      return this.submitTx(dryRun.value.send, signer, track)
+      return this.submitTx(() => dryRun.value.send().waited, signer, track)
     }, onBroadcast)
   }
 
@@ -484,7 +490,7 @@ export class AttestationService {
 
       const api = (await this.client()).getUnsafeApi()
       const batch = api.tx.Utility.batch_all({ calls: [bindCall, attestCall] })
-      return this.submitTx(() => batch as never, signer, track)
+      return this.submitTx(() => batch, signer, track)
     }, onBroadcast)
   }
 
@@ -522,7 +528,7 @@ export class AttestationService {
       if (!dryRun.success) {
         throw new Error(`bindIdentity dry-run failed: ${JSON.stringify(dryRun.value, bigStr)}`)
       }
-      return this.submitTx(dryRun.value.send, signer, track)
+      return this.submitTx(() => dryRun.value.send().waited, signer, track)
     }, onBroadcast)
   }
 
@@ -577,7 +583,7 @@ export class AttestationService {
       if (!dryRun.success) {
         throw new Error(`revoke dry-run failed: ${JSON.stringify(dryRun.value, bigStr)}`)
       }
-      return this.submitTx(dryRun.value.send, signer, track)
+      return this.submitTx(() => dryRun.value.send().waited, signer, track)
     }, onBroadcast)
   }
 
@@ -638,10 +644,15 @@ export class AttestationService {
     throw new Error('NotEnoughFunds: PGAS allowance did not fund in time')
   }
 
+  /**
+   * Sign and submit a write, settling once it lands in a block.
+   *
+   * sdk-ink 0.7.0 wraps its transactions in the polkadot-api 2 signing methods,
+   * which polkadot-api 3 removed, so callers pass the transaction it waits on.
+   */
   private async submitTx(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    send: () => AsyncTransaction<any, any, any, any>,
-    signer: PolkadotSigner,
+    build: () => Transaction | Promise<Transaction>,
+    signer: TxCreator,
     onBroadcast?: () => void
   ): Promise<TxResult> {
     if (this.truapi) {
@@ -650,29 +661,23 @@ export class AttestationService {
       if (!permitted) throw new Error('Transaction submit permission denied')
     }
 
-    const tx = send()
+    const tx = await build()
 
     return new Promise((resolve, reject) => {
-      tx.signSubmitAndWatch(signer).subscribe({
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        next: (event: any) => {
+      tx.createSubmitAndWatch(signer).subscribe({
+        next: (event) => {
           if (event.type === 'broadcasted') {
             onBroadcast?.()
-          } else if (
-            event.type === 'finalized' ||
-            (event.type === 'txBestBlocksState' && event.found)
-          ) {
+          } else if (event.type === 'finalized' || event.type === 'inBestBlock') {
             // A tx can be included yet revert. `ok === false` carries the
             // dispatch error. Treating that as success hides on-chain failures.
-            if (event.ok === false) {
+            if (!event.ok) {
               reject(
-                new Error(
-                  `Transaction reverted: ${JSON.stringify(event.dispatchError ?? {}, bigStr)}`
-                )
+                new Error(`Transaction reverted: ${JSON.stringify(event.dispatchError, bigStr)}`)
               )
               return
             }
-            resolve({ txHash: event.txHash ?? '', block: event.block?.hash ?? '' })
+            resolve({ txHash: event.txHash, block: event.block.hash })
           }
         },
         error: (err: Error) => {

@@ -13,8 +13,8 @@
 import { sr25519CreateDerive } from '@polkadot-labs/hdkd'
 import { mnemonicToEntropy, mnemonicToMiniSecret, ss58Encode } from '@polkadot-labs/hdkd-helpers'
 import { previewnethub, previewnetpeople } from '@polkadot-api/descriptors'
-import { createClient, Enum, type PolkadotSigner, type SS58String } from 'polkadot-api'
-import { getPolkadotSigner } from 'polkadot-api/signer'
+import { createClient, Enum, type SS58String, type TxCreator } from 'polkadot-api'
+import { getTxCreator } from 'polkadot-api/tx-creator'
 import { getWsProvider } from 'polkadot-api/ws'
 import { WebSocket } from 'ws'
 import { member_from_entropy, sign, verify_signature } from 'verifiablejs/nodejs'
@@ -75,7 +75,7 @@ function fillerEntropy(i: number): Uint8Array {
 interface Account {
   address: SS58String
   publicKey: Uint8Array
-  signer: PolkadotSigner
+  signer: TxCreator
 }
 
 function accountAt(path: string): Account {
@@ -83,7 +83,7 @@ function accountAt(path: string): Account {
   return {
     address: ss58Encode(wallet.publicKey, 42) as SS58String,
     publicKey: wallet.publicKey,
-    signer: getPolkadotSigner(wallet.publicKey, 'Sr25519', async (msg) => wallet.sign(msg))
+    signer: getTxCreator(wallet.publicKey, 'Sr25519', async (msg) => wallet.sign(msg))
   }
 }
 
@@ -114,14 +114,14 @@ function clients() {
 async function submit(
   label: string,
   tx: {
-    signAndSubmit: (
-      signer: PolkadotSigner,
+    createAndSubmit: (
+      signer: TxCreator,
       options?: never
     ) => Promise<{ ok: boolean; dispatchError?: unknown }>
   },
-  signer: PolkadotSigner
+  signer: TxCreator
 ): Promise<void> {
-  const result = await tx.signAndSubmit(signer, SIGN_OPTIONS as never)
+  const result = await tx.createAndSubmit(signer, SIGN_OPTIONS as never)
   if (!result.ok) {
     throw new Error(`${label} failed: ${JSON.stringify(result.dispatchError)}`)
   }

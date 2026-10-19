@@ -1,6 +1,6 @@
 import { labelhashToTokenId, nameWithTld, stripTld } from '@parity/browse-sdk'
 import { requestPermission, requestResourceAllocation } from '@parity/product-sdk/host'
-import { Binary, type PolkadotSigner, type SS58String } from 'polkadot-api'
+import { Binary, type SS58String, type TxCreator } from 'polkadot-api'
 import {
   decodeErrorResult,
   decodeFunctionResult,
@@ -274,7 +274,6 @@ const SUBMIT_TIMEOUT_MS = 120_000
 
 type TxEvent = {
   type: string
-  found?: boolean
   ok?: boolean
   txHash?: string
   block?: { hash?: string }
@@ -282,14 +281,14 @@ type TxEvent = {
 }
 
 type WatchableTx = {
-  signSubmitAndWatch: (signer: PolkadotSigner) => {
+  createSubmitAndWatch: (signer: TxCreator) => {
     subscribe: (observer: { next: (event: TxEvent) => void; error: (err: Error) => void }) => {
       unsubscribe: () => void
     }
   }
 }
 
-function submit(tx: WatchableTx, signer: PolkadotSigner): Promise<TxResult> {
+function submit(tx: WatchableTx, signer: TxCreator): Promise<TxResult> {
   return new Promise<TxResult>((resolve, reject) => {
     let settled = false
     const finish = (fn: () => void) => {
@@ -303,14 +302,13 @@ function submit(tx: WatchableTx, signer: PolkadotSigner): Promise<TxResult> {
       () => finish(() => reject(new Error('Timed out waiting for the transaction to settle.'))),
       SUBMIT_TIMEOUT_MS
     )
-    const sub = tx.signSubmitAndWatch(signer).subscribe({
+    const sub = tx.createSubmitAndWatch(signer).subscribe({
       next: (event: TxEvent) => {
         if (event.type === 'invalid' || event.type === 'dropped') {
           finish(() => reject(new Error(`Transaction ${event.type}.`)))
           return
         }
-        const included =
-          event.type === 'finalized' || (event.type === 'txBestBlocksState' && event.found)
+        const included = event.type === 'finalized' || event.type === 'inBestBlock'
         if (!included) return
         if (event.ok === false) {
           finish(() =>

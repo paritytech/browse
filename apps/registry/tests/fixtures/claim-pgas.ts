@@ -5,8 +5,9 @@
 import { member_from_entropy, one_shot, validate_with_commitment } from 'verifiablejs/nodejs'
 import { previewnethub, previewnetpeople } from '@polkadot-api/descriptors'
 import { mnemonicToEntropy } from '@polkadot-labs/hdkd-helpers'
+import { withCommonExtensions, withNonce } from '@polkadot-api/signers-common'
 import { Blake2256, Bytes, Vector } from '@polkadot-api/substrate-bindings'
-import { AccountId, createClient, Enum, type SS58String } from 'polkadot-api'
+import { AccountId, createClient, Enum, type SS58String, type TxCreator } from 'polkadot-api'
 import { getWsProvider } from 'polkadot-api/ws'
 import { WebSocket } from 'ws'
 
@@ -126,47 +127,35 @@ interface CapturedExtensions {
 
 async function readExtensionOrder(metadata: Uint8Array): Promise<string[]> {
   const { decAnyMetadata, unifyMetadata } = await import('@polkadot-api/substrate-bindings')
-  const meta = unifyMetadata(decAnyMetadata(metadata))
-  const raw = meta.extrinsic.signedExtensions as unknown
-  if (typeof raw === 'object' && raw !== null && Array.isArray((raw as { 0?: unknown })[0])) {
-    return (raw as { 0: Array<{ identifier: string }> })[0].map((x) => x.identifier)
-  }
-  if (Array.isArray(raw)) return (raw as Array<{ identifier: string }>).map((x) => x.identifier)
-  throw new Error('unrecognised signedExtensions shape')
+  const pipeline = unifyMetadata(decAnyMetadata(metadata)).extrinsic.extensionsByVersion[0]
+  if (!pipeline) throw new Error('no version 0 extension pipeline')
+  return pipeline.map((x) => x.identifier)
 }
 
-// Sign once with a sentinel signer that captures the extension bytes, then
-// aborts the papi signing flow before it actually signs.
+// Create once through a sentinel creator that captures the extension bytes the
+// common enhancers fill in, then aborts the papi flow before anything is signed.
 async function capturePass(
-  innerTx: { sign: (signer: unknown, options: unknown) => Promise<string> },
+  innerTx: { create: (creator: TxCreator, options: unknown) => Promise<Uint8Array> },
   asPgasValue: unknown
 ): Promise<CapturedExtensions> {
   let captured: CapturedExtensions | null = null
   const sentinel = new Error('__capture_sentinel__')
-  const signer = {
-    publicKey: new Uint8Array(32),
-    signTx: async (
-      _callData: Uint8Array,
-      signedExtensions: Record<
-        string,
-        { identifier: string; value: Uint8Array; additionalSigned: Uint8Array }
-      >,
-      metadata: Uint8Array
-    ) => {
-      const order = await readExtensionOrder(metadata)
-      const byIdentifier: CapturedExtensions['byIdentifier'] = {}
-      for (const id of order) {
-        const ext = signedExtensions[id]
-        if (!ext) throw new Error(`missing extension '${id}'`)
-        byIdentifier[id] = { value: ext.value, additionalSigned: ext.additionalSigned }
+  const capture: TxCreator = async (payload) => {
+    const order = await readExtensionOrder(hexToBytes(payload.context.metadata))
+    const byIdentifier: CapturedExtensions['byIdentifier'] = {}
+    for (const id of order) {
+      const ext = payload.extensions.find((e) => e.id === id)
+      if (!ext) throw new Error(`missing extension '${id}'`)
+      byIdentifier[id] = {
+        value: hexToBytes(ext.extra),
+        additionalSigned: hexToBytes(ext.additionalSigned)
       }
-      captured = { order, byIdentifier }
-      throw sentinel
-    },
-    signBytes: async () => new Uint8Array(64)
+    }
+    captured = { order, byIdentifier }
+    throw sentinel
   }
   try {
-    await innerTx.sign(signer, {
+    await innerTx.create(withNonce(new Uint8Array(32))(withCommonExtensions(capture)), {
       mortality: { mortal: false },
       customSignedExtensions: {
         AsPgas: { value: asPgasValue, additionalSigned: new Uint8Array() }
@@ -272,7 +261,7 @@ export async function claimPgas(target: string, slotIndex = 0): Promise<ClaimRes
     const callBytes = toBytes(await inner.getEncodedData())
 
     const signable = inner as unknown as {
-      sign: (signer: unknown, options: unknown) => Promise<string>
+      create: (creator: TxCreator, options: unknown) => Promise<Uint8Array>
     }
     const passEmpty = await capturePass(signable, undefined)
     const exclude = buildImplicationExclude(passEmpty.order)
@@ -298,7 +287,7 @@ export async function claimPgas(target: string, slotIndex = 0): Promise<ClaimRes
       ahClient.submitAndWatch(extrinsicBytes).subscribe({
         next: (ev) => {
           if (settled) return
-          if ((ev.type === 'txBestBlocksState' && ev.found) || ev.type === 'finalized') {
+          if (ev.type === 'inBestBlock' || ev.type === 'finalized') {
             settled = true
             if (ev.ok === false)
               reject(new Error(`claim_pgas failed: ${JSON.stringify(ev.dispatchError)}`))

@@ -19,8 +19,8 @@
 
 import { member_from_entropy } from 'verifiablejs/nodejs'
 import { mnemonicToEntropy, sr25519 } from '@polkadot-labs/hdkd-helpers'
-import { createClient, Enum, type PolkadotSigner } from 'polkadot-api'
-import { getPolkadotSigner } from 'polkadot-api/signer'
+import { createClient, Enum, type TxCreator } from 'polkadot-api'
+import { getTxCreator } from 'polkadot-api/tx-creator'
 import { getWsProvider } from 'polkadot-api/ws'
 import { WebSocket } from 'ws'
 import { hexToBytes } from 'viem'
@@ -49,12 +49,12 @@ function bytesToHex(b: Uint8Array): `0x${string}` {
  * It is a 64 byte expanded sr25519 secret rather than a seed or a mnemonic, so
  * it signs through `sr25519.sign` directly and cannot be derived from.
  */
-function sudoSigner(): PolkadotSigner {
+function sudoSigner(): TxCreator {
   const hex = process.env.SUDO_PRIVATE_KEY_PREVIEWNET?.trim()
   if (!hex) throw new Error('Set SUDO_PRIVATE_KEY_PREVIEWNET, the expanded sr25519 sudo secret.')
   const secret = hexToBytes(hex.startsWith('0x') ? (hex as `0x${string}`) : `0x${hex}`)
   const publicKey = sr25519.getPublicKey(secret)
-  return getPolkadotSigner(publicKey, 'Sr25519', (message) => sr25519.sign(message, secret))
+  return getTxCreator(publicKey, 'Sr25519', (message) => sr25519.sign(message, secret))
 }
 
 /** The funder ring-VRF member key, the same derivation `claim-pgas.ts` proves with. */
@@ -89,7 +89,7 @@ async function main() {
     }
 
     const asSudo = async (call: unknown, label: string) => {
-      const result = await api.tx.Sudo.sudo({ call }).signAndSubmit(signer, SIGN_OPTIONS)
+      const result = await api.tx.Sudo.sudo({ call }).createAndSubmit(signer, SIGN_OPTIONS)
       if (!result.ok) throw new Error(`${label} failed: ${JSON.stringify(result.dispatchError)}`)
       console.log(`  ${label}`)
     }

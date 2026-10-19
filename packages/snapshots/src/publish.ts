@@ -27,8 +27,8 @@ import { ApiPromise, WsProvider } from '@polkadot/api'
 import { encodeTextWrite } from './pointer.js'
 import { sr25519CreateDerive } from '@polkadot-labs/hdkd'
 import { entropyToMiniSecret, mnemonicToEntropy, ss58Address } from '@polkadot-labs/hdkd-helpers'
-import { Binary, createClient, Enum, type PolkadotSigner, type SS58String } from 'polkadot-api'
-import { getPolkadotSigner } from 'polkadot-api/signer'
+import { Binary, createClient, Enum, type SS58String, type TxCreator } from 'polkadot-api'
+import { getTxCreator } from 'polkadot-api/tx-creator'
 import { getWsProvider } from 'polkadot-api/ws'
 
 import { buildSnapshotBlocks, type SnapshotBlock } from './blocks.js'
@@ -56,17 +56,17 @@ const noop: PublishProgress = () => {}
 const POINTER_ATTEMPTS = 3
 const POINTER_RETRY_MS = 2_000
 
-/** Watchable transaction, the shape `signSubmitAndWatch` returns events for. */
+/** Watchable transaction, the shape `createSubmitAndWatch` returns events for. */
 interface SubmittableTx {
-  signSubmitAndWatch: (
-    signer: ReturnType<typeof getPolkadotSigner>,
+  createSubmitAndWatch: (
+    signer: TxCreator,
     options?: {
       mortality?: { mortal: boolean; period: number }
       nonce?: number
     }
   ) => {
     subscribe: (observer: {
-      next: (event: { type: string; found?: unknown; ok?: boolean }) => void
+      next: (event: { type: string; ok?: boolean }) => void
       error: (error: unknown) => void
     }) => { unsubscribe: () => void }
   }
@@ -112,7 +112,7 @@ async function storeBlocks(
       const keypair = derive(`${POOL_PREFIX}/${i}`)
       const address = ss58Address(keypair.publicKey)
       return {
-        signer: getPolkadotSigner(keypair.publicKey, 'Sr25519', keypair.sign),
+        signer: getTxCreator(keypair.publicKey, 'Sr25519', keypair.sign),
         address,
         nonce: (await pjs.rpc.system.accountNextIndex(address)).toNumber()
       }
@@ -120,24 +120,20 @@ async function storeBlocks(
   )
   progress(`pool:      ${POOL_SIZE} signers (${pool[0]!.address.slice(0, 8)}…)\n`)
 
-  const submit = (
-    block: SnapshotBlock,
-    signer: ReturnType<typeof getPolkadotSigner>,
-    nonce: number
-  ) =>
+  const submit = (block: SnapshotBlock, signer: TxCreator, nonce: number) =>
     new Promise<void>((resolve, reject) => {
       const tx = api.tx.TransactionStorage.store_with_cid_config({
         cid: { codec: BigInt(RAW_CODEC), hashing: Enum('Blake2b256') },
         data: block.data
       })
       const sub = tx
-        .signSubmitAndWatch(signer, {
+        .createSubmitAndWatch(signer, {
           mortality: { mortal: true, period: 64 },
           nonce
         })
         .subscribe({
-          next: (event: { type: string; found?: unknown; ok?: boolean }) => {
-            if (event.type === 'txBestBlocksState' && event.found) {
+          next: (event: { type: string; ok?: boolean }) => {
+            if (event.type === 'inBestBlock') {
               sub.unsubscribe()
               if (event.ok) resolve()
               else reject(new Error('tx failed in block'))
@@ -245,7 +241,7 @@ export interface RevivePointerApi {
   tx: {
     Revive: {
       map_account: () => {
-        signAndSubmit: (signer: PolkadotSigner) => Promise<{ ok: boolean }>
+        createAndSubmit: (signer: TxCreator) => Promise<{ ok: boolean }>
       }
       call: (args: {
         dest: `0x${string}`
@@ -254,7 +250,7 @@ export interface RevivePointerApi {
         storage_deposit_limit: bigint
         data: EncodedBytes
       }) => {
-        signAndSubmit: (signer: PolkadotSigner) => Promise<{ ok: boolean }>
+        createAndSubmit: (signer: TxCreator) => Promise<{ ok: boolean }>
       }
     }
   }
@@ -286,7 +282,7 @@ export async function updateSnapshotPointer(options: {
   {
     const derive = sr25519CreateDerive(entropyToMiniSecret(mnemonicToEntropy(options.mnemonic)))
     const keypair = derive(options.derivation ?? '')
-    const signer = getPolkadotSigner(keypair.publicKey, 'Sr25519', keypair.sign)
+    const signer = getTxCreator(keypair.publicKey, 'Sr25519', keypair.sign)
     const origin = ss58Address(keypair.publicKey)
     const dest = options.contentResolver
     const data = Binary.fromHex(encodeTextWrite(options.domain, options.key, options.cid))
@@ -299,7 +295,7 @@ export async function updateSnapshotPointer(options: {
     // unmapped account reports a failed dispatch rather than an ownership answer.
     if (!options.dryRun) {
       await api.tx.Revive.map_account()
-        .signAndSubmit(signer)
+        .createAndSubmit(signer)
         .catch(() => undefined)
     }
 
@@ -335,7 +331,7 @@ export async function updateSnapshotPointer(options: {
         },
         storage_deposit_limit: dryRun.storage_deposit.value * 2n,
         data
-      }).signAndSubmit(signer)
+      }).createAndSubmit(signer)
 
     // The publish that precedes this leaves a burst of our own transactions in
     // flight, so the account nonce is a moving target. Retry the same way the

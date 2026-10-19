@@ -2,7 +2,7 @@ import { ss58ToEthereum } from '@polkadot-api/sdk-ink'
 import { sr25519CreateDerive } from '@polkadot-labs/hdkd'
 import { DEV_PHRASE, mnemonicToMiniSecret, ss58Encode } from '@polkadot-labs/hdkd-helpers'
 import { createClient, type PolkadotClient, type SS58String } from 'polkadot-api'
-import { getPolkadotSigner } from 'polkadot-api/signer'
+import { getTxCreator } from 'polkadot-api/tx-creator'
 import { getWsProvider } from 'polkadot-api/ws'
 import { WebSocket } from 'ws'
 
@@ -46,7 +46,7 @@ const NATIVE_TOPUP_THRESHOLD = 50_000_000_000n
 function signerFor(miniSecret: Uint8Array, path: string) {
   const wallet = sr25519CreateDerive(miniSecret)(path)
   return {
-    signer: getPolkadotSigner(wallet.publicKey, 'Sr25519', async (input: Uint8Array) =>
+    signer: getTxCreator(wallet.publicKey, 'Sr25519', async (input: Uint8Array) =>
       wallet.sign(input)
     ),
     address: ss58Encode(wallet.publicKey, 42),
@@ -65,7 +65,7 @@ type UnsafeApi = ReturnType<PolkadotClient['getUnsafeApi']>
  */
 async function watchTxWithRetry(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  makeTx: () => { signSubmitAndWatch: (signer: any) => { subscribe: (o: any) => void } },
+  makeTx: () => { createSubmitAndWatch: (signer: any) => { subscribe: (o: any) => void } },
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   signer: any,
   label: string
@@ -74,14 +74,11 @@ async function watchTxWithRetry(
     try {
       await new Promise<void>((resolve, reject) => {
         makeTx()
-          .signSubmitAndWatch(signer)
+          .createSubmitAndWatch(signer)
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           .subscribe({
             next: (event: any) => {
-              if (
-                !((event.type === 'txBestBlocksState' && event.found) || event.type === 'finalized')
-              )
-                return
+              if (!(event.type === 'inBestBlock' || event.type === 'finalized')) return
               if (event.ok === false) {
                 reject(new Error(`${label} failed: ${JSON.stringify(event.dispatchError)}`))
               } else {
@@ -258,13 +255,10 @@ export async function mapAccount(tag: string): Promise<void> {
     if (await api.query.Revive.OriginalAccount.getValue(h160)) return
     await new Promise<void>((resolve, reject) => {
       api.tx.Revive.map_account()
-        .signSubmitAndWatch(acct.signer)
+        .createSubmitAndWatch(acct.signer)
         .subscribe({
           next: (event) => {
-            if (
-              !((event.type === 'txBestBlocksState' && event.found) || event.type === 'finalized')
-            )
-              return
+            if (!(event.type === 'inBestBlock' || event.type === 'finalized')) return
             if (event.ok === false) {
               reject(new Error(`map_account failed: ${JSON.stringify(event.dispatchError)}`))
             } else {
@@ -303,13 +297,10 @@ export async function transferAllWithPgas(
           target: { type: 'Id', value: to as SS58String },
           amount: balance - PGAS_RECLAIM_FEE_BUFFER
         })
-          .signSubmitAndWatch(from.signer)
+          .createSubmitAndWatch(from.signer)
           .subscribe({
             next: (event) => {
-              if (
-                !((event.type === 'txBestBlocksState' && event.found) || event.type === 'finalized')
-              )
-                return
+              if (!(event.type === 'inBestBlock' || event.type === 'finalized')) return
               if (event.ok === false) {
                 reject(
                   new Error(`PGAS transfer_all failed: ${JSON.stringify(event.dispatchError)}`)
@@ -350,13 +341,10 @@ export async function transferAllWithNative(
         dest: { type: 'Id', value: to as SS58String },
         keep_alive: false
       })
-        .signSubmitAndWatch(from.signer)
+        .createSubmitAndWatch(from.signer)
         .subscribe({
           next: (event) => {
-            if (
-              !((event.type === 'txBestBlocksState' && event.found) || event.type === 'finalized')
-            )
-              return
+            if (!(event.type === 'inBestBlock' || event.type === 'finalized')) return
             if (event.ok === false) {
               reject(
                 new Error(`native transfer_all failed: ${JSON.stringify(event.dispatchError)}`)

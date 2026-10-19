@@ -25,9 +25,13 @@ import { createMasterSigner, createProductSigner } from './fund'
 // The app resolves usernames from this People chain.
 const PEOPLE_RPC = NETWORK.PEOPLE_RPCS![0]
 
-// A plain People-chain call must set its VerifyMultiSignature extension to Disabled.
+// A plain People-chain call must set its VerifyMultiSignature extension to
+// Disabled. RestrictOrigins stays off, the value papi fills in when omitted.
 const SIGN_OPTIONS = {
-  customSignedExtensions: { VerifyMultiSignature: { value: Enum('Disabled') } }
+  customSignedExtensions: {
+    VerifyMultiSignature: { value: Enum('Disabled') },
+    RestrictOrigins: { value: false }
+  }
 }
 
 /** `PeopleLite.register_with_fee` verifies a plain VRF signature over this. */
@@ -145,7 +149,7 @@ export async function createUsername(): Promise<void> {
       const topUp = await api.tx.Balances.transfer_keep_alive({
         dest: { type: 'Id', value: identity.address as SS58String },
         value: REGISTRATION_NEED - free
-      }).signAndSubmit(master.signer, SIGN_OPTIONS)
+      }).createAndSubmit(master.signer, SIGN_OPTIONS)
       if (!topUp.ok)
         throw new Error(
           `funding the identity on People failed: ${JSON.stringify(topUp.dispatchError)}`
@@ -183,7 +187,7 @@ export async function createUsername(): Promise<void> {
         username: Binary.fromText(username),
         reserved_username: undefined
       }
-    } as Args).signAndSubmit(identity.signer, SIGN_OPTIONS)
+    } as Args).createAndSubmit(identity.signer, SIGN_OPTIONS)
     if (!result.ok) {
       throw new Error(
         `register_with_fee for ${username} failed: ${JSON.stringify(result.dispatchError)}`

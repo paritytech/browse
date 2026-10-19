@@ -1,5 +1,5 @@
 import { getAccountsProvider, HostUnavailableError } from '@parity/product-sdk/host'
-import { AccountId, type PolkadotSigner, type SS58String } from 'polkadot-api'
+import { AccountId, type SS58String, type TxCreator } from 'polkadot-api'
 import { keccak256 } from 'viem'
 
 import { resolveUsernameOwner } from './chain'
@@ -18,7 +18,7 @@ export type Identity = {
   ss58: SS58String
   /** The root account EVM address, i.e. the publisher the registry records. */
   h160: `0x${string}`
-  signer: PolkadotSigner
+  signer: TxCreator
 }
 
 /** The revive H160 a 32-byte account public key controls: keccak256(pubKey)[12..]. */
