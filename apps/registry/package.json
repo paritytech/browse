@@ -62,7 +62,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@parity/host-api-test-sdk": "^0.17.0",
+    "@parity/truapi-host": "^0.25.0",
     "@playwright/test": "^1.59.1",
     "@polkadot-labs/hdkd": "^0.0.27",
     "@polkadot-labs/hdkd-helpers": "^0.0.28",
@@ -73,6 +73,7 @@
     "@types/ws": "^8.18.1",
     "@typescript-eslint/eslint-plugin": "^8.58.0",
     "@typescript-eslint/parser": "^8.58.0",
+    "esbuild": "^0.25.0",
     "eslint": "^10.2.0",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-import-x": "^4.16.2",

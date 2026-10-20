@@ -2,12 +2,13 @@
  * Verifies the developer portal loads inside the Parity host and its core
  * navigation works without chain state.
  *
- * Uses the host-api-test-sdk to stand up a mock host around the app.
+ * Uses the TrUAPI test host to stand up a host around the app.
  */
 
 import type { BrowserContext, Frame, Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 
+import { WEB_DOMAIN } from '../src/lib/config'
 import { getProductFrame, navigateToTestHost, startUnsignedHost } from './utils'
 
 test.describe('Developer portal', () => {
@@ -33,7 +34,7 @@ test.describe('Developer portal', () => {
     // Then
     await expect(frame.locator('.nav-item', { hasText: 'Products' })).toBeVisible()
     await expect(frame.locator('.nav-item', { hasText: 'Certificates' })).toBeVisible()
-    await expect(frame.getByRole('button', { name: 'Add new' })).toBeVisible()
+    await expect(frame.locator('.toolbar').getByRole('button', { name: 'Add new' })).toBeVisible()
     await expect(frame.locator('.search input')).toBeVisible()
   })
 
@@ -71,8 +72,8 @@ test.describe('Developer portal', () => {
     // When
     await page.evaluate(() => {
       ;(
-        window as unknown as { __TEST_HOST__: { setTheme(theme: 'light' | 'dark'): void } }
-      ).__TEST_HOST__.setTheme('dark')
+        window as unknown as { __TEST_HOST__: { setTheme(theme: 'Light' | 'Dark'): void } }
+      ).__TEST_HOST__.setTheme('Dark')
     })
 
     // Then
@@ -81,8 +82,8 @@ test.describe('Developer portal', () => {
     // When
     await page.evaluate(() => {
       ;(
-        window as unknown as { __TEST_HOST__: { setTheme(theme: 'light' | 'dark'): void } }
-      ).__TEST_HOST__.setTheme('light')
+        window as unknown as { __TEST_HOST__: { setTheme(theme: 'Light' | 'Dark'): void } }
+      ).__TEST_HOST__.setTheme('Light')
     })
 
     // Then
@@ -91,7 +92,7 @@ test.describe('Developer portal', () => {
 
   test('Add new opens the add page and Back returns', async () => {
     // When
-    await frame.getByRole('button', { name: 'Add new' }).click()
+    await frame.locator('.toolbar').getByRole('button', { name: 'Add new' }).click()
 
     // Then
     await expect(frame.getByRole('heading', { name: "Let's add a domain" })).toBeVisible()
@@ -101,7 +102,7 @@ test.describe('Developer portal', () => {
     await frame.getByRole('button', { name: 'Back' }).click()
 
     // Then
-    await expect(frame.getByRole('button', { name: 'Add new' })).toBeVisible()
+    await expect(frame.locator('.toolbar').getByRole('button', { name: 'Add new' })).toBeVisible()
   })
 })
 
@@ -121,7 +122,7 @@ test('the project detail route shows the header and tabs', async ({ browser }) =
 
   // Then
   await expect(frame.locator('.detail-head')).toBeVisible()
-  await expect(frame.locator('.card-domain')).toHaveText('browse.dot.li')
+  await expect(frame.locator('.card-domain')).toHaveText(`browse.${WEB_DOMAIN}`)
   await expect(frame.getByRole('tab', { name: 'Overview' })).toBeVisible()
   await expect(frame.getByRole('tab', { name: 'Analytics' })).toBeVisible()
 

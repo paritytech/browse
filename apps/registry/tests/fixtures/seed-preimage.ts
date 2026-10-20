@@ -21,7 +21,7 @@ function ipfsGateway(): string {
 export async function seedPreimage(page: Page, bytes: Uint8Array): Promise<void> {
   await page.evaluate((arr) => {
     const host = (
-      window as unknown as { __TEST_HOST__?: { seedPreimage: (v: Uint8Array) => string } }
+      window as unknown as { __TEST_HOST__?: { seedPreimage: (v: Uint8Array) => Uint8Array } }
     ).__TEST_HOST__
     if (!host?.seedPreimage) throw new Error('__TEST_HOST__.seedPreimage is unavailable')
     host.seedPreimage(new Uint8Array(arr))

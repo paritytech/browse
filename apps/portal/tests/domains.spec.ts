@@ -2,13 +2,22 @@
  * Covers adding a domain: snapshot suggestions, normalization, and the error
  * path when the connected account cannot publish.
  *
- * Uses the host-api-test-sdk to stand up a mock host around the app.
+ * Uses the TrUAPI test host to stand up a host around the app.
  */
 
 import type { BrowserContext, Frame, Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 
-import { getProductFrame, navigateToTestHost, seedSnapshotPreimage, startSignedHost } from './utils'
+import { mnemonicToEntropy } from '@polkadot-labs/hdkd-helpers'
+
+import { TLD } from '../src/lib/config'
+import {
+  getProductFrame,
+  navigateToTestHost,
+  seedSnapshotPreimage,
+  startSignedHost,
+  startUnsignedHost
+} from './utils'
 
 test.describe('Add a domain', () => {
   let host: Awaited<ReturnType<typeof startSignedHost>>
@@ -20,10 +29,10 @@ test.describe('Add a domain', () => {
     host = await startSignedHost('alice')
     context = await browser.newContext({ ignoreHTTPSErrors: true })
     page = await context.newPage()
-    await navigateToTestHost(page, host.url, { authenticate: true })
+    await navigateToTestHost(page, host.url)
     frame = await getProductFrame(page, '.toolbar')
     await seedSnapshotPreimage(page)
-    await frame.getByRole('button', { name: 'Add new' }).click()
+    await frame.locator('.toolbar').getByRole('button', { name: 'Add new' }).click()
     await expect(frame.locator('.field input')).toBeVisible()
   })
 
@@ -37,10 +46,10 @@ test.describe('Add a domain', () => {
     await frame.locator('.field input').fill('my')
 
     // Then
-    await expect(frame.locator('.suggest-item', { hasText: 'myapp.dot' })).toBeVisible({
+    await expect(frame.locator('.suggest-item', { hasText: `myapp.${TLD}` })).toBeVisible({
       timeout: 15_000
     })
-    await expect(frame.locator('.suggest-item', { hasText: 'mydomain.dot' })).toBeVisible()
+    await expect(frame.locator('.suggest-item', { hasText: `mydomain.${TLD}` })).toBeVisible()
   })
 
   test('a mixed case prefix still matches through normalization', async () => {
@@ -48,7 +57,7 @@ test.describe('Add a domain', () => {
     await frame.locator('.field input').fill('MYA')
 
     // Then
-    await expect(frame.locator('.suggest-item', { hasText: 'myapp.dot' })).toBeVisible()
+    await expect(frame.locator('.suggest-item', { hasText: `myapp.${TLD}` })).toBeVisible()
   })
 
   test('clicking a suggestion fills the bare label and closes the list', async () => {
@@ -57,7 +66,7 @@ test.describe('Add a domain', () => {
     await expect(frame.locator('.suggest')).toBeVisible()
 
     // When
-    await frame.locator('.suggest-item', { hasText: 'myapp.dot' }).click()
+    await frame.locator('.suggest-item', { hasText: `myapp.${TLD}` }).click()
 
     // Then
     await expect(frame.locator('.field input')).toHaveValue('myapp')
@@ -69,13 +78,13 @@ test.describe('Add a domain', () => {
     await frame.locator('.field input').fill('')
 
     // Then
-    await expect(frame.getByRole('button', { name: 'Add' })).toBeDisabled()
+    await expect(frame.getByRole('button', { name: 'Add', exact: true })).toBeDisabled()
   })
 
   test('adding a domain the account cannot publish errors and signs nothing', async () => {
     // When
     await frame.locator('.field input').fill('browse')
-    await frame.getByRole('button', { name: 'Add' }).click()
+    await frame.getByRole('button', { name: 'Add', exact: true }).click()
 
     // Then
     await expect(frame.locator('.feedback-error')).toBeVisible({ timeout: 25_000 })
@@ -98,16 +107,16 @@ test.describe('Add a domain', () => {
 
 test('an unauthenticated host still fails an add before anything signs', async ({ browser }) => {
   // Given
-  const host = await startSignedHost('alice')
+  const host = await startUnsignedHost()
   const context = await browser.newContext({ ignoreHTTPSErrors: true })
   const page = await context.newPage()
   await navigateToTestHost(page, host.url)
   const frame = await getProductFrame(page, '.toolbar')
 
   // When
-  await frame.getByRole('button', { name: 'Add new' }).click()
+  await frame.locator('.toolbar').getByRole('button', { name: 'Add new' }).click()
   await frame.locator('.field input').fill('browse')
-  await frame.getByRole('button', { name: 'Add' }).click()
+  await frame.getByRole('button', { name: 'Add', exact: true }).click()
 
   // Then
   await expect(frame.locator('.feedback-error')).toBeVisible({ timeout: 25_000 })
@@ -131,23 +140,26 @@ test.describe('Add a domain with the owner fixture', () => {
 
   test('adding an owned domain shows its card', async ({ browser }) => {
     // Given
+    // The host activates a session from 32 bytes of entropy, so the owner
+    // mnemonic has to be a 24-word one, and its username has to be owned by the
+    // identity account the host derives from it, not by the mnemonic root.
     const host = await startSignedHost({
       name: process.env.E2E_OWNER_USERNAME!,
-      uri: process.env.E2E_OWNER_MNEMONIC!
+      entropy: mnemonicToEntropy(process.env.E2E_OWNER_MNEMONIC!)
     })
     const context = await browser.newContext({ ignoreHTTPSErrors: true })
     const page = await context.newPage()
-    await navigateToTestHost(page, host.url, { authenticate: true })
+    await navigateToTestHost(page, host.url)
     const frame = await getProductFrame(page, '.toolbar')
     const label = process.env.E2E_OWNER_LABEL ?? process.env.E2E_OWNER_USERNAME!
 
     // When
-    await frame.getByRole('button', { name: 'Add new' }).click()
+    await frame.locator('.toolbar').getByRole('button', { name: 'Add new' }).click()
     await frame.locator('.field input').fill(label)
-    await frame.getByRole('button', { name: 'Add' }).click()
+    await frame.getByRole('button', { name: 'Add', exact: true }).click()
 
     // Then
-    await expect(frame.locator('.card', { hasText: `${label}.dot` })).toBeVisible({
+    await expect(frame.locator('.card', { hasText: `${label}.${TLD}` })).toBeVisible({
       timeout: 120_000
     })
     await expect(frame.locator('.card .card-meta')).toContainText('0x')

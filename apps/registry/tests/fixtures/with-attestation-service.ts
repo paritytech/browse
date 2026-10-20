@@ -2,13 +2,13 @@ import { createClient } from 'polkadot-api'
 import { getWsProvider } from 'polkadot-api/ws'
 import { WebSocket } from 'ws'
 
-import { createProductSigner } from './fund'
+import { createIdentitySigner } from './fund'
 import { AttestationService } from '../../src/lib/attestation-service'
 import { NETWORK } from '../../src/lib/config'
 
 const RPC_ENDPOINTS = [...NETWORK.ASSETHUB_RPCS]
 
-type Credentials = ReturnType<typeof createProductSigner>
+type Credentials = ReturnType<typeof createIdentitySigner>
 
 export async function withSigner<T>(
   { signer, address, publicKey }: Credentials,
@@ -41,9 +41,9 @@ export async function withSigner<T>(
   }
 }
 
-/** Run `fn` with a service signed by the bound product account (see {@link createProductSigner}). */
+/** Run `fn` with a service signed by the bound product account (see {@link createIdentitySigner}). */
 export function withAttestationService<T>(
   fn: (service: AttestationService, address: string) => Promise<T>
 ): Promise<T> {
-  return withSigner(createProductSigner(), fn)
+  return withSigner(createIdentitySigner(), fn)
 }

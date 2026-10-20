@@ -7,7 +7,6 @@ import { nameWithTld, stripTld } from '@parity/browse-sdk'
 import { getAccountsProvider, type HostSubscription } from '@parity/product-sdk/host'
 import { useQueryClient } from '@tanstack/react-query'
 import { ArrowUpDown, Bookmark, Check, CircleAlert, Package } from 'lucide-preact'
-import { AccountId } from 'polkadot-api'
 
 import { CategoryTabs } from './components/category-tabs'
 import { CertificateModal } from './components/certificate-modal'
@@ -709,11 +708,6 @@ export function App() {
         .catch(() => null)
       if (cancelled) return
       if (!reported) setSigned(account !== null)
-      // The host derives this account rather than being told it, so nothing
-      // outside the product can work out which account pays for a write.
-      if (import.meta.env?.DEV && account) {
-        window.__productAccount = AccountId().dec(account.publicKey)
-      }
     })
     return () => {
       cancelled = true

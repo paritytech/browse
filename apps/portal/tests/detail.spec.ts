@@ -3,7 +3,7 @@
  * Domains tab, and the settings edit and unpublish paths, all against the
  * live network.
  *
- * Uses the host-api-test-sdk to stand up a mock host around the app. The
+ * Uses the TrUAPI test host to stand up a host around the app. The
  * record reads hit the real network for the active genesis, so the specs
  * target `browse`, a label published there with a manifest.
  */
@@ -11,6 +11,7 @@
 import type { BrowserContext, Frame } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 
+import { TLD, WEB_DOMAIN } from '../src/lib/config'
 import {
   getProductFrame,
   gotoDetail,
@@ -43,7 +44,7 @@ test.describe('Project detail header', () => {
     // Then
     await expect(frame.locator('.detail-name')).toHaveText('Browse', { timeout: 30_000 })
     await expect(frame.locator('.detail-desc')).toHaveText('Home for privacy apps.')
-    await expect(frame.locator('.card-domain')).toHaveText('browse.dot.li')
+    await expect(frame.locator('.card-domain')).toHaveText(`browse.${WEB_DOMAIN}`)
   })
 
   test('falls back to the letter avatar while the icon preimage is unavailable', async () => {
@@ -62,7 +63,7 @@ test.describe('Project detail header', () => {
     await expect(frame.locator('.fact', { hasText: 'Content' })).toContainText('baf')
     await expect(frame.getByRole('link', { name: 'Visit' })).toHaveAttribute(
       'href',
-      'https://browse.dot.li'
+      `https://browse.${WEB_DOMAIN}`
     )
     await expect(frame.getByRole('button', { name: 'Rollback' })).toBeDisabled()
   })
@@ -76,22 +77,30 @@ test.describe('Project detail header', () => {
 
     // Then
     await expect(frame.locator('.domain-name')).toHaveText(
-      ['browse.dot', 'app.browse.dot', 'widget.browse.dot', 'worker.browse.dot', 'browse.dot.li'],
+      [
+        `browse.${TLD}`,
+        `app.browse.${TLD}`,
+        `widget.browse.${TLD}`,
+        `worker.browse.${TLD}`,
+        `browse.${WEB_DOMAIN}`
+      ],
       { timeout: 30_000 }
     )
     await expect(
       frame
-        .locator('.domain-row', { has: frame.getByText('app.browse.dot') })
+        .locator('.domain-row', { has: frame.getByText(`app.browse.${TLD}`) })
         .locator('.domain-sub')
     ).toContainText('baf')
     await expect(
       frame
-        .locator('.domain-row', { has: frame.getByText('worker.browse.dot') })
+        .locator('.domain-row', { has: frame.getByText(`worker.browse.${TLD}`) })
         .locator('.domain-sub')
     ).toHaveText('No content')
     await expect(
-      frame.locator('.domain-row', { hasText: 'browse.dot.li' }).getByRole('link', { name: 'Open' })
-    ).toHaveAttribute('href', 'https://browse.dot.li')
+      frame
+        .locator('.domain-row', { hasText: `browse.${WEB_DOMAIN}` })
+        .getByRole('link', { name: 'Open' })
+    ).toHaveAttribute('href', `https://browse.${WEB_DOMAIN}`)
   })
 
   test('the settings cards prefill from the live records', async () => {
@@ -142,7 +151,7 @@ test.describe('Project detail header', () => {
     await expect(frame.locator('.deploy-revert')).toHaveCount(0)
   })
 
-  test('the Analytics tab shows the enable panel without invented numbers', async () => {
+  test('the Analytics tab shows the recommendation total read from the network', async () => {
     // Given
     await gotoDetail(frame, 'browse')
 
@@ -150,17 +159,19 @@ test.describe('Project detail header', () => {
     await frame.getByRole('tab', { name: 'Analytics' }).click()
 
     // Then
-    await expect(frame.locator('.analytics-empty')).toContainText('No metrics source exists')
-    await expect(frame.getByRole('button', { name: 'Enable' })).toBeDisabled()
-    await expect(frame.locator('.kpi-label')).toHaveText(['Visitors', 'Page Views', 'Bounce Rate'])
-    const text = await frame.locator('.analytics-empty').innerText()
-    expect(text).not.toMatch(/\d/)
+    const panel = frame.locator('.analytics-empty')
+    await expect(panel.locator('.hero-title')).toHaveText('Recommendations')
+    await expect(panel).toContainText(`How many people recommend browse.${TLD} in browse.`)
+    await expect(panel.locator('.kpi-label')).toHaveText(['Total'])
+    await expect(panel.locator('.kpi-value')).toHaveText(/^[\d,]+$/, { timeout: 30_000 })
+    // No recommendations reads as the empty state, any number as the chart.
+    await expect(panel.locator('.empty, .chart')).toBeVisible()
   })
 
   test('repeat visits do not duplicate the observed deployment', async () => {
     // Given
     await gotoDetail(frame, 'zzznorecords')
-    await expect(frame.locator('.detail-name')).toHaveText('zzznorecords.dot', {
+    await expect(frame.locator('.detail-name')).toHaveText(`zzznorecords.${TLD}`, {
       timeout: 30_000
     })
 
@@ -194,7 +205,7 @@ test.describe('Project detail for an empty label', () => {
 
   test('falls back to the domain name for a label with no records', async () => {
     // Then
-    await expect(frame.locator('.detail-name')).toHaveText('zzznorecords.dot', {
+    await expect(frame.locator('.detail-name')).toHaveText(`zzznorecords.${TLD}`, {
       timeout: 30_000
     })
     await expect(frame.locator('.detail-desc')).toHaveCount(0)
@@ -203,7 +214,7 @@ test.describe('Project detail for an empty label', () => {
   test('an unpublished label reads Not published with its domain fact intact', async () => {
     // Then
     await expect(frame.locator('.hero-status')).toHaveText('Not published', { timeout: 30_000 })
-    await expect(frame.locator('.fact', { hasText: 'Domain' })).toContainText('zzznorecords.dot')
+    await expect(frame.locator('.fact', { hasText: 'Domain' })).toContainText(`zzznorecords.${TLD}`)
   })
 
   test('a label with no history shows the honest local history empty state', async () => {
@@ -222,7 +233,7 @@ test('unpublish from settings takes two steps, errors, and signs nothing', async
   const host = await startSignedHost('alice')
   const context = await browser.newContext({ ignoreHTTPSErrors: true })
   const page = await context.newPage()
-  await navigateToTestHost(page, host.url, { authenticate: true })
+  await navigateToTestHost(page, host.url)
   const frame = await getProductFrame(page, '.toolbar')
   await gotoDetail(frame, 'browse')
   await frame.getByRole('tab', { name: 'Settings' }).click()
@@ -258,7 +269,7 @@ test('saving a name without authority errors and signs nothing', async ({ browse
   const host = await startSignedHost('alice')
   const context = await browser.newContext({ ignoreHTTPSErrors: true })
   const page = await context.newPage()
-  await navigateToTestHost(page, host.url, { authenticate: true })
+  await navigateToTestHost(page, host.url)
   const frame = await getProductFrame(page, '.toolbar')
   await gotoDetail(frame, 'browse')
   await frame.getByRole('tab', { name: 'Settings' }).click()

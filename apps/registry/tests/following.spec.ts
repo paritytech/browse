@@ -9,17 +9,17 @@ import { expect, test } from '@playwright/test'
 
 import { createAttestation } from './fixtures/attest'
 import { createCachedApps } from './fixtures/cache'
-import { createDevSigner, createProductSigner, fundWithPgas } from './fixtures/fund'
+import { createDevSigner, createIdentitySigner, fundWithPgas } from './fixtures/fund'
 import { FOLLOWING_KEY, readProductStorage, saveProductStorage } from './fixtures/host-storage'
 import { createRevokedAttestation } from './fixtures/revoke-attestation'
 import { seedPreimage } from './fixtures/seed-preimage'
 import { SNAPSHOT_USERNAME, USERNAME_SNAPSHOT_BLOCKS } from './fixtures/usernames-snapshot'
 import { getProductFrame, navigateToTestHost, startSignedHost } from './utils'
 
-// The seeded attestations are signed by the `smalltava.08 //wallet` identity
-// account that createAttestation derives through createProductSigner, so
-// following that account is what surfaces its recommendations.
-const IDENTITY_ADDRESS = createProductSigner().address
+// The seeded attestations are signed by the per-run identity account that
+// createAttestation derives through createIdentitySigner, so following that
+// account is what surfaces its recommendations.
+const IDENTITY_ADDRESS = createIdentitySigner().address
 
 // A loading tab shows skeleton cards, which share the card class.
 const CARD = '.product-card:not(.product-card--skeleton)'
