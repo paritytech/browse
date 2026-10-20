@@ -87,9 +87,17 @@ export async function startUnsignedHost() {
   return startHost(networks(), { loginBehavior: 'manual' })
 }
 
-/** A host with no networks configured and no session, so every chain read fails. */
+/**
+ * A host with no networks configured and no session, so every chain read fails.
+ *
+ * The test host reports any genesis as supported unless told otherwise, and with
+ * no chain proxy it answers a connection with silence, so the app would wait on
+ * a read that never ends. Reporting chains as unsupported is what makes the read
+ * fail the way it does on a host that does not serve the network. Tracked in
+ * paritytech/trinity-user-agents#1388.
+ */
 export async function startBareHost() {
-  return startHost([], { loginBehavior: 'manual' })
+  return startHost([], { loginBehavior: 'manual', mock: { featureSupported: false } })
 }
 
 export async function startSignedHost(...accounts: (DevAccountName | DevAccount)[]) {
