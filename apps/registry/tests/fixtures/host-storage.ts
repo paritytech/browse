@@ -10,33 +10,16 @@
  * first read. The mirror stays needed after paritytech/trinity-user-agents#1388
  * is closed: that adds seeding, and a reload still clears the map.
  */
+import type { TestHostControl } from '@parity/truapi-host/testing/host-page'
 import type { Page } from '@playwright/test'
 
 import { LOCALHOST_SELF_DOTNS } from '../../src/lib/config'
 
 /**
- * What the test host exposes on its page, for the parts the specs drive.
- *
+ * The core namespace, `truapi:product-storage:v1:<id length>:<product id>:<key>`.
  * The host offers no call to seed product storage, so a seed goes through the
- * storage callback the core itself writes through, under the key the core would
- * use. The store holds bytes, and the app only ever writes JSON text. Tracked in
- * paritytech/trinity-user-agents#1388.
- */
-export interface TestHostHandle {
-  callbacks: { productStorage: { write(key: string, value: Uint8Array): Promise<void> } }
-  getProductStorage(): Record<string, Uint8Array>
-  getProductStorageValue(key: string): string | undefined
-}
-
-declare global {
-  interface Window {
-    __TEST_HOST__?: TestHostHandle
-  }
-}
-
-/**
- * The core namespace, `truapi:product-storage:v1:<id length>:<product id>:<key>`,
- * built by hand until the host seeds by the product key. Tracked in
+ * storage callback the core writes through, under this key. The store holds
+ * bytes, and the app only ever writes JSON text. Tracked in
  * paritytech/trinity-user-agents#1388.
  */
 function productStorageKey(key: string): string {
@@ -73,7 +56,7 @@ export async function persistProductStorage(page: Page): Promise<void> {
     Object.defineProperty(window, '__TEST_HOST__', {
       configurable: true,
       get: () => host,
-      set(value: TestHostHandle) {
+      set(value: TestHostControl) {
         host = value
         try {
           const saved = JSON.parse(localStorage.getItem(mirrorKey) ?? '{}') as Record<

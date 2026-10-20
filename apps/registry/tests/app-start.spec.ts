@@ -116,6 +116,8 @@ test.describe('App Start', () => {
     let frame: Frame
 
     test.beforeAll(async ({ browser }) => {
+      // A signed host boots its own session, which the cold page load pays for.
+      test.setTimeout(120_000)
       host = await startSignedHost('alice')
       context = await browser.newContext({ ignoreHTTPSErrors: true })
       const page = await context.newPage()

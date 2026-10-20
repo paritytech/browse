@@ -27,6 +27,8 @@ export interface UnboundProduct {
 export async function createUnboundProductAccount(): Promise<UnboundProduct> {
   const tag = `Unbound${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`
   const product = createDevSigner(tag)
+  // Logged before it is funded, so a run that dies here can still reclaim it.
+  console.log(`seed product account ${tag} at ${product.address}`)
   await fundWithNative(product.address)
   await mapAccount(tag)
   await fundWithPgas(product.address, PGAS_SEED_AMOUNT)

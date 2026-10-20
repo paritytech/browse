@@ -26,6 +26,27 @@ import { createRevokedAttestation } from './fixtures/revoke-attestation'
 import { getProductFrame, navigateToTestHost, startSignedHost } from './utils'
 
 /**
+ * Search for `label` and return its card once it shows.
+ *
+ * The search box has come back empty after a fill in some runs, so the label is
+ * typed again only then. A box that still holds the label fails on the card
+ * within the usual 15s.
+ */
+async function searchFor(frame: Frame, label: string): Promise<Locator> {
+  const input = frame.locator('.search-bar__input')
+  const card = frame.locator(`.product-card[data-label="${label}"]`)
+  for (let attempt = 1; ; attempt++) {
+    await input.fill(label)
+    try {
+      await expect(card).toBeVisible({ timeout: 15_000 })
+      return card
+    } catch (error) {
+      if (attempt >= 3 || (await input.inputValue()) === label) throw error
+    }
+  }
+}
+
+/**
  * The count a card shows once a sync in flight has stopped moving it. Reading it
  * mid-sync makes the recommendation look like it counted for nothing, and a
  * refresh that started before the write lands can still clobber it once, so the
@@ -156,9 +177,7 @@ test.describe('Recommend works', () => {
     // Given
     await navigateToTestHost(page, host.url)
     frame = await getProductFrame(page, '.search-bar__input')
-    await frame.locator('.search-bar__input').fill('alarm-clock')
-    const card = frame.locator('.product-card[data-label="alarm-clock"]')
-    await expect(card).toBeVisible({ timeout: 15_000 })
+    const card = await searchFor(frame, 'alarm-clock')
     const upvote = card.locator('.product-card__upvote')
     const upvoteCount = upvote.locator('.product-card__upvote-count')
     const hasCount = (await upvoteCount.count()) > 0
@@ -219,9 +238,7 @@ test.describe('Recommend works', () => {
     // Given
     await navigateToTestHost(page, host.url)
     frame = await getProductFrame(page, '.search-bar__input')
-    await frame.locator('.search-bar__input').fill('countdown-timer')
-    const card = frame.locator('.product-card[data-label="countdown-timer"]')
-    await expect(card).toBeVisible({ timeout: 15_000 })
+    const card = await searchFor(frame, 'countdown-timer')
     const upvote = card.locator('.product-card__upvote')
     const upvoteCount = upvote.locator('.product-card__upvote-count')
     await upvote.click()
@@ -281,8 +298,12 @@ test.describe('Recommendation fails', () => {
     test.setTimeout(120_000)
     if (seed) {
       await createRevokedAttestation('calculator', createDevSigner(seed.tag)).catch(() => {})
-      await transferAllWithPgas(seed.tag).catch(() => {})
-      await transferAllWithNative(seed.tag).catch(() => {})
+      await transferAllWithPgas(seed.tag).catch((error) =>
+        console.warn(`reclaiming PGAS from seed ${seed.tag} failed: ${String(error)}`)
+      )
+      await transferAllWithNative(seed.tag).catch((error) =>
+        console.warn(`reclaiming native from seed ${seed.tag} failed: ${String(error)}`)
+      )
     }
     await context?.close()
     await unfundedHost?.close()
@@ -310,17 +331,30 @@ test.describe('Recommendation fails', () => {
   })
 
   test('As a user with a second product account, when I un-recommend an app another account of my identity recommended, it is refused and nothing is signed', async () => {
-    test.setTimeout(40_000)
+    test.setTimeout(90_000)
     const page = await context.newPage()
 
     // Given
     await navigateToTestHost(page, identityHost.url)
     const frame = await getProductFrame(page, '.search-bar__input')
-    await frame.locator('.search-bar__input').fill('calculator')
+    const search = frame.locator('.search-bar__input')
     const card = frame.locator('.product-card[data-label="calculator"]')
-    await expect(card).toBeVisible({ timeout: 15_000 })
     const upvote = card.locator('.product-card__upvote')
-    await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 15_000 })
+    expect(
+      await frame.evaluate(() => window.__queryClient !== undefined),
+      'window.__queryClient is exposed only in dev builds'
+    ).toBe(true)
+    // "You recommended this" needs the identity, which the app waits 3s for and
+    // caches when it lands later. A search answered without it is cached for a
+    // minute, so drop that answer and search again until the identity shows.
+    await expect(async () => {
+      await frame.evaluate(() =>
+        window.__queryClient?.removeQueries({ queryKey: ['resolveLabel', 'calculator'] })
+      )
+      await search.fill('')
+      await search.fill('calculator')
+      await expect(upvote).toHaveClass(/product-card__upvote--active/, { timeout: 10_000 })
+    }).toPass({ timeout: 60_000 })
 
     // When
     await upvote.click()

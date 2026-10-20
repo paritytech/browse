@@ -49,6 +49,7 @@ export async function bindIdentityAndAttest(tag: string, label: string): Promise
       // The identity may already recommend this label via another bound product
       // account or a prior seed.
       if (!String(err).includes('ResolverRejected')) throw err
+      console.warn(`${label} is already recommended by another account of this identity`)
     }
   })
 }

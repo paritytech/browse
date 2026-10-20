@@ -5,7 +5,14 @@
 import type { BrowserContext, Frame, Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 
+import { NETWORK } from '../src/lib/config'
 import { getProductFrame, navigateToTestHost, startSignedHost } from './utils'
+
+/**
+ * The dev host a local share link routes through, per network TLD. Listed here
+ * rather than read from the app config, so a wrong host in that config fails.
+ */
+const DEV_HOSTS: Record<string, string> = { testnet: 'testnet.li', paseo: 'paseoli.dev' }
 
 /** Capture native-share payloads on `window.__shared` instead of opening the OS sheet. */
 async function stubShare(frame: Frame): Promise<void> {
@@ -66,8 +73,10 @@ test.describe('Share', () => {
     // Then
     // Running on localhost, the link routes through the network dev host back to
     // this instance rather than to production browse.
+    const devHost = DEV_HOSTS[NETWORK.TLD]?.replaceAll('.', '\\.')
+    expect(devHost, `no dev host listed for the ${NETWORK.TLD} network`).toBeDefined()
     expect(await lastSharedUrl(frame)).toMatch(
-      new RegExp(`^https://testnet\\.li/localhost:\\d+\\?app=${label}$`)
+      new RegExp(`^https://${devHost}/localhost:\\d+\\?app=${label}$`)
     )
   })
 
