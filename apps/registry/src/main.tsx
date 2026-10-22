@@ -37,16 +37,15 @@ if (sharedApp) {
   redirectToApp(sharedApp.label)
 }
 
-// The host tears the network WebSocket down while the app is backgrounded and
-// rebuilds it on return, which orphans the existing subscription. Drop the
-// stale SDK on foreground so the next network access rebuilds on the fresh
-// connection instead of hanging on the dead one.
+// Returning from a trusted host dialog also makes the document visible without
+// replacing its transport. Defer this reset until pending writes settle so
+// consent cannot destroy the client that is waiting for it.
 document.addEventListener('visibilitychange', () => {
   console.warn(
     'debug network connection',
     JSON.stringify({ event: 'visibilitychange', state: document.visibilityState })
   )
-  if (document.visibilityState === 'visible') resetBrowseSdk(true)
+  if (document.visibilityState === 'visible') resetBrowseSdk()
 })
 
 // The mobile host reliably calls __resumeConnections__ on willEnterForeground,
