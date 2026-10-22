@@ -36,6 +36,14 @@ bun install
 bun dev                 # default network
 ```
 
+## Connection lifecycle
+
+Returning from a host consent dialog does not imply that the transport changed.
+
+The SPA defers visibility-driven SDK resets until pending writes settle, keeping
+the recommendation client alive while the host reviews its request. An explicit
+host `__resumeConnections__` signal still forces recovery after a transport restart.
+
 ## Deploy
 
 Install deployment CLI.

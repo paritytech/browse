@@ -97,12 +97,11 @@ export function endTransaction(): void {
 }
 
 /**
- * Drop the cached SDK and destroy the old client. Destroying propagates the
- * disconnect through the host bridge so the host deletes its chain-connection
- * entry. Otherwise it reuses a stale, post-background/foreground connection
- * that never recovers. Deferred while a chain write is in flight unless
- * `force` is set — foreground and hard-failure paths know the socket is dead
- * so preserving the in-flight write is pointless.
+ * Drop the cached SDK, deferring destruction while a write is in flight.
+ *
+ * A forced reset interrupts pending writes for transport recovery. Visibility
+ * changes alone must use the deferred path because a host consent dialog does
+ * not imply that the connection was replaced.
  */
 export function resetBrowseSdk(force: boolean = false): void {
   console.warn(
