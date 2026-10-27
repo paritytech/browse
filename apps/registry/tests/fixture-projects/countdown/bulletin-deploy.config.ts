@@ -1,7 +1,12 @@
 import { defineConfig } from 'bulletin-deploy'
 
+/**
+ * The TLD comes from the environment because this fixture deploys to more than
+ * one network, and dotNS registers the same label under a different TLD on
+ * each. `MANIFEST_DOMAIN` follows the convention host-playground uses.
+ */
 export default defineConfig({
-  domain: 'countdown-timer.testnet',
+  domain: process.env.MANIFEST_DOMAIN ?? 'countdown-timer.testnet',
   displayName: 'Countdown Timer',
   description: 'Counts down. Then stops. That is the whole pitch.',
   icon: { path: './icon.png', format: 'png' },

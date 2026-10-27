@@ -1,15 +1,14 @@
 /**
  * The account a host gives the product to sign contract writes with.
  *
- * From host-api-test-sdk 0.13 the core derives it as a soft child of the
- * subtree the host names, so no test can work out the address from the account
- * it mapped. A real host mints PGAS into it on a SmartContractAllowance grant;
- * the test host grants the allowance but mints nothing, so the suite pays
- * instead, and the app reports the address it was handed.
+ * TrUAPI derives it from the session root and the product id, so it cannot be
+ * pinned to a chosen account, and every session root gets a different one. A
+ * real host mints PGAS into it on a SmartContractAllowance grant. The test host
+ * grants the allowance but mints nothing, so the suite pays instead.
  */
-import type { Browser } from '@playwright/test'
+import { productAccountAddress, type DevAccount } from '@parity/truapi-host/testing/playwright'
 
-import { getProductFrame, navigateToTestHost } from '../utils'
+import { LOCALHOST_SELF_DOTNS } from '../../src/lib/config'
 import { fundWithNative, fundWithPgas } from './fund'
 
 /**
@@ -20,38 +19,17 @@ import { fundWithNative, fundWithPgas } from './fund'
 const DEFAULT_PRODUCT_PGAS = 12_000_000_000n
 
 /**
- * Fund the product account behind `hostUrl`, whatever the host derived it to
- * be. Idempotent: the funders skip an account that is already above their
- * threshold.
+ * Fund the product account a host signed in as `account` hands the app, and
+ * return its address. The address comes from the derivation the host uses, so
+ * it is the account the app signs with. Idempotent: the
+ * funders skip an account that is already above their threshold.
  */
 export async function fundProductAccount(
-  browser: Browser,
-  hostUrl: string,
+  account: DevAccount,
   pgas: bigint = DEFAULT_PRODUCT_PGAS
 ): Promise<string> {
-  const context = await browser.newContext({ ignoreHTTPSErrors: true })
-  try {
-    const page = await context.newPage()
-    await navigateToTestHost(page, hostUrl)
-    const frame = await getProductFrame(page, '.category-tab')
-    const address = await frame.evaluate(
-      () =>
-        new Promise<string>((resolve, reject) => {
-          const deadline = Date.now() + 20_000
-          const poll = () => {
-            const account = window.__productAccount
-            if (account) return resolve(account)
-            if (Date.now() > deadline)
-              return reject(new Error('the app reported no product account'))
-            setTimeout(poll, 100)
-          }
-          poll()
-        })
-    )
-    await fundWithNative(address)
-    await fundWithPgas(address, pgas)
-    return address
-  } finally {
-    await context.close()
-  }
+  const address = await productAccountAddress({ account, productId: LOCALHOST_SELF_DOTNS })
+  await fundWithNative(address)
+  await fundWithPgas(address, pgas)
+  return address
 }

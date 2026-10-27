@@ -22,21 +22,23 @@ import {
   PASEONEXTV2_ASSETHUB_GENESIS,
   PREVIEWNET_ASSETHUB_GENESIS
 } from '@parity/browse-sdk'
-import { createTestHostServer } from '@parity/host-api-test-sdk'
+import {
+  DEV_ACCOUNT_NAMES,
+  type DevAccountName,
+  fromNetworks
+} from '@parity/truapi-host/testing/playwright'
+import { createTestHostServer } from '@parity/truapi-host/testing/server'
 
 function flag(name: string, fallback: string): string {
   const at = process.argv.indexOf(`--${name}`)
   return at === -1 ? fallback : (process.argv[at + 1] ?? fallback)
 }
 
-/** Dev accounts the test host can impersonate. */
-const DEV_ACCOUNTS = ['alice', 'bob', 'charlie', 'dave', 'eve', 'ferdie'] as const
-
-function accountFlag(): (typeof DEV_ACCOUNTS)[number] {
+function accountFlag(): DevAccountName {
   const value = flag('account', 'alice')
-  const account = DEV_ACCOUNTS.find((name) => name === value)
+  const account = DEV_ACCOUNT_NAMES.find((name) => name === value)
   if (!account) {
-    console.error(`--account must be one of: ${DEV_ACCOUNTS.join(', ')}`)
+    console.error(`--account must be one of: ${DEV_ACCOUNT_NAMES.join(', ')}`)
     process.exit(1)
   }
   return account
@@ -50,25 +52,31 @@ const token = onPreviewnet
   ? { tokenSymbol: 'UNIT', tokenDecimals: 12 }
   : { tokenSymbol: 'PAS', tokenDecimals: 10 }
 
+// The server takes no `networks`, so expand them into the chain proxies and
+// runtime config they stand for. Tracked in paritytech/trinity-user-agents#1388.
+// The host reads the role of each chain off the id suffix.
+const { mock, runtimeConfig } = fromNetworks([
+  {
+    id: `${network.TLD}-asset-hub`,
+    name: 'Asset Hub',
+    genesisHash: genesis,
+    rpcUrl: network.ASSETHUB_RPCS[0],
+    ...token
+  },
+  {
+    id: `${network.TLD}-people`,
+    name: 'People',
+    genesisHash: network.PEOPLE_GENESIS!,
+    rpcUrl: network.PEOPLE_RPCS![0],
+    ...token
+  }
+])
+
 const host = await createTestHostServer({
   productUrl: `http://localhost:${port}/`,
   accounts: [accountFlag()],
-  networks: [
-    {
-      id: 'asset-hub',
-      name: 'Asset Hub',
-      genesisHash: genesis,
-      rpcUrl: network.ASSETHUB_RPCS[0],
-      ...token
-    },
-    {
-      id: 'people',
-      name: 'People',
-      genesisHash: network.PEOPLE_GENESIS!,
-      rpcUrl: network.PEOPLE_RPCS![0],
-      ...token
-    }
-  ]
+  mock,
+  runtimeConfig: { ...runtimeConfig, networkSuffix: network.TLD }
 })
 
 console.log(

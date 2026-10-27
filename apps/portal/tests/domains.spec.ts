@@ -1,14 +1,30 @@
 /**
- * Covers adding a domain: snapshot suggestions, normalization, and the error
- * path when the connected account cannot publish.
+ * Covers adding a domain: snapshot suggestions, normalization, and tracking.
  *
- * Uses the host-api-test-sdk to stand up a mock host around the app.
+ * Adding is local. It records the label the portal tracks and opens its detail
+ * page, and publishing is a separate step there, so an add signs nothing and
+ * needs no session. The specs add `calculator`, the registry fixture app that
+ * the registry suite publishes, so its detail page has records to show.
+ *
+ * Uses the TrUAPI test host to stand up a host around the app.
  */
 
 import type { BrowserContext, Frame, Page } from '@playwright/test'
 import { expect, test } from '@playwright/test'
 
-import { getProductFrame, navigateToTestHost, seedSnapshotPreimage, startSignedHost } from './utils'
+import { mnemonicToEntropy } from '@polkadot-labs/hdkd-helpers'
+
+import { TLD, WEB_DOMAIN } from '../src/lib/config'
+import {
+  getProductFrame,
+  navigateToTestHost,
+  seedSnapshotPreimage,
+  startSignedHost,
+  startUnsignedHost
+} from './utils'
+
+/** The registry fixture app, see apps/registry/tests/fixture-projects/calculator. */
+const LABEL = 'calculator'
 
 test.describe('Add a domain', () => {
   let host: Awaited<ReturnType<typeof startSignedHost>>
@@ -20,10 +36,10 @@ test.describe('Add a domain', () => {
     host = await startSignedHost('alice')
     context = await browser.newContext({ ignoreHTTPSErrors: true })
     page = await context.newPage()
-    await navigateToTestHost(page, host.url, { authenticate: true })
+    await navigateToTestHost(page, host.url)
     frame = await getProductFrame(page, '.toolbar')
     await seedSnapshotPreimage(page)
-    await frame.getByRole('button', { name: 'Add new' }).click()
+    await frame.locator('.toolbar').getByRole('button', { name: 'Add new' }).click()
     await expect(frame.locator('.field input')).toBeVisible()
   })
 
@@ -37,10 +53,10 @@ test.describe('Add a domain', () => {
     await frame.locator('.field input').fill('my')
 
     // Then
-    await expect(frame.locator('.suggest-item', { hasText: 'myapp.dot' })).toBeVisible({
+    await expect(frame.locator('.suggest-item', { hasText: `myapp.${TLD}` })).toBeVisible({
       timeout: 15_000
     })
-    await expect(frame.locator('.suggest-item', { hasText: 'mydomain.dot' })).toBeVisible()
+    await expect(frame.locator('.suggest-item', { hasText: `mydomain.${TLD}` })).toBeVisible()
   })
 
   test('a mixed case prefix still matches through normalization', async () => {
@@ -48,7 +64,7 @@ test.describe('Add a domain', () => {
     await frame.locator('.field input').fill('MYA')
 
     // Then
-    await expect(frame.locator('.suggest-item', { hasText: 'myapp.dot' })).toBeVisible()
+    await expect(frame.locator('.suggest-item', { hasText: `myapp.${TLD}` })).toBeVisible()
   })
 
   test('clicking a suggestion fills the bare label and closes the list', async () => {
@@ -57,7 +73,7 @@ test.describe('Add a domain', () => {
     await expect(frame.locator('.suggest')).toBeVisible()
 
     // When
-    await frame.locator('.suggest-item', { hasText: 'myapp.dot' }).click()
+    await frame.locator('.suggest-item', { hasText: `myapp.${TLD}` }).click()
 
     // Then
     await expect(frame.locator('.field input')).toHaveValue('myapp')
@@ -69,16 +85,26 @@ test.describe('Add a domain', () => {
     await frame.locator('.field input').fill('')
 
     // Then
-    await expect(frame.getByRole('button', { name: 'Add' })).toBeDisabled()
+    await expect(frame.getByRole('button', { name: 'Add', exact: true })).toBeDisabled()
   })
 
-  test('adding a domain the account cannot publish errors and signs nothing', async () => {
+  test('adding a domain tracks it, opens its detail page, and signs nothing', async () => {
     // When
-    await frame.locator('.field input').fill('browse')
-    await frame.getByRole('button', { name: 'Add' }).click()
+    await frame.locator('.field input').fill(LABEL)
+    await frame.getByRole('button', { name: 'Add', exact: true }).click()
 
     // Then
-    await expect(frame.locator('.feedback-error')).toBeVisible({ timeout: 25_000 })
+    await expect(frame.locator('.detail-name')).toHaveText('Calculator', { timeout: 30_000 })
+    await expect(frame.locator('.detail-head .card-domain')).toHaveText(`${LABEL}.${WEB_DOMAIN}`)
+
+    // When
+    await frame.locator('.nav-item', { hasText: 'Products' }).click()
+
+    // Then
+    await expect(
+      frame.locator('.card .card-domain', { hasText: `${LABEL}.${WEB_DOMAIN}` })
+    ).toBeVisible()
+    await expect(frame.locator('.feedback-error')).toHaveCount(0)
     const signed = await page.evaluate(
       () =>
         (
@@ -96,21 +122,33 @@ test.describe('Add a domain', () => {
   })
 })
 
-test('an unauthenticated host still fails an add before anything signs', async ({ browser }) => {
+test('an unauthenticated host still adds a domain without signing', async ({ browser }) => {
+  // It boots its own host, which comes on top of the waits below.
+  test.setTimeout(90_000)
   // Given
-  const host = await startSignedHost('alice')
+  const host = await startUnsignedHost()
   const context = await browser.newContext({ ignoreHTTPSErrors: true })
   const page = await context.newPage()
   await navigateToTestHost(page, host.url)
   const frame = await getProductFrame(page, '.toolbar')
 
   // When
-  await frame.getByRole('button', { name: 'Add new' }).click()
-  await frame.locator('.field input').fill('browse')
-  await frame.getByRole('button', { name: 'Add' }).click()
+  await frame.locator('.toolbar').getByRole('button', { name: 'Add new' }).click()
+  await frame.locator('.field input').fill(LABEL)
+  await frame.getByRole('button', { name: 'Add', exact: true }).click()
 
   // Then
-  await expect(frame.locator('.feedback-error')).toBeVisible({ timeout: 25_000 })
+  await expect(frame.locator('.detail-name')).toHaveText('Calculator', { timeout: 30_000 })
+  await expect(frame.locator('.detail-head .card-domain')).toHaveText(`${LABEL}.${WEB_DOMAIN}`)
+
+  // When
+  await frame.locator('.nav-item', { hasText: 'Products' }).click()
+
+  // Then
+  await expect(
+    frame.locator('.card .card-domain', { hasText: `${LABEL}.${WEB_DOMAIN}` })
+  ).toBeVisible()
+  await expect(frame.locator('.feedback-error')).toHaveCount(0)
   const signed = await page.evaluate(
     () =>
       (
@@ -130,24 +168,29 @@ test.describe('Add a domain with the owner fixture', () => {
   )
 
   test('adding an owned domain shows its card', async ({ browser }) => {
+    // It boots its own host, which comes on top of the waits below.
+    test.setTimeout(180_000)
     // Given
+    // The host activates a session from 32 bytes of entropy, so the owner
+    // mnemonic has to be a 24-word one, and its username has to be owned by the
+    // identity account the host derives from it, not by the mnemonic root.
     const host = await startSignedHost({
       name: process.env.E2E_OWNER_USERNAME!,
-      uri: process.env.E2E_OWNER_MNEMONIC!
+      entropy: mnemonicToEntropy(process.env.E2E_OWNER_MNEMONIC!)
     })
     const context = await browser.newContext({ ignoreHTTPSErrors: true })
     const page = await context.newPage()
-    await navigateToTestHost(page, host.url, { authenticate: true })
+    await navigateToTestHost(page, host.url)
     const frame = await getProductFrame(page, '.toolbar')
     const label = process.env.E2E_OWNER_LABEL ?? process.env.E2E_OWNER_USERNAME!
 
     // When
-    await frame.getByRole('button', { name: 'Add new' }).click()
+    await frame.locator('.toolbar').getByRole('button', { name: 'Add new' }).click()
     await frame.locator('.field input').fill(label)
-    await frame.getByRole('button', { name: 'Add' }).click()
+    await frame.getByRole('button', { name: 'Add', exact: true }).click()
 
     // Then
-    await expect(frame.locator('.card', { hasText: `${label}.dot` })).toBeVisible({
+    await expect(frame.locator('.card', { hasText: `${label}.${TLD}` })).toBeVisible({
       timeout: 120_000
     })
     await expect(frame.locator('.card .card-meta')).toContainText('0x')

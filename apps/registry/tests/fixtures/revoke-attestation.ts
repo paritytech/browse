@@ -5,14 +5,14 @@ import { nameWithTld } from '@parity/browse-sdk'
 
 import { namehash, nodeToSubject } from '../../src/lib/abi'
 import { NETWORK } from '../../src/lib/config'
-import { createProductSigner } from './fund'
+import { createIdentitySigner } from './fund'
 import { withSigner } from './with-attestation-service'
 
-// Revokes the given account attestation on `label`. Defaults to the bound
-// product account. Pass a different signer to revoke another attester.
+// Revokes the given account attestation on `label`. Defaults to the run
+// identity. Pass a different signer to revoke another attester.
 export async function createRevokedAttestation(
   label: string,
-  credentials = createProductSigner()
+  credentials = createIdentitySigner()
 ): Promise<void> {
   await withSigner(credentials, async (service) => {
     const recipient = nodeToSubject(namehash(nameWithTld(label, NETWORK.TLD)))

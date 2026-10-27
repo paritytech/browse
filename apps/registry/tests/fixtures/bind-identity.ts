@@ -1,41 +1,36 @@
-import { LOCALHOST_SELF_DOTNS } from '../../src/lib/config'
-import { identityUsername, identityUri } from '../utils'
+import type { DevAccount } from '@parity/truapi-host/testing/playwright'
+
+import { identityEntropy, identityUsername } from '../utils'
 import { createDevSigner, fundWithNative, fundWithPgas, mapAccount, PGAS_SEED_AMOUNT } from './fund'
 
-type Account = import('@parity/host-api-test-sdk').Account
-
-/** Pins the connected per-run identity to the run username and its run-unique wallet path. */
-export const IDENTITY_ACCOUNT: Account = {
+/**
+ * The connected per-run identity. The host activates its session from the run
+ * entropy and reports the name as its username, which the run registers for
+ * that identity in globalSetup.
+ */
+export const IDENTITY_ACCOUNT: DevAccount = {
   name: identityUsername(),
-  uri: identityUri(),
-  username: identityUsername()
+  entropy: identityEntropy()
 }
 
 export interface UnboundProduct {
-  /** Host product-account map pinning the app product account (index 0) to the funded, never-bound account. */
-  productAccounts: Record<string, Account>
-  /** Dev derivation tag of the funded account, for reclaiming its PGAS afterwards. */
+  /** Dev derivation tag of the funded account, for signing as it and reclaiming its PGAS afterwards. */
   tag: string
 }
 
 /**
- * Derive and fund a fresh product account that has never bound on the active
- * resolver, mapped as the app product account (`${LOCALHOST_SELF_DOTNS}/0`).
- * The connected identity is unchanged, so recommending through it runs the
- * bind-and-attest batch (the attester is unbound) instead of a plain attest.
- * PGAS lets `ensureAllowance` skip the grant. Native covers the batch tx fees.
+ * Derive and fund a fresh account that has never bound on the active resolver.
+ * A fixture binds it to the connected identity and attests through it, so it
+ * stands for a second product account of that identity. PGAS lets it pay its
+ * contract calls. Native covers the batch tx fees.
  */
 export async function createUnboundProductAccount(): Promise<UnboundProduct> {
   const tag = `Unbound${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`
   const product = createDevSigner(tag)
+  // Logged before it is funded, so a run that dies here can still reclaim it.
+  console.log(`seed product account ${tag} at ${product.address}`)
   await fundWithNative(product.address)
   await mapAccount(tag)
-  // Fund the account so it can pay its first-recommend batch fee in PGAS.
-  await fundWithPgas(createDevSigner(tag).address, PGAS_SEED_AMOUNT)
-  return {
-    tag,
-    productAccounts: {
-      [LOCALHOST_SELF_DOTNS]: { name: tag, uri: `//${tag}` }
-    }
-  }
+  await fundWithPgas(product.address, PGAS_SEED_AMOUNT)
+  return { tag }
 }

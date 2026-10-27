@@ -11,7 +11,6 @@ import { createCachedApps } from './fixtures/cache'
 import {
   BOOKMARKS_KEY,
   LABELS_KEY,
-  productStorageKey,
   readProductStorage,
   resetProductStorage,
   writeProductStorage
@@ -66,6 +65,11 @@ test.describe('App Start', () => {
       await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
       // The test host has no IPFS backend, so seed calculator's icon bytes for its lookup.
       await seedIconPreimage(frame.page(), 'calculator')
+      // The test host answers a preimage lookup once and never pushes a value
+      // seeded after it, so remount the cards to look the icon up again now that
+      // it is there. Tracked in paritytech/trinity-user-agents#1388.
+      await frame.locator('.category-tab', { hasText: 'Bookmarks' }).click()
+      await frame.locator('.category-tab', { hasText: 'All' }).click()
       const calculatorIcon = frame.locator(
         '.product-card[data-label="calculator"] .product-card__thumb-img'
       )
@@ -112,6 +116,8 @@ test.describe('App Start', () => {
     let frame: Frame
 
     test.beforeAll(async ({ browser }) => {
+      // A signed host boots its own session, which the cold page load pays for.
+      test.setTimeout(120_000)
       host = await startSignedHost('alice')
       context = await browser.newContext({ ignoreHTTPSErrors: true })
       const page = await context.newPage()
@@ -235,12 +241,12 @@ test.describe('App Start', () => {
       // Then
       await page.waitForFunction(
         ({ key, target, stale }) => {
-          const raw = window.__TEST_HOST__?.getProductStorage()[key]
+          const raw = window.__TEST_HOST__?.getProductStorageValue(key)
           const arr = (raw ? JSON.parse(raw) : []) as Array<{ label: string; fetchedAt?: number }>
           const e = arr.find((l) => l.label === target)
           return e !== undefined && (e.fetchedAt ?? 0) > stale
         },
-        { key: productStorageKey(LABELS_KEY), target: staleLabel, stale: STALE_TS },
+        { key: LABELS_KEY, target: staleLabel, stale: STALE_TS },
         { timeout: 30_000 }
       )
 
@@ -480,11 +486,11 @@ test.describe('App Start', () => {
       frame = await getProductFrame(page, '.category-tab')
       await page.waitForFunction(
         (key) => {
-          const raw = window.__TEST_HOST__?.getProductStorage()[key]
+          const raw = window.__TEST_HOST__?.getProductStorageValue(key)
           const arr = (raw ? JSON.parse(raw) : []) as Array<{ fetchedAt?: number }>
           return arr.length > 0 && arr.some((l) => (l.fetchedAt ?? 0) > 1000)
         },
-        productStorageKey(LABELS_KEY),
+        LABELS_KEY,
         { timeout: 60_000 }
       )
 

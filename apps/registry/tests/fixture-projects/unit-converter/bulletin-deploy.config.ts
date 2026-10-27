@@ -1,7 +1,12 @@
 import { defineConfig } from 'bulletin-deploy'
 
+/**
+ * The TLD comes from the environment because this fixture deploys to more than
+ * one network, and dotNS registers the same label under a different TLD on
+ * each. `MANIFEST_DOMAIN` follows the convention host-playground uses.
+ */
 export default defineConfig({
-  domain: 'unit-converter.testnet',
+  domain: process.env.MANIFEST_DOMAIN ?? 'unit-converter.testnet',
   displayName: 'Unit Converter',
   description: 'Metres to feet, and back again.',
   icon: { path: './icon.png', format: 'png' },

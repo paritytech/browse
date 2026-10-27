@@ -10,17 +10,15 @@
  * Idempotent: an identity that already owns its username is left alone.
  */
 import { previewnetpeople } from '@polkadot-api/descriptors'
-import { sr25519CreateDerive } from '@polkadot-labs/hdkd'
-import { DEV_PHRASE, mnemonicToEntropy, mnemonicToMiniSecret } from '@polkadot-labs/hdkd-helpers'
 import { Binary, createClient, Enum, type SS58String, type TypedApi } from 'polkadot-api'
 import { getWsProvider } from 'polkadot-api/ws'
 import { WebSocket } from 'ws'
 import { member_from_entropy, sign, verify_signature } from 'verifiablejs/nodejs'
 import { bytesToHex } from 'viem'
-import { deriveRingVrfEntropy } from '@parity/browse-sdk'
+import { lightPersonRingVrfEntropy } from '@parity/browse-sdk'
 import { NETWORK } from '../../src/lib/config'
-import { identityPath, identityUsername } from '../utils'
-import { createMasterSigner, createProductSigner } from './fund'
+import { identityEntropy, identityUsername } from '../utils'
+import { createMasterSigner, createIdentitySigner } from './fund'
 
 // The app resolves usernames from this People chain.
 const PEOPLE_RPC = NETWORK.PEOPLE_RPCS![0]
@@ -109,9 +107,13 @@ function identifierKeyOf(publicKey: Uint8Array): Uint8Array {
   return out
 }
 
-/** The per-run identity's own lite ring-VRF key, unique to its wallet path. */
+/**
+ * The lite ring-VRF key of the per-run identity, unique to its entropy. It is
+ * the light-person key the host derives for the same session, so the person
+ * this registers is the one the host would present.
+ */
 function identityRingEntropy(): Uint8Array {
-  return deriveRingVrfEntropy(mnemonicToEntropy(DEV_PHRASE), `e2e-identity:${identityPath()}`, 0)
+  return lightPersonRingVrfEntropy(identityEntropy(), NETWORK.TLD)
 }
 
 /**
@@ -119,7 +121,7 @@ function identityRingEntropy(): Uint8Array {
  * a lite person with the username in the same extrinsic when it has none yet.
  */
 export async function createUsername(): Promise<void> {
-  const identity = createProductSigner()
+  const identity = createIdentitySigner()
   const username = identityUsername()
   const [base] = username.split('.')
   await withPeopleApi(async (api) => {
@@ -171,8 +173,7 @@ export async function createUsername(): Promise<void> {
     const identifierKey = identifierKeyOf(identity.publicKey)
     // Raw sr25519 over the payload, as the pallet verifies it. A papi signer
     // would wrap the bytes.
-    const wallet = sr25519CreateDerive(mnemonicToMiniSecret(DEV_PHRASE, ''))(identityPath())
-    const consent = wallet.sign(
+    const consent = identity.signRaw(
       consumerRegistrationMessage(identity.publicKey, identifierKey, base!)
     )
 

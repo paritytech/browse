@@ -6,7 +6,7 @@ import { nameWithTld } from '@parity/browse-sdk'
 
 import { encodeAttestationLabel, namehash, nodeToSubject } from '../../src/lib/abi'
 import { ACTIVE_ATTESTATION_RESOLVER, ACTIVE_SCHEMA_ID, NETWORK } from '../../src/lib/config'
-import { createDevSigner, createProductSigner } from './fund'
+import { createDevSigner, createIdentitySigner } from './fund'
 import { withSigner } from './with-attestation-service'
 
 const MESSAGE_PREFIX = 'attestation v1\n'
@@ -26,8 +26,8 @@ function buildBindingMessage(resolver: `0x${string}`, account: `0x${string}`): U
 /**
  * Bind the `tag` product account to the connected identity, then attest `label`
  * as that account. This is the fixture twin of the app first recommendation, but
- * driven from Node: the identity key (`//wallet`, which owns smalltava.08 and
- * holds the binding key) signs the binding message directly instead of going
+ * driven from Node: the per-run identity key, which owns the run username and
+ * holds the binding key, signs the binding message directly instead of going
  * through the host. Use it to seed an attestation from a freshly bound account so
  * a second product account of the same identity is then refused on the same app.
  */
@@ -36,7 +36,7 @@ export async function bindIdentityAndAttest(tag: string, label: string): Promise
   const h160 = (ss58ToEthereum(account.address as SS58String) as `0x${string}`).toLowerCase()
   const message = buildBindingMessage(ACTIVE_ATTESTATION_RESOLVER, h160 as `0x${string}`)
 
-  const identity = createProductSigner()
+  const identity = createIdentitySigner()
   const signature = await identity.signer.signBytes(message)
 
   await withSigner(account, async (service) => {
@@ -49,6 +49,7 @@ export async function bindIdentityAndAttest(tag: string, label: string): Promise
       // The identity may already recommend this label via another bound product
       // account or a prior seed.
       if (!String(err).includes('ResolverRejected')) throw err
+      console.warn(`${label} is already recommended by another account of this identity`)
     }
   })
 }

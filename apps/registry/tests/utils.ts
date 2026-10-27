@@ -1,11 +1,18 @@
+import { blake2b } from '@noble/hashes/blake2.js'
 import {
   KNOWN_NETWORKS,
   PASEONEXTV2_ASSETHUB_GENESIS,
   PREVIEWNET_ASSETHUB_GENESIS
 } from '@parity/browse-sdk'
+import type {
+  DevAccount,
+  DevAccountName,
+  NetworkConfig
+} from '@parity/truapi-host/testing/playwright'
+import type { TestHostServerOptions } from '@parity/truapi-host/testing/server'
 import type { Frame, Page } from '@playwright/test'
 
-import { LOCALHOST_SELF_DOTNS } from '../src/lib/config'
+import { LOCALHOST_SELF_DOTNS, NETWORK } from '../src/lib/config'
 import { persistProductStorage } from './fixtures/host-storage'
 
 const PORT = process.env.PORT ?? '5173'
@@ -15,30 +22,34 @@ const APP_URL = `http://localhost:${PORT}`
 export const DEV_PHRASE =
   'give social ivory used surprise dignity mother boss sword lunar giggle icon'
 
-/** Returns the run-unique id shared by the wallet path and username, or undefined locally. */
+/**
+ * Returns the run-unique id shared by the identity entropy and username, or
+ * undefined locally. A re-run of a CI job keeps its run id, so a later attempt
+ * gets its own: the attestations an earlier attempt made from its product
+ * account cannot be revoked by the suite and would refuse every recommend.
+ */
 function runId(): string | undefined {
-  return process.env.GITHUB_RUN_ID ?? process.env.E2E_RUN_ID
+  const attempt = Number(process.env.GITHUB_RUN_ATTEMPT ?? 1)
+  const id = process.env.GITHUB_RUN_ID ?? process.env.E2E_RUN_ID
+  return id && attempt > 1 ? `${id}-${attempt}` : id
 }
 
 /**
- * Derives the wallet path for the per-run identity, off `smalltava.08`. Each CI
- * run gets a unique identity so a dead account leaving a stuck one-per-identity
- * lock on one run never blocks another, and concurrent runs never contend on the
- * same identity. playwright.config.ts gives local runs an id too, so only a
- * fixture script run by hand falls back to the bare wallet.
+ * The 32 bytes of BIP-39 entropy that the session of the per-run identity
+ * activates from.
+ *
+ * Each CI run gets a unique identity so a dead account leaving a stuck
+ * one-per-identity lock on one run never blocks another, and concurrent runs
+ * never contend on the same identity. playwright.config.ts gives local runs an
+ * id too, so only a fixture script run by hand falls back to a shared one.
+ *
+ * The host activates a session from entropy, not a derivation path, so the run
+ * id is hashed into the entropy.
  */
-export function identityPath(): string {
-  const id = runId()
-  return id ? `//wallet//run${id}` : '//wallet'
-}
-
-/**
- * The host uri of the per-run identity: hard junctions under the dev seed, which
- * is all the test host derives from. {@link identityPath} names the same key
- * the fixtures sign with (see createProductSigner).
- */
-export function identityUri(): string {
-  return identityPath()
+export function identityEntropy(): Uint8Array {
+  return blake2b(new TextEncoder().encode(`browse-e2e:identity:${runId() ?? 'local'}`), {
+    dkLen: 32
+  })
 }
 
 /**
@@ -55,17 +66,15 @@ export function identityUsername(): string {
   return `run${base}.10`
 }
 
-type Account = import('@parity/host-api-test-sdk').Account
-type NetworkConfig = import('@parity/host-api-test-sdk').NetworkConfig
-
+// The test host reads the role of each chain off the id suffix, -asset-hub or
+// -people, so the network name goes first.
 const PASEONEXTV2_ASSETHUB: NetworkConfig = {
-  id: 'paseo-asset-hub-next-v2',
+  id: 'paseo-next-v2-asset-hub',
   name: 'Paseo AssetHubNextV2',
   genesisHash: PASEONEXTV2_ASSETHUB_GENESIS,
   rpcUrl: KNOWN_NETWORKS[PASEONEXTV2_ASSETHUB_GENESIS].ASSETHUB_RPCS[0],
   tokenSymbol: 'PAS',
-  tokenDecimals: 10,
-  chain: 'AssetHub'
+  tokenDecimals: 10
 }
 
 const PREVIEWNET_ASSETHUB: NetworkConfig = {
@@ -74,15 +83,14 @@ const PREVIEWNET_ASSETHUB: NetworkConfig = {
   genesisHash: PREVIEWNET_ASSETHUB_GENESIS,
   rpcUrl: KNOWN_NETWORKS[PREVIEWNET_ASSETHUB_GENESIS].ASSETHUB_RPCS[0],
   tokenSymbol: 'UNIT',
-  tokenDecimals: 12,
-  chain: 'AssetHub'
+  tokenDecimals: 12
 }
 
 // People networks. The app identity-binding flow reads
 // Resources.UsernameOwnerOf on the People chain via the host-routed provider, so
 // the test host must route this genesis in addition to the Asset Hub.
 const PASEO_PEOPLE: NetworkConfig = {
-  id: 'paseo-people',
+  id: 'paseo-next-v2-people',
   name: 'Paseo People',
   genesisHash: KNOWN_NETWORKS[PASEONEXTV2_ASSETHUB_GENESIS].PEOPLE_GENESIS!,
   rpcUrl: KNOWN_NETWORKS[PASEONEXTV2_ASSETHUB_GENESIS].PEOPLE_RPCS![0],
@@ -113,61 +121,45 @@ function activePeopleChain(): NetworkConfig {
 
 export { APP_URL, PORT }
 
-function productAccountMap(accounts: Account[]): Record<string, Account> | undefined {
-  const primary = accounts[0]
-  if (!primary) return undefined
-  // The host maps the whole account subtree of a product, keyed by the bare id.
-  return { [LOCALHOST_SELF_DOTNS]: primary }
-}
-
-export async function startSignedHost(...accounts: Account[]) {
-  const { createTestHostServer } = await import('@parity/host-api-test-sdk')
-  const resolved = accounts.length > 0 ? accounts : (['alice'] as Account[])
-  return createTestHostServer({
-    productUrl: APP_URL,
-    productId: LOCALHOST_SELF_DOTNS,
-    accounts: resolved,
-    networks: [activeNetwork(), activePeopleChain()],
-    productAccounts: productAccountMap(resolved)
-  })
-}
+// Stops compiling once the test host server takes `networks`, the release that
+// closes paritytech/trinity-user-agents#1388. Then drop every workaround for it:
+// - fromNetworks in startHost here, startHost in apps/portal/tests/utils.ts and
+//   scripts/mock-host.ts
+// - the remount after seedIconPreimage in app-start.spec.ts
+// - the seeding in fixtures/host-storage.ts
+true satisfies 'networks' extends keyof TestHostServerOptions ? never : true
 
 /**
- * Like {@link startSignedHost} but with explicit product-account mappings,
- * keyed by bare product id. Lets a test point the account subtree at a
- * distinct (fundable) account, such as a fresh, never-bound attester that drives
- * the bind-and-attest batch.
- */
-export async function startSignedHostWithProductAccounts(
-  account: Account,
-  productAccounts: Record<string, Account>
-) {
-  const { createTestHostServer } = await import('@parity/host-api-test-sdk')
-  return createTestHostServer({
-    productUrl: APP_URL,
-    productId: LOCALHOST_SELF_DOTNS,
-    accounts: [account],
-    networks: [activeNetwork(), activePeopleChain()],
-    productAccounts
-  })
-}
-
-/**
- * A host for the specs written against a user with no connected account.
+ * Start a test host for the active network.
  *
- * host-api-test-sdk 0.13 always mints a session for its first roster entry and
- * refuses an empty roster, so a disconnected account cannot be modelled any
- * more. The old page rewrite that left the account request pending has nothing
- * to rewrite, an empty roster is rejected outright, and a host whose product id
- * does not match the one the app asks for still hands over an account. The
- * assertions in these specs hold for a connected user too, so until the host can
- * present a disconnected one this is the signed host, and the unsigned half of
- * the sign-in detection in the app goes untested. The signed half is covered: the
- * suite funds the account that detection reports, and every recommend spec
- * fails without it.
+ * The server takes no `networks`, so they are expanded here into the chain
+ * proxies and runtime config they stand for. Tracked in
+ * paritytech/trinity-user-agents#1388. `networkSuffix` is the dotNS TLD of the
+ * active network, which the identity account derives under as
+ * createIdentitySigner does, so it is set here rather than left to the host
+ * default.
  */
+async function startHost(options: Partial<TestHostServerOptions>) {
+  const { createTestHostServer } = await import('@parity/truapi-host/testing/server')
+  const { fromNetworks } = await import('@parity/truapi-host/testing/playwright')
+  const { mock, runtimeConfig } = fromNetworks([activeNetwork(), activePeopleChain()])
+  return createTestHostServer({
+    productUrl: APP_URL,
+    productId: LOCALHOST_SELF_DOTNS,
+    mock,
+    runtimeConfig: { ...runtimeConfig, networkSuffix: NETWORK.TLD },
+    ...options
+  })
+}
+
+/** Start a test host signed in as the first of `accounts`, `alice` by default. */
+export async function startSignedHost(...accounts: (DevAccountName | DevAccount)[]) {
+  return startHost({ accounts: accounts.length > 0 ? accounts : ['alice'] })
+}
+
+/** A host with no session: the user has not signed in. */
 export async function startUnsignedHost() {
-  return startSignedHost('alice')
+  return startHost({ loginBehavior: 'manual' })
 }
 
 export async function navigateToTestHost(page: Page, hostUrl: string): Promise<void> {

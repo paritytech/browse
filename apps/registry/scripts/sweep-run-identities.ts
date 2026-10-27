@@ -2,7 +2,8 @@
  * Sweep the PGAS that past e2e runs left on their per-run identities back to the funder.
  *
  * Each run derives its identity from its run id, `GITHUB_RUN_ID` in CI or
- * `E2E_RUN_ID` locally, so the id alone recovers the key. A local run username
+ * `E2E_RUN_ID` locally, so the id alone recovers the key. A CI re-run attempt
+ * after the first is `<run id>-<attempt>`. A local run username
  * encodes its id with digits mapped to letters, `a` for 0 through `j` for 9.
  * Pass only finished runs, since sweeping a run in progress drains the identity
  * it is attesting with. `gh run list --workflow e2e.yml --status completed`
@@ -19,6 +20,7 @@ if (runIds.length === 0) {
   process.exit(1)
 }
 
+delete process.env.GITHUB_RUN_ATTEMPT
 for (const runId of runIds) {
   process.env.GITHUB_RUN_ID = runId
   await reclaimIdentity()

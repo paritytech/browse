@@ -7,26 +7,22 @@
  * host persists it. The caching and reload specs are written against a host
  * that persists, so the helpers here mirror the map into the host page's
  * `localStorage` and restore it into each fresh runtime before the product's
- * first read.
+ * first read. The mirror stays needed after paritytech/trinity-user-agents#1388
+ * is closed: that adds seeding, and a reload still clears the map.
  */
+import type { TestHostControl } from '@parity/truapi-host/testing/host-page'
 import type { Page } from '@playwright/test'
 
 import { LOCALHOST_SELF_DOTNS } from '../../src/lib/config'
 
-/** What the test host exposes on its page, for the parts the specs drive. */
-export interface TestHostHandle {
-  seedProductStorage(key: string, value: string): void
-  getProductStorage(): Record<string, string>
-}
-
-declare global {
-  interface Window {
-    __TEST_HOST__?: TestHostHandle
-  }
-}
-
-/** The core's namespace: `truapi:product-storage:v1:<id length>:<product id>:<key>`. */
-export function productStorageKey(key: string): string {
+/**
+ * The core namespace, `truapi:product-storage:v1:<id length>:<product id>:<key>`.
+ * The host offers no call to seed product storage, so a seed goes through the
+ * storage callback the core writes through, under this key. The store holds
+ * bytes, and the app only ever writes JSON text. Tracked in
+ * paritytech/trinity-user-agents#1388.
+ */
+function productStorageKey(key: string): string {
   return `truapi:product-storage:v1:${LOCALHOST_SELF_DOTNS.length}:${LOCALHOST_SELF_DOTNS}:${key}`
 }
 
@@ -60,14 +56,16 @@ export async function persistProductStorage(page: Page): Promise<void> {
     Object.defineProperty(window, '__TEST_HOST__', {
       configurable: true,
       get: () => host,
-      set(value: TestHostHandle) {
+      set(value: TestHostControl) {
         host = value
         try {
           const saved = JSON.parse(localStorage.getItem(mirrorKey) ?? '{}') as Record<
             string,
             string
           >
-          for (const [k, v] of Object.entries(saved)) value.seedProductStorage(k, v)
+          for (const [k, v] of Object.entries(saved)) {
+            void value.callbacks.productStorage.write(k, new TextEncoder().encode(v))
+          }
         } catch {
           // an unreadable mirror just means a cold start
         }
@@ -81,10 +79,13 @@ export async function persistProductStorage(page: Page): Promise<void> {
               string,
               string
             >
-            localStorage.setItem(
-              mirrorKey,
-              JSON.stringify({ ...saved, ...value.getProductStorage() })
+            const held = Object.fromEntries(
+              Object.entries(value.getProductStorage()).map(([k, v]) => [
+                k,
+                new TextDecoder().decode(v)
+              ])
             )
+            localStorage.setItem(mirrorKey, JSON.stringify({ ...saved, ...held }))
           } catch {
             // ignore
           }
@@ -108,7 +109,10 @@ export async function saveProductStorage(page: Page): Promise<void> {
     const host = window.__TEST_HOST__
     if (!host) throw new Error('no test host on this page')
     const saved = JSON.parse(localStorage.getItem(mirrorKey) ?? '{}') as Record<string, string>
-    localStorage.setItem(mirrorKey, JSON.stringify({ ...saved, ...host.getProductStorage() }))
+    const held = Object.fromEntries(
+      Object.entries(host.getProductStorage()).map(([k, v]) => [k, new TextDecoder().decode(v)])
+    )
+    localStorage.setItem(mirrorKey, JSON.stringify({ ...saved, ...held }))
   }, MIRROR_KEY)
 }
 
@@ -132,19 +136,25 @@ export async function resetProductStorage(page: Page): Promise<void> {
 /** Read one of the product's storage entries, parsed. */
 export async function readProductStorage<T>(page: Page, key: string): Promise<T | null> {
   return page.evaluate((k) => {
-    const raw = window.__TEST_HOST__?.getProductStorage()[k]
+    const raw = window.__TEST_HOST__?.getProductStorageValue(k)
     return raw ? (JSON.parse(raw) as unknown) : null
-  }, productStorageKey(key)) as Promise<T | null>
+  }, key) as Promise<T | null>
 }
 
 /** Write one of the product's storage entries, and the mirror a reload restores from. */
 export async function writeProductStorage(page: Page, key: string, value: unknown): Promise<void> {
   await page.evaluate(
-    ({ k, raw, mirrorKey }) => {
+    async ({ k, raw, mirrorKey }) => {
       const host = window.__TEST_HOST__
       if (!host) throw new Error('no test host on this page')
-      host.seedProductStorage(k, raw)
-      localStorage.setItem(mirrorKey, JSON.stringify(host.getProductStorage()))
+      await host.callbacks.productStorage.write(k, new TextEncoder().encode(raw))
+      const held = Object.fromEntries(
+        Object.entries(host.getProductStorage()).map(([key, v]) => [
+          key,
+          new TextDecoder().decode(v)
+        ])
+      )
+      localStorage.setItem(mirrorKey, JSON.stringify(held))
     },
     { k: productStorageKey(key), raw: JSON.stringify(value), mirrorKey: MIRROR_KEY }
   )

@@ -2,17 +2,20 @@ import { createUsername } from './create-username'
 import { ensureContracts } from './ensure-contracts'
 import { ensureFixtureApps } from './ensure-fixture-apps'
 import { fundIdentity } from './fund'
+import { assertHostIdentity } from './host-identity'
 import { APP_URL } from '../utils'
 
 /**
- * Prepare the per-run identity once before the suite: fund it native and PGAS
- * from the shared master, self-bind it on the resolver, and register its run
- * username on the People chain, so every spec can attest as a fresh identity
- * that no dead account has locked and can reveal a name on a first recommend.
+ * Prepare the per-run identity once before the suite: confirm the host signs as
+ * the identity the fixtures derive, fund it native and PGAS from the shared
+ * master, self-bind it on the resolver, and register its run username on the
+ * People chain, so every spec can attest as a fresh identity that no dead
+ * account has locked and can reveal a name on a first recommend.
  */
 export default async function globalSetup(): Promise<void> {
   ensureContracts()
   await ensureFixtureApps()
+  await assertHostIdentity()
   await fundIdentity()
   await createUsername()
   await warmClient()
