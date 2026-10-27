@@ -1,6 +1,10 @@
 /**
- * Covers adding a domain: snapshot suggestions, normalization, and the error
- * path when the connected account cannot publish.
+ * Covers adding a domain: snapshot suggestions, normalization, and tracking.
+ *
+ * Adding is local. It records the label the portal tracks and opens its detail
+ * page, and publishing is a separate step there, so an add signs nothing and
+ * needs no session. The specs add `calculator`, the registry fixture app that
+ * the registry suite publishes, so its detail page has records to show.
  *
  * Uses the TrUAPI test host to stand up a host around the app.
  */
@@ -10,7 +14,7 @@ import { expect, test } from '@playwright/test'
 
 import { mnemonicToEntropy } from '@polkadot-labs/hdkd-helpers'
 
-import { TLD } from '../src/lib/config'
+import { TLD, WEB_DOMAIN } from '../src/lib/config'
 import {
   getProductFrame,
   navigateToTestHost,
@@ -18,6 +22,9 @@ import {
   startSignedHost,
   startUnsignedHost
 } from './utils'
+
+/** The registry fixture app, see apps/registry/tests/fixture-projects/calculator. */
+const LABEL = 'calculator'
 
 test.describe('Add a domain', () => {
   let host: Awaited<ReturnType<typeof startSignedHost>>
@@ -81,13 +88,23 @@ test.describe('Add a domain', () => {
     await expect(frame.getByRole('button', { name: 'Add', exact: true })).toBeDisabled()
   })
 
-  test('adding a domain the account cannot publish errors and signs nothing', async () => {
+  test('adding a domain tracks it, opens its detail page, and signs nothing', async () => {
     // When
-    await frame.locator('.field input').fill('browse')
+    await frame.locator('.field input').fill(LABEL)
     await frame.getByRole('button', { name: 'Add', exact: true }).click()
 
     // Then
-    await expect(frame.locator('.feedback-error')).toBeVisible({ timeout: 25_000 })
+    await expect(frame.locator('.detail-name')).toHaveText('Calculator', { timeout: 30_000 })
+    await expect(frame.locator('.detail-head .card-domain')).toHaveText(`${LABEL}.${WEB_DOMAIN}`)
+
+    // When
+    await frame.locator('.nav-item', { hasText: 'Products' }).click()
+
+    // Then
+    await expect(
+      frame.locator('.card .card-domain', { hasText: `${LABEL}.${WEB_DOMAIN}` })
+    ).toBeVisible()
+    await expect(frame.locator('.feedback-error')).toHaveCount(0)
     const signed = await page.evaluate(
       () =>
         (
@@ -105,7 +122,9 @@ test.describe('Add a domain', () => {
   })
 })
 
-test('an unauthenticated host still fails an add before anything signs', async ({ browser }) => {
+test('an unauthenticated host still adds a domain without signing', async ({ browser }) => {
+  // It boots its own host, which comes on top of the waits below.
+  test.setTimeout(90_000)
   // Given
   const host = await startUnsignedHost()
   const context = await browser.newContext({ ignoreHTTPSErrors: true })
@@ -115,11 +134,21 @@ test('an unauthenticated host still fails an add before anything signs', async (
 
   // When
   await frame.locator('.toolbar').getByRole('button', { name: 'Add new' }).click()
-  await frame.locator('.field input').fill('browse')
+  await frame.locator('.field input').fill(LABEL)
   await frame.getByRole('button', { name: 'Add', exact: true }).click()
 
   // Then
-  await expect(frame.locator('.feedback-error')).toBeVisible({ timeout: 25_000 })
+  await expect(frame.locator('.detail-name')).toHaveText('Calculator', { timeout: 30_000 })
+  await expect(frame.locator('.detail-head .card-domain')).toHaveText(`${LABEL}.${WEB_DOMAIN}`)
+
+  // When
+  await frame.locator('.nav-item', { hasText: 'Products' }).click()
+
+  // Then
+  await expect(
+    frame.locator('.card .card-domain', { hasText: `${LABEL}.${WEB_DOMAIN}` })
+  ).toBeVisible()
+  await expect(frame.locator('.feedback-error')).toHaveCount(0)
   const signed = await page.evaluate(
     () =>
       (
@@ -139,6 +168,8 @@ test.describe('Add a domain with the owner fixture', () => {
   )
 
   test('adding an owned domain shows its card', async ({ browser }) => {
+    // It boots its own host, which comes on top of the waits below.
+    test.setTimeout(180_000)
     // Given
     // The host activates a session from 32 bytes of entropy, so the owner
     // mnemonic has to be a 24-word one, and its username has to be owned by the

@@ -37,6 +37,7 @@ export async function createAttestation(label: string): Promise<AttestResult> {
         // over the raw selector instead.
         const refused = /ResolverRejected|0xad0d91b9/.test(String(err))
         if (!refused) throw err
+        console.warn(`${label} is already recommended by another account of this identity`)
       }
     }
     return {

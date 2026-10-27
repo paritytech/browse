@@ -9,7 +9,7 @@ import { expect, test } from '@playwright/test'
 
 import { createAttestation } from './fixtures/attest'
 import { createCachedApps } from './fixtures/cache'
-import { createDevSigner, createIdentitySigner, fundWithPgas } from './fixtures/fund'
+import { createDevSigner, createIdentitySigner } from './fixtures/fund'
 import { FOLLOWING_KEY, readProductStorage, saveProductStorage } from './fixtures/host-storage'
 import { createRevokedAttestation } from './fixtures/revoke-attestation'
 import { seedPreimage } from './fixtures/seed-preimage'
@@ -33,9 +33,8 @@ test.describe('Following', () => {
   let recommendContext: BrowserContext
 
   test.beforeAll(async ({ browser }) => {
-    // A funding and three chain writes, which outlasted 70s in CI on 2026-09-29.
+    // Three chain writes, which outlasted 70s in CI on 2026-09-29.
     test.setTimeout(150_000)
-    await fundWithPgas(createDevSigner('Alice').address)
     await createRevokedAttestation('calculator').catch(() => {})
     await createRevokedAttestation('stopwatch').catch(() => {})
     await createAttestation('calculator')
@@ -51,7 +50,8 @@ test.describe('Following', () => {
   })
 
   test('As a signed user, when I follow an address, I see it in my Following list', async () => {
-    test.setTimeout(30_000)
+    // A fresh page waits on a full attestation scan before the first card shows.
+    test.setTimeout(60_000)
     const page = await context.newPage()
 
     // Given
@@ -84,7 +84,7 @@ test.describe('Following', () => {
 
     // Then
     await expect(frame.locator('.stack-panel__chip')).toHaveCount(1)
-    await expect(frame.locator(CARD).first()).toBeVisible({ timeout: 15_000 })
+    await expect(frame.locator(CARD).first()).toBeVisible({ timeout: 30_000 })
     const cards = frame.locator(CARD)
     expect(await cards.count()).toBeGreaterThan(0)
     await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
@@ -98,6 +98,9 @@ test.describe('Following', () => {
   })
 
   test('As a signed user, when I reload the page, my following still shows up', async () => {
+    // A fresh page has no earlier result to show, so the Following tab waits on a
+    // full attestation scan, which outlasts the 15s budget of the describe.
+    test.setTimeout(60_000)
     const page = await context.newPage()
 
     // Given
@@ -111,13 +114,14 @@ test.describe('Following', () => {
 
     // Then
     await expect(frame.locator('.empty-state')).not.toBeVisible()
-    await expect(frame.locator(CARD).first()).toBeVisible({ timeout: 15_000 })
+    await expect(frame.locator(CARD).first()).toBeVisible({ timeout: 30_000 })
 
     await page.close()
   })
 
   test('As a signed user, when I follow someone, I see their recommended apps in the Following tab', async () => {
-    test.setTimeout(40_000)
+    // A fresh page waits on a full attestation scan before the first card shows.
+    test.setTimeout(60_000)
     const page = await recommendContext.newPage()
 
     // Given
@@ -132,7 +136,7 @@ test.describe('Following', () => {
     await frame.locator('.stack-panel__option').click()
 
     // Then
-    await expect(frame.locator(CARD).first()).toBeVisible({ timeout: 20_000 })
+    await expect(frame.locator(CARD).first()).toBeVisible({ timeout: 30_000 })
     await expect(frame.locator(CARD)).toHaveCount(1)
     await expect(frame.locator('.loading-dots')).not.toBeVisible({ timeout: 10_000 })
 
@@ -140,7 +144,8 @@ test.describe('Following', () => {
   })
 
   test('As a signed user, when someone I follow recommends another app, I see it appear and disappear when revoked', async () => {
-    test.setTimeout(40_000)
+    // A chain write, then a fresh page that waits on a full attestation scan.
+    test.setTimeout(90_000)
 
     // Given
     await createAttestation('stopwatch')
@@ -154,7 +159,7 @@ test.describe('Following', () => {
     await frame.locator('.category-tab', { hasText: 'Following' }).click()
 
     // Then
-    await expect(frame.locator(CARD).first()).toBeVisible({ timeout: 20_000 })
+    await expect(frame.locator(CARD).first()).toBeVisible({ timeout: 30_000 })
     await expect(frame.locator(CARD)).toHaveCount(2)
 
     await page.close()
