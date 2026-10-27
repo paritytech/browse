@@ -4,10 +4,10 @@
  * Publisher listings, so global setup puts back whatever is missing.
  *
  * Each app is deployed with bulletin-deploy from the master wallet only when
- * its name has no content, and published only when the Publisher does not list
- * it. Publishing goes through the registry operator, the substrate dev root,
- * which the deployed Publisher names as its owner. Idempotent: on a healthy
- * network this is one read per app.
+ * its name has no content or no manifest, and published only when the
+ * Publisher does not list it. Publishing goes through the registry operator,
+ * the substrate dev root, which the deployed Publisher names as its owner.
+ * Idempotent: on a healthy network this is up to three reads per app.
  */
 import { execFileSync } from 'node:child_process'
 import { dirname, resolve } from 'node:path'
@@ -59,7 +59,10 @@ const DRY_RUN_ORIGIN = '5C4hrfjw9DjXZTzV3MwzrrAr9P1MLDHajjSidz9bR544LEq1'
 /** The bulletin-deploy the fixtures build with, pinned so a run is repeatable. */
 const BULLETIN_DEPLOY_VERSION = '0.19.1'
 
-const RESOLVER_ABI = parseAbi(['function contenthash(bytes32 node) view returns (bytes)'])
+const RESOLVER_ABI = parseAbi([
+  'function contenthash(bytes32 node) view returns (bytes)',
+  'function text(bytes32 node, string key) view returns (string)'
+])
 const PUBLISHER_ABI = parseAbi(['function isPublished(bytes32 labelhash) view returns (bool)'])
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../../..')
@@ -115,6 +118,18 @@ async function hasContent(api: HubApi, label: string): Promise<boolean> {
   if (raw === '0x') return false
   const hash = decodeFunctionResult({ abi: RESOLVER_ABI, functionName: 'contenthash', data: raw })
   return hash !== '0x' && hash.length > 2
+}
+
+/** Whether the label carries the manifest a deploy writes after its content. */
+async function hasManifest(api: HubApi, label: string): Promise<boolean> {
+  const node = namehash(nameWithTld(label, NETWORK.TLD))
+  const raw = await view(
+    api,
+    NETWORK.CONTENT_RESOLVER,
+    encodeFunctionData({ abi: RESOLVER_ABI, functionName: 'text', args: [node, 'manifest'] })
+  )
+  if (raw === '0x') return false
+  return decodeFunctionResult({ abi: RESOLVER_ABI, functionName: 'text', data: raw }) !== ''
 }
 
 async function isPublished(api: HubApi, label: string): Promise<boolean> {
@@ -194,7 +209,8 @@ export async function ensureFixtureApps(): Promise<void> {
   try {
     const api = client.getTypedApi(previewnethub)
     for (const app of FIXTURE_APPS) {
-      const content = !(await hasContent(api, app.label))
+      // A deploy that stopped before its manifest left content without one.
+      const content = !(await hasContent(api, app.label)) || !(await hasManifest(api, app.label))
       const listing = app.published && !(await isPublished(api, app.label))
       if (content || listing) missing.push({ app, content, listing })
     }

@@ -123,14 +123,14 @@ export { APP_URL, PORT }
 
 // Stops compiling once the test host server takes `networks`, the release that
 // closes paritytech/trinity-user-agents#1388. Then drop every workaround for it:
-// - fromNetworks in startSignedHost here, startHost in apps/portal/tests/utils.ts
-//   and scripts/mock-host.ts
+// - fromNetworks in startHost here, startHost in apps/portal/tests/utils.ts and
+//   scripts/mock-host.ts
 // - the remount after seedIconPreimage in app-start.spec.ts
 // - the seeding in fixtures/host-storage.ts
 true satisfies 'networks' extends keyof TestHostServerOptions ? never : true
 
 /**
- * Start a test host signed in as the first of `accounts`, `alice` by default.
+ * Start a test host for the active network.
  *
  * The server takes no `networks`, so they are expanded here into the chain
  * proxies and runtime config they stand for. Tracked in
@@ -139,28 +139,27 @@ true satisfies 'networks' extends keyof TestHostServerOptions ? never : true
  * createIdentitySigner does, so it is set here rather than left to the host
  * default.
  */
-export async function startSignedHost(...accounts: (DevAccountName | DevAccount)[]) {
+async function startHost(options: Partial<TestHostServerOptions>) {
   const { createTestHostServer } = await import('@parity/truapi-host/testing/server')
   const { fromNetworks } = await import('@parity/truapi-host/testing/playwright')
   const { mock, runtimeConfig } = fromNetworks([activeNetwork(), activePeopleChain()])
   return createTestHostServer({
     productUrl: APP_URL,
     productId: LOCALHOST_SELF_DOTNS,
-    accounts: accounts.length > 0 ? accounts : ['alice'],
     mock,
-    runtimeConfig: { ...runtimeConfig, networkSuffix: NETWORK.TLD }
+    runtimeConfig: { ...runtimeConfig, networkSuffix: NETWORK.TLD },
+    ...options
   })
 }
 
-/**
- * A host for the specs written against a user with no connected account.
- *
- * It is signed in on purpose: these specs assert what holds for a connected
- * user too, and the signed-out path of the sign-in detection in the app is not
- * tested here. A host booted with `loginBehavior: 'manual'` would cover it.
- */
+/** Start a test host signed in as the first of `accounts`, `alice` by default. */
+export async function startSignedHost(...accounts: (DevAccountName | DevAccount)[]) {
+  return startHost({ accounts: accounts.length > 0 ? accounts : ['alice'] })
+}
+
+/** A host with no session: the user has not signed in. */
 export async function startUnsignedHost() {
-  return startSignedHost('alice')
+  return startHost({ loginBehavior: 'manual' })
 }
 
 export async function navigateToTestHost(page: Page, hostUrl: string): Promise<void> {

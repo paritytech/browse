@@ -239,8 +239,10 @@ export async function ensureFunderPgas(from: Credentials = createMasterSigner())
       try {
         const { claimed } = await claimPgas(from.address, slot)
         if (!claimed) break
-      } catch {
+      } catch (error) {
         // Slot already claimed today or a transient failure, so try the next slot.
+        // Logged, since a claim that cannot be built fails every slot the same way.
+        console.warn(`PGAS claim slot ${slot} failed: ${String(error)}`)
         continue
       }
       balance = await pgasBalanceOf(api, assetId, from.address)
