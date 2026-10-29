@@ -34,10 +34,9 @@ const RPC_ENDPOINTS = [...NETWORK.ASSETHUB_RPCS]
 
 // Amounts transferred on a top-up (the `amount` passed to the fund helpers).
 export const DEFAULT_PGAS_AMOUNT = 5_000_000_000n
-// The unbound product account pays its whole first-recommend batch in PGAS via
-// the AsPgas route, since a non-zero balance makes the app skip the allowance
-// grant. Seed enough to cover the two-call batch of `bindIdentity` and
-// `attest`, which a token seed does not. Reclaimed to the master after the run.
+// A non-zero PGAS balance makes the app skip the allowance grant. Seed enough
+// for the two-call first-recommend batch of `bindIdentity` and `attest`, which
+// a token seed does not cover. Reclaimed to the master after the run.
 export const PGAS_SEED_AMOUNT = 10_000_000_000n
 // Native only pays tx fees, so a small grant is plenty. Kept well under the
 // funder balance so it can seed several sub-accounts without a native top-up.
@@ -481,6 +480,16 @@ async function ensureIdentityBound(identity: Credentials): Promise<void> {
       // ignore teardown errors
     }
   }
+}
+
+/** Read the native fee balance without funding the account. */
+export async function nativeBalanceOf(address: string): Promise<bigint> {
+  return withAssetHubApi(async (api) => {
+    const account = (await api.query.System.Account.getValue(address as SS58String, {
+      at: 'best'
+    })) as { data: { free: bigint } }
+    return account.data.free
+  })
 }
 
 /** The identity `address` is bound to, or zero when it has never been bound. */
