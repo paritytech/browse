@@ -107,7 +107,8 @@ async function hostSigner(): Promise<{
   const publicKey = account.publicKey
   const origin = AccountId().dec(publicKey)
   return {
-    signer: accountsProvider.getProductAccountSigner(account),
+    // Both supported networks charge PGAS through transaction pipeline 1.
+    signer: accountsProvider.getProductAccountSigner(account, { txExtVersion: 1 }),
     origin,
     publicKey
   }
@@ -592,10 +593,8 @@ export class AttestationService {
    * SmartContractAllowance grant (RFC-0010).
    *
    * Request it only when the PGAS balance is zero. A non-zero balance means the
-   * account is already provisioned, and re-requesting re-prompts the user every
-   * time. The grant authorizes the `AsPgas` fee route rather than minting a
-   * balance, so do not wait for one after `Allocated`. Without the grant,
-   * `createTransaction` fails with `CreateTransactionErr::PermissionDenied`.
+   * account is already provisioned. After a grant, wait for the claim to fund
+   * the account before submitting through the PGAS transaction pipeline.
    */
   private async ensureAllowance(origin: string): Promise<void> {
     // Pgas.PgasAssetId is checksum-stale in the typed descriptor, so read it and

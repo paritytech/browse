@@ -3,20 +3,20 @@
  *
  * TrUAPI derives it from the session root and the product id, so it cannot be
  * pinned to a chosen account, and every session root gets a different one. A
- * real host mints PGAS into it on a SmartContractAllowance grant. The test host
- * grants the allowance but mints nothing, so the suite pays instead.
+ * real host mints only PGAS into it on a SmartContractAllowance grant. The test
+ * host grants the allowance but mints nothing, so the suite pays instead.
  */
 import { productAccountAddress, type DevAccount } from '@parity/truapi-host/testing/playwright'
 
 import { LOCALHOST_SELF_DOTNS } from '../../src/lib/config'
-import { fundWithNative, fundWithPgas } from './fund'
+import { fundWithPgas } from './fund'
 
 /**
- * What a product account is given, in PGAS. Sized per host: a write costs
- * roughly 2, and nothing can hand the balance back, since only the host holds
- * the key. The funder claims a capped amount a day, so this is not free.
+ * Match the real host allowance so a suite can pay transaction fees in PGAS.
+ *
+ * The product account has no native funds to subsidize later writes.
  */
-const DEFAULT_PRODUCT_PGAS = 12_000_000_000n
+const DEFAULT_PRODUCT_PGAS = 50_000_000_000n
 
 /**
  * Fund the product account a host signed in as `account` hands the app, and
@@ -29,7 +29,6 @@ export async function fundProductAccount(
   pgas: bigint = DEFAULT_PRODUCT_PGAS
 ): Promise<string> {
   const address = await productAccountAddress({ account, productId: LOCALHOST_SELF_DOTNS })
-  await fundWithNative(address)
   await fundWithPgas(address, pgas)
   return address
 }

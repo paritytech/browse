@@ -68,7 +68,8 @@ export function connectIdentity(): Promise<Identity> {
         username,
         ss58,
         h160,
-        signer: provider.getLegacyAccountSigner({ publicKey, name: username })
+        // Both supported networks charge PGAS through transaction pipeline 1.
+        signer: provider.getLegacyAccountSigner({ publicKey, name: username }, { txExtVersion: 1 })
       }
     })().catch((err) => {
       identityPromise = null

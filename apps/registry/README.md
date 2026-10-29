@@ -36,6 +36,23 @@ bun install
 bun dev                 # default network
 ```
 
+### PGAS payments
+
+Contract writes use transaction extension pipeline 1 on Paseo Next V2 and Previewnet.
+
+Host-backed transaction creators select it with `{ txExtVersion: 1 }`. Pipeline 0
+does not charge PGAS, even when the account has a funded allowance. The registry
+and portal select pipeline 1 when creating their transaction signers.
+
+Recommendation fixtures fund the product account with PGAS only. The first
+recommendation test checks that its native balance remains zero before and after
+the write, so native funding cannot hide a payment-pipeline regression.
+
+```sh
+bun run test:e2e:paseo
+bun run test:e2e:previewnet
+```
+
 ## Deploy
 
 Install deployment CLI.

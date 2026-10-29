@@ -18,6 +18,7 @@ import {
   createDevSigner,
   createIdentitySigner,
   fundWithNative,
+  nativeBalanceOf,
   transferAllWithNative,
   transferAllWithPgas
 } from './fixtures/fund'
@@ -104,7 +105,7 @@ test.describe('Recommend works', () => {
   // The product account of the run is unbound until its first write, so this
   // test goes first and makes it. It takes `stopwatch`, which no other recommend
   // in this file touches, and `calculator` stays free for the refusal spec below.
-  test('As a first-time user, when I recommend an app, I reveal my primary identity and recommend in a single signature', async () => {
+  test('As a first-time user with only PGAS, when I recommend an app, I reveal my primary identity and recommend in a single signature', async () => {
     // The first recommendation of a run binds the identity and attests in one
     // batch, so it is the slowest write the suite makes, and the toast waits on
     // the network confirming it.
@@ -112,6 +113,7 @@ test.describe('Recommend works', () => {
     page = await context.newPage()
 
     // Given
+    expect(await nativeBalanceOf(productAccount)).toBe(0n)
     expect(
       await boundIdentityOf(productAccount),
       'the product account must be unbound for the recommend to bind it'
@@ -133,6 +135,7 @@ test.describe('Recommend works', () => {
     })
     const identity = await boundIdentityOf(createIdentitySigner().address)
     await expect.poll(() => boundIdentityOf(productAccount), { timeout: 30_000 }).toBe(identity)
+    expect(await nativeBalanceOf(productAccount)).toBe(0n)
   })
 
   test('As a signed user, when I recommend an app, I see the count go up and a confirmation toast', async () => {
